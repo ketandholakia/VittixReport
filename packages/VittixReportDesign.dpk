@@ -1,0 +1,12 @@
+﻿package VittixReportDesign;
+
+requires
+  rtl,
+  vcl,
+  designide,
+  VittixReportRuntime;
+
+contains
+  Vittix.Report.Reg in '..\source\Vittix.Report.Reg.pas';
+
+end.

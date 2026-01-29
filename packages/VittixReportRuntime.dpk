@@ -1,0 +1,28 @@
+﻿package VittixReportRuntime;
+
+{$R *.res}
+
+requires
+  rtl,
+  vcl,
+  dbrtl;
+
+contains
+  Vittix.Report.Model in '..\source\Vittix.Report.Model.pas',
+  Vittix.Report.Objects in '..\source\Vittix.Report.Objects.pas',
+  Vittix.Report.Bands in '..\source\Vittix.Report.Bands.pas',
+  Vittix.Report.Context in '..\source\Vittix.Report.Context.pas',
+  Vittix.Report.Expressions in '..\source\Vittix.Report.Expressions.pas',
+  Vittix.Report.Aggregates in '..\source\Vittix.Report.Aggregates.pas',
+  Vittix.Report.Engine in '..\source\Vittix.Report.Engine.pas',
+  Vittix.Report.Serializer in '..\source\Vittix.Report.Serializer.pas',
+  Vittix.Report.Renderer in '..\source\Vittix.Report.Renderer.pas',
+  Vittix.Report.DesignerControl in '..\source\Vittix.Report.DesignerControl.pas',
+  Vittix.Report.Toolbox in '..\source\Vittix.Report.Toolbox.pas',
+  Vittix.Report.PropertyBridge in '..\source\Vittix.Report.PropertyBridge.pas',
+  Vittix.Report.Preview in '..\source\Vittix.Report.Preview.pas',
+  Vittix.Report.Undo in '..\source\Vittix.Report.Undo.pas',
+  Vittix.Report.Export.PDF in '..\source\Vittix.Report.Export.PDF.pas';
+
+end.
+
