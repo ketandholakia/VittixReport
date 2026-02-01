@@ -43,8 +43,6 @@ begin
 
   Style := lbStandard;
   Sorted := False;
-
-  ReloadTools;
 end;
 
 { ================= Load Tools ================= }

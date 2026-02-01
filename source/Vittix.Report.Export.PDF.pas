@@ -50,7 +50,7 @@ begin
       if i > 0 then
         Printer.NewPage;
 
-      MF := Engine.Pages[i];
+      MF := TMetafile(Engine.Pages[i]); // Explicitly cast to TMetafile
       PDFCanvas := Printer.Canvas;
 
       PDFCanvas.StretchDraw(
