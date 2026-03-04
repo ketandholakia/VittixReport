@@ -1,17 +1,46 @@
 ﻿package VittixReportRuntime;
 
 {$R *.res}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS ON}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION OFF}
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+{$REFERENCEINFO ON}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES ON}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DEFINE DEBUG}
+{$ENDIF IMPLICITBUILDING}
+{$IMPLICITBUILD ON}
 
 requires
   rtl,
   vcl,
-  dbrtl;
+  dbrtl,
+  vclimg;
 
 contains
+  Vittix.Report.Interfaces in '..\source\Vittix.Report.Interfaces.pas',
+  Vittix.Report.PageSettings in '..\source\Vittix.Report.PageSettings.pas',
+  Vittix.Report.Utils in '..\source\Vittix.Report.Utils.pas',
+  Vittix.Report.Context in '..\source\Vittix.Report.Context.pas',
   Vittix.Report.Model in '..\source\Vittix.Report.Model.pas',
   Vittix.Report.Objects in '..\source\Vittix.Report.Objects.pas',
   Vittix.Report.Bands in '..\source\Vittix.Report.Bands.pas',
-  Vittix.Report.Context in '..\source\Vittix.Report.Context.pas',
   Vittix.Report.Expressions in '..\source\Vittix.Report.Expressions.pas',
   Vittix.Report.Aggregates in '..\source\Vittix.Report.Aggregates.pas',
   Vittix.Report.Engine in '..\source\Vittix.Report.Engine.pas',

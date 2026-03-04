@@ -74,28 +74,33 @@ procedure TReportRenderer.Render(
   ADataSet: TDataSet);
 var
   Engine: TReportEngine;
-  i: Integer;
-  Page: TRenderPage;
-  DC: HDC;
-  R: TRect;
+  i:      Integer;
+  Page:   TRenderPage;
+  DC:     HDC;
+  R:      TRect;
+  PW, PH: Integer;
 begin
   FPages.Clear;
 
   if not Assigned(AReport) then Exit;
 
-  Engine := TReportEngine.Create(AReport, ADataSet);
+  // Read page dimensions from the model's PageSettings
+  PW := AReport.PageSettings.PageWidth;
+  PH := AReport.PageSettings.PageHeight;
+
+  Engine := TReportEngine.Create(AReport, ADataSet); // AProgress defaults to nil
   try
     Engine.Prepare;
-    
+
     for i := 0 to Engine.Pages.Count - 1 do
     begin
-      Page := TRenderPage.Create(TReportEngine.PAGE_WIDTH, TReportEngine.PAGE_HEIGHT);
-      
+      Page := TRenderPage.Create(PW, PH);
+
       DC := Page.Bitmap.Canvas.Handle;
-      R := Rect(0, 0, Page.Bitmap.Width, Page.Bitmap.Height);
-      
+      R  := Rect(0, 0, PW, PH);
+
       PlayEnhMetaFile(DC, Engine.Pages[i].Handle, R);
-      
+
       FPages.Add(Page);
     end;
   finally

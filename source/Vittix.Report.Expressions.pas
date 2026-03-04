@@ -1,5 +1,30 @@
 ﻿unit Vittix.Report.Expressions;
 
+{
+  Vittix.Report.Expressions
+  =========================
+  TReportExpression.Evaluate resolves a string expression in the context of
+  the current dataset row and page state.
+
+  Evaluation order
+  ----------------
+  1. Aggregate functions  SUM(…), COUNT(…), AVG(…), MIN(…), MAX(…)
+  2. System tokens        [PageNo], [TotalPages], [ReportTitle], [ReportDate]
+  3. Dataset field tokens [FieldName]   → current field value as string
+  4. Quoted string literal 'text'
+  5. Arithmetic           +, -, *, /    on resolved tokens
+  6. Numeric fallback
+  7. String fallback
+
+  System tokens (case-insensitive)
+  ---------------------------------
+    [PageNo]       Current page number (1-based)
+    [TotalPages]   Total page count (0 while engine is running)
+    [ReportTitle]  TReportModel.Title
+    [ReportDate]   Date the report was generated (ShortDateStr format)
+    [DateTime]     Date + time the report was generated
+}
+
 interface
 
 uses
@@ -20,14 +45,41 @@ type
 
 implementation
 
-{ ================= Field Token Replace ================= }
+// ---------------------------------------------------------------------------
+// System token resolver
+// ---------------------------------------------------------------------------
+
+function ResolveSystemToken(
+  const Token: string;
+  const Context: TExpressionContext;
+  out Value: string): Boolean;
+begin
+  Result := True;
+  if SameText(Token, 'PageNo') then
+    Value := IntToStr(Context.PageNumber)
+  else if SameText(Token, 'TotalPages') then
+    Value := IntToStr(Context.TotalPages)
+  else if SameText(Token, 'ReportTitle') then
+    Value := Context.ReportTitle
+  else if SameText(Token, 'ReportDate') then
+    Value := DateToStr(Context.ReportDate)
+  else if SameText(Token, 'DateTime') then
+    Value := DateTimeToStr(Context.ReportDate)
+  else
+    Result := False;  // not a system token
+end;
+
+// ---------------------------------------------------------------------------
+// Field + system token replacer
+// ---------------------------------------------------------------------------
 
 function ResolveFieldTokens(
   const S: string;
-  ADataSet: TDataSet): string;
+  ADataSet: TDataSet;
+  const Context: TExpressionContext): string;
 var
   i, j: Integer;
-  FieldName, Value: string;
+  TokenName, TokenValue: string;
 begin
   Result := '';
   i := 1;
@@ -39,16 +91,19 @@ begin
       j := i + 1;
       while (j <= Length(S)) and (S[j] <> ']') do Inc(j);
 
-      FieldName := Copy(S, i+1, j-i-1);
+      TokenName := Copy(S, i + 1, j - i - 1);
 
-      if Assigned(ADataSet)
-         and ADataSet.Active
-         and (ADataSet.FindField(FieldName) <> nil) then
-        Value := ADataSet.FieldByName(FieldName).AsString
+      // 1. Try system tokens first
+      if ResolveSystemToken(TokenName, Context, TokenValue) then
+        Result := Result + TokenValue
+      // 2. Then dataset fields
+      else if Assigned(ADataSet)
+           and ADataSet.Active
+           and (ADataSet.FindField(TokenName) <> nil) then
+        Result := Result + ADataSet.FieldByName(TokenName).AsString
       else
-        Value := '0';
+        Result := Result + '0';
 
-      Result := Result + Value;
       i := j + 1;
     end
     else
@@ -59,7 +114,9 @@ begin
   end;
 end;
 
-{ ================= Simple Math Parser ================= }
+// ---------------------------------------------------------------------------
+// Simple arithmetic parser
+// ---------------------------------------------------------------------------
 
 function EvalSimpleMath(const S: string): Double;
 var
@@ -68,7 +125,6 @@ var
   Acc: Double;
   Op: Char;
 begin
-  { normalize spacing }
   Parts := S.Replace('+',' + ')
             .Replace('-',' - ')
             .Replace('*',' * ')
@@ -79,19 +135,19 @@ begin
     Exit(0);
 
   Acc := StrToFloatDef(Parts[0], 0);
-  i := 1;
+  i   := 1;
 
-  while i < Length(Parts)-1 do
+  while i < Length(Parts) - 1 do
   begin
     Op := Parts[i][1];
 
     case Op of
-      '+': Acc := Acc + StrToFloatDef(Parts[i+1], 0);
-      '-': Acc := Acc - StrToFloatDef(Parts[i+1], 0);
-      '*': Acc := Acc * StrToFloatDef(Parts[i+1], 0);
+      '+': Acc := Acc + StrToFloatDef(Parts[i + 1], 0);
+      '-': Acc := Acc - StrToFloatDef(Parts[i + 1], 0);
+      '*': Acc := Acc * StrToFloatDef(Parts[i + 1], 0);
       '/':
-        if StrToFloatDef(Parts[i+1],0) <> 0 then
-          Acc := Acc / StrToFloatDef(Parts[i+1], 1);
+        if StrToFloatDef(Parts[i + 1], 0) <> 0 then
+          Acc := Acc / StrToFloatDef(Parts[i + 1], 1);
     end;
 
     Inc(i, 2);
@@ -100,63 +156,60 @@ begin
   Result := Acc;
 end;
 
-{ ================= Main Evaluate ================= }
+// ---------------------------------------------------------------------------
+// Main Evaluate
+// ---------------------------------------------------------------------------
 
 class function TReportExpression.Evaluate(
   const Expr: string;
   const Context: TExpressionContext): Variant;
 var
-  S: string;
+  S:        string;
   AggValue: Variant;
+  DblValue: Double;
 begin
   Result := '';
 
   if Trim(Expr) = '' then Exit;
 
-  // Check for aggregate functions first
-  // This assumes aggregate functions are of the form FUNC(expression, SCOPE)
-  if StartsText('SUM(', Expr) or StartsText('COUNT(', Expr) or
-     StartsText('AVG(', Expr) or StartsText('MIN(', Expr) or StartsText('MAX(', Expr) then
+  // Step 1 — aggregate functions
+  if StartsText('SUM(',   Expr) or StartsText('COUNT(', Expr) or
+     StartsText('AVG(',   Expr) or StartsText('MIN(',   Expr) or
+     StartsText('MAX(',   Expr) then
   begin
     if TReportAggregates.TryEvaluate(Expr, Context, AggValue) then
       Exit(AggValue);
   end;
 
-
-  var DblValue: Double; // Declare a temporary Double variable
-  if Trim(Expr) = '' then Exit;
-
-  { step 1 — replace [Field] tokens }
-  S := ResolveFieldTokens(Expr, Context.DataSet);
+  // Steps 2+3 — system tokens and field tokens
+  S := ResolveFieldTokens(Expr, Context.DataSet, Context);
   S := Trim(S);
 
-  { step 2 — quoted string literal }
+  // Step 4 — quoted string literal
   if (Length(S) >= 2)
      and (S[1] = '''')
      and (S[Length(S)] = '''') then
   begin
-    Result := Copy(S, 2, Length(S)-2);
+    Result := Copy(S, 2, Length(S) - 2);
     Exit;
   end;
 
-  { step 3 — math detection }
-  if ContainsText(S,'+') or
-     ContainsText(S,'-') or
-     ContainsText(S,'*') or
-     ContainsText(S,'/') then
+  // Step 5 — arithmetic detection
+  if ContainsText(S, '+') or ContainsText(S, '-') or
+     ContainsText(S, '*') or ContainsText(S, '/') then
   begin
     Result := EvalSimpleMath(S);
     Exit;
   end;
 
-  { step 4 — numeric fallback }
-  if TryStrToFloat(S, DblValue) then // Attempt conversion into DblValue
+  // Step 6 — numeric fallback
+  if TryStrToFloat(S, DblValue) then
   begin
-    Result := DblValue; // Assign DblValue to Variant Result
-    Exit; // Exit if successful
+    Result := DblValue;
+    Exit;
   end;
 
-  { step 5 — string fallback }
+  // Step 7 — string fallback
   Result := S;
 end;
 

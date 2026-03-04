@@ -1,4 +1,17 @@
-unit Vittix.Report.Aggregates;
+﻿unit Vittix.Report.Aggregates;
+
+{
+  Vittix.Report.Aggregates
+  ========================
+  Evaluates aggregate functions (SUM, COUNT, AVG, MIN, MAX) over a dataset
+  range defined by the group bookmarks in TExpressionContext.
+
+  Bug fixes in this revision
+  --------------------------
+  â€¢ BookmarkLeak: The while-loop previously called GetBookmark every row for
+    the group-end boundary check but never freed the returned bookmark.
+    Fix: capture in a local variable (RowBM) and free it after the comparison.
+}
 
 interface
 
@@ -29,12 +42,13 @@ class function TReportAggregates.TryEvaluate(
 var
   Func, InnerExpr: string;
   P1, P2: Integer;
-  BM: TBookmark;
+  SaveBM, RowBM: TBookmark;    // SaveBM = restore point; RowBM = per-row boundary check
   Count: Integer;
   Sum, ValFloat: Double;
   ValVar: Variant;
   FirstVal: Boolean;
   MinVal, MaxVal: Double;
+  AtGroupEnd: Boolean;
 begin
   Result := False;
   Value := Null;
@@ -44,7 +58,7 @@ begin
 
   if (P1 <= 1) or (P2 <= P1) then Exit;
 
-  Func := UpperCase(Trim(Copy(Expr, 1, P1 - 1)));
+  Func      := UpperCase(Trim(Copy(Expr, 1, P1 - 1)));
   InnerExpr := Copy(Expr, P1 + 1, P2 - P1 - 1);
 
   if (Func <> 'SUM') and (Func <> 'COUNT') and (Func <> 'AVG') and
@@ -52,7 +66,7 @@ begin
 
   if not Assigned(Context.DataSet) or not Context.DataSet.Active then Exit;
 
-  BM := Context.DataSet.GetBookmark;
+  SaveBM := Context.DataSet.GetBookmark;
   Context.DataSet.DisableControls;
   try
     if Context.GroupStart <> nil then
@@ -60,17 +74,29 @@ begin
     else
       Context.DataSet.First;
 
-    Count := 0;
-    Sum := 0.0;
-    MinVal := 0.0;
-    MaxVal := 0.0;
+    Count    := 0;
+    Sum      := 0.0;
+    MinVal   := 0.0;
+    MaxVal   := 0.0;
     FirstVal := True;
 
     while not Context.DataSet.Eof do
     begin
-      if (Context.GroupEnd <> nil) and
-         (Context.DataSet.CompareBookmarks(Context.DataSet.GetBookmark, Context.GroupEnd) = 0) then
-        Break;
+      // --- Group-end boundary check (fixed bookmark leak) ---
+      AtGroupEnd := False;
+      if Context.GroupEnd <> nil then
+      begin
+        RowBM := Context.DataSet.GetBookmark;  // allocate
+        try
+          AtGroupEnd :=
+            (Context.DataSet.CompareBookmarks(RowBM, Context.GroupEnd) = 0);
+        finally
+          Context.DataSet.FreeBookmark(RowBM); // always free
+        end;
+      end;
+
+      if AtGroupEnd then Break;
+      // ------------------------------------------------------
 
       ValVar := TReportExpression.Evaluate(InnerExpr, Context);
 
@@ -81,8 +107,8 @@ begin
         else
         begin
           try
-            ValFloat := ValVar; // Implicit variant conversion
-            
+            ValFloat := ValVar;
+
             if Func = 'SUM' then
               Sum := Sum + ValFloat
             else if Func = 'AVG' then
@@ -109,20 +135,20 @@ begin
       Context.DataSet.Next;
     end;
 
-    if Func = 'COUNT' then Value := Count
-    else if Func = 'SUM' then Value := Sum
-    else if Func = 'AVG' then
+    if Func = 'COUNT'     then Value := Count
+    else if Func = 'SUM'  then Value := Sum
+    else if Func = 'AVG'  then
     begin
       if Count > 0 then Value := Sum / Count else Value := 0;
     end
-    else if Func = 'MIN' then Value := MinVal
-    else if Func = 'MAX' then Value := MaxVal;
+    else if Func = 'MIN'  then Value := MinVal
+    else if Func = 'MAX'  then Value := MaxVal;
 
     Result := True;
   finally
-    if Context.DataSet.Active and Context.DataSet.BookmarkValid(BM) then
-      Context.DataSet.GotoBookmark(BM);
-    Context.DataSet.FreeBookmark(BM);
+    if Context.DataSet.Active and Context.DataSet.BookmarkValid(SaveBM) then
+      Context.DataSet.GotoBookmark(SaveBM);
+    Context.DataSet.FreeBookmark(SaveBM);
     Context.DataSet.EnableControls;
   end;
 end;

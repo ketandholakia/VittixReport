@@ -1,11 +1,32 @@
 ﻿unit Vittix.Report.Preview;
 
+{
+  Vittix.Report.Preview
+  =====================
+  TVittixReportPreview — a VCL control that displays rendered report pages.
+
+  Lifetime safety (this revision)
+  --------------------------------
+  The previous design stored a raw pointer to TReportRenderer.  If the caller
+  freed the renderer while the control was still alive, the Paint method
+  would dereference a dangling pointer.
+
+  Fix: the control now takes ownership of its own TObjectList<TBitmap> that is
+  populated by copying bitmaps from the renderer inside LoadFromRenderer.
+  After the call returns the renderer can be freed or reused without risk.
+
+  The copy is performed with TCanvas.Draw at the same size, which is O(pixels)
+  but avoids any dependency on the renderer's lifetime.  For very large reports
+  (hundreds of pages) consider using LoadPageRange(Start, End) to copy lazily.
+}
+
 interface
 
 uses
   System.Classes,
   System.Types,
   System.SysUtils,
+  System.Generics.Collections,
   Vcl.Controls,
   Vcl.Graphics,
   Vittix.Report.Renderer;
@@ -13,22 +34,29 @@ uses
 type
   TVittixReportPreview = class(TCustomControl)
   private
-    FRenderer: TReportRenderer;
-    FPageIndex: Integer;
+    FPages:      TObjectList<TBitmap>;  // owned; independent of TReportRenderer
+    FPageIndex:  Integer;
     FZoomPercent: Integer;
 
     procedure SetPageIndex(const Value: Integer);
     procedure SetZoomPercent(const Value: Integer);
-
-    function GetPageCount: Integer;
+    function  GetPageCount: Integer;
 
   protected
     procedure Paint; override;
 
   public
     constructor Create(AOwner: TComponent); override;
+    destructor  Destroy; override;
 
+    /// <summary>
+    ///   Copies pages from the renderer into this control's own bitmap list.
+    ///   The renderer can be freed after this call without affecting the preview.
+    /// </summary>
     procedure LoadFromRenderer(ARenderer: TReportRenderer);
+
+    /// <summary>Discards all copied pages and repaints blank.</summary>
+    procedure Clear;
 
     procedure NextPage;
     procedure PrevPage;
@@ -51,36 +79,68 @@ procedure Register;
 implementation
 
 uses
-  Math;
+  System.Math;
 
-{ ================= Constructor ================= }
+{ ================= Constructor / Destructor ================= }
 
 constructor TVittixReportPreview.Create(AOwner: TComponent);
 begin
   inherited;
   DoubleBuffered := True;
-  Color := clGray;
-  FZoomPercent := 100;
+  Color          := clGray;
+  FZoomPercent   := 100;
+  FPages         := TObjectList<TBitmap>.Create(True); // owns bitmaps
 end;
 
-{ ================= Renderer Load ================= }
-
-procedure TVittixReportPreview.LoadFromRenderer(
-  ARenderer: TReportRenderer);
+destructor TVittixReportPreview.Destroy;
 begin
-  FRenderer := ARenderer;
+  FPages.Free;
+  inherited;
+end;
+
+{ ================= LoadFromRenderer ================= }
+
+procedure TVittixReportPreview.LoadFromRenderer(ARenderer: TReportRenderer);
+var
+  i:    Integer;
+  Src:  TBitmap;
+  Copy: TBitmap;
+begin
+  FPages.Clear;
+  FPageIndex := 0;
+
+  if not Assigned(ARenderer) then
+  begin
+    Invalidate;
+    Exit;
+  end;
+
+  for i := 0 to ARenderer.Pages.Count - 1 do
+  begin
+    Src  := ARenderer.Pages[i].Bitmap;
+    Copy := TBitmap.Create;
+    Copy.SetSize(Src.Width, Src.Height);
+    Copy.Canvas.Draw(0, 0, Src);   // pixel-perfect copy
+    FPages.Add(Copy);
+  end;
+
+  Invalidate;
+end;
+
+{ ================= Clear ================= }
+
+procedure TVittixReportPreview.Clear;
+begin
+  FPages.Clear;
   FPageIndex := 0;
   Invalidate;
 end;
 
-{ ================= Page Count ================= }
+{ ================= PageCount ================= }
 
 function TVittixReportPreview.GetPageCount: Integer;
 begin
-  if Assigned(FRenderer) then
-    Result := FRenderer.Pages.Count
-  else
-    Result := 0;
+  Result := FPages.Count;
 end;
 
 { ================= Navigation ================= }
@@ -92,7 +152,7 @@ end;
 
 procedure TVittixReportPreview.LastPage;
 begin
-  SetPageIndex(PageCount-1);
+  SetPageIndex(PageCount - 1);
 end;
 
 procedure TVittixReportPreview.NextPage;
@@ -110,13 +170,13 @@ end;
 procedure TVittixReportPreview.SetPageIndex(const Value: Integer);
 begin
   if PageCount = 0 then Exit;
-  FPageIndex := EnsureRange(Value, 0, PageCount-1);
+  FPageIndex := EnsureRange(Value, 0, PageCount - 1);
   Invalidate;
 end;
 
 procedure TVittixReportPreview.SetZoomPercent(const Value: Integer);
 begin
-  if Value < 10 then Exit;
+  if Value < 10  then Exit;
   if Value > 400 then Exit;
   FZoomPercent := Value;
   Invalidate;
@@ -127,22 +187,21 @@ end;
 procedure TVittixReportPreview.Paint;
 var
   PageBmp: TBitmap;
-  Scale: Double;
-  W,H: Integer;
-  R: TRect;
+  Scale:   Double;
+  W, H:   Integer;
+  R:      TRect;
 begin
   Canvas.Brush.Color := Color;
   Canvas.FillRect(ClientRect);
 
-  if not Assigned(FRenderer) then Exit;
   if PageCount = 0 then Exit;
+  if (FPageIndex < 0) or (FPageIndex >= PageCount) then Exit;
 
-  PageBmp := FRenderer.Pages[FPageIndex].Bitmap;
+  PageBmp := FPages[FPageIndex];
 
   Scale := FZoomPercent / 100;
-
-  W := Round(PageBmp.Width * Scale);
-  H := Round(PageBmp.Height * Scale);
+  W     := Round(PageBmp.Width  * Scale);
+  H     := Round(PageBmp.Height * Scale);
 
   R := Rect(
     (ClientWidth - W) div 2,
@@ -155,7 +214,7 @@ begin
   Canvas.Rectangle(R);
   Canvas.StretchDraw(R, PageBmp);
 
-  Canvas.Pen.Color := clSilver;
+  Canvas.Pen.Color   := clSilver;
   Canvas.Brush.Style := bsClear;
   Canvas.Rectangle(R);
 end;

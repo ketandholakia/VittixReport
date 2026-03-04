@@ -56,7 +56,7 @@ begin
     Items.Clear;
 
     for C in GetRegisteredReportObjects do
-      Items.AddObject(C.ClassName, TObject(C));
+      Items.AddObject(C.DisplayName, TObject(C));
 
   finally
     Items.EndUpdate;

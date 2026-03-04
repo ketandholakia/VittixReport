@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{7D1517BF-E633-4090-97A8-6CB79751424D}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="VittixReportRuntime.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="VittixReportDesign.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="VittixReportRuntime">
+        <MSBuild Projects="VittixReportRuntime.dproj"/>
+    </Target>
+    <Target Name="VittixReportRuntime:Clean">
+        <MSBuild Projects="VittixReportRuntime.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="VittixReportRuntime:Make">
+        <MSBuild Projects="VittixReportRuntime.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="VittixReportDesign">
+        <MSBuild Projects="VittixReportDesign.dproj"/>
+    </Target>
+    <Target Name="VittixReportDesign:Clean">
+        <MSBuild Projects="VittixReportDesign.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="VittixReportDesign:Make">
+        <MSBuild Projects="VittixReportDesign.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="VittixReportRuntime;VittixReportDesign"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="VittixReportRuntime:Clean;VittixReportDesign:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="VittixReportRuntime:Make;VittixReportDesign:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

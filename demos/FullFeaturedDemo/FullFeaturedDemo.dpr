@@ -1,4 +1,4 @@
-program VCLDesignerDemo;
+﻿program FullFeaturedDemo;
 
 uses
   Vcl.Forms,
@@ -9,6 +9,7 @@ uses
 begin
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
+  Application.Title := 'VittixReport Full-Featured Demo';
   Application.CreateForm(TfrmMain, frmMain);
   Application.Run;
 end.
