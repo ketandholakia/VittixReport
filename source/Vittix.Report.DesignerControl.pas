@@ -258,6 +258,7 @@ type
   published
     property Align;
     property Color default $00E8E8E8;
+    property TabOrder;
 
     property DataSet    : TDataSet read FDataSet    write SetDataSet;
     property ShowGrid   : Boolean  read FShowGrid   write SetShowGrid   default True;
@@ -778,16 +779,28 @@ procedure TVittixReportDesigner.AlignLeft;
 var
   I, MinL: Integer;
   R: TRect;
+  Objects  : TArray<TReportObject>;
+  OldBounds: TArray<TRect>;
+  NewBounds: TArray<TRect>;
+  Cmd: TMultiMoveCommand;
 begin
   if FSelected.Count < 2 then Exit;
   MinL := MaxInt;
   for I := 0 to FSelected.Count - 1 do
     if FSelected[I].Bounds.Left < MinL then MinL := FSelected[I].Bounds.Left;
+  SetLength(Objects,   FSelected.Count);
+  SetLength(OldBounds, FSelected.Count);
+  SetLength(NewBounds, FSelected.Count);
   for I := 0 to FSelected.Count - 1 do
   begin
+    Objects[I]   := FSelected[I];
+    OldBounds[I] := FSelected[I].Bounds;
     R := FSelected[I].Bounds;
-    FSelected[I].Bounds := Bounds(MinL, R.Top, R.Width, R.Height);
+    NewBounds[I] := Bounds(MinL, R.Top, R.Width, R.Height);
+    FSelected[I].Bounds := NewBounds[I];
   end;
+  Cmd := TMultiMoveCommand.Create(Objects, OldBounds, NewBounds);
+  FCommands.DoCommand(Cmd);
   DoModified;
 end;
 
@@ -795,16 +808,28 @@ procedure TVittixReportDesigner.AlignRight;
 var
   I, MaxR: Integer;
   R: TRect;
+  Objects  : TArray<TReportObject>;
+  OldBounds: TArray<TRect>;
+  NewBounds: TArray<TRect>;
+  Cmd: TMultiMoveCommand;
 begin
   if FSelected.Count < 2 then Exit;
   MaxR := -MaxInt;
   for I := 0 to FSelected.Count - 1 do
     if FSelected[I].Bounds.Right > MaxR then MaxR := FSelected[I].Bounds.Right;
+  SetLength(Objects,   FSelected.Count);
+  SetLength(OldBounds, FSelected.Count);
+  SetLength(NewBounds, FSelected.Count);
   for I := 0 to FSelected.Count - 1 do
   begin
+    Objects[I]   := FSelected[I];
+    OldBounds[I] := FSelected[I].Bounds;
     R := FSelected[I].Bounds;
-    FSelected[I].Bounds := Bounds(MaxR - R.Width, R.Top, R.Width, R.Height);
+    NewBounds[I] := Bounds(MaxR - R.Width, R.Top, R.Width, R.Height);
+    FSelected[I].Bounds := NewBounds[I];
   end;
+  Cmd := TMultiMoveCommand.Create(Objects, OldBounds, NewBounds);
+  FCommands.DoCommand(Cmd);
   DoModified;
 end;
 
@@ -812,16 +837,28 @@ procedure TVittixReportDesigner.AlignTop;
 var
   I, MinT: Integer;
   R: TRect;
+  Objects  : TArray<TReportObject>;
+  OldBounds: TArray<TRect>;
+  NewBounds: TArray<TRect>;
+  Cmd: TMultiMoveCommand;
 begin
   if FSelected.Count < 2 then Exit;
   MinT := MaxInt;
   for I := 0 to FSelected.Count - 1 do
     if FSelected[I].Bounds.Top < MinT then MinT := FSelected[I].Bounds.Top;
+  SetLength(Objects,   FSelected.Count);
+  SetLength(OldBounds, FSelected.Count);
+  SetLength(NewBounds, FSelected.Count);
   for I := 0 to FSelected.Count - 1 do
   begin
+    Objects[I]   := FSelected[I];
+    OldBounds[I] := FSelected[I].Bounds;
     R := FSelected[I].Bounds;
-    FSelected[I].Bounds := Bounds(R.Left, MinT, R.Width, R.Height);
+    NewBounds[I] := Bounds(R.Left, MinT, R.Width, R.Height);
+    FSelected[I].Bounds := NewBounds[I];
   end;
+  Cmd := TMultiMoveCommand.Create(Objects, OldBounds, NewBounds);
+  FCommands.DoCommand(Cmd);
   DoModified;
 end;
 
@@ -829,16 +866,28 @@ procedure TVittixReportDesigner.AlignBottom;
 var
   I, MaxB: Integer;
   R: TRect;
+  Objects  : TArray<TReportObject>;
+  OldBounds: TArray<TRect>;
+  NewBounds: TArray<TRect>;
+  Cmd: TMultiMoveCommand;
 begin
   if FSelected.Count < 2 then Exit;
   MaxB := -MaxInt;
   for I := 0 to FSelected.Count - 1 do
     if FSelected[I].Bounds.Bottom > MaxB then MaxB := FSelected[I].Bounds.Bottom;
+  SetLength(Objects,   FSelected.Count);
+  SetLength(OldBounds, FSelected.Count);
+  SetLength(NewBounds, FSelected.Count);
   for I := 0 to FSelected.Count - 1 do
   begin
+    Objects[I]   := FSelected[I];
+    OldBounds[I] := FSelected[I].Bounds;
     R := FSelected[I].Bounds;
-    FSelected[I].Bounds := Bounds(R.Left, MaxB - R.Height, R.Width, R.Height);
+    NewBounds[I] := Bounds(R.Left, MaxB - R.Height, R.Width, R.Height);
+    FSelected[I].Bounds := NewBounds[I];
   end;
+  Cmd := TMultiMoveCommand.Create(Objects, OldBounds, NewBounds);
+  FCommands.DoCommand(Cmd);
   DoModified;
 end;
 
@@ -846,14 +895,26 @@ procedure TVittixReportDesigner.SameWidth;
 var
   I, W: Integer;
   R   : TRect;
+  Objects  : TArray<TReportObject>;
+  OldBounds: TArray<TRect>;
+  NewBounds: TArray<TRect>;
+  Cmd: TMultiMoveCommand;
 begin
   if FSelected.Count < 2 then Exit;
   W := FSelected[FSelected.Count - 1].Bounds.Width;
+  SetLength(Objects,   FSelected.Count - 1);
+  SetLength(OldBounds, FSelected.Count - 1);
+  SetLength(NewBounds, FSelected.Count - 1);
   for I := 0 to FSelected.Count - 2 do
   begin
+    Objects[I]   := FSelected[I];
+    OldBounds[I] := FSelected[I].Bounds;
     R := FSelected[I].Bounds;
-    FSelected[I].Bounds := Bounds(R.Left, R.Top, W, R.Height);
+    NewBounds[I] := Bounds(R.Left, R.Top, W, R.Height);
+    FSelected[I].Bounds := NewBounds[I];
   end;
+  Cmd := TMultiMoveCommand.Create(Objects, OldBounds, NewBounds);
+  FCommands.DoCommand(Cmd);
   DoModified;
 end;
 
@@ -861,14 +922,26 @@ procedure TVittixReportDesigner.SameHeight;
 var
   I, H: Integer;
   R   : TRect;
+  Objects  : TArray<TReportObject>;
+  OldBounds: TArray<TRect>;
+  NewBounds: TArray<TRect>;
+  Cmd: TMultiMoveCommand;
 begin
   if FSelected.Count < 2 then Exit;
   H := FSelected[FSelected.Count - 1].Bounds.Height;
+  SetLength(Objects,   FSelected.Count - 1);
+  SetLength(OldBounds, FSelected.Count - 1);
+  SetLength(NewBounds, FSelected.Count - 1);
   for I := 0 to FSelected.Count - 2 do
   begin
+    Objects[I]   := FSelected[I];
+    OldBounds[I] := FSelected[I].Bounds;
     R := FSelected[I].Bounds;
-    FSelected[I].Bounds := Bounds(R.Left, R.Top, R.Width, H);
+    NewBounds[I] := Bounds(R.Left, R.Top, R.Width, H);
+    FSelected[I].Bounds := NewBounds[I];
   end;
+  Cmd := TMultiMoveCommand.Create(Objects, OldBounds, NewBounds);
+  FCommands.DoCommand(Cmd);
   DoModified;
 end;
 
@@ -876,14 +949,26 @@ procedure TVittixReportDesigner.CenterH;
 var
   I, Mid: Integer;
   R : TRect;
+  Objects  : TArray<TReportObject>;
+  OldBounds: TArray<TRect>;
+  NewBounds: TArray<TRect>;
+  Cmd: TMultiMoveCommand;
 begin
   if FSelected.Count = 0 then Exit;
   Mid := FReport.PageSettings.ContentWidth div 2;
+  SetLength(Objects,   FSelected.Count);
+  SetLength(OldBounds, FSelected.Count);
+  SetLength(NewBounds, FSelected.Count);
   for I := 0 to FSelected.Count - 1 do
   begin
+    Objects[I]   := FSelected[I];
+    OldBounds[I] := FSelected[I].Bounds;
     R := FSelected[I].Bounds;
-    FSelected[I].Bounds := Bounds(Mid - R.Width div 2, R.Top, R.Width, R.Height);
+    NewBounds[I] := Bounds(Mid - R.Width div 2, R.Top, R.Width, R.Height);
+    FSelected[I].Bounds := NewBounds[I];
   end;
+  Cmd := TMultiMoveCommand.Create(Objects, OldBounds, NewBounds);
+  FCommands.DoCommand(Cmd);
   DoModified;
 end;
 
@@ -891,18 +976,34 @@ procedure TVittixReportDesigner.CenterV;
 var
   I   : Integer;
   Band: TReportBand;
-  R, B: TRect;
+  R   : TRect;
   Mid : Integer;
+  Objects  : TArray<TReportObject>;
+  OldBounds: TArray<TRect>;
+  NewBounds: TArray<TRect>;
+  Cmd: TMultiMoveCommand;
 begin
   if FSelected.Count = 0 then Exit;
+  SetLength(Objects,   FSelected.Count);
+  SetLength(OldBounds, FSelected.Count);
+  SetLength(NewBounds, FSelected.Count);
   for I := 0 to FSelected.Count - 1 do
   begin
+    Objects[I]   := FSelected[I];
+    OldBounds[I] := FSelected[I].Bounds;
     Band := BandOwnerOf(FSelected[I]);
-    if Band = nil then Continue;
-    Mid := Band.Height div 2;
-    R   := FSelected[I].Bounds;
-    FSelected[I].Bounds := Bounds(R.Left, Mid - R.Height div 2, R.Width, R.Height);
+    R    := FSelected[I].Bounds;
+    if Assigned(Band) then
+    begin
+      Mid := Band.Height div 2;
+      NewBounds[I] := Bounds(R.Left, Mid - R.Height div 2, R.Width, R.Height);
+    end
+    else
+      NewBounds[I] := R;  // no band owner — leave unchanged
+    FSelected[I].Bounds := NewBounds[I];
   end;
+  Cmd := TMultiMoveCommand.Create(Objects, OldBounds, NewBounds);
+  FCommands.DoCommand(Cmd);
   DoModified;
 end;
 
@@ -910,24 +1011,51 @@ procedure TVittixReportDesigner.DistributeH;
 var
   I, TotalW, Gap, CurX, MinL, MaxR: Integer;
   R: TRect;
+  Sorted   : TArray<TReportObject>;
+  Objects  : TArray<TReportObject>;
+  OldBounds: TArray<TRect>;
+  NewBounds: TArray<TRect>;
+  Cmd: TMultiMoveCommand;
 begin
   if FSelected.Count < 3 then Exit;
-  MinL := MaxInt; MaxR := -MaxInt; TotalW := 0;
+
+  { Sort a copy of the selection by Left position so spacing is meaningful
+    regardless of the order the user clicked objects }
+  SetLength(Sorted, FSelected.Count);
   for I := 0 to FSelected.Count - 1 do
+    Sorted[I] := FSelected[I];
+  TArray.Sort<TReportObject>(Sorted,
+    TComparer<TReportObject>.Construct(
+      function(const L, R2: TReportObject): Integer
+      begin
+        Result := L.Bounds.Left - R2.Bounds.Left;
+      end));
+
+  MinL := MaxInt; MaxR := -MaxInt; TotalW := 0;
+  for I := 0 to High(Sorted) do
   begin
-    R := FSelected[I].Bounds;
+    R := Sorted[I].Bounds;
     if R.Left < MinL then MinL := R.Left;
     if R.Right > MaxR then MaxR := R.Right;
     Inc(TotalW, R.Width);
   end;
-  Gap  := (MaxR - MinL - TotalW) div (FSelected.Count - 1);
+  Gap  := (MaxR - MinL - TotalW) div (Length(Sorted) - 1);
   CurX := MinL;
-  for I := 0 to FSelected.Count - 1 do
+
+  SetLength(Objects,   Length(Sorted));
+  SetLength(OldBounds, Length(Sorted));
+  SetLength(NewBounds, Length(Sorted));
+  for I := 0 to High(Sorted) do
   begin
-    R := FSelected[I].Bounds;
-    FSelected[I].Bounds := Bounds(CurX, R.Top, R.Width, R.Height);
+    Objects[I]   := Sorted[I];
+    OldBounds[I] := Sorted[I].Bounds;
+    R := Sorted[I].Bounds;
+    NewBounds[I] := Bounds(CurX, R.Top, R.Width, R.Height);
+    Sorted[I].Bounds := NewBounds[I];
     Inc(CurX, R.Width + Gap);
   end;
+  Cmd := TMultiMoveCommand.Create(Objects, OldBounds, NewBounds);
+  FCommands.DoCommand(Cmd);
   DoModified;
 end;
 
@@ -935,24 +1063,51 @@ procedure TVittixReportDesigner.DistributeV;
 var
   I, TotalH, Gap, CurY, MinT, MaxB: Integer;
   R: TRect;
+  Sorted   : TArray<TReportObject>;
+  Objects  : TArray<TReportObject>;
+  OldBounds: TArray<TRect>;
+  NewBounds: TArray<TRect>;
+  Cmd: TMultiMoveCommand;
 begin
   if FSelected.Count < 3 then Exit;
-  MinT := MaxInt; MaxB := -MaxInt; TotalH := 0;
+
+  { Sort a copy of the selection by Top position so spacing is meaningful
+    regardless of the order the user clicked objects }
+  SetLength(Sorted, FSelected.Count);
   for I := 0 to FSelected.Count - 1 do
+    Sorted[I] := FSelected[I];
+  TArray.Sort<TReportObject>(Sorted,
+    TComparer<TReportObject>.Construct(
+      function(const L, R2: TReportObject): Integer
+      begin
+        Result := L.Bounds.Top - R2.Bounds.Top;
+      end));
+
+  MinT := MaxInt; MaxB := -MaxInt; TotalH := 0;
+  for I := 0 to High(Sorted) do
   begin
-    R := FSelected[I].Bounds;
+    R := Sorted[I].Bounds;
     if R.Top < MinT then MinT := R.Top;
     if R.Bottom > MaxB then MaxB := R.Bottom;
     Inc(TotalH, R.Height);
   end;
-  Gap  := (MaxB - MinT - TotalH) div (FSelected.Count - 1);
+  Gap  := (MaxB - MinT - TotalH) div (Length(Sorted) - 1);
   CurY := MinT;
-  for I := 0 to FSelected.Count - 1 do
+
+  SetLength(Objects,   Length(Sorted));
+  SetLength(OldBounds, Length(Sorted));
+  SetLength(NewBounds, Length(Sorted));
+  for I := 0 to High(Sorted) do
   begin
-    R := FSelected[I].Bounds;
-    FSelected[I].Bounds := Bounds(R.Left, CurY, R.Width, R.Height);
+    Objects[I]   := Sorted[I];
+    OldBounds[I] := Sorted[I].Bounds;
+    R := Sorted[I].Bounds;
+    NewBounds[I] := Bounds(R.Left, CurY, R.Width, R.Height);
+    Sorted[I].Bounds := NewBounds[I];
     Inc(CurY, R.Height + Gap);
   end;
+  Cmd := TMultiMoveCommand.Create(Objects, OldBounds, NewBounds);
+  FCommands.DoCommand(Cmd);
   DoModified;
 end;
 
@@ -1559,7 +1714,7 @@ begin
         begin
           NewObj := FInsertClass.Create;
           NewObj.Bounds := Bounds(
-            SnapV(PP.X - BAND_LBL_W),
+            SnapV(PP.X),
             SnapV(PP.Y - BL.Y),
             80, 20);
           Cmd := TInsertObjectCommand.Create(TargetBand.Children, NewObj);
@@ -1853,6 +2008,34 @@ var
   I    : Integer;
   Obj  : TReportObject;
   R    : TRect;
+  Objects  : TArray<TReportObject>;
+  OldBounds: TArray<TRect>;
+  NewBounds: TArray<TRect>;
+  Cmd  : TMultiMoveCommand;
+
+  { Snapshot current selection, apply delta, record command }
+  procedure NudgeSelected(DX, DY: Integer);
+  var
+    I: Integer;
+  begin
+    if FSelected.Count = 0 then Exit;
+    SetLength(Objects,   FSelected.Count);
+    SetLength(OldBounds, FSelected.Count);
+    SetLength(NewBounds, FSelected.Count);
+    for I := 0 to FSelected.Count - 1 do
+    begin
+      Obj          := FSelected[I];
+      Objects[I]   := Obj;
+      OldBounds[I] := Obj.Bounds;
+      R := Obj.Bounds;
+      NewBounds[I] := Bounds(R.Left + DX, R.Top + DY, R.Width, R.Height);
+      Obj.Bounds   := NewBounds[I];
+    end;
+    Cmd := TMultiMoveCommand.Create(Objects, OldBounds, NewBounds);
+    FCommands.DoCommand(Cmd);
+    DoModified;
+  end;
+
 begin
   Step := NUDGE_NORMAL;
   if ssShift in Shift then Step := FGridSize;
@@ -1867,39 +2050,23 @@ begin
 
     VK_LEFT:
     begin
-      for Obj in FSelected do
-      begin
-        R := Obj.Bounds;
-        Obj.Bounds := Bounds(R.Left - Step, R.Top, R.Width, R.Height);
-      end;
-      DoModified; Key := 0;
+      NudgeSelected(-Step, 0);
+      Key := 0;
     end;
     VK_RIGHT:
     begin
-      for Obj in FSelected do
-      begin
-        R := Obj.Bounds;
-        Obj.Bounds := Bounds(R.Left + Step, R.Top, R.Width, R.Height);
-      end;
-      DoModified; Key := 0;
+      NudgeSelected(Step, 0);
+      Key := 0;
     end;
     VK_UP:
     begin
-      for Obj in FSelected do
-      begin
-        R := Obj.Bounds;
-        Obj.Bounds := Bounds(R.Left, R.Top - Step, R.Width, R.Height);
-      end;
-      DoModified; Key := 0;
+      NudgeSelected(0, -Step);
+      Key := 0;
     end;
     VK_DOWN:
     begin
-      for Obj in FSelected do
-      begin
-        R := Obj.Bounds;
-        Obj.Bounds := Bounds(R.Left, R.Top + Step, R.Width, R.Height);
-      end;
-      DoModified; Key := 0;
+      NudgeSelected(0, Step);
+      Key := 0;
     end;
     VK_ESCAPE:
     begin

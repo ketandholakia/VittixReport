@@ -29,6 +29,7 @@ uses
   System.Generics.Collections,
   Vcl.Controls,
   Vcl.Graphics,
+  Vcl.Printers,
   Vittix.Report.Renderer;
 
 type
@@ -37,6 +38,7 @@ type
     FPages:      TObjectList<TBitmap>;  // owned; independent of TReportRenderer
     FPageIndex:  Integer;
     FZoomPercent: Integer;
+    FOnPageChanged: TNotifyEvent;
 
     procedure SetPageIndex(const Value: Integer);
     procedure SetZoomPercent(const Value: Integer);
@@ -63,7 +65,19 @@ type
     procedure FirstPage;
     procedure LastPage;
 
-    property PageCount: Integer read GetPageCount;
+    { Aliases used by the preview form }
+    procedure GoNext;   inline;
+    procedure GoPrev;   inline;
+    procedure GoFirst;  inline;
+    procedure GoLast;   inline;
+
+    procedure ZoomIn;
+    procedure ZoomOut;
+    procedure FitWidth;
+    procedure Print;
+
+    property PageCount:   Integer read GetPageCount;
+    property CurrentPage: Integer read FPageIndex;
 
   published
     property Align;
@@ -72,6 +86,8 @@ type
       read FZoomPercent write SetZoomPercent default 100;
     property PageIndex: Integer
       read FPageIndex write SetPageIndex;
+    property OnPageChanged: TNotifyEvent
+      read FOnPageChanged write FOnPageChanged;
   end;
 
 procedure Register;
@@ -172,6 +188,7 @@ begin
   if PageCount = 0 then Exit;
   FPageIndex := EnsureRange(Value, 0, PageCount - 1);
   Invalidate;
+  if Assigned(FOnPageChanged) then FOnPageChanged(Self);
 end;
 
 procedure TVittixReportPreview.SetZoomPercent(const Value: Integer);
@@ -217,6 +234,59 @@ begin
   Canvas.Pen.Color   := clSilver;
   Canvas.Brush.Style := bsClear;
   Canvas.Rectangle(R);
+end;
+
+{ ================= Navigation aliases ================= }
+
+procedure TVittixReportPreview.GoFirst;  begin FirstPage; end;
+procedure TVittixReportPreview.GoLast;   begin LastPage;  end;
+procedure TVittixReportPreview.GoNext;   begin NextPage;  end;
+procedure TVittixReportPreview.GoPrev;   begin PrevPage;  end;
+
+{ ================= Zoom helpers ================= }
+
+procedure TVittixReportPreview.ZoomIn;
+begin
+  SetZoomPercent(FZoomPercent + 10);
+end;
+
+procedure TVittixReportPreview.ZoomOut;
+begin
+  SetZoomPercent(FZoomPercent - 10);
+end;
+
+procedure TVittixReportPreview.FitWidth;
+var
+  PageBmp: TBitmap;
+begin
+  if (PageCount = 0) or (ClientWidth <= 0) then Exit;
+  PageBmp := FPages[FPageIndex];
+  if PageBmp.Width <= 0 then Exit;
+  SetZoomPercent(((ClientWidth - 20) * 100) div PageBmp.Width);
+end;
+
+{ ================= Print ================= }
+
+procedure TVittixReportPreview.Print;
+var
+  i:    Integer;
+  Bmp:  TBitmap;
+  R:    TRect;
+begin
+  if PageCount = 0 then Exit;
+  Printer.BeginDoc;
+  try
+    for i := 0 to FPages.Count - 1 do
+    begin
+      Bmp := FPages[i];
+      R   := Rect(0, 0, Printer.PageWidth, Printer.PageHeight);
+      Printer.Canvas.StretchDraw(R, Bmp);
+      if i < FPages.Count - 1 then
+        Printer.NewPage;
+    end;
+  finally
+    Printer.EndDoc;
+  end;
 end;
 
 { ================= Register ================= }

@@ -442,16 +442,58 @@ end;
 
 class function TReportSerializer.CloneReport(R: TReportModel): TReportModel;
 var
-  TmpFile: string;
+  Root: TJSONObject;
+  Arr : TJSONArray;
+  Obj : TReportObject;
+  JSON: string;
+  i   : Integer;
 begin
-  // Serialize to a temp file and reload â€” guarantees a true deep clone
-  TmpFile := TPath.GetTempFileName;
+  if not Assigned(R) then
+    raise Exception.Create('Report model must be assigned.');
+
+  { Serialize to an in-memory JSON string -- no disk I/O, no temp-file risks }
+  Root := TJSONObject.Create;
   try
-    SaveToFile(R, TmpFile);
-    Result := LoadFromFile(TmpFile);
+    Root.AddPair('Version',      TJSONNumber.Create(2));
+    Root.AddPair('Title',        R.Title);
+    Root.AddPair('Author',       R.Author);
+    Root.AddPair('Description',  R.Description);
+    Root.AddPair('PageSettings', PageSettingsToJSON(R.PageSettings));
+
+    Arr := TJSONArray.Create;
+    for Obj in R.Objects do
+      Arr.AddElement(ObjectToJSON(Obj));
+    Root.AddPair('Objects', Arr);
+
+    JSON := Root.ToJSON;
   finally
-    if TFile.Exists(TmpFile) then
-      TFile.Delete(TmpFile);
+    Root.Free;
+  end;
+
+  { Deserialize from the string back into a fresh TReportModel }
+  Root := nil;
+  try
+    Root := TJSONObject.ParseJSONValue(JSON) as TJSONObject;
+    if not Assigned(Root) then
+      raise Exception.Create('CloneReport: JSON round-trip produced invalid output');
+
+    Result := TReportModel.Create;
+    try
+      Result.Title       := Root.GetValue<string>('Title',       '');
+      Result.Author      := Root.GetValue<string>('Author',      '');
+      Result.Description := Root.GetValue<string>('Description', '');
+      JSONToPageSettings(Root.GetValue<TJSONObject>('PageSettings'), Result.PageSettings);
+
+      Arr := Root.GetValue<TJSONArray>('Objects');
+      if Assigned(Arr) then
+        for i := 0 to Arr.Count - 1 do
+          Result.Objects.Add(JSONToObject(Arr.Items[i] as TJSONObject));
+    except
+      Result.Free;
+      raise;
+    end;
+  finally
+    Root.Free;
   end;
 end;
 

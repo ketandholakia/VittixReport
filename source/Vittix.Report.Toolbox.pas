@@ -27,6 +27,7 @@ type
     property SelectedObjectClass: TReportObjectClass
       read FSelectedClass;
   published
+    property TabOrder;
     property OnToolSelected: TNotifyEvent
       read FOnToolSelected write FOnToolSelected;
   end;

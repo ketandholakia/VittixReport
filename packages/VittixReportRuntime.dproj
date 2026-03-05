@@ -4,7 +4,7 @@
         <MainSource>VittixReportRuntime.dpk</MainSource>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Debug</Config>
-        <TargetedPlatforms>1</TargetedPlatforms>
+        <TargetedPlatforms>1048577</TargetedPlatforms>
         <AppType>Package</AppType>
         <FrameworkType>VCL</FrameworkType>
         <ProjectVersion>20.2</ProjectVersion>
@@ -16,6 +16,16 @@
     </PropertyGroup>
     <PropertyGroup Condition="('$(Platform)'=='Win32' and '$(Base)'=='true') or '$(Base_Win32)'!=''">
         <Base_Win32>true</Base_Win32>
+        <CfgParent>Base</CfgParent>
+        <Base>true</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='Win64' and '$(Base)'=='true') or '$(Base_Win64)'!=''">
+        <Base_Win64>true</Base_Win64>
+        <CfgParent>Base</CfgParent>
+        <Base>true</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='Win64x' and '$(Base)'=='true') or '$(Base_Win64x)'!=''">
+        <Base_Win64x>true</Base_Win64x>
         <CfgParent>Base</CfgParent>
         <Base>true</Base>
     </PropertyGroup>
@@ -50,6 +60,19 @@
         <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=;ProgramID=com.embarcadero.$(MSBuildProjectName)</VerInfo_Keys>
         <VerInfo_Locale>1033</VerInfo_Locale>
     </PropertyGroup>
+    <PropertyGroup Condition="'$(Base_Win64)'!=''">
+        <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;$(DCC_Namespace)</DCC_Namespace>
+        <BT_BuildType>Debug</BT_BuildType>
+        <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
+        <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Base_Win64x)'!=''">
+        <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;$(DCC_Namespace)</DCC_Namespace>
+        <BT_BuildType>Debug</BT_BuildType>
+        <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
+        <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
+        <BCC_EnableBatchCompilation>true</BCC_EnableBatchCompilation>
+    </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1)'!=''">
         <DCC_Define>RELEASE;$(DCC_Define)</DCC_Define>
         <DCC_DebugInformation>0</DCC_DebugInformation>
@@ -73,14 +96,24 @@
         <DCCReference Include="..\source\Vittix.Report.PageSettings.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Utils.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Context.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.DataSources.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Scripting.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Model.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Core.Model.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Objects.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Core.Objects.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.ObjectRegistry.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Objects.Barcode.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Objects.Table.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Bands.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Core.Bands.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Expressions.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Aggregates.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Engine.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Engine.Engine.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Serializer.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Renderer.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Engine.Renderer.pas"/>
         <DCCReference Include="..\source\Vittix.Report.DesignerControl.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Toolbox.pas"/>
         <DCCReference Include="..\source\Vittix.Report.PropertyBridge.pas"/>
@@ -110,6 +143,8 @@
             </Delphi.Personality>
             <Platforms>
                 <Platform value="Win32">True</Platform>
+                <Platform value="Win64">False</Platform>
+                <Platform value="Win64x">True</Platform>
             </Platforms>
             <Deployment Version="5">
                 <DeployFile LocalName="..\..\..\..\..\Public\Documents\Embarcadero\Studio\23.0\Bpl\VittixReportRuntime.bpl" Configuration="Debug" Class="ProjectOutput">

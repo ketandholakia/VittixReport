@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}</ProjectGuid>
+    <ProjectVersion>19.4</ProjectVersion>
+    <FrameworkType>VCL</FrameworkType>
+    <MainSource>VittixDesigner.dpr</MainSource>
+    <Base>True</Base>
+    <Config Condition="'$(Config)'==''">Debug</Config>
+    <Platform Condition="'$(Platform)'==''">Win32</Platform>
+    <TargetedPlatforms>1</TargetedPlatforms>
+    <AppType>Application</AppType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
+    <DCC_UnitSearchPath>$(BDS)\lib\$(Platform)\$(Config);..\;..\source\;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+    <DCC_ImageBase>00400000</DCC_ImageBase>
+    <DCC_DynamicRTL>False</DCC_DynamicRTL>
+    <DCC_IoChecks>False</DCC_IoChecks>
+    <DCC_LocalSymbols>False</DCC_LocalSymbols>
+    <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;Vcl;$(DCC_Namespace)</DCC_Namespace>
+    <DCC_UsePackage>rtl;vcl;dbrtl;IndyCore;IndySystem;IndyProtocols;vcldb;vclx;VCLTee;dbexpress;dsnap;DbxCommonDriver;DbxSqliteDriver;inetdb;fmx;fmxdae;vclimg;tethering;DataSnapFireDAC;FireDACCommon;FireDAC;FireDACCommonDriver;FireDACSqliteDriver;FireDACMSAccDriver;vclactnband;vcltouch;vcledge;appanalytics;$(DCC_UsePackage)</DCC_UsePackage>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Config)'=='Debug' or '$(Cfg_1)'!=''">
+    <DCC_Define>DEBUG</DCC_Define>
+    <DCC_Optimize>False</DCC_Optimize>
+    <DCC_DebugInfoInExe>True</DCC_DebugInfoInExe>
+    <DCC_DebugInformation>2</DCC_DebugInformation>
+    <DCC_RemoteDebug>False</DCC_RemoteDebug>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Config)'=='Release' or '$(Cfg_2)'!=''">
+    <DCC_LocalSymbols>False</DCC_LocalSymbols>
+    <DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
+    <DCC_DebugInformation>0</DCC_DebugInformation>
+    <DCC_Optimize>True</DCC_Optimize>
+  </PropertyGroup>
+  <ItemGroup>
+    <DelphiCompile Include="VittixDesigner.dpr">
+      <MainSource>MainSource</MainSource>
+    </DelphiCompile>
+    <DCCReference Include="Frm.Main.pas"><Form>frmMain</Form></DCCReference>
+    <DCCReference Include="Frm.BandManager.pas"><Form>frmBandManager</Form></DCCReference>
+    <DCCReference Include="Frm.PageSettings.pas"><Form>frmPageSettings</Form></DCCReference>
+    <DCCReference Include="Frm.Preview.pas"><Form>frmPreview</Form></DCCReference>
+  </ItemGroup>
+  <Import Project="$(BDS)\bin\CodeGear.Delphi.Targets" />
+</Project>
