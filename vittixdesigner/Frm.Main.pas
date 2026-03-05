@@ -1,4 +1,4 @@
-unit Frm.Main;
+﻿unit Frm.Main;
 
 (*
   Frm.Main — Vittix Report Designer  —  Main Application Form
@@ -43,7 +43,7 @@ uses
   Vittix.Report.Renderer,
   Vittix.Report.Export.PDF,
   Vittix.Report.Objects.Barcode,
-  Vittix.Report.Objects.Table;
+  Vittix.Report.Objects.Table, Vcl.Grids;
 
 type
   TfrmMain = class(TForm)

@@ -1,4 +1,4 @@
-unit Frm.BandManager;
+﻿unit Frm.BandManager;
 
 (*
   Frm.BandManager — Band Manager Dialog
