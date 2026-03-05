@@ -35,9 +35,9 @@ uses
   Vcl.Controls, Vcl.Forms, Vcl.Menus, Vcl.ComCtrls, Vcl.ToolWin,
   Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Grids, Vcl.DBGrids, Vcl.Dialogs, Vcl.Graphics,
   Data.DB, Datasnap.DBClient,
-  Vittix.Report.Model, Vittix.Report.Bands, Vittix.Report.Objects,
+  Vittix.Report.Core.Model, Vittix.Report.Core.Bands, Vittix.Report.Core.Objects,
   Vittix.Report.DesignerControl, Vittix.Report.Toolbox,
-  Vittix.Report.Engine, Vittix.Report.Renderer,
+  Vittix.Report.Engine.Engine, Vittix.Report.Engine.Renderer,
   Vittix.Report.Preview, Vittix.Report.Serializer,
   Vittix.Report.Export.PDF;
 
@@ -193,27 +193,10 @@ var
 
 implementation
 
+{$R *.dfm}
+
 uses
-  System.StrUtils, System.TypInfo, System.Variants, System.Math;
-
-{ ============================================================================
-  Helper: create menu item
-  ============================================================================ }
-
-function MI(AOwner: TComponent; const ACaption: string;
-  AOnClick: TNotifyEvent = nil; AShortCut: TShortCut = 0): TMenuItem;
-begin
-  Result := TMenuItem.Create(AOwner);
-  Result.Caption  := ACaption;
-  Result.OnClick  := AOnClick;
-  Result.ShortCut := AShortCut;
-end;
-
-function Sep(AOwner: TComponent): TMenuItem;
-begin
-  Result := TMenuItem.Create(AOwner);
-  Result.Caption := '-';
-end;
+  System.TypInfo, System.Math;
 
 { ============================================================================
   Constructor / Destructor
@@ -221,12 +204,15 @@ end;
 
 constructor TfrmMain.Create(AOwner: TComponent);
 begin
-  inherited CreateNew(AOwner);
+  inherited Create(AOwner);
   Caption    := 'VittixReport Full-Featured Demo';
   Width      := 1280;
   Height     := 800;
   WindowState:= wsMaximized;
   Color      := clBtnFace;
+
+  if csDesigning in ComponentState then
+    Exit;
 
   FPreviewVisible := True;
   FDataVisible    := True;
@@ -251,161 +237,65 @@ end;
   ============================================================================ }
 
 procedure TfrmMain.BuildLayout;
+  function NeedComp(const AName: string): TComponent;
+  begin
+    Result := FindComponent(AName);
+    if not Assigned(Result) then
+      raise Exception.CreateFmt('Required component not found: %s', [AName]);
+  end;
+
+var
+  ToolboxHost : TPanel;
+  PreviewHost : TPanel;
+  DesignerHost: TPanel;
 begin
-  { ---- Status bar ---- }
-  FStatusBar := TStatusBar.Create(Self);
-  FStatusBar.Parent := Self;
+  FStatusBar := NeedComp('FStatusBar') as TStatusBar;
+  FPnlLeft   := NeedComp('FPnlLeft') as TPanel;
+  FSplLeft   := NeedComp('FSplLeft') as TSplitter;
+  FPnlRight  := NeedComp('FPnlRight') as TPanel;
+  FSplRight  := NeedComp('FSplRight') as TSplitter;
+  FPnlCenter := NeedComp('FPnlCenter') as TPanel;
+  FPnlGrid   := NeedComp('FPnlGrid') as TPanel;
+  FSplH      := NeedComp('FSplH') as TSplitter;
+  FPnlDesigner := NeedComp('FPnlDesigner') as TPanel;
+
+  FPropGrid := NeedComp('FPropGrid') as TStringGrid;
+  FGrid     := NeedComp('FGrid') as TDBGrid;
+  FCDS      := NeedComp('FCDS') as TClientDataSet;
+  FDS       := NeedComp('FDS') as TDataSource;
+  FDlgOpen  := NeedComp('FDlgOpen') as TOpenDialog;
+  FDlgSave  := NeedComp('FDlgSave') as TSaveDialog;
+
+  ToolboxHost  := NeedComp('FToolboxHost') as TPanel;
+  PreviewHost  := NeedComp('FPreviewHost') as TPanel;
+  DesignerHost := NeedComp('FDesignerHost') as TPanel;
+
   FStatusBar.SimplePanel := False;
-  FStatusBar.Panels.Add.Width := 300;  // selection info
-  FStatusBar.Panels.Add.Width := 150;  // zoom
-  FStatusBar.Panels.Add.Width := 200;  // file name
+  while FStatusBar.Panels.Count < 3 do
+    FStatusBar.Panels.Add;
+  FStatusBar.Panels[0].Width := 300;  // selection info
+  FStatusBar.Panels[1].Width := 150;  // zoom
+  FStatusBar.Panels[2].Width := 200;  // file name
   FStatusBar.Panels[0].Text := 'Ready';
   FStatusBar.Panels[1].Text := 'Zoom: 100%';
   FStatusBar.Panels[2].Text := 'Unsaved report';
 
-  { ---- Left panel: Toolbox ---- }
-  FPnlLeft := TPanel.Create(Self);
-  FPnlLeft.Parent := Self;
-  FPnlLeft.Align  := alLeft;
-  FPnlLeft.Width  := 160;
-  FPnlLeft.BevelOuter := bvNone;
-  FPnlLeft.Caption := '';
-
-  var LblTools := TLabel.Create(Self);
-  LblTools.Parent    := FPnlLeft;
-  LblTools.Align     := alTop;
-  LblTools.Caption   := 'Object Toolbox';
-  LblTools.Font.Style:= [fsBold];
-  LblTools.Font.Size := 8;
-  LblTools.Alignment := taCenter;
-  LblTools.Height    := 22;
-
+  { ---- Left panel dynamic control: Toolbox ---- }
   FToolbox := TVittixReportToolbox.Create(Self);
-  FToolbox.Parent        := FPnlLeft;
-  FToolbox.Align         := alTop;
-  FToolbox.Height        := 200;
+  FToolbox.Parent        := ToolboxHost;
+  FToolbox.Align         := alClient;
   FToolbox.OnToolSelected:= ToolboxToolSelected;
   FToolbox.RefreshToolList;
 
-  var SplProp := TSplitter.Create(Self);
-  SplProp.Parent      := FPnlLeft;
-  SplProp.Align       := alTop;
-  SplProp.Height      := 5;
-  SplProp.ResizeStyle := rsUpdate;
-
-  var LblProps := TLabel.Create(Self);
-  LblProps.Parent     := FPnlLeft;
-  LblProps.Align      := alTop;
-  LblProps.Caption    := 'Properties';
-  LblProps.Font.Style := [fsBold];
-  LblProps.Font.Size  := 8;
-  LblProps.Alignment  := taCenter;
-  LblProps.Height     := 22;
-
-  FPropGrid := TStringGrid.Create(Self);
-  FPropGrid.Parent           := FPnlLeft;
-  FPropGrid.Align            := alClient;
-  FPropGrid.ColCount         := 2;
-  FPropGrid.RowCount         := 2;
-  FPropGrid.FixedRows        := 1;
-  FPropGrid.FixedCols        := 0;
-  FPropGrid.DefaultRowHeight := 17;
-  FPropGrid.Options          := FPropGrid.Options + [goEditing];
-  FPropGrid.ScrollBars       := ssVertical;
-  FPropGrid.ColWidths[0]     := 70;
-  FPropGrid.ColWidths[1]     := 82;
-  FPropGrid.Cells[0, 0]      := 'Property';
-  FPropGrid.Cells[1, 0]      := 'Value';
-  FPropGrid.OnSetEditText    := PropGridSetEditText;
-
-  FSplLeft := TSplitter.Create(Self);
-  FSplLeft.Parent := Self;
-  FSplLeft.Align  := alLeft;
-  FSplLeft.Width  := 5;
-
-  { ---- Right panel: Preview ---- }
-  FPnlRight := TPanel.Create(Self);
-  FPnlRight.Parent := Self;
-  FPnlRight.Align  := alRight;
-  FPnlRight.Width  := 300;
-  FPnlRight.BevelOuter := bvNone;
-  FPnlRight.Caption := '';
-
-  var LblPrev := TLabel.Create(Self);
-  LblPrev.Parent    := FPnlRight;
-  LblPrev.Align     := alTop;
-  LblPrev.Caption   := 'Print Preview';
-  LblPrev.Font.Style:= [fsBold];
-  LblPrev.Font.Size := 8;
-  LblPrev.Alignment := taCenter;
-  LblPrev.Height    := 22;
-
+  { ---- Right panel dynamic control: Preview ---- }
   FPreview := TVittixReportPreview.Create(Self);
-  FPreview.Parent  := FPnlRight;
+  FPreview.Parent  := PreviewHost;
   FPreview.Align   := alClient;
   FPreview.Color   := $00C8C8C8;
 
-  FSplRight := TSplitter.Create(Self);
-  FSplRight.Parent := Self;
-  FSplRight.Align  := alRight;
-  FSplRight.Width  := 5;
-
-  { ---- Center ---- }
-  FPnlCenter := TPanel.Create(Self);
-  FPnlCenter.Parent     := Self;
-  FPnlCenter.Align      := alClient;
-  FPnlCenter.BevelOuter := bvNone;
-  FPnlCenter.Caption    := '';
-
-  { ---- Data grid at bottom of center ---- }
-  FPnlGrid := TPanel.Create(Self);
-  FPnlGrid.Parent     := FPnlCenter;
-  FPnlGrid.Align      := alBottom;
-  FPnlGrid.Height     := 200;
-  FPnlGrid.BevelOuter := bvNone;
-  FPnlGrid.Caption    := '';
-
-  var LblGrid := TLabel.Create(Self);
-  LblGrid.Parent    := FPnlGrid;
-  LblGrid.Align     := alTop;
-  LblGrid.Caption   := 'Data Source  (TClientDataSet  Orders)';
-  LblGrid.Font.Style:= [fsBold];
-  LblGrid.Font.Size := 8;
-  LblGrid.Alignment := taCenter;
-  LblGrid.Height    := 22;
-
-  FCDS := TClientDataSet.Create(Self);
-  FDS  := TDataSource.Create(Self);
-  FDS.DataSet := FCDS;
-
-  FGrid := TDBGrid.Create(Self);
-  FGrid.Parent     := FPnlGrid;
-  FGrid.Align      := alClient;
-  FGrid.DataSource := FDS;
-  FGrid.Options    := FGrid.Options + [dgRowLines, dgColLines, dgTitles];
-
-  FSplH := TSplitter.Create(Self);
-  FSplH.Parent := FPnlCenter;
-  FSplH.Align  := alBottom;
-  FSplH.Height := 5;
-
-  { ---- Designer panel fills the rest ---- }
-  FPnlDesigner := TPanel.Create(Self);
-  FPnlDesigner.Parent     := FPnlCenter;
-  FPnlDesigner.Align      := alClient;
-  FPnlDesigner.BevelOuter := bvNone;
-  FPnlDesigner.Caption    := '';
-
-  var LblDes := TLabel.Create(Self);
-  LblDes.Parent    := FPnlDesigner;
-  LblDes.Align     := alTop;
-  LblDes.Caption   := 'Report Designer  click a toolbox item then click here to insert | Drag to move | Handles to resize';
-  LblDes.Font.Size := 8;
-  LblDes.Alignment := taCenter;
-  LblDes.Height    := 20;
-
+  { ---- Center dynamic control: Designer ---- }
   FDesigner := TVittixReportDesigner.Create(Self);
-  FDesigner.Parent              := FPnlDesigner;
+  FDesigner.Parent              := DesignerHost;
   FDesigner.Align               := alClient;
   FDesigner.OnModified          := DesignerModified;
   FDesigner.OnSelectionChanged  := DesignerSelectionChanged;
@@ -413,17 +303,6 @@ begin
 
   { ---- Renderer ---- }
   FRenderer := TReportRenderer.Create;
-
-  { ---- Dialogs ---- }
-  FDlgOpen := TOpenDialog.Create(Self);
-  FDlgOpen.Title  := 'Open Report';
-  FDlgOpen.Filter := 'VittixReport files (*.vrt)|*.vrt|All files|*.*';
-  FDlgOpen.DefaultExt := 'vrt';
-
-  FDlgSave := TSaveDialog.Create(Self);
-  FDlgSave.Title  := 'Save Report';
-  FDlgSave.Filter := 'VittixReport files (*.vrt)|*.vrt|All files|*.*';
-  FDlgSave.DefaultExt := 'vrt';
 end;
 
 { ============================================================================
@@ -431,126 +310,47 @@ end;
   ============================================================================ }
 
 procedure TfrmMain.BuildMenu;
-var
-  MFile, MEdit, MBand, MFmt, MView, MRpt, MHelp: TMenuItem;
-  MAlign, MSame, MDist, MCenter: TMenuItem;
+  function NeedComp(const AName: string): TComponent;
+  begin
+    Result := FindComponent(AName);
+    if not Assigned(Result) then
+      raise Exception.CreateFmt('Required menu component not found: %s', [AName]);
+  end;
 begin
-  FMainMenu := TMainMenu.Create(Self);
+  FMainMenu := NeedComp('FMainMenu') as TMainMenu;
+  FMnuUndo := NeedComp('FMnuUndo') as TMenuItem;
+  FMnuRedo := NeedComp('FMnuRedo') as TMenuItem;
+  FMnuShowRulers  := NeedComp('FMnuShowRulers') as TMenuItem;
+  FMnuShowGrid    := NeedComp('FMnuShowGrid') as TMenuItem;
+  FMnuShowMargins := NeedComp('FMnuShowMargins') as TMenuItem;
+  FMnuPreviewPane := NeedComp('FMnuPreviewPane') as TMenuItem;
+  FMnuDataPane    := NeedComp('FMnuDataPane') as TMenuItem;
 
-  { ---- File ---- }
-  MFile := MI(Self, '&File');
-  MFile.Add(MI(Self, '&New',          MnuNewClick,      TextToShortCut('Ctrl+N')));
-  MFile.Add(MI(Self, '&Open...',      MnuOpenClick,     TextToShortCut('Ctrl+O')));
-  MFile.Add(Sep(Self));
-  MFile.Add(MI(Self, '&Save',         MnuSaveClick,     TextToShortCut('Ctrl+S')));
-  MFile.Add(MI(Self, 'Save &As...',   MnuSaveAsClick,   TextToShortCut('Ctrl+Shift+S')));
-  MFile.Add(Sep(Self));
-  MFile.Add(MI(Self, 'Export &PDF...', MnuExportPDFClick, 0));
-  MFile.Add(Sep(Self));
-  MFile.Add(MI(Self, 'E&xit',          MnuExitClick,    TextToShortCut('Alt+F4')));
+  (NeedComp('MnuFileNew') as TMenuItem).ShortCut      := TextToShortCut('Ctrl+N');
+  (NeedComp('MnuFileOpen') as TMenuItem).ShortCut     := TextToShortCut('Ctrl+O');
+  (NeedComp('MnuFileSave') as TMenuItem).ShortCut     := TextToShortCut('Ctrl+S');
+  (NeedComp('MnuFileSaveAs') as TMenuItem).ShortCut   := TextToShortCut('Ctrl+Shift+S');
+  (NeedComp('MnuFileExit') as TMenuItem).ShortCut     := TextToShortCut('Alt+F4');
+  FMnuUndo.ShortCut                                   := TextToShortCut('Ctrl+Z');
+  FMnuRedo.ShortCut                                   := TextToShortCut('Ctrl+Y');
+  (NeedComp('MnuEditCopy') as TMenuItem).ShortCut     := TextToShortCut('Ctrl+C');
+  (NeedComp('MnuEditPaste') as TMenuItem).ShortCut    := TextToShortCut('Ctrl+V');
+  (NeedComp('MnuEditDelete') as TMenuItem).ShortCut   := TextToShortCut('Del');
+  (NeedComp('MnuEditSelectAll') as TMenuItem).ShortCut:= TextToShortCut('Ctrl+A');
+  (NeedComp('MnuViewZoomIn') as TMenuItem).ShortCut   := TextToShortCut('Ctrl+=');
+  (NeedComp('MnuViewZoomOut') as TMenuItem).ShortCut  := TextToShortCut('Ctrl+-');
+  (NeedComp('MnuViewZoom100') as TMenuItem).ShortCut  := TextToShortCut('Ctrl+0');
+  (NeedComp('MnuReportBuild') as TMenuItem).ShortCut  := TextToShortCut('F5');
 
-  { ---- Edit ---- }
-  MEdit := MI(Self, '&Edit');
-  FMnuUndo := MI(Self, '&Undo', MnuUndoClick, TextToShortCut('Ctrl+Z'));
-  FMnuRedo := MI(Self, '&Redo', MnuRedoClick, TextToShortCut('Ctrl+Y'));
   FMnuUndo.Enabled := False;
   FMnuRedo.Enabled := False;
-  MEdit.Add(FMnuUndo);
-  MEdit.Add(FMnuRedo);
-  MEdit.Add(Sep(Self));
-  MEdit.Add(MI(Self, '&Copy',      MnuCopyClick,      TextToShortCut('Ctrl+C')));
-  MEdit.Add(MI(Self, '&Paste',     MnuPasteClick,     TextToShortCut('Ctrl+V')));
-  MEdit.Add(Sep(Self));
-  MEdit.Add(MI(Self, '&Delete',    MnuDeleteClick,    TextToShortCut('Del')));
-  MEdit.Add(MI(Self, 'Select &All',MnuSelectAllClick, TextToShortCut('Ctrl+A')));
 
-  { ---- Band ---- }
-  MBand := MI(Self, '&Band');
-  var MkBand := procedure(const Caption: string; BT: Integer)
-  begin
-    var Item := MI(Self, Caption, MnuAddBandClick);
-    Item.Tag := BT;
-    MBand.Add(Item);
-  end;
-  MkBand('Add Report &Title',      Ord(btReportTitle));
-  MkBand('Add Page &Header',       Ord(btPageHeader));
-  MkBand('Add &Column Header',     Ord(btColumnHeader));
-  MkBand('Add &Master Data',       Ord(btMasterData));
-  MkBand('Add &Detail',            Ord(btDetail));
-  MkBand('Add Page &Footer',       Ord(btPageFooter));
-  MkBand('Add Report &Summary',    Ord(btReportSummary));
-  MkBand('Add Group H&eader',      Ord(btGroupHeader));
-  MkBand('Add Group F&ooter',      Ord(btGroupFooter));
-  MBand.Add(Sep(Self));
-  MkBand('Add &Overlay',           Ord(btOverlay));
-
-  { ---- Format ---- }
-  MFmt := MI(Self, 'F&ormat');
-
-  MAlign := MI(Self, '&Align');
-  MAlign.Add(MI(Self, 'Align &Left',    MnuAlignLeftClick,   0));
-  MAlign.Add(MI(Self, 'Align &Right',   MnuAlignRightClick,  0));
-  MAlign.Add(MI(Self, 'Align &Top',     MnuAlignTopClick,    0));
-  MAlign.Add(MI(Self, 'Align &Bottom',  MnuAlignBottomClick, 0));
-
-  MCenter := MI(Self, '&Center');
-  MCenter.Add(MI(Self, 'Center &Horizontally', MnuCenterHClick, 0));
-  MCenter.Add(MI(Self, 'Center &Vertically',   MnuCenterVClick, 0));
-
-  MDist := MI(Self, '&Distribute');
-  MDist.Add(MI(Self, 'Distribute &Horizontally', MnuDistHClick, 0));
-  MDist.Add(MI(Self, 'Distribute &Vertically',   MnuDistVClick, 0));
-
-  MSame := MI(Self, 'Make &Same Size');
-  MSame.Add(MI(Self, 'Same &Width',  MnuSameWidthClick,  0));
-  MSame.Add(MI(Self, 'Same &Height', MnuSameHeightClick, 0));
-
-  MFmt.Add(MAlign);
-  MFmt.Add(MCenter);
-  MFmt.Add(MDist);
-  MFmt.Add(MSame);
-  MFmt.Add(Sep(Self));
-  MFmt.Add(MI(Self, 'Bring to &Front', MnuBringFrontClick, 0));
-  MFmt.Add(MI(Self, 'Send to &Back',   MnuSendBackClick,   0));
-
-  { ---- View ---- }
-  MView := MI(Self, '&View');
-  FMnuShowRulers  := MI(Self, 'Show &Rulers',  MnuShowRulersClick, 0);
-  FMnuShowGrid    := MI(Self, 'Show &Grid',    MnuShowGridClick,   0);
-  FMnuShowMargins := MI(Self, 'Show &Margins', MnuShowMarginsClick,0);
   FMnuShowRulers.Checked  := True;
   FMnuShowGrid.Checked    := True;
   FMnuShowMargins.Checked := True;
-  MView.Add(FMnuShowRulers);
-  MView.Add(FMnuShowGrid);
-  MView.Add(FMnuShowMargins);
-  MView.Add(Sep(Self));
-  MView.Add(MI(Self, 'Zoom &In',  MnuZoomInClick,   TextToShortCut('Ctrl+=')));
-  MView.Add(MI(Self, 'Zoom &Out', MnuZoomOutClick,  TextToShortCut('Ctrl+-')));
-  MView.Add(MI(Self, '&100%',     MnuZoomResetClick,TextToShortCut('Ctrl+0')));
-  MView.Add(Sep(Self));
-  FMnuPreviewPane := MI(Self, 'Preview &Pane', MnuPreviewPaneClick, 0);
-  FMnuDataPane    := MI(Self, '&Data Pane',    MnuDataPaneClick,    0);
+
   FMnuPreviewPane.Checked := True;
   FMnuDataPane.Checked    := True;
-  MView.Add(FMnuPreviewPane);
-  MView.Add(FMnuDataPane);
-
-  { ---- Report ---- }
-  MRpt := MI(Self, '&Report');
-  MRpt.Add(MI(Self, '&Build Preview', MnuBuildClick, TextToShortCut('F5')));
-
-  { ---- Help ---- }
-  MHelp := MI(Self, '&Help');
-  MHelp.Add(MI(Self, '&About...', MnuAboutClick, 0));
-
-  FMainMenu.Items.Add(MFile);
-  FMainMenu.Items.Add(MEdit);
-  FMainMenu.Items.Add(MBand);
-  FMainMenu.Items.Add(MFmt);
-  FMainMenu.Items.Add(MView);
-  FMainMenu.Items.Add(MRpt);
-  FMainMenu.Items.Add(MHelp);
 
   Self.Menu := FMainMenu;
 end;
@@ -560,81 +360,36 @@ end;
   ============================================================================ }
 
 procedure TfrmMain.BuildToolbar;
-
-  function Btn(const Cap: string; OnClick: TNotifyEvent): TToolButton;
-  begin
-    Result := TToolButton.Create(Self);
-    Result.Parent  := FToolBar;
-    Result.Caption := Cap;
-    Result.OnClick := OnClick;
-    Result.AutoSize:= True;
-  end;
-
-  function BtnSep: TToolButton;
-  begin
-    Result := TToolButton.Create(Self);
-    Result.Parent := FToolBar;
-    Result.Style  := tbsSeparator;
-  end;
-
 begin
-  FToolBar := TToolBar.Create(Self);
-  FToolBar.Parent    := Self;
-  FToolBar.Align     := alTop;
-  FToolBar.ShowCaptions := True;
-  FToolBar.Height    := 32;
-  FToolBar.Flat      := True;
+  FToolBar      := FindComponent('FToolBar') as TToolBar;
+  FBtnNew       := FindComponent('FBtnNew') as TToolButton;
+  FBtnOpen      := FindComponent('FBtnOpen') as TToolButton;
+  FBtnSave      := FindComponent('FBtnSave') as TToolButton;
+  FBtnUndo      := FindComponent('FBtnUndo') as TToolButton;
+  FBtnRedo      := FindComponent('FBtnRedo') as TToolButton;
+  FBtnDelete    := FindComponent('FBtnDelete') as TToolButton;
+  FBtnSelectAll := FindComponent('FBtnSelectAll') as TToolButton;
+  FBtnInsert    := FindComponent('FBtnInsert') as TToolButton;
+  FBtnBringFront:= FindComponent('FBtnBringFront') as TToolButton;
+  FBtnSendBack  := FindComponent('FBtnSendBack') as TToolButton;
+  FBtnAlignLeft := FindComponent('FBtnAlignLeft') as TToolButton;
+  FBtnAlignRight:= FindComponent('FBtnAlignRight') as TToolButton;
+  FBtnAlignTop  := FindComponent('FBtnAlignTop') as TToolButton;
+  FBtnAlignBottom := FindComponent('FBtnAlignBottom') as TToolButton;
+  FBtnCenterH   := FindComponent('FBtnCenterH') as TToolButton;
+  FBtnCenterV   := FindComponent('FBtnCenterV') as TToolButton;
+  FBtnZoomOut   := FindComponent('FBtnZoomOut') as TToolButton;
+  FBtnZoom100   := FindComponent('FBtnZoom100') as TToolButton;
+  FZoomCombo    := FindComponent('FZoomCombo') as TComboBox;
+  FBtnZoomIn    := FindComponent('FBtnZoomIn') as TToolButton;
+  FBtnBuild     := FindComponent('FBtnBuild') as TToolButton;
 
-  { File group }
-  FBtnNew  := Btn('New',  MnuNewClick);
-  FBtnOpen := Btn('Open', MnuOpenClick);
-  FBtnSave := Btn('Save', MnuSaveClick);
-  BtnSep;
-
-  { Edit group }
-  FBtnUndo := Btn('Undo', MnuUndoClick);
-  FBtnRedo := Btn('Redo', MnuRedoClick);
   FBtnUndo.Enabled := False;
   FBtnRedo.Enabled := False;
-  BtnSep;
 
-  { Object group }
-  FBtnDelete    := Btn('Delete',     MnuDeleteClick);
-  FBtnSelectAll := Btn('Select All', MnuSelectAllClick);
-  FBtnInsert    := Btn('Insert Tool',ToolboxToolSelected);
-  BtnSep;
-
-  { Z-order }
-  FBtnBringFront := Btn('Front', MnuBringFrontClick);
-  FBtnSendBack   := Btn('Back',  MnuSendBackClick);
-  BtnSep;
-
-  { Alignment }
-  FBtnAlignLeft   := Btn('L',  MnuAlignLeftClick);
-  FBtnAlignRight  := Btn('R',  MnuAlignRightClick);
-  FBtnAlignTop    := Btn('T',  MnuAlignTopClick);
-  FBtnAlignBottom := Btn('Bot',MnuAlignBottomClick);
-  FBtnCenterH     := Btn('CX', MnuCenterHClick);
-  FBtnCenterV     := Btn('CY', MnuCenterVClick);
-  BtnSep;
-
-  { Zoom }
-  FBtnZoomOut  := Btn('-', MnuZoomOutClick);
-  FBtnZoom100  := Btn('100%', MnuZoomResetClick);
-
-  FZoomCombo := TComboBox.Create(Self);
-  FZoomCombo.Parent   := FToolBar;
-  FZoomCombo.Width    := 70;
-  FZoomCombo.Style    := csDropDownList;
-  FZoomCombo.OnChange := ZoomComboChange;
-  FZoomCombo.Items.AddStrings(['25%','50%','75%','100%','125%','150%','200%','300%','400%']);
+  if FZoomCombo.Items.Count = 0 then
+    FZoomCombo.Items.AddStrings(['25%','50%','75%','100%','125%','150%','200%','300%','400%']);
   FZoomCombo.ItemIndex := 3; // 100%
-
-  FBtnZoomIn   := Btn('+', MnuZoomInClick);
-  BtnSep;
-
-  { Build }
-  FBtnBuild := Btn('Build Preview (F5)', MnuBuildClick);
 end;
 
 { ============================================================================
@@ -831,7 +586,7 @@ begin
   Memo.BorderVisible := False;
   Band.Children.Add(Memo);
 
-  FDesigner.Invalidate;
+  FDesigner.RebuildLayout;
   SetCurrentFile('');
 end;
 
@@ -1040,7 +795,7 @@ begin
   Band.Height   := 30;
   Band.Bounds   := Rect(40, 0, 720, 30);
   FDesigner.Report.Objects.Add(Band);
-  FDesigner.Invalidate;
+  FDesigner.RebuildLayout;
   RefreshPreview;
   FStatusBar.Panels[0].Text := 'Band added';
 end;
@@ -1256,7 +1011,7 @@ begin
       tkString, tkLString, tkWString, tkUString:
         SetStrProp(FPropObj, PropInfo, Value);
     end;
-    FDesigner.Invalidate;
+    FDesigner.RebuildLayout;
     RefreshPreview;
   except
     // ignore invalid values

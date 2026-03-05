@@ -35,6 +35,10 @@ procedure Register;
 
 implementation
 
+uses
+  Vittix.Report.Objects.Barcode,
+  Vittix.Report.Objects.Table;
+
 { ================= Constructor ================= }
 
 constructor TVittixReportToolbox.Create(AOwner: TComponent);

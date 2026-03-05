@@ -183,6 +183,7 @@ type
     procedure DrawSelectionHandles;
     procedure DrawRubberBand;
     procedure DrawRulers;
+    procedure DrawInsertHint;
 
     { Mouse wheel }
     procedure WMMouseWheel(var Msg: TWMMouseWheel); message WM_MOUSEWHEEL;
@@ -244,6 +245,9 @@ type
     { Batch update (suppress repaints) }
     procedure BeginUpdate;
     procedure EndUpdate;
+
+    { Rebuild internal band/object layout after external report mutations }
+    procedure RebuildLayout;
 
     property Report          : TReportModel  read FReport;
     property PrimarySelected : TReportObject read GetPrimarySelected;
@@ -1027,6 +1031,12 @@ begin
     Invalidate;
 end;
 
+procedure TVittixReportDesigner.RebuildLayout;
+begin
+  ComputeBandLayouts;
+  Invalidate;
+end;
+
 { -- Property accessors ----------------------------------------------------- }
 
 function TVittixReportDesigner.GetPrimarySelected: TReportObject;
@@ -1446,6 +1456,34 @@ begin
   Canvas.LineTo(RULER_W - 1, Height);
 end;
 
+procedure TVittixReportDesigner.DrawInsertHint;
+var
+  HintRect: TRect;
+  HintText: string;
+begin
+  if (FMode <> dmInsert) or not Assigned(FInsertClass) then
+    Exit;
+
+  if Length(FBandLayouts) = 0 then
+    HintText := 'Insert mode: add a band first, then click inside the band to place ' + FInsertClass.DisplayName
+  else
+    HintText := 'Insert mode: click inside a band to place ' + FInsertClass.DisplayName + '  (Esc to cancel)';
+
+  HintRect := Rect(PageLeft + 8, PageTop + 8, PageLeft + PageWidth - 8, PageTop + 30);
+  Canvas.Brush.Style := bsSolid;
+  Canvas.Brush.Color := clInfoBk;
+  Canvas.Pen.Color   := clGray;
+  Canvas.Rectangle(HintRect);
+
+  InflateRect(HintRect, -6, -3);
+  Canvas.Brush.Style := bsClear;
+  Canvas.Font.Color  := clInfoText;
+  Canvas.Font.Style  := [fsBold];
+  DrawText(Canvas.Handle, PChar(HintText), -1, HintRect,
+    DT_SINGLELINE or DT_LEFT or DT_VCENTER or DT_END_ELLIPSIS);
+  Canvas.Font.Style := [];
+end;
+
 { -- Paint ------------------------------------------------------------------ }
 
 procedure TVittixReportDesigner.Paint;
@@ -1467,6 +1505,7 @@ begin
 
   DrawSelectionHandles;
   DrawRubberBand;
+  DrawInsertHint;
   DrawRulers;
 end;
 
