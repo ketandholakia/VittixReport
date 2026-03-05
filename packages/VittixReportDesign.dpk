@@ -1,12 +1,47 @@
-ï»¿package VittixReportDesign;
+package VittixReportDesign;
+
+{$R *.res}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS ON}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION OFF}
+{$OVERFLOWCHECKS ON}
+{$RANGECHECKS ON}
+{$REFERENCEINFO ON}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES ON}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DEFINE DEBUG}
+{$ENDIF IMPLICITBUILDING}
+{$DESIGNONLY}
+{$IMPLICITBUILD ON}
 
 requires
   rtl,
   vcl,
+  dbrtl,
+  vclimg,
   designide,
-  VittixReportRuntime;
+  VittixReportRuntime,
+  adortl;
 
 contains
-  Vittix.Report.Reg in '..\source\Vittix.Report.Reg.pas';
+  // Only two lightweight units — no VCL forms, no DFM streaming,
+  // no third-party component initialisation at package-load time.
+  Vittix.Report.ComponentEditor in '..\source\Vittix.Report.ComponentEditor.pas',
+  Vittix.Report.Reg             in '..\source\Vittix.Report.Reg.pas';
 
 end.
+

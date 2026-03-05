@@ -1,4 +1,4 @@
-﻿package VittixReportRuntime;
+package VittixReportRuntime;
 
 {$R *.res}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
@@ -34,34 +34,33 @@ requires
   vclimg;
 
 contains
-  Vittix.Report.Interfaces in '..\source\Vittix.Report.Interfaces.pas',
-  Vittix.Report.PageSettings in '..\source\Vittix.Report.PageSettings.pas',
-  Vittix.Report.Utils in '..\source\Vittix.Report.Utils.pas',
-  Vittix.Report.Context in '..\source\Vittix.Report.Context.pas',
-  Vittix.Report.DataSources in '..\source\Vittix.Report.DataSources.pas',
-  Vittix.Report.Scripting in '..\source\Vittix.Report.Scripting.pas',
-  Vittix.Report.Model in '..\source\Vittix.Report.Model.pas',
-  Vittix.Report.Core.Model in '..\source\Vittix.Report.Core.Model.pas',
-  Vittix.Report.Objects in '..\source\Vittix.Report.Objects.pas',
-  Vittix.Report.Core.Objects in '..\source\Vittix.Report.Core.Objects.pas',
-  Vittix.Report.ObjectRegistry in '..\source\Vittix.Report.ObjectRegistry.pas',
+  Vittix.Report.Interfaces      in '..\source\Vittix.Report.Interfaces.pas',
+  Vittix.Report.PageSettings    in '..\source\Vittix.Report.PageSettings.pas',
+  Vittix.Report.Utils           in '..\source\Vittix.Report.Utils.pas',
+  Vittix.Report.Context         in '..\source\Vittix.Report.Context.pas',
+  Vittix.Report.DataSources     in '..\source\Vittix.Report.DataSources.pas',
+  Vittix.Report.Scripting       in '..\source\Vittix.Report.Scripting.pas',
+  Vittix.Report.Model           in '..\source\Vittix.Report.Model.pas',
+  Vittix.Report.Core.Model      in '..\source\Vittix.Report.Core.Model.pas',
+  Vittix.Report.Objects         in '..\source\Vittix.Report.Objects.pas',
+  Vittix.Report.Core.Objects    in '..\source\Vittix.Report.Core.Objects.pas',
+  Vittix.Report.ObjectRegistry  in '..\source\Vittix.Report.ObjectRegistry.pas',
   Vittix.Report.Objects.Barcode in '..\source\Vittix.Report.Objects.Barcode.pas',
-  Vittix.Report.Objects.Table in '..\source\Vittix.Report.Objects.Table.pas',
-  Vittix.Report.Bands in '..\source\Vittix.Report.Bands.pas',
-  Vittix.Report.Core.Bands in '..\source\Vittix.Report.Core.Bands.pas',
-  Vittix.Report.Expressions in '..\source\Vittix.Report.Expressions.pas',
-  Vittix.Report.Aggregates in '..\source\Vittix.Report.Aggregates.pas',
-  Vittix.Report.Engine in '..\source\Vittix.Report.Engine.pas',
-  Vittix.Report.Engine.Engine in '..\source\Vittix.Report.Engine.Engine.pas',
-  Vittix.Report.Serializer in '..\source\Vittix.Report.Serializer.pas',
-  Vittix.Report.Renderer in '..\source\Vittix.Report.Renderer.pas',
+  Vittix.Report.Objects.Table   in '..\source\Vittix.Report.Objects.Table.pas',
+  Vittix.Report.Bands           in '..\source\Vittix.Report.Bands.pas',
+  Vittix.Report.Core.Bands      in '..\source\Vittix.Report.Core.Bands.pas',
+  Vittix.Report.Expressions     in '..\source\Vittix.Report.Expressions.pas',
+  Vittix.Report.Aggregates      in '..\source\Vittix.Report.Aggregates.pas',
+  Vittix.Report.Engine          in '..\source\Vittix.Report.Engine.pas',
+  Vittix.Report.Engine.Engine   in '..\source\Vittix.Report.Engine.Engine.pas',
+  Vittix.Report.Serializer      in '..\source\Vittix.Report.Serializer.pas',
+  Vittix.Report.Renderer        in '..\source\Vittix.Report.Renderer.pas',
   Vittix.Report.Engine.Renderer in '..\source\Vittix.Report.Engine.Renderer.pas',
   Vittix.Report.DesignerControl in '..\source\Vittix.Report.DesignerControl.pas',
-  Vittix.Report.Toolbox in '..\source\Vittix.Report.Toolbox.pas',
-  Vittix.Report.PropertyBridge in '..\source\Vittix.Report.PropertyBridge.pas',
-  Vittix.Report.Preview in '..\source\Vittix.Report.Preview.pas',
-  Vittix.Report.Undo in '..\source\Vittix.Report.Undo.pas',
-  Vittix.Report.Export.PDF in '..\source\Vittix.Report.Export.PDF.pas';
+  Vittix.Report.Toolbox         in '..\source\Vittix.Report.Toolbox.pas',
+  Vittix.Report.PropertyBridge  in '..\source\Vittix.Report.PropertyBridge.pas',
+  Vittix.Report.Preview         in '..\source\Vittix.Report.Preview.pas',
+  Vittix.Report.Undo            in '..\source\Vittix.Report.Undo.pas',
+  Vittix.Report.Export.PDF      in '..\source\Vittix.Report.Export.PDF.pas';
 
 end.
-

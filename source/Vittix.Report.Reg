@@ -1,0 +1,41 @@
+unit Vittix.Report.Reg;
+
+{
+  Vittix.Report.Reg
+  =================
+  Single entry point for all design-time registration.
+  The IDE calls Register once when the package is installed.
+
+  Both RegisterComponents and RegisterComponentEditor must be called
+  from here — never from initialization sections.
+}
+
+interface
+
+procedure Register;
+
+implementation
+
+uses
+  System.Classes,
+  Vittix.Report.DesignerControl,
+  Vittix.Report.Toolbox,
+  Vittix.Report.Preview,
+  Vittix.Report.ComponentEditor;  // pulls in TVittixReportComponentEditor
+
+procedure Register;
+begin
+  // 1. Place components on the 'Vittix Reporting' palette tab
+  RegisterComponents('Vittix Reporting', [
+    TVittixReportDesigner,
+    TVittixReportToolbox,
+    TVittixReportPreview
+  ]);
+
+  // 2. Register the component editor so double-clicking TVittixReportDesigner
+  //    opens the visual designer form.
+  //    This delegates to Vittix.Report.ComponentEditor.Register.
+  Vittix.Report.ComponentEditor.Register;
+end;
+
+end.

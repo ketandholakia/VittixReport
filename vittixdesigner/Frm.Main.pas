@@ -26,7 +26,7 @@
 interface
 
 uses
-  System.SysUtils, System.Classes, System.Types,
+  System.SysUtils, System.Classes, System.Types, System.IOUtils,
   Vcl.Forms, Vcl.Controls, Vcl.ComCtrls, Vcl.ToolWin,
   Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Menus, Vcl.Dialogs,
   Vcl.ValEdit, Vcl.ActnList, Vcl.ActnMan, Vcl.ActnCtrls,
@@ -43,7 +43,10 @@ uses
   Vittix.Report.Renderer,
   Vittix.Report.Export.PDF,
   Vittix.Report.Objects.Barcode,
-  Vittix.Report.Objects.Table, Vcl.Grids;
+  Vittix.Report.Objects.Table, Vcl.Grids,  Vcl.CheckLst,
+  System.ImageList,
+
+  RzPanel, RzButton;
 
 type
   TfrmMain = class(TForm)
@@ -163,6 +166,11 @@ type
     lblToolbox   : TLabel;
     Toolbox      : TVittixReportToolbox;
 
+    { ---- Fields panel (below toolbox) ---- }
+    pnlFields    : TPanel;
+    lblFields    : TLabel;
+    lstFields    : TListBox;
+
     { ---- Property panel ---- }
     lblProperties: TLabel;
     PropEditor   : TValueListEditor;
@@ -171,6 +179,12 @@ type
     { ---- Designer canvas in a scroll box ---- }
     ScrollBox1   : TScrollBox;
     Designer     : TVittixReportDesigner;
+
+    { ---- Data access ---- }
+    { Drop any TDataSet-descendant (TADOQuery, TFDQuery, etc.) on the form  }
+    { and set DataSource1.DataSet to it. The designer will auto-populate    }
+    { the Field List panel and enable live preview.                         }
+    DataSource1  : TDataSource;
 
     { ---- Report-info strip inside property panel ---- }
     pnlReportInfo: TPanel;
@@ -182,6 +196,10 @@ type
     lblZoom      : TLabel;
     edtZoom      : TEdit;
     btnZoomApply : TButton;
+    CheckListBox1: TCheckListBox;
+    ImageList1: TImageList;
+    RzToolbar1: TRzToolbar;
+    btn1: TRzToolButton;
 
     { ---- Event handlers ---- }
 
@@ -262,6 +280,10 @@ type
     FCurrentFile: string;
     FModified   : Boolean;
 
+    // Command-line mode: set when launched by the component editor
+    FCmdLineInputFile : string;   // file to load on startup
+    FCmdLineOutputFile: string;   // file to write on save & close
+
     procedure BuildInsertMenu;
 
     procedure UpdateTitleBar;
@@ -274,6 +296,10 @@ type
     procedure AddBand(ABandType: TReportBandType);
     procedure ConfirmSaveIfModified;
     procedure DynInsertMenuClick(Sender: TObject);
+
+    procedure RefreshFieldList;
+    procedure FieldListDblClick(Sender: TObject);
+    procedure DesignerDataSetChanged(Sender: TObject);
 
     function  ZoomFromEdit: Integer;
 
@@ -302,6 +328,8 @@ function BandTypeName(BT: TReportBandType): string; forward;
 { =========================================================================== }
 
 procedure TfrmMain.FormCreate(Sender: TObject);
+var
+  Splitter: TSplitter;
 begin
   // Ensure the Toolbox knows all registered types (including Barcode + Table
   // which self-register in their unit initialization sections)
@@ -310,6 +338,39 @@ begin
   // Wire designer events
   Designer.OnSelectionChanged := DesignerSelectionChanged;
   Designer.OnModified         := DesignerModified;
+  Designer.OnDataSetChanged   := DesignerDataSetChanged;
+
+  // Connect the shared DataSource so the designer sees whatever dataset
+  // is assigned to DataSource1 at design-time or runtime.
+  Designer.DataSource := DataSource1;
+
+  // ---- Build the Fields panel dynamically inside pnlToolbox ----
+  pnlFields          := TPanel.Create(Self);
+  pnlFields.Parent   := pnlToolbox;
+  pnlFields.Align    := alBottom;
+  pnlFields.Height   := 160;
+  pnlFields.BevelOuter := bvNone;
+  pnlFields.Caption  := '';
+
+  lblFields          := TLabel.Create(Self);
+  lblFields.Parent   := pnlFields;
+  lblFields.Align    := alTop;
+  lblFields.Caption  := ' Dataset Fields';
+  lblFields.Font.Style := [fsBold];
+  lblFields.Height   := 18;
+
+  lstFields          := TListBox.Create(Self);
+  lstFields.Parent   := pnlFields;
+  lstFields.Align    := alClient;
+  lstFields.OnDblClick := FieldListDblClick;
+  lstFields.Hint     := 'Double-click a field to insert a bound label into the active band';
+  lstFields.ShowHint := True;
+
+  // Splitter between toolbox list and fields panel
+  Splitter           := TSplitter.Create(Self);
+  Splitter.Parent    := pnlToolbox;
+  Splitter.Align     := alBottom;
+  Splitter.Height    := 5;
 
   // File dialogs
   dlgOpen.Filter := 'Vittix Report Files (*.vrt)|*.vrt|All Files (*.*)|*.*';
@@ -320,6 +381,29 @@ begin
   FCurrentFile := '';
   FModified    := False;
 
+  // Command-line mode: VittixDesigner.exe "input.vrt" "output.vrt"
+  // When launched by the component editor, load the input file and
+  // remember the output path for Save & Close.
+  FCmdLineInputFile  := '';
+  FCmdLineOutputFile := '';
+  if ParamCount >= 1 then
+  begin
+    FCmdLineInputFile  := ParamStr(1);
+    if ParamCount >= 2 then
+      FCmdLineOutputFile := ParamStr(2);
+
+    if TFile.Exists(FCmdLineInputFile) then
+    try
+      var R := TReportSerializer.LoadFromFile(FCmdLineInputFile);
+      Designer.LoadReport(R, True);
+      edtReportTitle.Text  := Designer.Report.Title;
+      edtReportAuthor.Text := Designer.Report.Author;
+    except
+      // ignore — start with blank report
+    end;
+  end;
+
+  RefreshFieldList;
   UpdateTitleBar;
   UpdateStatusBar;
   UpdateMenuState;
@@ -333,6 +417,22 @@ end;
 procedure TfrmMain.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   CanClose := True;
+
+  // Command-line mode: save the report to the output file before closing
+  // so the component editor can read it back.
+  if FCmdLineOutputFile <> '' then
+  begin
+    try
+      Designer.Report.Title  := edtReportTitle.Text;
+      Designer.Report.Author := edtReportAuthor.Text;
+      TReportSerializer.SaveToFile(Designer.Report, FCmdLineOutputFile);
+    except
+      on E: Exception do
+        ShowMessage('Could not save report: ' + E.Message);
+    end;
+    Exit; // skip the normal "save changes?" prompt
+  end;
+
   if FModified then
     ConfirmSaveIfModified;
 end;
@@ -890,6 +990,46 @@ begin
   Designer.BeginInsertObject(Cls);
   StatusBar1.Panels[1].Text :=
     'Insert mode — click inside a band to place a ' + Cls.DisplayName;
+end;
+
+{ =========================================================================== }
+{  Dataset / Field list                                                        }
+{ =========================================================================== }
+
+procedure TfrmMain.RefreshFieldList;
+var
+  Names: TArray<string>;
+  N    : string;
+begin
+  lstFields.Items.BeginUpdate;
+  try
+    lstFields.Items.Clear;
+    Names := Designer.GetFieldNames;
+    for N in Names do
+      lstFields.Items.Add(N);
+  finally
+    lstFields.Items.EndUpdate;
+  end;
+
+  if lstFields.Items.Count = 0 then
+    lblFields.Caption := ' Dataset Fields  (none)'
+  else
+    lblFields.Caption := Format(' Dataset Fields  (%d)', [lstFields.Items.Count]);
+end;
+
+procedure TfrmMain.FieldListDblClick(Sender: TObject);
+var
+  FieldName: string;
+begin
+  if lstFields.ItemIndex < 0 then Exit;
+  FieldName := lstFields.Items[lstFields.ItemIndex];
+  if not Designer.InsertFieldObject(FieldName) then
+    ShowMessage('Please click a band on the canvas first to set the active band, then double-click a field.');
+end;
+
+procedure TfrmMain.DesignerDataSetChanged(Sender: TObject);
+begin
+  RefreshFieldList;
 end;
 
 procedure TfrmMain.BuildInsertMenu;

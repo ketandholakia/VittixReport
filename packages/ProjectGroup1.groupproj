@@ -1,6 +1,6 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
-        <ProjectGuid>{7D1517BF-E633-4090-97A8-6CB79751424D}</ProjectGuid>
+        <ProjectGuid>{DB1F0608-1118-44F4-BD2C-F6974982082B}</ProjectGuid>
     </PropertyGroup>
     <ItemGroup>
         <Projects Include="VittixReportRuntime.dproj">

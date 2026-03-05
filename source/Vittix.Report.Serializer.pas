@@ -37,6 +37,8 @@ type
   TReportSerializer = class
   public
     class procedure SaveToFile(R: TReportModel; const FN: string);
+    class function  SaveToJSON(R: TReportModel): string;
+    class function  LoadFromJSON(const S: string): TReportModel;
     class function  LoadFromFile(const FN: string): TReportModel;
 
     /// <summary>Deep-clone a single object (band + its children, or leaf object).</summary>
@@ -501,7 +503,7 @@ end;
 // Save
 // ---------------------------------------------------------------------------
 
-class procedure TReportSerializer.SaveToFile(R: TReportModel; const FN: string);
+class function TReportSerializer.SaveToJSON(R: TReportModel): string;
 var
   Root: TJSONObject;
   Arr:  TJSONArray;
@@ -512,10 +514,10 @@ begin
 
   Root := TJSONObject.Create;
   try
-    Root.AddPair('Version',     TJSONNumber.Create(2));
-    Root.AddPair('Title',       R.Title);
-    Root.AddPair('Author',      R.Author);
-    Root.AddPair('Description', R.Description);
+    Root.AddPair('Version',      TJSONNumber.Create(2));
+    Root.AddPair('Title',        R.Title);
+    Root.AddPair('Author',       R.Author);
+    Root.AddPair('Description',  R.Description);
     Root.AddPair('PageSettings', PageSettingsToJSON(R.PageSettings));
 
     Arr := TJSONArray.Create;
@@ -523,65 +525,68 @@ begin
       Arr.AddElement(ObjectToJSON(Obj));
     Root.AddPair('Objects', Arr);
 
-    TFile.WriteAllText(FN, Root.Format(2), TEncoding.UTF8);
+    Result := Root.Format(2);
   finally
     Root.Free;
   end;
+end;
+
+class procedure TReportSerializer.SaveToFile(R: TReportModel; const FN: string);
+begin
+  TFile.WriteAllText(FN, SaveToJSON(R), TEncoding.UTF8);
 end;
 
 // ---------------------------------------------------------------------------
 // Load
 // ---------------------------------------------------------------------------
 
-class function TReportSerializer.LoadFromFile(const FN: string): TReportModel;
+class function TReportSerializer.LoadFromJSON(const S: string): TReportModel;
 var
   Root: TJSONObject;
   Arr:  TJSONArray;
   i:    Integer;
-  S:    string;
 begin
-  if not TFile.Exists(FN) then
-    raise Exception.CreateFmt('Report file not found: "%s"', [FN]);
-
-  S    := TFile.ReadAllText(FN, TEncoding.UTF8);
   Root := nil;
   try
     try
       Root := TJSONObject.ParseJSONValue(S) as TJSONObject;
     except
-      raise Exception.Create('Invalid JSON format in report file');
+      raise Exception.Create('Invalid JSON format in report');
     end;
 
     if not Assigned(Root) then
-      raise Exception.Create('Invalid JSON format in report file');
+      raise Exception.Create('Invalid JSON format in report');
 
     Result := TReportModel.Create;
     try
-      // Metadata
       Result.Title       := Root.GetValue<string>('Title',       '');
       Result.Author      := Root.GetValue<string>('Author',      '');
       Result.Description := Root.GetValue<string>('Description', '');
 
-      // Page settings (v2+; silently absent in v1 files)
       JSONToPageSettings(
         Root.GetValue<TJSONObject>('PageSettings'),
         Result.PageSettings);
 
-      // Objects (bands + their children)
       Arr := Root.GetValue<TJSONArray>('Objects');
       if Assigned(Arr) then
         for i := 0 to Arr.Count - 1 do
           Result.Objects.Add(
             JSONToObject(Arr.Items[i] as TJSONObject));
-
     except
       Result.Free;
       raise;
     end;
-
   finally
     Root.Free;
   end;
+end;
+
+class function TReportSerializer.LoadFromFile(const FN: string): TReportModel;
+begin
+  if not TFile.Exists(FN) then
+    raise Exception.CreateFmt('Report file not found: "%s"', [FN]);
+
+  Result := LoadFromJSON(TFile.ReadAllText(FN, TEncoding.UTF8));
 end;
 
 end.

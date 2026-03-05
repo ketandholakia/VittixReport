@@ -71,6 +71,8 @@ type
     FReport    : TReportModel;
     FOwnsReport: Boolean;
     FDataSet   : TDataSet;
+    FDataSource: TDataSource;
+    FReportJSON: string;   // DFM-persisted report definition
 
     { Appearance }
     FShowGrid   : Boolean;
@@ -123,6 +125,7 @@ type
     { Events }
     FOnSelectionChanged: TNotifyEvent;
     FOnModified        : TNotifyEvent;
+    FOnDataSetChanged  : TNotifyEvent;
 
     { Internal helpers - coordinate transforms }
     function  Scale(V: Integer): Integer;    // logical -> screen  (apply zoom)
@@ -160,6 +163,9 @@ type
 
     { Property setters }
     procedure SetDataSet(const V: TDataSet);
+    procedure SetDataSource(const V: TDataSource);
+    function  GetReportJSON: string;
+    procedure SetReportJSON(const V: string);
     procedure SetZoom(const V: Integer);
     procedure SetShowGrid(const V: Boolean);
     procedure SetShowRulers(const V: Boolean);
@@ -191,6 +197,7 @@ type
   protected
     procedure Paint; override;
     procedure Resize; override;
+    procedure Notification(AComponent: TComponent; Operation: TOperation); override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
@@ -246,6 +253,10 @@ type
     procedure BeginUpdate;
     procedure EndUpdate;
 
+    { Dataset helpers }
+    function  GetFieldNames: TArray<string>;
+    function  InsertFieldObject(const AFieldName: string): Boolean;
+
     { Rebuild internal band/object layout after external report mutations }
     procedure RebuildLayout;
 
@@ -260,7 +271,13 @@ type
     property Color default $00E8E8E8;
     property TabOrder;
 
-    property DataSet    : TDataSet read FDataSet    write SetDataSet;
+    property DataSet    : TDataSet   read FDataSet    write SetDataSet;
+    property DataSource : TDataSource read FDataSource write SetDataSource;
+
+    { Serialised report definition — persisted to the host form's DFM file.
+      The component editor reads/writes this automatically when the IDE
+      designer is opened and closed. }
+    property ReportJSON : string     read GetReportJSON write SetReportJSON;
     property ShowGrid   : Boolean  read FShowGrid   write SetShowGrid   default True;
     property SnapToGrid : Boolean  read FSnapToGrid write FSnapToGrid   default True;
     property GridSize   : Integer  read FGridSize   write FGridSize     default 8;
@@ -272,6 +289,8 @@ type
       read FOnSelectionChanged write FOnSelectionChanged;
     property OnModified: TNotifyEvent
       read FOnModified write FOnModified;
+    property OnDataSetChanged: TNotifyEvent
+      read FOnDataSetChanged write FOnDataSetChanged;
   end;
 
 procedure Register;
@@ -1220,6 +1239,122 @@ end;
 procedure TVittixReportDesigner.SetDataSet(const V: TDataSet);
 begin
   FDataSet := V;
+  if Assigned(FOnDataSetChanged) then
+    FOnDataSetChanged(Self);
+end;
+
+procedure TVittixReportDesigner.SetDataSource(const V: TDataSource);
+begin
+  if FDataSource = V then Exit;
+
+  // Stop watching the old DataSource
+  if Assigned(FDataSource) then
+    FDataSource.RemoveFreeNotification(Self);
+
+  FDataSource := V;
+
+  // Watch the new DataSource so we're notified if it's freed
+  if Assigned(FDataSource) then
+    FDataSource.FreeNotification(Self);
+
+  // Sync FDataSet from the new source (nil is fine)
+  if Assigned(FDataSource) then
+    SetDataSet(FDataSource.DataSet)
+  else
+    SetDataSet(nil);
+end;
+
+procedure TVittixReportDesigner.Notification(AComponent: TComponent;
+  Operation: TOperation);
+begin
+  inherited;
+  if (Operation = opRemove) then
+  begin
+    if AComponent = FDataSource then
+    begin
+      FDataSource := nil;
+      SetDataSet(nil);
+    end
+    else if AComponent = FDataSet then
+      SetDataSet(nil);
+  end;
+end;
+
+function TVittixReportDesigner.GetReportJSON: string;
+begin
+  // Always serialise the live model so the value is current
+  if Assigned(FReport) then
+    Result := TReportSerializer.SaveToJSON(FReport)
+  else
+    Result := FReportJSON;
+end;
+
+procedure TVittixReportDesigner.SetReportJSON(const V: string);
+var
+  Model: TReportModel;
+begin
+  FReportJSON := V;
+  if V = '' then
+  begin
+    NewReport;  // reset to blank
+    Exit;
+  end;
+  try
+    Model := TReportSerializer.LoadFromJSON(V);
+    LoadReport(Model, True {take ownership});
+  except
+    // Silently ignore corrupt JSON at DFM load time;
+    // the designer will just show a blank report.
+  end;
+end;
+
+function TVittixReportDesigner.GetFieldNames: TArray<string>;
+var
+  I: Integer;
+begin
+  Result := [];
+  if not Assigned(FDataSet) then Exit;
+  SetLength(Result, FDataSet.FieldCount);
+  for I := 0 to FDataSet.FieldCount - 1 do
+    Result[I] := FDataSet.Fields[I].FieldName;
+end;
+
+function TVittixReportDesigner.InsertFieldObject(const AFieldName: string): Boolean;
+var
+  TargetBand: TReportBand;
+  NewObj    : TReportTextObject;
+  Cmd       : TInsertObjectCommand;
+  NextX, NextY: Integer;
+  Obj       : TReportObject;
+begin
+  Result := False;
+
+  { Require an active band to drop the object into }
+  TargetBand := FActiveBand;
+  if not Assigned(TargetBand) and (Length(FBandLayouts) > 0) then
+    TargetBand := FBandLayouts[0].Band;   // fall back to first band
+  if not Assigned(TargetBand) then Exit;
+
+  { Pick a Y position: stack below existing children }
+  NextY := 4;
+  NextX := 4;
+  for Obj in TargetBand.Children do
+    if Obj.Bounds.Bottom + 2 > NextY then
+      NextY := Obj.Bounds.Bottom + 2;
+
+  NewObj           := TReportTextObject.Create;
+  NewObj.Bounds    := Bounds(SnapV(NextX), SnapV(NextY), 120, 20);
+  NewObj.DataField := AFieldName;
+  NewObj.Text      := '';   // runtime value comes from DataField
+
+  Cmd := TInsertObjectCommand.Create(TargetBand.Children, NewObj);
+  FCommands.DoCommand(Cmd);
+  FObjectBandMap.AddOrSetValue(NewObj, TargetBand);
+
+  ClearSelection;
+  AddToSelection(NewObj);
+  DoModified;
+  Result := True;
 end;
 
 procedure TVittixReportDesigner.SetZoom(const V: Integer);
