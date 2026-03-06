@@ -111,6 +111,7 @@ var
   Sh:        TReportShapeObject;
   Img:       TReportImageObject;
   Memo:      TReportMemoObject;
+  Fld:       TReportFieldObject;
   Ln:        TReportLineObject;
   Band:      TReportBand;
   ChildArr:  TJSONArray;
@@ -153,6 +154,12 @@ begin
     Result.AddPair('PaddingTop',     TJSONNumber.Create(T.PaddingTop));
     Result.AddPair('PaddingRight',   TJSONNumber.Create(T.PaddingRight));
     Result.AddPair('PaddingBottom',  TJSONNumber.Create(T.PaddingBottom));
+    Result.AddPair('FontColorCondition',   T.FontColorCondition);
+    Result.AddPair('FontColorOnTrue',      TJSONNumber.Create(T.FontColorOnTrue));
+    Result.AddPair('BackgroundCondition',  T.BackgroundCondition);
+    Result.AddPair('BackgroundOnTrue',     TJSONNumber.Create(T.BackgroundOnTrue));
+    Result.AddPair('BorderColorCondition', T.BorderColorCondition);
+    Result.AddPair('BorderColorOnTrue',    TJSONNumber.Create(T.BorderColorOnTrue));
   end;
 
   // ----- TReportShapeObject fields -----
@@ -202,6 +209,13 @@ begin
     Result.AddPair('MinHeight',  TJSONNumber.Create(Memo.MinHeight));
   end;
 
+  if Obj is TReportFieldObject then
+  begin
+    Fld := TReportFieldObject(Obj);
+    Result.AddPair('DisplayFormat', Fld.DisplayFormat);
+    Result.AddPair('EditMask',      Fld.EditMask);
+  end;
+
   // ----- TReportLineObject fields -----
   if Obj is TReportLineObject then
   begin
@@ -244,6 +258,7 @@ var
   Sh:         TReportShapeObject;
   Img:        TReportImageObject;
   Memo:       TReportMemoObject;
+  Fld:        TReportFieldObject;
   Ln:         TReportLineObject;
   Band:       TReportBand;
   ChildArr:   TJSONArray;
@@ -300,6 +315,12 @@ begin
       T.PaddingTop     := O.GetValue<Integer>('PaddingTop',    2);
       T.PaddingRight   := O.GetValue<Integer>('PaddingRight',  2);
       T.PaddingBottom  := O.GetValue<Integer>('PaddingBottom', 2);
+      T.FontColorCondition   := O.GetValue<string>('FontColorCondition',   '');
+      T.FontColorOnTrue      := O.GetValue<Integer>('FontColorOnTrue',      Integer(clRed));
+      T.BackgroundCondition  := O.GetValue<string>('BackgroundCondition',  '');
+      T.BackgroundOnTrue     := O.GetValue<Integer>('BackgroundOnTrue',     Integer(clYellow));
+      T.BorderColorCondition := O.GetValue<string>('BorderColorCondition', '');
+      T.BorderColorOnTrue    := O.GetValue<Integer>('BorderColorOnTrue',    Integer(clRed));
     end;
 
     // ----- TReportShapeObject fields -----
@@ -362,6 +383,13 @@ begin
       Memo := TReportMemoObject(Obj);
       Memo.AutoHeight := O.GetValue<Boolean>('AutoHeight', True);
       Memo.MinHeight  := O.GetValue<Integer>('MinHeight',  20);
+    end;
+
+    if Obj is TReportFieldObject then
+    begin
+      Fld := TReportFieldObject(Obj);
+      Fld.DisplayFormat := O.GetValue<string>('DisplayFormat', '');
+      Fld.EditMask      := O.GetValue<string>('EditMask',      '');
     end;
 
     // ----- TReportLineObject fields -----

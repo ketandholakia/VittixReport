@@ -56,6 +56,7 @@ type
     FPageHeight:  Integer;
     FPageNumber:  Integer;   // 1-based current page counter
     FReportDate:  TDateTime; // set once when Prepare begins
+    FTotalPagesForPass: Integer;
 
     FTitleBand:         TReportBand;
     FHeaderBand:        TReportBand;
@@ -87,6 +88,7 @@ type
     procedure PrintBand(ABand: TReportBand; ADataSet: TDataSet = nil);
     function  ResolveBandDataSet(ABand: TReportBand): TDataSet;
     procedure PrintDetailBands;
+    function  ExecutePass(ATotalPages: Integer; AReportProgress: Boolean): Integer;
     function  CheckSpace(RequiredHeight: Integer): Boolean;
 
   public
@@ -150,6 +152,7 @@ begin
   // so StartNewPage can be called safely before Prepare sets them.
   FPageWidth  := 793;
   FPageHeight := 1122;
+  FTotalPagesForPass := 0;
 end;
 
 constructor TReportEngine.Create(
@@ -292,7 +295,7 @@ begin
       var Ctx2: TExpressionContext := Default(TExpressionContext);
       Ctx2.DataSet    := FDataSet;
       Ctx2.PageNumber := FPageNumber;
-      Ctx2.TotalPages := 0;
+      Ctx2.TotalPages := FTotalPagesForPass;
       Ctx2.ReportTitle := FReport.Title;
       Ctx2.ReportDate  := FReportDate;
       FOverlayBand.Draw(FCanvas, Ctx2);
@@ -350,7 +353,7 @@ begin
     var Ctx0: TExpressionContext := Default(TExpressionContext);
     Ctx0.DataSet     := ADataSet;
     Ctx0.PageNumber := FPageNumber;
-    Ctx0.TotalPages := 0;
+    Ctx0.TotalPages := FTotalPagesForPass;
     Ctx0.ReportTitle := FReport.Title;
     Ctx0.ReportDate  := FReportDate;
     var PWResult := TReportExpression.Evaluate(ABand.PrintWhen, Ctx0);
@@ -371,7 +374,7 @@ begin
   Ctx.GroupStart  := FGroupStartBookmark;
   Ctx.GroupEnd    := FGroupEndBookmark;
   Ctx.PageNumber  := FPageNumber;
-  Ctx.TotalPages  := 0;
+  Ctx.TotalPages  := FTotalPagesForPass;
   Ctx.ReportTitle := FReport.Title;
   Ctx.ReportDate  := FReportDate;
 
@@ -499,31 +502,209 @@ end;
 
 { ================= Main Loop ================= }
 
-procedure TReportEngine.Prepare;
+function TReportEngine.ExecutePass(ATotalPages: Integer; AReportProgress: Boolean): Integer;
 var
   i, RowNumber, TotalRows: Integer;
   GH, GF: TReportBand;
   NewValue: Variant;
   BreakLevel: Integer;
 begin
-  try
-    FPages.Clear;
-    FPageNumber := 0;
-    FReportDate := Now;
+  FPages.Clear;
+  FPageNumber := 0;
+  FTotalPagesForPass := ATotalPages;
 
-    // Snapshot page dimensions from the model's PageSettings
-    FPageWidth  := FReport.PageSettings.PageWidth;
-    FPageHeight := FReport.PageSettings.PageHeight;
+  // Snapshot page dimensions from the model's PageSettings
+  FPageWidth  := FReport.PageSettings.PageWidth;
+  FPageHeight := FReport.PageSettings.PageHeight;
 
-    CacheBands;
+  CacheBands;
 
-    // Notify progress listener of expected row count (best-effort)
-    if Assigned(FProgress) then
-    begin
-      TotalRows := SafeRecordCount(FDataSet);
-      FProgress.SetTotal(TotalRows);
+  if AReportProgress and Assigned(FProgress) then
+  begin
+    TotalRows := SafeRecordCount(FDataSet);
+    FProgress.SetTotal(TotalRows);
+  end;
+  RowNumber := 0;
+
+  StartNewPage;
+
+  { Title once }
+  if Assigned(FTitleBand) then
+    PrintBand(FTitleBand);
+
+  { Page header on first page }
+  PrintPageHeader;
+  { Column header on first page (before first group break or first data row) }
+  if Assigned(FColumnHeaderBand) then
+    PrintBand(FColumnHeaderBand);
+
+  SetLength(FLastGroupValues, FGroupHeaders.Count);
+  for i := 0 to High(FLastGroupValues) do
+    FLastGroupValues[i] := Null;
+
+  FGroupStartBookmark := nil; // Initialize
+  FGroupEndBookmark := nil;   // Initialize
+  FHasGroupStartBookmark := False;
+  FHasGroupEndBookmark := False;
+
+  { Master data loop }
+  if Assigned(FDataSet) and FDataSet.Active then
+  begin
+    FDataSet.DisableControls;
+    try
+      FDataSet.First;
+
+      while not FDataSet.Eof do
+      begin
+        { -------- GROUP SUPPORT -------- }
+        // Detect break level
+        BreakLevel := -1;
+        for i := 0 to FGroupHeaders.Count-1 do
+        begin
+          GH := FGroupHeaders[i];
+          if GH.GroupField <> '' then // Only consider groups with a field
+          begin
+            if Assigned(FDataSet.FindField(GH.GroupField)) then
+              NewValue := FDataSet.FieldByName(GH.GroupField).Value
+            else
+              NewValue := Null;
+
+            if VarIsNull(FLastGroupValues[i]) or
+               (NewValue <> FLastGroupValues[i]) then
+            begin
+              BreakLevel := i;
+              Break;
+            end;
+          end;
+        end;
+
+        // Close lower groups first (from lowest level up to BreakLevel)
+        if BreakLevel >= 0 then
+        begin
+          if DataSetSupportsBookmarks(FDataSet) then
+          begin
+            if FHasGroupEndBookmark then
+              FDataSet.FreeBookmark(FGroupEndBookmark);
+            FGroupEndBookmark := FDataSet.GetBookmark;
+            FHasGroupEndBookmark := True;
+          end
+          else
+          begin
+            FGroupEndBookmark := nil;
+            FHasGroupEndBookmark := False;
+          end;
+
+          for i := 0 to FGroupFooters.Count-1 do
+          begin
+            GF := FGroupFooters[i];
+            if GF.GroupLevel >= BreakLevel then
+              PrintBand(GF);
+          end;
+        end;
+
+        // Open new groups top-down (from BreakLevel down to lowest level)
+        if BreakLevel >= 0 then
+        begin
+          for i := BreakLevel to FGroupHeaders.Count-1 do
+          begin
+            GH := FGroupHeaders[i];
+
+            if GH.StartNewPage then
+            begin
+              StartNewPage;
+              PrintPageHeader;
+            end;
+
+            PrintBand(GH);
+
+            // Print column header below each group header
+            if Assigned(FColumnHeaderBand) then
+              PrintBand(FColumnHeaderBand);
+
+            if Assigned(FDataSet.FindField(GH.GroupField)) then
+              FLastGroupValues[i] := FDataSet.FieldByName(GH.GroupField).Value
+            else
+              FLastGroupValues[i] := Null;
+          end;
+
+          if DataSetSupportsBookmarks(FDataSet) then
+          begin
+            if FHasGroupStartBookmark then
+              FDataSet.FreeBookmark(FGroupStartBookmark);
+            FGroupStartBookmark := FDataSet.GetBookmark;
+            FHasGroupStartBookmark := True;
+          end
+          else
+          begin
+            FGroupStartBookmark := nil;
+            FHasGroupStartBookmark := False;
+          end;
+        end;
+
+        { -------- PAGE BREAK -------- }
+        if not CheckSpace(FMasterBand.Height) then
+        begin
+          StartNewPage;
+          PrintPageHeader;
+          // Column header always repeats on each page (with or without groups)
+          if Assigned(FColumnHeaderBand) then
+            PrintBand(FColumnHeaderBand);
+        end;
+        { -------- PRINT RECORD -------- }
+        PrintBand(FMasterBand, FDataSet);
+        PrintDetailBands;
+
+        // Report progress and check for cancellation
+        Inc(RowNumber);
+        if AReportProgress and Assigned(FProgress) then
+        begin
+          FProgress.Advance(RowNumber);
+          if FProgress.IsCancelled then
+            Break;
+        end;
+
+        FDataSet.Next;
+      end;
+    finally
+      FDataSet.EnableControls;
     end;
-    RowNumber := 0;
+  end;
+
+  { close last group }
+  // After the loop, FDataSet is at EOF. The FGroupEndBookmark for the LAST group is set if supported.
+  if DataSetSupportsBookmarks(FDataSet) then
+  begin
+    if FHasGroupEndBookmark then
+      FDataSet.FreeBookmark(FGroupEndBookmark);
+    FGroupEndBookmark := FDataSet.GetBookmark;
+    FHasGroupEndBookmark := True;
+  end
+  else
+  begin
+    FGroupEndBookmark := nil;
+    FHasGroupEndBookmark := False;
+  end;
+  for GF in FGroupFooters do
+    PrintBand(GF);
+
+  if Assigned(FSummaryBand) then
+  begin
+    if not CheckSpace(FSummaryBand.Height) then
+      StartNewPage;
+
+    PrintBand(FSummaryBand);
+  end;
+
+  EndCurrentPage;
+  Result := FPageNumber;
+end;
+
+procedure TReportEngine.Prepare;
+var
+  CountedPages: Integer;
+begin
+  try
+    CacheBands;
 
     if not Assigned(FMasterBand) then
       raise EReportException.Create(
@@ -537,181 +718,13 @@ begin
       raise EReportException.Create(
         'DataSet must be active to generate the report.');
 
-    StartNewPage;
+    FReportDate := Now;
 
-    { Title once }
-    if Assigned(FTitleBand) then
-      PrintBand(FTitleBand);
+    // Pass 1: count pages with TotalPages unresolved.
+    CountedPages := ExecutePass(0, False);
 
-    { Page header on first page }
-    PrintPageHeader;
-    { Column header on first page (before first group break or first data row) }
-    if Assigned(FColumnHeaderBand) then
-      PrintBand(FColumnHeaderBand);
-
-    SetLength(FLastGroupValues, FGroupHeaders.Count);
-    for i := 0 to High(FLastGroupValues) do
-      FLastGroupValues[i] := Null;
-
-    FGroupStartBookmark := nil; // Initialize
-    FGroupEndBookmark := nil;   // Initialize
-    FHasGroupStartBookmark := False;
-    FHasGroupEndBookmark := False;
-
-    // LastGroupValue is a local variable, not a field.
-    // It's used in the previous version of the Prepare method,
-    // but with multi-level grouping, FLastGroupValues array handles this.
-    // The original prompt's 'LastGroupValue := Null;' is no longer needed here.
-
-    { Master data loop }
-    if Assigned(FDataSet) and FDataSet.Active then
-    begin
-      FDataSet.DisableControls;
-      try
-        FDataSet.First;
-
-        while not FDataSet.Eof do
-        begin
-          { -------- GROUP SUPPORT -------- }
-          // Detect break level
-          BreakLevel := -1;
-          for i := 0 to FGroupHeaders.Count-1 do
-          begin
-            GH := FGroupHeaders[i];
-            if GH.GroupField <> '' then // Only consider groups with a field
-            begin
-              if Assigned(FDataSet.FindField(GH.GroupField)) then
-                NewValue := FDataSet.FieldByName(GH.GroupField).Value
-              else
-                NewValue := Null;
-
-              if VarIsNull(FLastGroupValues[i]) or
-                 (NewValue <> FLastGroupValues[i]) then
-              begin
-                BreakLevel := i;
-                Break;
-              end;
-            end;
-          end;
-
-          // Close lower groups first (from lowest level up to BreakLevel)
-          if BreakLevel >= 0 then
-          begin
-            if DataSetSupportsBookmarks(FDataSet) then
-            begin
-              if FHasGroupEndBookmark then
-                FDataSet.FreeBookmark(FGroupEndBookmark);
-              FGroupEndBookmark := FDataSet.GetBookmark;
-              FHasGroupEndBookmark := True;
-            end
-            else
-            begin
-              FGroupEndBookmark := nil;
-              FHasGroupEndBookmark := False;
-            end;
-
-            for i := 0 to FGroupFooters.Count-1 do
-            begin
-              GF := FGroupFooters[i];
-              if GF.GroupLevel >= BreakLevel then
-                PrintBand(GF);
-            end;
-          end;
-
-          // Open new groups top-down (from BreakLevel down to lowest level)
-          if BreakLevel >= 0 then
-          begin
-            for i := BreakLevel to FGroupHeaders.Count-1 do
-            begin
-              GH := FGroupHeaders[i];
-
-              if GH.StartNewPage then
-              begin
-                StartNewPage;
-                PrintPageHeader;
-              end;
-
-              PrintBand(GH);
-
-              // Print column header below each group header
-              if Assigned(FColumnHeaderBand) then
-                PrintBand(FColumnHeaderBand);
-
-              if Assigned(FDataSet.FindField(GH.GroupField)) then
-                FLastGroupValues[i] := FDataSet.FieldByName(GH.GroupField).Value
-              else
-                FLastGroupValues[i] := Null;
-            end;
-
-            if DataSetSupportsBookmarks(FDataSet) then
-            begin
-              if FHasGroupStartBookmark then
-                FDataSet.FreeBookmark(FGroupStartBookmark);
-              FGroupStartBookmark := FDataSet.GetBookmark;
-              FHasGroupStartBookmark := True;
-            end
-            else
-            begin
-              FGroupStartBookmark := nil;
-              FHasGroupStartBookmark := False;
-            end;
-          end;
-
-          { -------- PAGE BREAK -------- }
-          if not CheckSpace(FMasterBand.Height) then
-          begin
-            StartNewPage;
-            PrintPageHeader;
-            // Column header always repeats on each page (with or without groups)
-            if Assigned(FColumnHeaderBand) then
-              PrintBand(FColumnHeaderBand);
-          end;
-          { -------- PRINT RECORD -------- }
-          PrintBand(FMasterBand, FDataSet);
-          PrintDetailBands;
-
-          // Report progress and check for cancellation
-          Inc(RowNumber);
-          if Assigned(FProgress) then
-          begin
-            FProgress.Advance(RowNumber);
-            if FProgress.IsCancelled then
-              Break;
-          end;
-
-          FDataSet.Next;
-        end;
-      finally
-        FDataSet.EnableControls;
-      end;
-    end;
-
-    { close last group }
-    // After the loop, FDataSet is at EOF. The FGroupEndBookmark for the LAST group is set if supported.
-    if DataSetSupportsBookmarks(FDataSet) then
-    begin
-      if FHasGroupEndBookmark then
-        FDataSet.FreeBookmark(FGroupEndBookmark);
-      FGroupEndBookmark := FDataSet.GetBookmark;
-      FHasGroupEndBookmark := True;
-    end
-    else
-    begin
-      FGroupEndBookmark := nil;
-      FHasGroupEndBookmark := False;
-    end;
-    for GF in FGroupFooters do
-      PrintBand(GF);
-
-    if Assigned(FSummaryBand) then
-    begin
-      if not CheckSpace(FSummaryBand.Height) then
-        StartNewPage;
-
-      PrintBand(FSummaryBand);
-    end;
-
-    EndCurrentPage;
+    // Pass 2: final render with resolved TotalPages available to expressions.
+    ExecutePass(CountedPages, True);
   except
     on E: EReportException do
       raise; // Re-raise custom report exceptions

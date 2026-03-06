@@ -156,6 +156,60 @@ begin
   Result := Acc;
 end;
 
+function TryEvalComparison(const S: string; out B: Boolean): Boolean;
+const
+  Ops: array[0..5] of string = ('<=', '>=', '<>', '=', '<', '>');
+var
+  Op: string;
+  P: Integer;
+  LStr, RStr: string;
+  LDbl, RDbl: Double;
+  LIsNum, RIsNum: Boolean;
+begin
+  Result := False;
+  B := False;
+
+  for Op in Ops do
+  begin
+    P := Pos(Op, S);
+    if P > 0 then
+    begin
+      LStr := Trim(Copy(S, 1, P - 1));
+      RStr := Trim(Copy(S, P + Length(Op), MaxInt));
+
+      if (Length(LStr) >= 2) and (LStr[1] = '''') and (LStr[Length(LStr)] = '''') then
+        LStr := Copy(LStr, 2, Length(LStr) - 2);
+      if (Length(RStr) >= 2) and (RStr[1] = '''') and (RStr[Length(RStr)] = '''') then
+        RStr := Copy(RStr, 2, Length(RStr) - 2);
+
+      LIsNum := TryStrToFloat(LStr, LDbl);
+      RIsNum := TryStrToFloat(RStr, RDbl);
+
+      if LIsNum and RIsNum then
+      begin
+        if Op = '<=' then B := LDbl <= RDbl
+        else if Op = '>=' then B := LDbl >= RDbl
+        else if Op = '<>' then B := LDbl <> RDbl
+        else if Op = '=' then B := LDbl = RDbl
+        else if Op = '<' then B := LDbl < RDbl
+        else if Op = '>' then B := LDbl > RDbl;
+      end
+      else
+      begin
+        if Op = '<=' then B := CompareText(LStr, RStr) <= 0
+        else if Op = '>=' then B := CompareText(LStr, RStr) >= 0
+        else if Op = '<>' then B := not SameText(LStr, RStr)
+        else if Op = '=' then B := SameText(LStr, RStr)
+        else if Op = '<' then B := CompareText(LStr, RStr) < 0
+        else if Op = '>' then B := CompareText(LStr, RStr) > 0;
+      end;
+
+      Result := True;
+      Exit;
+    end;
+  end;
+end;
+
 // ---------------------------------------------------------------------------
 // Main Evaluate
 // ---------------------------------------------------------------------------
@@ -191,6 +245,26 @@ begin
      and (S[Length(S)] = '''') then
   begin
     Result := Copy(S, 2, Length(S) - 2);
+    Exit;
+  end;
+
+  // Step 4b — boolean literals
+  if SameText(S, 'true') then
+  begin
+    Result := True;
+    Exit;
+  end;
+  if SameText(S, 'false') then
+  begin
+    Result := False;
+    Exit;
+  end;
+
+  // Step 4c — comparison operators
+  var BoolValue: Boolean;
+  if TryEvalComparison(S, BoolValue) then
+  begin
+    Result := BoolValue;
     Exit;
   end;
 

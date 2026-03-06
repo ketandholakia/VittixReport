@@ -7,6 +7,7 @@ uses
   System.Types,
   System.SysUtils,
   System.Generics.Collections,
+  System.MaskUtils,
   Vcl.Graphics,
   Vcl.Controls,
   Data.DB,
@@ -76,6 +77,18 @@ type
     FPaddingTop:    Integer;
     FPaddingRight:  Integer;
     FPaddingBottom: Integer;
+    FFontColorCondition:   string;
+    FFontColorOnTrue:      TColor;
+    FBackgroundCondition:  string;
+    FBackgroundOnTrue:     TColor;
+    FBorderColorCondition: string;
+    FBorderColorOnTrue:    TColor;
+  protected
+    procedure ResolveConditionalStyle(
+      const Context: TExpressionContext;
+      out AFontColor: TColor;
+      out ABackground: TColor;
+      out ABorderColor: TColor);
   public
     constructor Create; override;
     destructor Destroy; override;
@@ -99,6 +112,12 @@ type
     property PaddingTop:    Integer            read FPaddingTop    write FPaddingTop     default 2;
     property PaddingRight:  Integer            read FPaddingRight  write FPaddingRight   default 2;
     property PaddingBottom: Integer            read FPaddingBottom write FPaddingBottom  default 2;
+    property FontColorCondition: string read FFontColorCondition write FFontColorCondition;
+    property FontColorOnTrue: TColor read FFontColorOnTrue write FFontColorOnTrue default clRed;
+    property BackgroundCondition: string read FBackgroundCondition write FBackgroundCondition;
+    property BackgroundOnTrue: TColor read FBackgroundOnTrue write FBackgroundOnTrue default clYellow;
+    property BorderColorCondition: string read FBorderColorCondition write FBorderColorCondition;
+    property BorderColorOnTrue: TColor read FBorderColorOnTrue write FBorderColorOnTrue default clRed;
   end;
 
 { ================= Label Object (static text) ================= }
@@ -112,9 +131,15 @@ type
 { ================= Field Object (data-bound) ================= }
 
   TReportFieldObject = class(TReportTextObject)
+  private
+    FDisplayFormat: string;
+    FEditMask:      string;
   public
     constructor Create; override;
     class function DisplayName: string; override;
+  published
+    property DisplayFormat: string read FDisplayFormat write FDisplayFormat;
+    property EditMask:      string read FEditMask      write FEditMask;
   end;
 
 { ================= Shape Object ================= }
@@ -182,6 +207,7 @@ type
   public
     constructor Create; override;
     class function DisplayName: string; override;
+    procedure Draw(C: TCanvas; const Context: TExpressionContext); override;
     function MeasuredBottom(C: TCanvas; const Context: TExpressionContext): Integer; override;
   published
     property AutoHeight: Boolean read FAutoHeight write FAutoHeight default True;
@@ -339,6 +365,84 @@ begin
   FPaddingTop     := 2;
   FPaddingRight   := 2;
   FPaddingBottom  := 2;
+  FFontColorCondition   := '';
+  FFontColorOnTrue      := clRed;
+  FBackgroundCondition  := '';
+  FBackgroundOnTrue     := clYellow;
+  FBorderColorCondition := '';
+  FBorderColorOnTrue    := clRed;
+end;
+
+function EvaluateConditionExpression(const Expr: string;
+  const Context: TExpressionContext): Boolean;
+var
+  V: Variant;
+begin
+  if Trim(Expr) = '' then Exit(False);
+  V := TReportExpression.Evaluate(Expr, Context);
+  if VarIsNull(V) or VarIsEmpty(V) then Exit(False);
+  try
+    Result := Boolean(VarAsType(V, varBoolean));
+  except
+    Result := VarToStr(V) <> '';
+  end;
+end;
+
+procedure TReportTextObject.ResolveConditionalStyle(
+  const Context: TExpressionContext;
+  out AFontColor: TColor;
+  out ABackground: TColor;
+  out ABorderColor: TColor);
+begin
+  AFontColor := FFont.Color;
+  ABackground := FBackground;
+  ABorderColor := FBorderColor;
+
+  if EvaluateConditionExpression(FFontColorCondition, Context) then
+    AFontColor := FFontColorOnTrue;
+  if EvaluateConditionExpression(FBackgroundCondition, Context) then
+    ABackground := FBackgroundOnTrue;
+  if EvaluateConditionExpression(FBorderColorCondition, Context) then
+    ABorderColor := FBorderColorOnTrue;
+end;
+
+function FormatFieldDisplayValue(
+  const AValue: Variant;
+  const ADisplayFormat: string;
+  const AEditMask: string): string;
+begin
+  if VarIsNull(AValue) or VarIsEmpty(AValue) then
+    Exit('');
+
+  Result := VarToStr(AValue);
+
+  if ADisplayFormat <> '' then
+  begin
+    try
+      if VarType(AValue) = varDate then
+        Result := FormatDateTime(ADisplayFormat, VarToDateTime(AValue))
+      else
+        Result := FormatFloat(ADisplayFormat, VarAsType(AValue, varDouble));
+    except
+      on Exception do
+      begin
+        try
+          Result := System.SysUtils.Format(ADisplayFormat, [VarToStr(AValue)]);
+        except
+          Result := VarToStr(AValue);
+        end;
+      end;
+    end;
+  end;
+
+  if (AEditMask <> '') and (Result <> '') then
+  begin
+    try
+      Result := System.MaskUtils.FormatMaskText(AEditMask, Result);
+    except
+      // Keep unmasked text if mask format fails.
+    end;
+  end;
 end;
 
 destructor TReportTextObject.Destroy;
@@ -353,10 +457,14 @@ var
   R, TR:   TRect;
   Fmt:     UINT;
   TxtH:    Integer;
+  DrawFontColor: TColor;
+  DrawBackground: TColor;
+  DrawBorderColor: TColor;
 begin
   if not FVisible then Exit;
 
   R := FBounds;
+  ResolveConditionalStyle(Context, DrawFontColor, DrawBackground, DrawBorderColor);
 
   // Background
   if not FTransparent then
@@ -382,7 +490,15 @@ begin
   if FExpression <> '' then
     S := VarToStr(TReportExpression.Evaluate(FExpression, Context))
   else if (FDataField <> '') and Assigned(Context.DataSet) and Context.DataSet.Active then
-    S := Context.DataSet.FieldByName(FDataField).AsString
+  begin
+    if Self is TReportFieldObject then
+      S := FormatFieldDisplayValue(
+        Context.DataSet.FieldByName(FDataField).Value,
+        TReportFieldObject(Self).FDisplayFormat,
+        TReportFieldObject(Self).FEditMask)
+    else
+      S := Context.DataSet.FieldByName(FDataField).AsString;
+  end
   else
     S := FText;
 
@@ -417,6 +533,7 @@ begin
   end;
 
   C.Font.Assign(FFont);
+  C.Font.Color := DrawFontColor;
   C.Brush.Style := bsClear;
 
   // AutoSize: measure text and grow bounds downward
@@ -467,6 +584,8 @@ begin
   FTransparent := True;
   FBorderVisible := True;
   FBorderColor := clSilver;
+  FDisplayFormat := '';
+  FEditMask      := '';
   FBounds      := Rect(10, 10, 150, 30);
 end;
 
@@ -632,6 +751,280 @@ end;
 
 { ================= Memo Object ================= }
 
+type
+  TMemoRun = record
+    Text: string;
+    Style: TFontStyles;
+    IsBreak: Boolean;
+  end;
+
+  TMemoSeg = record
+    Text: string;
+    Style: TFontStyles;
+    Width: Integer;
+  end;
+
+  TMemoLine = record
+    Segments: TArray<TMemoSeg>;
+    Width: Integer;
+    Height: Integer;
+  end;
+
+procedure AddMemoRun(var Runs: TArray<TMemoRun>; const AText: string;
+  const AStyle: TFontStyles; AIsBreak: Boolean);
+var
+  L: Integer;
+begin
+  if (AText = '') and (not AIsBreak) then Exit;
+  L := Length(Runs);
+  SetLength(Runs, L + 1);
+  Runs[L].Text := AText;
+  Runs[L].Style := AStyle;
+  Runs[L].IsBreak := AIsBreak;
+end;
+
+function DecodeHtmlEntities(const S: string): string;
+begin
+  Result := S;
+  Result := StringReplace(Result, '&lt;', '<', [rfReplaceAll, rfIgnoreCase]);
+  Result := StringReplace(Result, '&gt;', '>', [rfReplaceAll, rfIgnoreCase]);
+  Result := StringReplace(Result, '&amp;', '&', [rfReplaceAll, rfIgnoreCase]);
+  Result := StringReplace(Result, '&quot;', '"', [rfReplaceAll, rfIgnoreCase]);
+  Result := StringReplace(Result, '&nbsp;', ' ', [rfReplaceAll, rfIgnoreCase]);
+end;
+
+function ResolveMemoText(AMemo: TReportMemoObject;
+  const Context: TExpressionContext): string;
+begin
+  if AMemo.FExpression <> '' then
+    Result := VarToStr(TReportExpression.Evaluate(AMemo.FExpression, Context))
+  else if (AMemo.FDataField <> '') and Assigned(Context.DataSet)
+       and Context.DataSet.Active then
+    Result := Context.DataSet.FieldByName(AMemo.FDataField).AsString
+  else
+    Result := AMemo.FText;
+end;
+
+procedure ParseMemoRuns(const S: string; const BaseStyle: TFontStyles;
+  out Runs: TArray<TMemoRun>);
+var
+  I, J: Integer;
+  Buf: string;
+  Tag: string;
+  CurStyle: TFontStyles;
+begin
+  SetLength(Runs, 0);
+  CurStyle := BaseStyle;
+  Buf := '';
+  I := 1;
+
+  while I <= Length(S) do
+  begin
+    if (S[I] = '<') then
+    begin
+      J := I + 1;
+      while (J <= Length(S)) and (S[J] <> '>') do Inc(J);
+      if J <= Length(S) then
+      begin
+        AddMemoRun(Runs, DecodeHtmlEntities(Buf), CurStyle, False);
+        Buf := '';
+
+        Tag := LowerCase(Trim(Copy(S, I + 1, J - I - 1)));
+
+        if (Tag = 'b') then
+          Include(CurStyle, fsBold)
+        else if (Tag = '/b') then
+          Exclude(CurStyle, fsBold)
+        else if (Tag = 'i') then
+          Include(CurStyle, fsItalic)
+        else if (Tag = '/i') then
+          Exclude(CurStyle, fsItalic)
+        else if (Tag = 'u') then
+          Include(CurStyle, fsUnderline)
+        else if (Tag = '/u') then
+          Exclude(CurStyle, fsUnderline)
+        else if (Tag = 'br') or (Tag = 'br/') or (Tag = 'br /') then
+          AddMemoRun(Runs, '', CurStyle, True)
+        else if (Tag = 'p') or (Tag = '/p') then
+          AddMemoRun(Runs, '', CurStyle, True)
+        else
+          Buf := Buf + Copy(S, I, J - I + 1);
+
+        I := J + 1;
+        Continue;
+      end;
+    end;
+
+    if (S[I] = #13) or (S[I] = #10) then
+    begin
+      AddMemoRun(Runs, DecodeHtmlEntities(Buf), CurStyle, False);
+      Buf := '';
+      AddMemoRun(Runs, '', CurStyle, True);
+      if (S[I] = #13) and (I < Length(S)) and (S[I + 1] = #10) then
+        Inc(I);
+    end
+    else
+      Buf := Buf + S[I];
+
+    Inc(I);
+  end;
+
+  AddMemoRun(Runs, DecodeHtmlEntities(Buf), CurStyle, False);
+end;
+
+function StyledTextWidth(C: TCanvas; BaseFont: TFont; const S: string;
+  const Style: TFontStyles): Integer;
+begin
+  if S = '' then Exit(0);
+  C.Font.Assign(BaseFont);
+  C.Font.Style := Style;
+  Result := C.TextWidth(S);
+end;
+
+function StyledTextHeight(C: TCanvas; BaseFont: TFont;
+  const Style: TFontStyles): Integer;
+begin
+  C.Font.Assign(BaseFont);
+  C.Font.Style := Style;
+  Result := C.TextHeight('Hg');
+end;
+
+procedure AddLineSegment(var Line: TMemoLine; C: TCanvas; BaseFont: TFont;
+  const S: string; const Style: TFontStyles);
+var
+  L: Integer;
+  W: Integer;
+  H: Integer;
+begin
+  if S = '' then Exit;
+
+  W := StyledTextWidth(C, BaseFont, S, Style);
+  H := StyledTextHeight(C, BaseFont, Style);
+
+  L := Length(Line.Segments);
+  if (L > 0) and (Line.Segments[L - 1].Style = Style) then
+  begin
+    Line.Segments[L - 1].Text := Line.Segments[L - 1].Text + S;
+    Line.Segments[L - 1].Width := Line.Segments[L - 1].Width + W;
+  end
+  else
+  begin
+    SetLength(Line.Segments, L + 1);
+    Line.Segments[L].Text := S;
+    Line.Segments[L].Style := Style;
+    Line.Segments[L].Width := W;
+  end;
+
+  Inc(Line.Width, W);
+  if H > Line.Height then
+    Line.Height := H;
+end;
+
+procedure PushLine(var Lines: TArray<TMemoLine>; var Line: TMemoLine;
+  DefaultHeight: Integer; ForceEmpty: Boolean);
+var
+  L: Integer;
+begin
+  if (Length(Line.Segments) = 0) and (not ForceEmpty) then Exit;
+  if Line.Height <= 0 then
+    Line.Height := DefaultHeight;
+  L := Length(Lines);
+  SetLength(Lines, L + 1);
+  Lines[L] := Line;
+  Line.Segments := nil;
+  Line.Width := 0;
+  Line.Height := DefaultHeight;
+end;
+
+procedure BuildMemoLines(C: TCanvas; BaseFont: TFont; const Text: string;
+  MaxWidth: Integer; WordWrap: Boolean; out Lines: TArray<TMemoLine>;
+  out TotalHeight: Integer);
+var
+  Runs: TArray<TMemoRun>;
+  Run: TMemoRun;
+  Line: TMemoLine;
+  I, J: Integer;
+  Token: string;
+  IsSpace: Boolean;
+  DefaultH: Integer;
+  Ch: Char;
+begin
+  SetLength(Lines, 0);
+  TotalHeight := 0;
+
+  ParseMemoRuns(Text, BaseFont.Style, Runs);
+
+  DefaultH := StyledTextHeight(C, BaseFont, BaseFont.Style);
+  if DefaultH <= 0 then DefaultH := 14;
+  if MaxWidth <= 0 then MaxWidth := 1;
+
+  Line.Segments := nil;
+  Line.Width := 0;
+  Line.Height := DefaultH;
+
+  for Run in Runs do
+  begin
+    if Run.IsBreak then
+    begin
+      PushLine(Lines, Line, DefaultH, True);
+      Continue;
+    end;
+
+    I := 1;
+    while I <= Length(Run.Text) do
+    begin
+      IsSpace := (Run.Text[I] = ' ') or (Run.Text[I] = #9);
+      J := I;
+      while (J <= Length(Run.Text))
+            and (((Run.Text[J] = ' ') or (Run.Text[J] = #9)) = IsSpace) do
+        Inc(J);
+      Token := Copy(Run.Text, I, J - I);
+
+      if not WordWrap then
+      begin
+        AddLineSegment(Line, C, BaseFont, Token, Run.Style);
+      end
+      else
+      begin
+        if IsSpace and (Line.Width = 0) then
+        begin
+          I := J;
+          Continue;
+        end;
+
+        var TokenW := StyledTextWidth(C, BaseFont, Token, Run.Style);
+
+        if (Line.Width + TokenW <= MaxWidth) or (Line.Width = 0) then
+          AddLineSegment(Line, C, BaseFont, Token, Run.Style)
+        else if IsSpace then
+          PushLine(Lines, Line, DefaultH, False)
+        else if TokenW <= MaxWidth then
+        begin
+          PushLine(Lines, Line, DefaultH, False);
+          AddLineSegment(Line, C, BaseFont, Token, Run.Style);
+        end
+        else
+        begin
+          for Ch in Token do
+          begin
+            var CharText := string(Ch);
+            var CharW := StyledTextWidth(C, BaseFont, CharText, Run.Style);
+            if (Line.Width > 0) and (Line.Width + CharW > MaxWidth) then
+              PushLine(Lines, Line, DefaultH, False);
+            AddLineSegment(Line, C, BaseFont, CharText, Run.Style);
+          end;
+        end;
+      end;
+
+      I := J;
+    end;
+  end;
+
+  PushLine(Lines, Line, DefaultH, False);
+  for I := 0 to High(Lines) do
+    Inc(TotalHeight, Lines[I].Height);
+end;
+
 constructor TReportMemoObject.Create;
 begin
   inherited;
@@ -648,24 +1041,113 @@ begin
   Result := 'Memo';
 end;
 
+procedure TReportMemoObject.Draw(C: TCanvas; const Context: TExpressionContext);
+var
+  S: string;
+  R, TR: TRect;
+  Lines: TArray<TMemoLine>;
+  TotalH: Integer;
+  Y, X: Integer;
+  I, J: Integer;
+  MaxWidth: Integer;
+  DrawFontColor: TColor;
+  DrawBackground: TColor;
+  DrawBorderColor: TColor;
+begin
+  if not FVisible then Exit;
+
+  R := FBounds;
+  ResolveConditionalStyle(Context, DrawFontColor, DrawBackground, DrawBorderColor);
+
+  if not FTransparent then
+  begin
+    C.Brush.Style := bsSolid;
+    C.Brush.Color := DrawBackground;
+    C.FillRect(R);
+  end
+  else
+    C.Brush.Style := bsClear;
+
+  if FBorderVisible then
+  begin
+    C.Pen.Color   := DrawBorderColor;
+    C.Pen.Width   := FBorderWidth;
+    C.Pen.Style   := psSolid;
+    C.Brush.Style := bsClear;
+    C.Rectangle(R);
+  end;
+
+  S := ResolveMemoText(Self, Context);
+
+  TR := Rect(R.Left  + FPaddingLeft,
+             R.Top   + FPaddingTop,
+             R.Right - FPaddingRight,
+             R.Bottom- FPaddingBottom);
+  MaxWidth := TR.Right - TR.Left;
+  if MaxWidth <= 0 then
+  begin
+    if FSelected then DrawSelection(C);
+    Exit;
+  end;
+
+  BuildMemoLines(C, FFont, S, MaxWidth, FWordWrap, Lines, TotalH);
+
+  Y := TR.Top;
+  if not FWordWrap then
+    case FVAlign of
+      taAlignBottom:    Y := TR.Bottom - TotalH;
+      taVerticalCenter: Y := TR.Top + ((TR.Bottom - TR.Top - TotalH) div 2);
+    end;
+
+  if Y < TR.Top then Y := TR.Top;
+
+  SaveDC(C.Handle);
+  try
+    IntersectClipRect(C.Handle, TR.Left, TR.Top, TR.Right, TR.Bottom);
+
+    for I := 0 to High(Lines) do
+    begin
+      case FHAlign of
+        taRightJustify: X := TR.Right - Lines[I].Width;
+        taCenter:       X := TR.Left + ((MaxWidth - Lines[I].Width) div 2);
+      else
+        X := TR.Left;
+      end;
+      if X < TR.Left then X := TR.Left;
+
+      for J := 0 to High(Lines[I].Segments) do
+      begin
+        C.Font.Assign(FFont);
+        C.Font.Color := DrawFontColor;
+        C.Font.Style := Lines[I].Segments[J].Style;
+        C.Brush.Style := bsClear;
+        C.TextOut(X, Y, Lines[I].Segments[J].Text);
+        Inc(X, Lines[I].Segments[J].Width);
+      end;
+
+      Inc(Y, Lines[I].Height);
+      if Y >= TR.Bottom then Break;
+    end;
+  finally
+    RestoreDC(C.Handle, -1);
+  end;
+
+  if FSelected then DrawSelection(C);
+end;
+
 function TReportMemoObject.MeasuredBottom(C: TCanvas; const Context: TExpressionContext): Integer;
 var
-  S:    string;
-  TR:   TRect;
-  TxtH: Integer;
+  S: string;
+  Lines: TArray<TMemoLine>;
+  TotalH: Integer;
+  MaxWidth: Integer;
   Needed: Integer;
 begin
   Result := FBounds.Bottom;
   if not FAutoHeight then Exit;
   if not Assigned(C) then Exit;
 
-  // Resolve display text (mirror TReportTextObject.Draw logic)
-  if FExpression <> '' then
-    S := VarToStr(TReportExpression.Evaluate(FExpression, Context))
-  else if (FDataField <> '') and Assigned(Context.DataSet) and Context.DataSet.Active then
-    S := Context.DataSet.FieldByName(FDataField).AsString
-  else
-    S := FText;
+  S := ResolveMemoText(Self, Context);
 
   if S = '' then
   begin
@@ -674,19 +1156,19 @@ begin
     Exit;
   end;
 
-  C.Font.Assign(FFont);
-  TR := Rect(FBounds.Left + FPaddingLeft,
-             FBounds.Top  + FPaddingTop,
-             FBounds.Right - FPaddingRight,
-             FBounds.Top   + 5000);   // large bottom — CALCRECT will shrink it
-  if TR.Right <= TR.Left + 4 then Exit;
-
-  TxtH := Winapi.Windows.DrawText(C.Handle, PChar(S), Length(S), TR,
-             DT_LEFT or DT_WORDBREAK or DT_CALCRECT);
-
-  if TxtH > 0 then
+  MaxWidth := (FBounds.Right - FBounds.Left) - FPaddingLeft - FPaddingRight;
+  if MaxWidth <= 0 then
   begin
-    Needed := TxtH + FPaddingTop + FPaddingBottom;
+    if FMinHeight > 0 then
+      Result := FBounds.Top + FMinHeight;
+    Exit;
+  end;
+
+  BuildMemoLines(C, FFont, S, MaxWidth, FWordWrap, Lines, TotalH);
+
+  if TotalH > 0 then
+  begin
+    Needed := TotalH + FPaddingTop + FPaddingBottom;
     if Needed < FMinHeight then Needed := FMinHeight;
     Result  := FBounds.Top + Needed;
   end
