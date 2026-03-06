@@ -14,7 +14,6 @@ VittixReport is a Delphi-based reporting framework and designer suite for buildi
 ## Project Structure
 - `source/` — Core reporting engine, designer, and object units
 - `vittixdesigner/` — Standalone report designer application
-- `demos/FullFeaturedDemo/` — Example host application
 - `packages/` — Delphi package files for design/runtime
 
 ## Getting Started

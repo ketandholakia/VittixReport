@@ -14,7 +14,6 @@ VittixReport is a modular reporting framework for Delphi (VCL) with a visual des
 ### File Structure
 - `source/`: Core units (engine, model, objects, designer, serializer, etc.)
 - `vittixdesigner/`: Standalone designer app (forms, main window, dialogs)
-- `demos/FullFeaturedDemo/`: Example host app
 - `packages/`: Delphi package files
 
 ## Integration Guide
