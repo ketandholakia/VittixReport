@@ -54,6 +54,7 @@ type
 
 procedure RegisterReportObject(AClass: TReportObjectClass);
 function GetRegisteredReportObjects: TArray<TReportObjectClass>;
+procedure SetReportNamedDataSets(ANamedDataSets: TDictionary<string, TDataSet>);
 
 { ================= Text Object ================= }
 
@@ -214,6 +215,36 @@ type
     property MinHeight:  Integer read FMinHeight  write FMinHeight  default 20;
   end;
 
+{ ================= Sub-report Object (nested report + own dataset) ========= }
+
+  TReportSubReportObject = class(TReportObject)
+  private
+    FReportJSON:    string;
+    FDataSetName:   string;
+    FMasterField:   string;
+    FDetailField:   string;
+    FTransparent:   Boolean;
+    FBackground:    TColor;
+    FBorderVisible: Boolean;
+    FBorderColor:   TColor;
+    FBorderWidth:   Integer;
+  public
+    constructor Create; override;
+    procedure Draw(C: TCanvas; const Context: TExpressionContext); override;
+    function MeasuredBottom(C: TCanvas; const Context: TExpressionContext): Integer; override;
+    class function DisplayName: string; override;
+  published
+    property ReportJSON:  string  read FReportJSON  write FReportJSON;
+    property DataSetName: string  read FDataSetName write FDataSetName;
+    property MasterField: string  read FMasterField write FMasterField;
+    property DetailField: string  read FDetailField write FDetailField;
+    property Transparent: Boolean read FTransparent write FTransparent default True;
+    property Background:  TColor  read FBackground  write FBackground  default clWhite;
+    property BorderVisible: Boolean read FBorderVisible write FBorderVisible default True;
+    property BorderColor: TColor read FBorderColor write FBorderColor default clSilver;
+    property BorderWidth: Integer read FBorderWidth write FBorderWidth default 1;
+  end;
+
 { ================= Line Object (separator / rule) ================= }
 
 type
@@ -240,6 +271,10 @@ implementation
 
 uses
   Vittix.Report.Expressions, // Keep here
+  Vittix.Report.Serializer,
+  Vittix.Report.Model,
+  Vittix.Report.Bands,
+  Vittix.Report.Utils,
   Winapi.Windows, // Keep here
   System.Variants, // Keep here
   System.SyncObjs;
@@ -247,11 +282,21 @@ uses
 var
   GRegistry: TList<TReportObjectClass>;
   GRegistryCS: TCriticalSection;
+  GNamedDataSets: TDictionary<string, TDataSet>;
+
+procedure EnsureRegistryInitialized;
+begin
+  if not Assigned(GRegistryCS) then
+    GRegistryCS := TCriticalSection.Create;
+  if not Assigned(GRegistry) then
+    GRegistry := TList<TReportObjectClass>.Create;
+end;
 
 { ================= Registry ================= }
 
 procedure RegisterReportObject(AClass: TReportObjectClass);
 begin
+  EnsureRegistryInitialized;
   GRegistryCS.Enter;
   try
     if GRegistry.IndexOf(AClass) < 0 then
@@ -263,6 +308,7 @@ end;
 
 function GetRegisteredReportObjects: TArray<TReportObjectClass>;
 begin
+  EnsureRegistryInitialized;
   GRegistryCS.Enter;
   try
     Result := GRegistry.ToArray;
@@ -1176,6 +1222,244 @@ begin
     Result := FBounds.Top + FMinHeight;
 end;
 
+procedure SetReportNamedDataSets(ANamedDataSets: TDictionary<string, TDataSet>);
+begin
+  GNamedDataSets := ANamedDataSets;
+end;
+
+{ ================= Sub-report Object ================= }
+
+function ResolveSubReportDataSet(Obj: TReportSubReportObject;
+  const Context: TExpressionContext): TDataSet;
+begin
+  Result := Context.DataSet;
+  if Trim(Obj.FDataSetName) = '' then
+    Exit;
+
+  Result := nil;
+  try
+    if Assigned(GNamedDataSets) then
+      if not GNamedDataSets.TryGetValue(Obj.FDataSetName, Result) then
+        Result := nil;
+  except
+    Result := nil;
+  end;
+end;
+
+function FindSubReportMasterBand(AModel: TReportModel): TReportBand;
+var
+  Obj: TReportObject;
+begin
+  Result := nil;
+  if not Assigned(AModel) then Exit;
+
+  for Obj in AModel.Objects do
+    if (Obj is TReportBand) and (TReportBand(Obj).BandType = btMasterData) then
+      Exit(TReportBand(Obj));
+
+  for Obj in AModel.Objects do
+    if (Obj is TReportBand) and (TReportBand(Obj).BandType = btDetail) then
+      Exit(TReportBand(Obj));
+end;
+
+constructor TReportSubReportObject.Create;
+begin
+  inherited;
+  FReportJSON    := '';
+  FDataSetName   := '';
+  FMasterField   := '';
+  FDetailField   := '';
+  FTransparent   := True;
+  FBackground    := clWhite;
+  FBorderVisible := True;
+  FBorderColor   := clSilver;
+  FBorderWidth   := 1;
+  FBounds        := Rect(10, 10, 260, 110);
+end;
+
+class function TReportSubReportObject.DisplayName: string;
+begin
+  Result := 'SubReport';
+end;
+
+function SubReportRowMatchesLink(AMasterDS, ADetailDS: TDataSet;
+  const AMasterField, ADetailField: string): Boolean;
+begin
+  if not Assigned(AMasterDS) or not AMasterDS.Active then Exit(True);
+  if (AMasterField = '') or (ADetailField = '') then Exit(True);
+  if not Assigned(AMasterDS.FindField(AMasterField)) then Exit(True);
+  if not Assigned(ADetailDS.FindField(ADetailField)) then Exit(True);
+
+  Result := VarSameValue(
+    AMasterDS.FieldByName(AMasterField).Value,
+    ADetailDS.FieldByName(ADetailField).Value);
+end;
+
+procedure TReportSubReportObject.Draw(C: TCanvas; const Context: TExpressionContext);
+var
+  R: TRect;
+  Model: TReportModel;
+  MasterBand: TReportBand;
+  DS: TDataSet;
+  SaveBM: TBookmark;
+  HasSaveBM: Boolean;
+  DrawY: Integer;
+  SubCtx: TExpressionContext;
+begin
+  if not FVisible then Exit;
+
+  R := FBounds;
+  if not FTransparent then
+  begin
+    C.Brush.Style := bsSolid;
+    C.Brush.Color := FBackground;
+    C.FillRect(R);
+  end;
+
+  if Trim(FReportJSON) = '' then
+  begin
+    if FBorderVisible then
+    begin
+      C.Pen.Color := FBorderColor;
+      C.Pen.Width := FBorderWidth;
+      C.Brush.Style := bsClear;
+      C.Rectangle(R);
+    end;
+    if FSelected then DrawSelection(C);
+    Exit;
+  end;
+
+  Model := nil;
+  try
+    try
+      Model := TReportSerializer.LoadFromJSON(FReportJSON);
+    except
+      Exit;
+    end;
+    MasterBand := FindSubReportMasterBand(Model);
+    if not Assigned(MasterBand) then Exit;
+
+    DS := ResolveSubReportDataSet(Self, Context);
+    if not Assigned(DS) or not DS.Active then Exit;
+
+    SaveBM := nil;
+    HasSaveBM := False;
+    if DataSetSupportsBookmarks(DS) then
+    begin
+      SaveBM := DS.GetBookmark;
+      HasSaveBM := True;
+    end;
+
+    DrawY := R.Top + 2;
+    SaveDC(C.Handle);
+    try
+      IntersectClipRect(C.Handle, R.Left, R.Top, R.Right, R.Bottom);
+      DS.DisableControls;
+      try
+        DS.First;
+        while (not DS.Eof) and (DrawY < R.Bottom) do
+        begin
+          if SubReportRowMatchesLink(Context.DataSet, DS, FMasterField, FDetailField) then
+          begin
+            SubCtx := Context;
+            SubCtx.DataSet := DS;
+            SaveDC(C.Handle);
+            try
+              SetViewportOrgEx(C.Handle, R.Left + 2, DrawY, nil);
+              MasterBand.Draw(C, SubCtx);
+            finally
+              RestoreDC(C.Handle, -1);
+            end;
+            Inc(DrawY, MasterBand.Height);
+          end;
+          DS.Next;
+        end;
+      finally
+        DS.EnableControls;
+      end;
+    finally
+      RestoreDC(C.Handle, -1);
+      if HasSaveBM and (SaveBM <> nil) and DS.BookmarkValid(SaveBM) then
+        DS.GotoBookmark(SaveBM);
+      if HasSaveBM and (SaveBM <> nil) then
+        DS.FreeBookmark(SaveBM);
+    end;
+  finally
+    Model.Free;
+  end;
+
+  if FBorderVisible then
+  begin
+    C.Pen.Color := FBorderColor;
+    C.Pen.Width := FBorderWidth;
+    C.Brush.Style := bsClear;
+    C.Rectangle(R);
+  end;
+
+  if FSelected then DrawSelection(C);
+end;
+
+function TReportSubReportObject.MeasuredBottom(C: TCanvas; const Context: TExpressionContext): Integer;
+var
+  Model: TReportModel;
+  MasterBand: TReportBand;
+  DS: TDataSet;
+  SaveBM: TBookmark;
+  HasSaveBM: Boolean;
+  RowCount: Integer;
+  NeededH: Integer;
+begin
+  Result := FBounds.Bottom;
+  if Trim(FReportJSON) = '' then Exit;
+
+  Model := nil;
+  try
+    try
+      Model := TReportSerializer.LoadFromJSON(FReportJSON);
+    except
+      Exit;
+    end;
+    MasterBand := FindSubReportMasterBand(Model);
+    if not Assigned(MasterBand) then Exit;
+
+    DS := ResolveSubReportDataSet(Self, Context);
+    if not Assigned(DS) or not DS.Active then Exit;
+
+    SaveBM := nil;
+    HasSaveBM := False;
+    if DataSetSupportsBookmarks(DS) then
+    begin
+      SaveBM := DS.GetBookmark;
+      HasSaveBM := True;
+    end;
+
+    RowCount := 0;
+    DS.DisableControls;
+    try
+      DS.First;
+      while not DS.Eof do
+      begin
+        if SubReportRowMatchesLink(Context.DataSet, DS, FMasterField, FDetailField) then
+          Inc(RowCount);
+        DS.Next;
+      end;
+    finally
+      DS.EnableControls;
+      if HasSaveBM and (SaveBM <> nil) and DS.BookmarkValid(SaveBM) then
+        DS.GotoBookmark(SaveBM);
+      if HasSaveBM and (SaveBM <> nil) then
+        DS.FreeBookmark(SaveBM);
+    end;
+
+    NeededH := 4 + (RowCount * MasterBand.Height);
+    if NeededH < (FBounds.Bottom - FBounds.Top) then
+      NeededH := (FBounds.Bottom - FBounds.Top);
+    Result := FBounds.Top + NeededH;
+  finally
+    Model.Free;
+  end;
+end;
+
 { ================= Line Object ================= }
 
 constructor TReportLineObject.Create;
@@ -1225,18 +1509,18 @@ end;
 { ================= Init ================= }
 
 initialization
-  GRegistry := TList<TReportObjectClass>.Create;
-  GRegistryCS := TCriticalSection.Create;
+  EnsureRegistryInitialized;
   RegisterReportObject(TReportTextObject);
   RegisterReportObject(TReportLabelObject);
   RegisterReportObject(TReportFieldObject);
   RegisterReportObject(TReportShapeObject);
   RegisterReportObject(TReportImageObject);
   RegisterReportObject(TReportMemoObject);
+  RegisterReportObject(TReportSubReportObject);
   RegisterReportObject(TReportLineObject);
 
 finalization
-  GRegistry.Free;
-  GRegistryCS.Free;
+  FreeAndNil(GRegistry);
+  FreeAndNil(GRegistryCS);
 
 end.

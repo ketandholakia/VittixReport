@@ -15,6 +15,7 @@ type
   TReportShapeObject = Vittix.Report.Objects.TReportShapeObject;
   TReportImageObject = Vittix.Report.Objects.TReportImageObject;
   TReportMemoObject = Vittix.Report.Objects.TReportMemoObject;
+  TReportSubReportObject = Vittix.Report.Objects.TReportSubReportObject;
   TLineOrientation = Vittix.Report.Objects.TLineOrientation;
   TReportLineObject = Vittix.Report.Objects.TReportLineObject;
 

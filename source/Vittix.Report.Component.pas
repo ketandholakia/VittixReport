@@ -154,6 +154,11 @@ type
     Preview: TVittixReportPreview;
     procedure PrevClick(Sender: TObject);
     procedure NextClick(Sender: TObject);
+    procedure ZoomInClick(Sender: TObject);
+    procedure ZoomOutClick(Sender: TObject);
+    procedure FitWidthClick(Sender: TObject);
+    procedure FitPageClick(Sender: TObject);
+    procedure ZoomResetClick(Sender: TObject);
   end;
 
 procedure TPreviewNavHelper.PrevClick(Sender: TObject);
@@ -164,6 +169,31 @@ end;
 procedure TPreviewNavHelper.NextClick(Sender: TObject);
 begin
   Preview.GoNext;
+end;
+
+procedure TPreviewNavHelper.ZoomInClick(Sender: TObject);
+begin
+  Preview.ZoomIn;
+end;
+
+procedure TPreviewNavHelper.ZoomOutClick(Sender: TObject);
+begin
+  Preview.ZoomOut;
+end;
+
+procedure TPreviewNavHelper.FitWidthClick(Sender: TObject);
+begin
+  Preview.FitWidth;
+end;
+
+procedure TPreviewNavHelper.FitPageClick(Sender: TObject);
+begin
+  Preview.FitPage;
+end;
+
+procedure TPreviewNavHelper.ZoomResetClick(Sender: TObject);
+begin
+  Preview.ZoomPercent := 100;
 end;
 
 { --------------------------------------------------------------------------- }
@@ -181,6 +211,11 @@ var
   BtnClose: TButton;
   BtnPrev : TButton;
   BtnNext : TButton;
+  BtnZoomIn : TButton;
+  BtnZoomOut: TButton;
+  BtnFitPage: TButton;
+  BtnFitWidth: TButton;
+  BtnZoom100: TButton;
   NavHelp : TPreviewNavHelper;
 begin
   if FReportJSON = '' then
@@ -209,7 +244,7 @@ begin
           Toolbar            := TPanel.Create(Frm);
           Toolbar.Parent     := Frm;
           Toolbar.Align      := alTop;
-          Toolbar.Height     := 36;
+          Toolbar.Height     := 40;
           Toolbar.BevelOuter := bvNone;
 
           BtnClose             := TButton.Create(Frm);
@@ -234,6 +269,41 @@ begin
           BtnNext.Top     := 4;
           BtnNext.Width   := 72;
 
+          BtnZoomOut         := TButton.Create(Frm);
+          BtnZoomOut.Parent  := Toolbar;
+          BtnZoomOut.Caption := 'Zoom -';
+          BtnZoomOut.Left    := 262;
+          BtnZoomOut.Top     := 4;
+          BtnZoomOut.Width   := 72;
+
+          BtnZoomIn         := TButton.Create(Frm);
+          BtnZoomIn.Parent  := Toolbar;
+          BtnZoomIn.Caption := 'Zoom +';
+          BtnZoomIn.Left    := 342;
+          BtnZoomIn.Top     := 4;
+          BtnZoomIn.Width   := 72;
+
+          BtnZoom100         := TButton.Create(Frm);
+          BtnZoom100.Parent  := Toolbar;
+          BtnZoom100.Caption := '100%';
+          BtnZoom100.Left    := 422;
+          BtnZoom100.Top     := 4;
+          BtnZoom100.Width   := 60;
+
+          BtnFitPage         := TButton.Create(Frm);
+          BtnFitPage.Parent  := Toolbar;
+          BtnFitPage.Caption := 'Fit Page';
+          BtnFitPage.Left    := 490;
+          BtnFitPage.Top     := 4;
+          BtnFitPage.Width   := 72;
+
+          BtnFitWidth         := TButton.Create(Frm);
+          BtnFitWidth.Parent  := Toolbar;
+          BtnFitWidth.Caption := 'Fit Width';
+          BtnFitWidth.Left    := 570;
+          BtnFitWidth.Top     := 4;
+          BtnFitWidth.Width   := 72;
+
           Preview        := TVittixReportPreview.Create(Frm);
           Preview.Parent := Frm;
           Preview.Align  := alClient;
@@ -242,6 +312,11 @@ begin
           NavHelp.Preview  := Preview;
           BtnPrev.OnClick  := NavHelp.PrevClick;
           BtnNext.OnClick  := NavHelp.NextClick;
+          BtnZoomIn.OnClick := NavHelp.ZoomInClick;
+          BtnZoomOut.OnClick := NavHelp.ZoomOutClick;
+          BtnFitWidth.OnClick := NavHelp.FitWidthClick;
+          BtnFitPage.OnClick := NavHelp.FitPageClick;
+          BtnZoom100.OnClick := NavHelp.ZoomResetClick;
 
           Frm.ShowModal;
         finally

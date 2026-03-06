@@ -256,6 +256,7 @@ type
     { Dataset helpers }
     function  GetFieldNames: TArray<string>;
     function  InsertFieldObject(const AFieldName: string): Boolean;
+    function  InsertFieldObjectAt(const AFieldName: string; X, Y: Integer): Boolean;
 
     { Rebuild internal band/object layout after external report mutations }
     procedure RebuildLayout;
@@ -291,6 +292,8 @@ type
       read FOnModified write FOnModified;
     property OnDataSetChanged: TNotifyEvent
       read FOnDataSetChanged write FOnDataSetChanged;
+    property OnDragOver;
+    property OnDragDrop;
   end;
 
 procedure Register;
@@ -1320,27 +1323,73 @@ begin
 end;
 
 function TVittixReportDesigner.InsertFieldObject(const AFieldName: string): Boolean;
+begin
+  Result := InsertFieldObjectAt(AFieldName, -1, -1);
+end;
+
+function TVittixReportDesigner.InsertFieldObjectAt(const AFieldName: string; X, Y: Integer): Boolean;
 var
   TargetBand: TReportBand;
   NewObj    : TReportTextObject;
   Cmd       : TInsertObjectCommand;
   NextX, NextY: Integer;
   Obj       : TReportObject;
+  PP        : TPoint;
+  I         : Integer;
+  BL        : TBandLayout;
+  BandTop   : Integer;
 begin
   Result := False;
+  BandTop := 0;
 
-  { Require an active band to drop the object into }
-  TargetBand := FActiveBand;
+  { If a drop point is provided, resolve target band from point first. }
+  TargetBand := nil;
+  if (X >= 0) and (Y >= 0) then
+  begin
+    PP := ScreenToPage(Point(X, Y));
+    for I := 0 to High(FBandLayouts) do
+    begin
+      BL := FBandLayouts[I];
+      if (PP.Y >= BL.Y) and (PP.Y < BL.Y + BL.Height) then
+      begin
+        TargetBand := BL.Band;
+        BandTop := BL.Y;
+        Break;
+      end;
+    end;
+  end;
+
+  { Fallback to active band (double-click behavior). }
+  if not Assigned(TargetBand) then
+    TargetBand := FActiveBand;
   if not Assigned(TargetBand) and (Length(FBandLayouts) > 0) then
-    TargetBand := FBandLayouts[0].Band;   // fall back to first band
+    TargetBand := FBandLayouts[0].Band;   // final fallback: first band
   if not Assigned(TargetBand) then Exit;
 
-  { Pick a Y position: stack below existing children }
-  NextY := 4;
-  NextX := 4;
-  for Obj in TargetBand.Children do
-    if Obj.Bounds.Bottom + 2 > NextY then
-      NextY := Obj.Bounds.Bottom + 2;
+  if BandTop = 0 then
+    for I := 0 to High(FBandLayouts) do
+      if FBandLayouts[I].Band = TargetBand then
+      begin
+        BandTop := FBandLayouts[I].Y;
+        Break;
+      end;
+
+  if (X >= 0) and (Y >= 0) then
+  begin
+    { Drop at mouse location inside target band. }
+    NextX := SnapV(PP.X);
+    NextY := SnapV(PP.Y - BandTop);
+    if NextY < 0 then NextY := 0;
+  end
+  else
+  begin
+    { Legacy behavior: stack below existing children. }
+    NextY := 4;
+    NextX := 4;
+    for Obj in TargetBand.Children do
+      if Obj.Bounds.Bottom + 2 > NextY then
+        NextY := Obj.Bounds.Bottom + 2;
+  end;
 
   NewObj           := TReportTextObject.Create;
   NewObj.Bounds    := Bounds(SnapV(NextX), SnapV(NextY), 120, 20);
@@ -1353,6 +1402,7 @@ begin
 
   ClearSelection;
   AddToSelection(NewObj);
+  FActiveBand := TargetBand;
   DoModified;
   Result := True;
 end;
@@ -1586,7 +1636,7 @@ begin
       nil);
     for Obj in BL.Band.Children do
     begin
-      FillChar(Ctx, SizeOf(Ctx), 0);
+      Ctx := Default(TExpressionContext);
       Ctx.DataSet := FDataSet;
       Obj.Draw(Canvas, Ctx);
     end;

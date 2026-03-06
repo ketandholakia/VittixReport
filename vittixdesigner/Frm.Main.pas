@@ -250,6 +250,7 @@ type
     { Property editor }
     procedure btnApplyPropsClick(Sender: TObject);
     procedure PropEditorKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure PropEditorDblClick(Sender: TObject);
 
     { Zoom edit }
     procedure btnZoomApplyClick(Sender: TObject);
@@ -286,9 +287,13 @@ type
     procedure AddBand(ABandType: TReportBandType);
     procedure ConfirmSaveIfModified;
     procedure DynInsertMenuClick(Sender: TObject);
+    procedure DynAddBandMenuClick(Sender: TObject);
 
     procedure RefreshFieldList;
     procedure FieldListDblClick(Sender: TObject);
+    procedure DesignerDragOver(Sender, Source: TObject; X, Y: Integer;
+      State: TDragState; var Accept: Boolean);
+    procedure DesignerDragDrop(Sender, Source: TObject; X, Y: Integer);
     procedure DesignerDataSetChanged(Sender: TObject);
 
     function  ZoomFromEdit: Integer;
@@ -338,6 +343,7 @@ begin
   // Ensure the Toolbox knows all registered types (including Barcode + Table
   // which self-register in their unit initialization sections)
   Toolbox.RefreshToolList;
+  BuildInsertMenu;
 
   // ---- Build the Fields panel dynamically inside pnlToolbox ----
   FPnlFields          := TPanel.Create(Self);
@@ -358,7 +364,8 @@ begin
   FLstFields.Parent   := FPnlFields;
   FLstFields.Align    := alClient;
   FLstFields.OnDblClick := FieldListDblClick;
-  FLstFields.Hint     := 'Double-click a field to insert a bound label into the active band';
+  FLstFields.DragMode := dmAutomatic;
+  FLstFields.Hint     := 'Double-click or drag a field into a band to insert a bound label';
   FLstFields.ShowHint := True;
 
   // Splitter between toolbox list and fields panel
@@ -371,6 +378,9 @@ begin
   FDesigner.OnSelectionChanged := DesignerSelectionChanged;
   FDesigner.OnModified         := DesignerModified;
   FDesigner.OnDataSetChanged   := DesignerDataSetChanged;
+  FDesigner.OnDragOver         := DesignerDragOver;
+  FDesigner.OnDragDrop         := DesignerDragDrop;
+  PropEditor.OnDblClick        := PropEditorDblClick;
 
   // Connect the shared DataSource so the designer sees whatever dataset
   // is assigned at runtime.
@@ -896,6 +906,39 @@ begin
   end;
 end;
 
+procedure TfrmMain.PropEditorDblClick(Sender: TObject);
+var
+  Obj: TReportObject;
+  RowKey: string;
+  Dlg: TFontDialog;
+begin
+  if (PropEditor.Row < 0) or (PropEditor.Row >= PropEditor.RowCount) then
+    Exit;
+
+  RowKey := PropEditor.Keys[PropEditor.Row];
+  if not SameText(RowKey, 'Font') then
+    Exit;
+
+  Obj := FDesigner.PrimarySelected;
+  if not (Obj is TReportTextObject) then
+    Exit;
+
+  Dlg := TFontDialog.Create(Self);
+  try
+    Dlg.Font.Assign(TReportTextObject(Obj).Font);
+    if not Dlg.Execute then
+      Exit;
+
+    TReportTextObject(Obj).Font.Assign(Dlg.Font);
+    FDesigner.RebuildLayout;
+    FModified := True;
+    UpdateTitleBar;
+    UpdatePropertyPanel;
+  finally
+    Dlg.Free;
+  end;
+end;
+
 { =========================================================================== }
 {  UI state helpers                                                            }
 { =========================================================================== }
@@ -1053,6 +1096,24 @@ begin
     ShowMessage('Please click a band on the canvas first to set the active band, then double-click a field.');
 end;
 
+procedure TfrmMain.DesignerDragOver(Sender, Source: TObject; X, Y: Integer;
+  State: TDragState; var Accept: Boolean);
+begin
+  Accept := (Source = FLstFields) and (FLstFields.ItemIndex >= 0);
+end;
+
+procedure TfrmMain.DesignerDragDrop(Sender, Source: TObject; X, Y: Integer);
+var
+  FieldName: string;
+begin
+  if Source <> FLstFields then Exit;
+  if FLstFields.ItemIndex < 0 then Exit;
+
+  FieldName := FLstFields.Items[FLstFields.ItemIndex];
+  if not FDesigner.InsertFieldObjectAt(FieldName, X, Y) then
+    ShowMessage('Drop the field inside a band area.');
+end;
+
 procedure TfrmMain.DesignerDataSetChanged(Sender: TObject);
 begin
   RefreshFieldList;
@@ -1060,18 +1121,77 @@ end;
 
 procedure TfrmMain.BuildInsertMenu;
 var
-  C  : TReportObjectClass;
+  C, ExistingClass: TReportObjectClass;
   MI : TMenuItem;
+  I  : Integer;
+  BT : TReportBandType;
+  Exists: Boolean;
 begin
+  // Remove previously generated dynamic items.
+  for I := mnuInsert.Count - 1 downto 0 do
+    if SameText(mnuInsert.Items[I].Hint, 'dynobj') or
+       SameText(mnuInsert.Items[I].Hint, 'dynband') then
+      mnuInsert.Delete(I);
+
+  // Add missing band menu entries so all runtime band types are reachable.
+  for BT := Low(TReportBandType) to High(TReportBandType) do
+  begin
+    if BT in [btReportTitle, btPageHeader, btMasterData, btPageFooter, btReportSummary] then
+      Continue; // already declared statically in DFM
+
+    Exists := False;
+    for I := 0 to mnuInsert.Count - 1 do
+      if SameText(mnuInsert.Items[I].Caption, 'Band: ' + BandTypeName(BT)) then
+      begin
+        Exists := True;
+        Break;
+      end;
+
+    if not Exists then
+    begin
+      MI := TMenuItem.Create(mnuInsert);
+      MI.Caption := 'Band: ' + BandTypeName(BT);
+      MI.Tag     := Ord(BT);
+      MI.Hint    := 'dynband';
+      MI.OnClick := DynAddBandMenuClick;
+      mnuInsert.Insert(mnuInsert.IndexOf(mnuSep5), MI);
+    end;
+  end;
+
   // Dynamically add one menu item per registered object class
   for C in GetRegisteredReportObjects do
   begin
+    // Bands are added through "Band: ..." entries; do not show as canvas object.
+    if C.InheritsFrom(TReportBand) then
+      Continue;
+
+    // Skip duplicates if a class with same DisplayName is already present.
+    Exists := False;
+    for I := 0 to mnuInsert.Count - 1 do
+      if SameText(mnuInsert.Items[I].Hint, 'dynobj') then
+      begin
+        ExistingClass := TReportObjectClass(mnuInsert.Items[I].Tag);
+        if Assigned(ExistingClass) and SameText(ExistingClass.DisplayName, C.DisplayName) then
+        begin
+          Exists := True;
+          Break;
+        end;
+      end;
+    if Exists then
+      Continue;
+
     MI := TMenuItem.Create(mnuInsert);
     MI.Caption := 'Insert ' + C.DisplayName;
     MI.Tag     := NativeInt(C);
+    MI.Hint    := 'dynobj';
     MI.OnClick := DynInsertMenuClick;
     mnuInsert.Add(MI);
   end;
+end;
+
+procedure TfrmMain.DynAddBandMenuClick(Sender: TObject);
+begin
+  AddBand(TReportBandType(TMenuItem(Sender).Tag));
 end;
 
 end.

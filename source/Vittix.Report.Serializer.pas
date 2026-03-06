@@ -112,6 +112,7 @@ var
   Img:       TReportImageObject;
   Memo:      TReportMemoObject;
   Fld:       TReportFieldObject;
+  SubRep:    TReportSubReportObject;
   Ln:        TReportLineObject;
   Band:      TReportBand;
   ChildArr:  TJSONArray;
@@ -216,6 +217,20 @@ begin
     Result.AddPair('EditMask',      Fld.EditMask);
   end;
 
+  if Obj is TReportSubReportObject then
+  begin
+    SubRep := TReportSubReportObject(Obj);
+    Result.AddPair('SubReportJSON', SubRep.ReportJSON);
+    Result.AddPair('DataSetName',   SubRep.DataSetName);
+    Result.AddPair('MasterField',   SubRep.MasterField);
+    Result.AddPair('DetailField',   SubRep.DetailField);
+    Result.AddPair('Transparent',   TJSONBool.Create(SubRep.Transparent));
+    Result.AddPair('Background',    TJSONNumber.Create(SubRep.Background));
+    Result.AddPair('BorderVisible', TJSONBool.Create(SubRep.BorderVisible));
+    Result.AddPair('BorderColor',   TJSONNumber.Create(SubRep.BorderColor));
+    Result.AddPair('BorderWidth',   TJSONNumber.Create(SubRep.BorderWidth));
+  end;
+
   // ----- TReportLineObject fields -----
   if Obj is TReportLineObject then
   begin
@@ -242,6 +257,8 @@ begin
     Result.AddPair('CanShrink',           TJSONBool.Create(Band.CanShrink));
     Result.AddPair('BackColor',           TJSONNumber.Create(Band.BackColor));
     Result.AddPair('BackColorTransparent',TJSONBool.Create(Band.BackColorTransparent));
+    Result.AddPair('OnBeforePrint',       Band.OnBeforePrint);
+    Result.AddPair('OnAfterPrint',        Band.OnAfterPrint);
 
     ChildArr := TJSONArray.Create;
     for Child in Band.Children do
@@ -259,6 +276,7 @@ var
   Img:        TReportImageObject;
   Memo:       TReportMemoObject;
   Fld:        TReportFieldObject;
+  SubRep:     TReportSubReportObject;
   Ln:         TReportLineObject;
   Band:       TReportBand;
   ChildArr:   TJSONArray;
@@ -392,6 +410,20 @@ begin
       Fld.EditMask      := O.GetValue<string>('EditMask',      '');
     end;
 
+    if Obj is TReportSubReportObject then
+    begin
+      SubRep := TReportSubReportObject(Obj);
+      SubRep.ReportJSON   := O.GetValue<string>('SubReportJSON', '');
+      SubRep.DataSetName  := O.GetValue<string>('DataSetName',   '');
+      SubRep.MasterField  := O.GetValue<string>('MasterField',   '');
+      SubRep.DetailField  := O.GetValue<string>('DetailField',   '');
+      SubRep.Transparent  := O.GetValue<Boolean>('Transparent',  True);
+      SubRep.Background   := O.GetValue<Integer>('Background',   Integer(clWhite));
+      SubRep.BorderVisible:= O.GetValue<Boolean>('BorderVisible', True);
+      SubRep.BorderColor  := O.GetValue<Integer>('BorderColor', Integer(clSilver));
+      SubRep.BorderWidth  := O.GetValue<Integer>('BorderWidth', 1);
+    end;
+
     // ----- TReportLineObject fields -----
     if Obj is TReportLineObject then
     begin
@@ -418,6 +450,8 @@ begin
       Band.CanShrink            := O.GetValue<Boolean>('CanShrink',    False);
       Band.BackColor            := O.GetValue<Integer>('BackColor',    Integer(clWhite));
       Band.BackColorTransparent := O.GetValue<Boolean>('BackColorTransparent', True);
+      Band.OnBeforePrint        := O.GetValue<string>('OnBeforePrint', '');
+      Band.OnAfterPrint         := O.GetValue<string>('OnAfterPrint',  '');
 
       ChildArr := O.GetValue<TJSONArray>('Children');
       if Assigned(ChildArr) then

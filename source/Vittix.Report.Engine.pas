@@ -35,6 +35,7 @@ uses
   Data.DB,
   Vittix.Report.Model,
   Vittix.Report.Bands,
+  Vittix.Report.Scripting,
   Vittix.Report.Interfaces;   // IReportProgress
 
 type
@@ -46,6 +47,7 @@ type
     FReport:   TReportModel;
     FDataSet:  TDataSet;
     FNamedDataSets: TDictionary<string, TDataSet>;
+    FScriptEngine: TReportScriptEngine;
     FProgress: IReportProgress;   // optional; nil = no progress feedback
     FPages:    TObjectList<TMetafile>;
 
@@ -114,6 +116,7 @@ type
     property GroupStartBookmark: TBookmark      read FGroupStartBookmark;
     property GroupEndBookmark:   TBookmark      read FGroupEndBookmark;
     property NamedDataSets: TDictionary<string, TDataSet> read FNamedDataSets;
+    property ScriptEngine: TReportScriptEngine read FScriptEngine;
   end;
 
 implementation
@@ -138,6 +141,7 @@ begin
   FReport   := AReport;
   FDataSet  := ADataSet;
   FNamedDataSets := TDictionary<string, TDataSet>.Create;
+  FScriptEngine := TReportScriptEngine.Create(nil);
   if Assigned(ANamedDataSets) then
     for var Pair in ANamedDataSets do
       FNamedDataSets.AddOrSetValue(Pair.Key, Pair.Value);
@@ -187,6 +191,7 @@ begin
 
   FPages.Free;
   FNamedDataSets.Free;
+  FScriptEngine.Free;
   FGroupHeaders.Free;
   FGroupFooters.Free;
   FDetailBands.Free;
@@ -380,6 +385,9 @@ begin
 
   // CanGrow / CanShrink — compute effective height using MeasuredBottom
   // (TReportMemoObject overrides MeasuredBottom to compute dynamic text height)
+  if (ABand.OnBeforePrint <> '') and Assigned(FScriptEngine) then
+    FScriptEngine.ExecuteBeforePrint(ABand.OnBeforePrint, Ctx);
+
   var EffectiveH := ABand.Height;
   if ABand.CanGrow or ABand.CanShrink then
   begin
@@ -405,6 +413,8 @@ begin
   try
     SetViewportOrgEx(FCanvas.Handle, 0, FCurrentY, nil);
     ABand.Draw(FCanvas, Ctx);
+    if (ABand.OnAfterPrint <> '') and Assigned(FScriptEngine) then
+      FScriptEngine.ExecuteAfterPrint(ABand.OnAfterPrint, Ctx);
   finally
     RestoreDC(FCanvas.Handle, -1);
   end;
@@ -509,9 +519,11 @@ var
   NewValue: Variant;
   BreakLevel: Integer;
 begin
-  FPages.Clear;
-  FPageNumber := 0;
-  FTotalPagesForPass := ATotalPages;
+  SetReportNamedDataSets(FNamedDataSets);
+  try
+    FPages.Clear;
+    FPageNumber := 0;
+    FTotalPagesForPass := ATotalPages;
 
   // Snapshot page dimensions from the model's PageSettings
   FPageWidth  := FReport.PageSettings.PageWidth;
@@ -695,8 +707,11 @@ begin
     PrintBand(FSummaryBand);
   end;
 
-  EndCurrentPage;
-  Result := FPageNumber;
+    EndCurrentPage;
+    Result := FPageNumber;
+  finally
+    SetReportNamedDataSets(nil);
+  end;
 end;
 
 procedure TReportEngine.Prepare;

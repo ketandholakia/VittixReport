@@ -42,6 +42,8 @@ type
     FCanShrink:          Boolean;
     FBackColor:          TColor;
     FBackColorTransparent: Boolean;
+    FOnBeforePrint:      string;
+    FOnAfterPrint:       string;
     FChildren: TObjectList<TReportObject>;
   public
     constructor Create; override;
@@ -65,6 +67,8 @@ type
     property BackColorTransparent: Boolean
                                         read FBackColorTransparent
                                         write FBackColorTransparent default True;
+    property OnBeforePrint: string read FOnBeforePrint write FOnBeforePrint;
+    property OnAfterPrint:  string read FOnAfterPrint  write FOnAfterPrint;
   end;
 
 implementation

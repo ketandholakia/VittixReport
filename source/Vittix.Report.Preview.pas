@@ -74,6 +74,7 @@ type
     procedure ZoomIn;
     procedure ZoomOut;
     procedure FitWidth;
+    procedure FitPage;
     procedure Print;
 
     property PageCount:   Integer read GetPageCount;
@@ -263,6 +264,25 @@ begin
   PageBmp := FPages[FPageIndex];
   if PageBmp.Width <= 0 then Exit;
   SetZoomPercent(((ClientWidth - 20) * 100) div PageBmp.Width);
+end;
+
+procedure TVittixReportPreview.FitPage;
+var
+  PageBmp: TBitmap;
+  ScaleW, ScaleH: Integer;
+begin
+  if (PageCount = 0) or (ClientWidth <= 0) or (ClientHeight <= 0) then Exit;
+
+  PageBmp := FPages[FPageIndex];
+  if (PageBmp.Width <= 0) or (PageBmp.Height <= 0) then Exit;
+
+  ScaleW := ((ClientWidth - 20) * 100) div PageBmp.Width;
+  ScaleH := ((ClientHeight - 20) * 100) div PageBmp.Height;
+
+  if ScaleW < ScaleH then
+    SetZoomPercent(ScaleW)
+  else
+    SetZoomPercent(ScaleH);
 end;
 
 { ================= Print ================= }

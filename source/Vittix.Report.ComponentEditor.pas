@@ -21,7 +21,7 @@ unit Vittix.Report.ComponentEditor;
 
 interface
 
-procedure Register;
+procedure RegisterVittixReportComponentEditor;
 
 implementation
 
@@ -210,7 +210,7 @@ end;
 {  Register                                                                     }
 { --------------------------------------------------------------------------- }
 
-procedure Register;
+procedure RegisterVittixReportComponentEditor;
 begin
   RegisterComponentEditor(TVittixReport, TVittixReportComponentEditor);
 end;

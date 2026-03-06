@@ -31,7 +31,7 @@ begin
   RegisterComponents('Vittix Reporting', [TVittixReport]);
 
   // Wire double-click on TVittixReport icon to open VittixDesigner.exe
-  Vittix.Report.ComponentEditor.Register;
+  RegisterVittixReportComponentEditor;
 end;
 
 end.
