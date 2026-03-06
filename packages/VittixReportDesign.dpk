@@ -1,4 +1,4 @@
-package VittixReportDesign;
+﻿package VittixReportDesign;
 
 {$R *.res}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
@@ -38,10 +38,9 @@ requires
   adortl;
 
 contains
-  // Only two lightweight units � no VCL forms, no DFM streaming,
-  // no third-party component initialisation at package-load time.
+  // Two lightweight units only — no VCL forms, no DFM streaming.
+  // VittixDesigner.exe is launched as a separate process by the editor.
   Vittix.Report.ComponentEditor in '..\source\Vittix.Report.ComponentEditor.pas',
   Vittix.Report.Reg             in '..\source\Vittix.Report.Reg.pas';
 
 end.
-
