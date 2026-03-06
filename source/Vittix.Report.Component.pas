@@ -267,7 +267,6 @@ var
   Model   : TReportModel;
   DS      : TDataSet;
   Renderer: TReportRenderer;
-  Preview : TVittixReportPreview;
 begin
   if FReportJSON = '' then
     raise Exception.Create('No report design loaded.');
@@ -281,13 +280,7 @@ begin
     Renderer := TReportRenderer.Create;
     try
       Renderer.Render(Model, DS);
-      Preview := TVittixReportPreview.Create(nil);
-      try
-        Preview.LoadFromRenderer(Renderer);
-        Preview.Print;
-      finally
-        Preview.Free;
-      end;
+      Renderer.Print;
     finally
       Renderer.Free;
     end;

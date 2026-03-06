@@ -45,6 +45,7 @@ type
   private
     FReport:   TReportModel;
     FDataSet:  TDataSet;
+    FNamedDataSets: TDictionary<string, TDataSet>;
     FProgress: IReportProgress;   // optional; nil = no progress feedback
     FPages:    TObjectList<TMetafile>;
 
@@ -59,7 +60,8 @@ type
     FTitleBand:         TReportBand;
     FHeaderBand:        TReportBand;
     FColumnHeaderBand:  TReportBand;   // btColumnHeader
-    FMasterBand:        TReportBand;   // btMasterData or btDetail
+    FMasterBand:        TReportBand;   // primary master loop band
+    FDetailBands:       TObjectList<TReportBand>; // btDetail bands that use their own datasets
     FFooterBand:        TReportBand;
     FSummaryBand:       TReportBand;
     FOverlayBand:       TReportBand;   // btOverlay — drawn last over the full page
@@ -73,11 +75,18 @@ type
     FGroupFooters:    TObjectList<TReportBand>;
     FLastGroupValues: array of Variant;
 
+    procedure Initialize(
+      AReport:        TReportModel;
+      ADataSet:       TDataSet;
+      ANamedDataSets: TDictionary<string, TDataSet>;
+      AProgress:      IReportProgress);
     procedure CacheBands;
     procedure StartNewPage;
     procedure EndCurrentPage;
     procedure PrintPageHeader;  // prints PageHeader + ColumnHeader together
-    procedure PrintBand(ABand: TReportBand);
+    procedure PrintBand(ABand: TReportBand; ADataSet: TDataSet = nil);
+    function  ResolveBandDataSet(ABand: TReportBand): TDataSet;
+    procedure PrintDetailBands;
     function  CheckSpace(RequiredHeight: Integer): Boolean;
 
   public
@@ -87,15 +96,22 @@ type
     constructor Create(
       AReport:   TReportModel;
       ADataSet:  TDataSet;
-      AProgress: IReportProgress = nil);
+      AProgress: IReportProgress = nil); overload;
+    constructor Create(
+      AReport:        TReportModel;
+      ADataSet:       TDataSet;
+      ANamedDataSets: TDictionary<string, TDataSet>;
+      AProgress:      IReportProgress); overload;
     destructor Destroy; override;
 
     procedure Prepare;
+    procedure RegisterDataSet(const AName: string; ADataSet: TDataSet);
 
     property Pages:      TObjectList<TMetafile> read FPages;
     property PageCount:  Integer                read FPageNumber;
     property GroupStartBookmark: TBookmark      read FGroupStartBookmark;
     property GroupEndBookmark:   TBookmark      read FGroupEndBookmark;
+    property NamedDataSets: TDictionary<string, TDataSet> read FNamedDataSets;
   end;
 
 implementation
@@ -111,23 +127,48 @@ uses
 
 { ================= Constructor ================= }
 
-constructor TReportEngine.Create(
-  AReport:   TReportModel;
-  ADataSet:  TDataSet;
-  AProgress: IReportProgress);
+procedure TReportEngine.Initialize(
+  AReport:        TReportModel;
+  ADataSet:       TDataSet;
+  ANamedDataSets: TDictionary<string, TDataSet>;
+  AProgress:      IReportProgress);
 begin
   FReport   := AReport;
   FDataSet  := ADataSet;
+  FNamedDataSets := TDictionary<string, TDataSet>.Create;
+  if Assigned(ANamedDataSets) then
+    for var Pair in ANamedDataSets do
+      FNamedDataSets.AddOrSetValue(Pair.Key, Pair.Value);
   FProgress := AProgress;
   FPages    := TObjectList<TMetafile>.Create(True);
 
   FGroupHeaders := TObjectList<TReportBand>.Create(False); // does not own — bands owned by report
   FGroupFooters := TObjectList<TReportBand>.Create(False);
+  FDetailBands  := TObjectList<TReportBand>.Create(False);
 
   // Page dimensions are read from PageSettings in Prepare; seed defaults here
   // so StartNewPage can be called safely before Prepare sets them.
   FPageWidth  := 793;
   FPageHeight := 1122;
+end;
+
+constructor TReportEngine.Create(
+  AReport:   TReportModel;
+  ADataSet:  TDataSet;
+  AProgress: IReportProgress);
+begin
+  inherited Create;
+  Initialize(AReport, ADataSet, nil, AProgress);
+end;
+
+constructor TReportEngine.Create(
+  AReport:        TReportModel;
+  ADataSet:       TDataSet;
+  ANamedDataSets: TDictionary<string, TDataSet>;
+  AProgress:      IReportProgress);
+begin
+  inherited Create;
+  Initialize(AReport, ADataSet, ANamedDataSets, AProgress);
 end;
 
 destructor TReportEngine.Destroy;
@@ -142,8 +183,10 @@ begin
   end;
 
   FPages.Free;
+  FNamedDataSets.Free;
   FGroupHeaders.Free;
   FGroupFooters.Free;
+  FDetailBands.Free;
   inherited;
 end;
 
@@ -163,6 +206,7 @@ begin
   
   FGroupHeaders.Clear;
   FGroupFooters.Clear;
+  FDetailBands.Clear;
 
   for Obj in FReport.Objects do
     if Obj is TReportBand then
@@ -170,15 +214,23 @@ begin
         btReportTitle:   FTitleBand        := TReportBand(Obj);
         btPageHeader:    FHeaderBand       := TReportBand(Obj);
         btColumnHeader:  FColumnHeaderBand := TReportBand(Obj);
-        btMasterData,
-        btDetail:        if not Assigned(FMasterBand) then
+        btMasterData:    if not Assigned(FMasterBand) then
                            FMasterBand := TReportBand(Obj);
+        btDetail:        FDetailBands.Add(TReportBand(Obj));
         btPageFooter:    FFooterBand       := TReportBand(Obj);
         btReportSummary: FSummaryBand      := TReportBand(Obj);
         btOverlay:       FOverlayBand      := TReportBand(Obj);
         btGroupHeader:   FGroupHeaders.Add(TReportBand(Obj));
         btGroupFooter:   FGroupFooters.Add(TReportBand(Obj));
       end;
+
+  // Backward compatibility: if a legacy report uses btDetail as the only data band,
+  // treat the first detail band as the master loop.
+  if (not Assigned(FMasterBand)) and (FDetailBands.Count > 0) then
+  begin
+    FMasterBand := FDetailBands[0];
+    FDetailBands.Delete(0);
+  end;
       
   FGroupHeaders.Sort(TComparer<TReportBand>.Construct(
     function(const L, R: TReportBand): Integer
@@ -278,10 +330,13 @@ end;
 
 { ================= Band Printing ================= }
 
-procedure TReportEngine.PrintBand(ABand: TReportBand);
+procedure TReportEngine.PrintBand(ABand: TReportBand; ADataSet: TDataSet);
 var
   Ctx: TExpressionContext;
 begin
+  if not Assigned(ADataSet) then
+    ADataSet := FDataSet;
+
   if not Assigned(ABand) then Exit;
   if not Assigned(FCanvas) then Exit;
   if ABand.Height <= 0 then Exit;
@@ -293,7 +348,7 @@ begin
   if ABand.PrintWhen <> '' then
   begin
     var Ctx0: TExpressionContext := Default(TExpressionContext);
-    Ctx0.DataSet     := FDataSet;
+    Ctx0.DataSet     := ADataSet;
     Ctx0.PageNumber := FPageNumber;
     Ctx0.TotalPages := 0;
     Ctx0.ReportTitle := FReport.Title;
@@ -312,7 +367,7 @@ begin
   end;
 
   // Build render context early — needed for CanGrow MeasuredBottom calls
-  Ctx.DataSet     := FDataSet;
+  Ctx.DataSet     := ADataSet;
   Ctx.GroupStart  := FGroupStartBookmark;
   Ctx.GroupEnd    := FGroupEndBookmark;
   Ctx.PageNumber  := FPageNumber;
@@ -352,6 +407,94 @@ begin
   end;
 
   Inc(FCurrentY, EffectiveH);
+end;
+
+function TReportEngine.ResolveBandDataSet(ABand: TReportBand): TDataSet;
+begin
+  Result := FDataSet;
+  if not Assigned(ABand) then Exit;
+
+  if Trim(ABand.DataSetName) = '' then
+    Exit;
+
+  if Assigned(FNamedDataSets)
+     and FNamedDataSets.TryGetValue(ABand.DataSetName, Result) then
+    Exit;
+
+  // Unknown dataset name: no data for this band.
+  Result := nil;
+end;
+
+procedure TReportEngine.PrintDetailBands;
+var
+  Band: TReportBand;
+  DetailDS: TDataSet;
+  SaveBM: TBookmark;
+  HasSaveBM: Boolean;
+  MasterValue: Variant;
+  HasMasterField: Boolean;
+begin
+  for Band in FDetailBands do
+  begin
+    DetailDS := ResolveBandDataSet(Band);
+    if not Assigned(DetailDS) or not DetailDS.Active then
+      Continue;
+
+    SaveBM := nil;
+    HasSaveBM := False;
+    if DataSetSupportsBookmarks(DetailDS) then
+    begin
+      SaveBM := DetailDS.GetBookmark;
+      HasSaveBM := True;
+    end;
+
+    DetailDS.DisableControls;
+    try
+      HasMasterField :=
+        Assigned(FDataSet) and FDataSet.Active and
+        (Band.MasterField <> '') and (Band.DetailField <> '') and
+        Assigned(FDataSet.FindField(Band.MasterField)) and
+        Assigned(DetailDS.FindField(Band.DetailField));
+
+      if HasMasterField then
+        MasterValue := FDataSet.FieldByName(Band.MasterField).Value
+      else
+        MasterValue := Null;
+
+      DetailDS.First;
+      while not DetailDS.Eof do
+      begin
+        if (not HasMasterField) or
+           VarSameValue(DetailDS.FieldByName(Band.DetailField).Value, MasterValue) then
+        begin
+          if not CheckSpace(Band.Height) then
+          begin
+            StartNewPage;
+            PrintPageHeader;
+            if Assigned(FColumnHeaderBand) then
+              PrintBand(FColumnHeaderBand, FDataSet);
+          end;
+
+          PrintBand(Band, DetailDS);
+        end;
+
+        DetailDS.Next;
+      end;
+    finally
+      if HasSaveBM and DetailDS.BookmarkValid(SaveBM) then
+        DetailDS.GotoBookmark(SaveBM);
+      if HasSaveBM then
+        DetailDS.FreeBookmark(SaveBM);
+      DetailDS.EnableControls;
+    end;
+  end;
+end;
+
+procedure TReportEngine.RegisterDataSet(const AName: string; ADataSet: TDataSet);
+begin
+  if Trim(AName) = '' then
+    Exit;
+  FNamedDataSets.AddOrSetValue(AName, ADataSet);
 end;
 
 { ================= Main Loop ================= }
@@ -524,7 +667,8 @@ begin
               PrintBand(FColumnHeaderBand);
           end;
           { -------- PRINT RECORD -------- }
-          PrintBand(FMasterBand);
+          PrintBand(FMasterBand, FDataSet);
+          PrintDetailBands;
 
           // Report progress and check for cancellation
           Inc(RowNumber);

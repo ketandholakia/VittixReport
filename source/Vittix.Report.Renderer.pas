@@ -29,6 +29,7 @@ type
     destructor Destroy; override;
 
     procedure Render(AReport: TReportModel; ADataSet: TDataSet);
+    procedure Print;
 
     property Pages: TObjectList<TRenderPage> read FPages;
   end;
@@ -38,6 +39,7 @@ implementation
 uses
   System.Types,
   Vittix.Report.Objects,
+  Vcl.Printers,
   Winapi.Windows;
 
 { ================= Render Page ================= }
@@ -105,6 +107,27 @@ begin
     end;
   finally
     Engine.Free;
+  end;
+end;
+
+procedure TReportRenderer.Print;
+var
+  i: Integer;
+  R: TRect;
+begin
+  if FPages.Count = 0 then Exit;
+
+  Printer.BeginDoc;
+  try
+    for i := 0 to FPages.Count - 1 do
+    begin
+      R := Rect(0, 0, Printer.PageWidth, Printer.PageHeight);
+      Printer.Canvas.StretchDraw(R, FPages[i].Bitmap);
+      if i < FPages.Count - 1 then
+        Printer.NewPage;
+    end;
+  finally
+    Printer.EndDoc;
   end;
 end;
 

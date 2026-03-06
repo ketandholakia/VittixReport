@@ -23,7 +23,7 @@ type
     btGroupFooter,    // 6 — Prints when the group field value changes (bottom)
     // --- appended after v1; ordinals 7+ safe to add ---
     btColumnHeader,   // 7 — Below PageHeader; repeats after every group header
-    btDetail,         // 8 — Synonym for btMasterData (alias for clarity)
+    btDetail,         // 8 — Detail rows; can bind to a secondary dataset
     btOverlay         // 9 — Drawn last over the full page (watermark / stamp)
   );
 
@@ -32,6 +32,9 @@ type
   private
     FBandType:           TReportBandType;
     FHeight:             Integer;
+    FDataSetName:        string;
+    FMasterField:        string;
+    FDetailField:        string;
     FGroupLevel:         Integer;
     FGroupField:         string;
     FStartNewPage:       Boolean;
@@ -50,6 +53,9 @@ type
   published
     property BandType:  TReportBandType read FBandType  write FBandType;
     property Height:    Integer         read FHeight    write FHeight;
+    property DataSetName: string        read FDataSetName write FDataSetName;
+    property MasterField: string        read FMasterField write FMasterField;
+    property DetailField: string        read FDetailField write FDetailField;
     property GroupField:  string        read FGroupField  write FGroupField;
     property GroupLevel:  Integer       read FGroupLevel  write FGroupLevel;
     property StartNewPage: Boolean      read FStartNewPage write FStartNewPage;

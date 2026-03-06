@@ -218,6 +218,9 @@ begin
     Band := TReportBand(Obj);
     Result.AddPair('BandType',            TJSONNumber.Create(Ord(Band.BandType)));
     Result.AddPair('Height',              TJSONNumber.Create(Band.Height));
+    Result.AddPair('DataSetName',         Band.DataSetName);
+    Result.AddPair('MasterField',         Band.MasterField);
+    Result.AddPair('DetailField',         Band.DetailField);
     Result.AddPair('GroupField',          Band.GroupField);
     Result.AddPair('GroupLevel',          TJSONNumber.Create(Band.GroupLevel));
     Result.AddPair('StartNewPage',        TJSONBool.Create(Band.StartNewPage));
@@ -377,6 +380,9 @@ begin
       Band := TReportBand(Obj);
       Band.BandType             := TReportBandType(O.GetValue<Integer>('BandType',    0));
       Band.Height               := O.GetValue<Integer>('Height',       40);
+      Band.DataSetName          := O.GetValue<string>('DataSetName',   '');
+      Band.MasterField          := O.GetValue<string>('MasterField',   '');
+      Band.DetailField          := O.GetValue<string>('DetailField',   '');
       Band.GroupField           := O.GetValue<string>('GroupField',    '');
       Band.GroupLevel           := O.GetValue<Integer>('GroupLevel',   0);
       Band.StartNewPage         := O.GetValue<Boolean>('StartNewPage', False);
