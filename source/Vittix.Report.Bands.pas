@@ -117,4 +117,7 @@ begin
   end;
 end;
 
+initialization
+  RegisterReportObject(TReportBand);
+
 end.

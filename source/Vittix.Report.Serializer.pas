@@ -76,6 +76,9 @@ end;
 
 function JSONToRect(O: TJSONObject): TRect;
 begin
+  if not Assigned(O) then
+    Exit(Rect(0, 0, 0, 0));
+
   Result := Rect(
     O.GetValue<Integer>('L'),
     O.GetValue<Integer>('T'),
@@ -248,6 +251,7 @@ var
   PicBytes:   TBytes;
   PicStream:  TMemoryStream;
   PicGraphic: TGraphicClass;
+  PicClassRef: TPersistentClass;
   G:          TGraphic;
 begin
   Cls := FindObjectClass(O.GetValue<string>('Class'));
@@ -324,23 +328,27 @@ begin
       if (PicData <> '') and (PicClass <> '') then
       begin
         PicBytes  := TNetEncoding.Base64.DecodeStringToBytes(PicData);
-        PicStream := TMemoryStream.Create;
-        try
-          PicStream.Write(PicBytes[0], Length(PicBytes));
-          PicStream.Position := 0;
-          PicGraphic := TGraphicClass(FindClass(PicClass));
-          if Assigned(PicGraphic) then
-          begin
-            G := PicGraphic.Create;
-            try
-              G.LoadFromStream(PicStream);
-              Img.Picture.Assign(G);
-            finally
-              G.Free;
+        if Length(PicBytes) > 0 then
+        begin
+          PicStream := TMemoryStream.Create;
+          try
+            PicStream.WriteBuffer(PicBytes[0], Length(PicBytes));
+            PicStream.Position := 0;
+            PicClassRef := GetClass(PicClass);
+            if Assigned(PicClassRef) and PicClassRef.InheritsFrom(TGraphic) then
+            begin
+              PicGraphic := TGraphicClass(PicClassRef);
+              G := PicGraphic.Create;
+              try
+                G.LoadFromStream(PicStream);
+                Img.Picture.Assign(G);
+              finally
+                G.Free;
+              end;
             end;
+          finally
+            PicStream.Free;
           end;
-        finally
-          PicStream.Free;
         end;
       end;
     end;
@@ -542,14 +550,30 @@ end;
 
 class function TReportSerializer.LoadFromJSON(const S: string): TReportModel;
 var
+  JsonText: string;
   Root: TJSONObject;
   Arr:  TJSONArray;
   i:    Integer;
 begin
+  JsonText := S;
+  // TFile.ReadAllText(TEncoding.UTF8) may yield a leading BOM character.
+  // Strip it so ParseJSONValue does not fail on otherwise valid JSON.
+  if (JsonText <> '') and (JsonText[1] = #$FEFF) then
+    Delete(JsonText, 1, 1);
+  if (Length(JsonText) >= 3) and
+     (JsonText[1] = #$00EF) and (JsonText[2] = #$00BB) and (JsonText[3] = #$00BF) then
+    Delete(JsonText, 1, 3);
+  JsonText := TrimLeft(JsonText);
+  if (JsonText <> '') and (JsonText[1] = #$FEFF) then
+    Delete(JsonText, 1, 1);
+  if (Length(JsonText) >= 3) and
+     (JsonText[1] = #$00EF) and (JsonText[2] = #$00BB) and (JsonText[3] = #$00BF) then
+    Delete(JsonText, 1, 3);
+
   Root := nil;
   try
     try
-      Root := TJSONObject.ParseJSONValue(S) as TJSONObject;
+      Root := TJSONObject.ParseJSONValue(JsonText) as TJSONObject;
     except
       raise Exception.Create('Invalid JSON format in report');
     end;

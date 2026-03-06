@@ -125,6 +125,9 @@ var
   JsonIn : string;
   JsonOut: string;
   Blank  : TReportModel;
+  G      : TGUID;
+  Token  : string;
+  Utf8NoBom: TUTF8Encoding;
 begin
   Comp := Component as TVittixReport;
 
@@ -142,8 +145,11 @@ begin
         Exit;
       end;
 
-      InFile  := TPath.Combine(TPath.GetTempPath, 'VittixRpt_in.vrt');
-      OutFile := TPath.Combine(TPath.GetTempPath, 'VittixRpt_out.vrt');
+      CreateGUID(G);
+      Token  := StringReplace(GUIDToString(G), '{', '', [rfReplaceAll]);
+      Token  := StringReplace(Token, '}', '', [rfReplaceAll]);
+      InFile  := TPath.Combine(TPath.GetTempPath, 'VittixRpt_in_'  + Token + '.vrt');
+      OutFile := TPath.Combine(TPath.GetTempPath, 'VittixRpt_out_' + Token + '.vrt');
 
       if TFile.Exists(OutFile) then TFile.Delete(OutFile);
 
@@ -158,7 +164,12 @@ begin
           Blank.Free;
         end;
       end;
-      TFile.WriteAllText(InFile, JsonIn, TEncoding.UTF8);
+      Utf8NoBom := TUTF8Encoding.Create(False);
+      try
+        TFile.WriteAllText(InFile, JsonIn, Utf8NoBom);
+      finally
+        Utf8NoBom.Free;
+      end;
 
       LaunchAndWait(Format('"%s" "%s" "%s"', [ExePath, InFile, OutFile]));
 
@@ -166,6 +177,11 @@ begin
       if TFile.Exists(OutFile) then
       begin
         JsonOut := TFile.ReadAllText(OutFile, TEncoding.UTF8);
+        if (JsonOut <> '') and (JsonOut[1] = #$FEFF) then
+          Delete(JsonOut, 1, 1);
+        if (Length(JsonOut) >= 3) and
+           (JsonOut[1] = #$00EF) and (JsonOut[2] = #$00BB) and (JsonOut[3] = #$00BF) then
+          Delete(JsonOut, 1, 3);
         if (JsonOut <> '') and (JsonOut <> JsonIn) then
         begin
           Comp.ReportJSON := JsonOut;

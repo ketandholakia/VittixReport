@@ -257,7 +257,7 @@ object frmMain: TfrmMain
       Top = 0
       Width = 121
       Height = 30
-      ItemHeight = 17
+      ItemHeight = 15
       TabOrder = 0
     end
   end
@@ -279,19 +279,17 @@ object frmMain: TfrmMain
   end
   object pnlOuter: TPanel
     Left = 0
-    Top = 58
+    Top = 29
     Width = 1280
-    Height = 643
+    Height = 672
     Align = alClient
     BevelOuter = bvNone
     TabOrder = 2
-    ExplicitTop = 29
-    ExplicitHeight = 672
     object splLeft: TSplitter
       Left = 0
       Top = 0
       Width = 4
-      Height = 643
+      Height = 672
       Color = 13684944
       ParentColor = False
       ExplicitHeight = 100
@@ -300,7 +298,7 @@ object frmMain: TfrmMain
       Left = 1016
       Top = 0
       Width = 4
-      Height = 643
+      Height = 672
       Align = alRight
       Color = 13684944
       ParentColor = False
@@ -311,11 +309,10 @@ object frmMain: TfrmMain
       Left = 4
       Top = 0
       Width = 140
-      Height = 643
+      Height = 672
       Align = alLeft
       BevelOuter = bvNone
       TabOrder = 0
-      ExplicitHeight = 672
       object lblToolbox: TLabel
         Left = 0
         Top = 0
@@ -338,23 +335,21 @@ object frmMain: TfrmMain
         Left = 0
         Top = 15
         Width = 140
-        Height = 628
+        Height = 657
         Align = alClient
         ItemHeight = 15
         TabOrder = 0
         OnToolSelected = ToolboxToolSelected
-        ExplicitHeight = 657
       end
     end
     object pnlProperties: TPanel
       Left = 1020
       Top = 0
       Width = 260
-      Height = 643
+      Height = 672
       Align = alRight
       BevelOuter = bvNone
       TabOrder = 1
-      ExplicitHeight = 672
       object lblProperties: TLabel
         Left = 0
         Top = 0
@@ -453,56 +448,44 @@ object frmMain: TfrmMain
         Left = 0
         Top = 159
         Width = 260
-        Height = 456
+        Height = 485
         Align = alClient
         KeyOptions = [keyEdit, keyAdd, keyDelete, keyUnique]
         TabOrder = 2
         OnKeyDown = PropEditorKeyDown
-        ExplicitHeight = 485
         ColWidths = (
           120
           134)
       end
       object btnApplyProps: TButton
         Left = 0
-        Top = 615
+        Top = 644
         Width = 260
         Height = 28
         Align = alBottom
         Caption = 'Apply Properties  [Enter]'
         TabOrder = 3
         OnClick = btnApplyPropsClick
-        ExplicitTop = 644
       end
     end
     object pnlCanvas: TPanel
       Left = 144
       Top = 0
       Width = 872
-      Height = 643
+      Height = 672
       Align = alClient
       BevelOuter = bvNone
       TabOrder = 2
-      ExplicitHeight = 672
       object ScrollBox1: TScrollBox
         Left = 0
         Top = 0
         Width = 872
-        Height = 643
+        Height = 672
         Align = alClient
         BorderStyle = bsNone
         Color = 15263976
         ParentColor = False
         TabOrder = 0
-        ExplicitHeight = 672
-        object Designer: TVittixReportDesigner
-          Left = -23
-          Top = -16
-          Width = 820
-          Height = 1160
-          OnSelectionChanged = DesignerSelectionChanged
-          OnModified = DesignerModified
-        end
       end
     end
   end
@@ -759,7 +742,7 @@ object frmMain: TfrmMain
     Left = 632
     Top = 376
     Bitmap = {
-      494C01010C002000040018001800FFFFFFFF2100FFFFFFFFFFFFFFFF424D3600
+      494C01010C002000040018001800FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000600000006000000001002000000000000090
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -1951,6 +1934,7 @@ object frmMain: TfrmMain
       F7C7FFF3F7FFEF93FF33BFFFF7C3FFFBF7F80F93FF33BFFFF7D1FFF3F7FB8F93
       FF33BFC007D8FFF3F7FB1F93FF33BF8FFFDC7FF3F7FA3F93FF33801FFFDE3FE7
       F7F87F93FF33FFFFFFDF1FC7F7F8FF800003FFFFFFDF830FF001FF800003FFFF
-      FFDFE01FFFFFFFFFFFFFFFFFFFFFFFFF}
+      FFDFE01FFFFFFFFFFFFFFFFFFFFFFFFF00000000000000000000000000000000
+      000000000000}
   end
 end

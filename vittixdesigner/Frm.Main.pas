@@ -6,17 +6,17 @@
 
   Layout
   ------
-    ┌─────────────────────────────────────────────────────────────┐
-    │  Menu Bar                                                   │
-    │  ToolBar  (File | Edit | Insert | Align | View | Report)   │
-    │  StatusBar                                                  │
-    ├──────────┬──────────────────────────────────┬──────────────┤
-    │          │                                  │              │
-    │ Toolbox  │   TVittixReportDesigner canvas   │  Properties  │
-    │ (left    │        (centre, scrollable)      │  (right      │
-    │  panel)  │                                  │   panel)     │
-    │          │                                  │              │
-    └──────────┴──────────────────────────────────┴──────────────┘
+    +-------------------------------------------------------------+
+    ¦  Menu Bar                                                   ¦
+    ¦  ToolBar  (File | Edit | Insert | Align | View | Report)   ¦
+    ¦  StatusBar                                                  ¦
+    +------------------------------------------------------------¦
+    ¦          ¦                                  ¦              ¦
+    ¦ Toolbox  ¦   TVittixReportDesigner canvas   ¦  Properties  ¦
+    ¦ (left    ¦        (centre, scrollable)      ¦  (right      ¦
+    ¦  panel)  ¦                                  ¦   panel)     ¦
+    ¦          ¦                                  ¦              ¦
+    +------------------------------------------------------------+
 
   Panels are resized via splitters.  The toolbox lists every registered
   TReportObject class.  The property panel shows the currently selected
@@ -44,9 +44,7 @@ uses
   Vittix.Report.Export.PDF,
   Vittix.Report.Objects.Barcode,
   Vittix.Report.Objects.Table, Vcl.Grids,  Vcl.CheckLst,
-  System.ImageList,
-
-  RzPanel, RzButton;
+  System.ImageList;
 
 type
   TfrmMain = class(TForm)
@@ -166,11 +164,6 @@ type
     lblToolbox   : TLabel;
     Toolbox      : TVittixReportToolbox;
 
-    { ---- Fields panel (below toolbox) ---- }
-    pnlFields    : TPanel;
-    lblFields    : TLabel;
-    lstFields    : TListBox;
-
     { ---- Property panel ---- }
     lblProperties: TLabel;
     PropEditor   : TValueListEditor;
@@ -178,13 +171,6 @@ type
 
     { ---- Designer canvas in a scroll box ---- }
     ScrollBox1   : TScrollBox;
-    Designer     : TVittixReportDesigner;
-
-    { ---- Data access ---- }
-    { Drop any TDataSet-descendant (TADOQuery, TFDQuery, etc.) on the form  }
-    { and set DataSource1.DataSet to it. The designer will auto-populate    }
-    { the Field List panel and enable live preview.                         }
-    DataSource1  : TDataSource;
 
     { ---- Report-info strip inside property panel ---- }
     pnlReportInfo: TPanel;
@@ -198,8 +184,6 @@ type
     btnZoomApply : TButton;
     CheckListBox1: TCheckListBox;
     ImageList1: TImageList;
-    RzToolbar1: TRzToolbar;
-    btn1: TRzToolButton;
 
     { ---- Event handlers ---- }
 
@@ -279,6 +263,12 @@ type
   private
     FCurrentFile: string;
     FModified   : Boolean;
+    // Created dynamically in FormCreate (not streamed from DFM)
+    FDesigner   : TVittixReportDesigner;
+    FDataSource1: TDataSource;
+    FPnlFields  : TPanel;
+    FLblFields  : TLabel;
+    FLstFields  : TListBox;
 
     // Command-line mode: set when launched by the component editor
     FCmdLineInputFile : string;   // file to load on startup
@@ -331,46 +321,60 @@ procedure TfrmMain.FormCreate(Sender: TObject);
 var
   Splitter: TSplitter;
 begin
+  // Defensive registration for command-line open mode.
+  // Some environments can start with an incomplete registry; ensure bands
+  // always deserialize from ReportJSON.
+  RegisterReportObject(TReportBand);
+
+  // Designer control is created at runtime (not streamed from DFM).
+  FDesigner := TVittixReportDesigner.Create(Self);
+  FDesigner.Parent := ScrollBox1;
+  FDesigner.Left := 16;
+  FDesigner.Top := 16;
+  FDesigner.Width := 1200;
+  FDesigner.Height := 1600;
+  FDataSource1 := TDataSource.Create(Self);
+
   // Ensure the Toolbox knows all registered types (including Barcode + Table
   // which self-register in their unit initialization sections)
   Toolbox.RefreshToolList;
 
-  // Wire designer events
-  Designer.OnSelectionChanged := DesignerSelectionChanged;
-  Designer.OnModified         := DesignerModified;
-  Designer.OnDataSetChanged   := DesignerDataSetChanged;
-
-  // Connect the shared DataSource so the designer sees whatever dataset
-  // is assigned to DataSource1 at design-time or runtime.
-  Designer.DataSource := DataSource1;
-
   // ---- Build the Fields panel dynamically inside pnlToolbox ----
-  pnlFields          := TPanel.Create(Self);
-  pnlFields.Parent   := pnlToolbox;
-  pnlFields.Align    := alBottom;
-  pnlFields.Height   := 160;
-  pnlFields.BevelOuter := bvNone;
-  pnlFields.Caption  := '';
+  FPnlFields          := TPanel.Create(Self);
+  FPnlFields.Parent   := pnlToolbox;
+  FPnlFields.Align    := alBottom;
+  FPnlFields.Height   := 160;
+  FPnlFields.BevelOuter := bvNone;
+  FPnlFields.Caption  := '';
 
-  lblFields          := TLabel.Create(Self);
-  lblFields.Parent   := pnlFields;
-  lblFields.Align    := alTop;
-  lblFields.Caption  := ' Dataset Fields';
-  lblFields.Font.Style := [fsBold];
-  lblFields.Height   := 18;
+  FLblFields          := TLabel.Create(Self);
+  FLblFields.Parent   := FPnlFields;
+  FLblFields.Align    := alTop;
+  FLblFields.Caption  := ' Dataset Fields';
+  FLblFields.Font.Style := [fsBold];
+  FLblFields.Height   := 18;
 
-  lstFields          := TListBox.Create(Self);
-  lstFields.Parent   := pnlFields;
-  lstFields.Align    := alClient;
-  lstFields.OnDblClick := FieldListDblClick;
-  lstFields.Hint     := 'Double-click a field to insert a bound label into the active band';
-  lstFields.ShowHint := True;
+  FLstFields          := TListBox.Create(Self);
+  FLstFields.Parent   := FPnlFields;
+  FLstFields.Align    := alClient;
+  FLstFields.OnDblClick := FieldListDblClick;
+  FLstFields.Hint     := 'Double-click a field to insert a bound label into the active band';
+  FLstFields.ShowHint := True;
 
   // Splitter between toolbox list and fields panel
   Splitter           := TSplitter.Create(Self);
   Splitter.Parent    := pnlToolbox;
   Splitter.Align     := alBottom;
   Splitter.Height    := 5;
+
+  // Wire designer events
+  FDesigner.OnSelectionChanged := DesignerSelectionChanged;
+  FDesigner.OnModified         := DesignerModified;
+  FDesigner.OnDataSetChanged   := DesignerDataSetChanged;
+
+  // Connect the shared DataSource so the designer sees whatever dataset
+  // is assigned at runtime.
+  FDesigner.DataSource := FDataSource1;
 
   // File dialogs
   dlgOpen.Filter := 'Vittix Report Files (*.vrt)|*.vrt|All Files (*.*)|*.*';
@@ -381,7 +385,7 @@ begin
   FCurrentFile := '';
   FModified    := False;
 
-  // Command-line mode: VittixDesigner.exe "input.vrt" "output.vrt"
+  // Command-line mode: VittixDesigner.exe "<input>" "<output>"
   // When launched by the component editor, load the input file and
   // remember the output path for Save & Close.
   FCmdLineInputFile  := '';
@@ -392,12 +396,26 @@ begin
     if ParamCount >= 2 then
       FCmdLineOutputFile := ParamStr(2);
 
-    if TFile.Exists(FCmdLineInputFile) then
+    if (FCmdLineInputFile <> '') and TFile.Exists(FCmdLineInputFile) then
     try
-      var R := TReportSerializer.LoadFromFile(FCmdLineInputFile);
-      Designer.LoadReport(R, True);
-      edtReportTitle.Text  := Designer.Report.Title;
-      edtReportAuthor.Text := Designer.Report.Author;
+      var JSON := TFile.ReadAllText(FCmdLineInputFile, TEncoding.UTF8);
+      if Trim(JSON) <> '' then
+      begin
+        var R: TReportModel := nil;
+        try
+          R := TReportSerializer.LoadFromJSON(JSON);
+        except
+          // Backward-compatible fallback if input was passed as a file format
+          // expected by LoadFromFile.
+          R := TReportSerializer.LoadFromFile(FCmdLineInputFile);
+        end;
+        if Assigned(R) then
+        begin
+          FDesigner.LoadReport(R, True);
+          edtReportTitle.Text  := FDesigner.Report.Title;
+          edtReportAuthor.Text := FDesigner.Report.Author;
+        end;
+      end;
     except
       // ignore — start with blank report
     end;
@@ -423,9 +441,13 @@ begin
   if FCmdLineOutputFile <> '' then
   begin
     try
-      Designer.Report.Title  := edtReportTitle.Text;
-      Designer.Report.Author := edtReportAuthor.Text;
-      TReportSerializer.SaveToFile(Designer.Report, FCmdLineOutputFile);
+      FDesigner.Report.Title  := edtReportTitle.Text;
+      FDesigner.Report.Author := edtReportAuthor.Text;
+      // Write JSON (not .vrt format) so the component editor can read it
+      // back directly into TVittixReport.ReportJSON
+      TFile.WriteAllText(FCmdLineOutputFile,
+        TReportSerializer.SaveToJSON(FDesigner.Report),
+        TEncoding.UTF8);
     except
       on E: Exception do
         ShowMessage('Could not save report: ' + E.Message);
@@ -444,11 +466,11 @@ end;
 procedure TfrmMain.mnuNewClick(Sender: TObject);
 begin
   ConfirmSaveIfModified;
-  Designer.NewReport;
+  FDesigner.NewReport;
   FCurrentFile := '';
   FModified    := False;
-  edtReportTitle.Text  := Designer.Report.Title;
-  edtReportAuthor.Text := Designer.Report.Author;
+  edtReportTitle.Text  := FDesigner.Report.Title;
+  edtReportAuthor.Text := FDesigner.Report.Author;
   UpdateTitleBar;
   UpdateMenuState;
 end;
@@ -461,11 +483,11 @@ begin
   if not dlgOpen.Execute then Exit;
   try
     R := TReportSerializer.LoadFromFile(dlgOpen.FileName);
-    Designer.LoadReport(R, True {take ownership});
+    FDesigner.LoadReport(R, True {take ownership});
     FCurrentFile := dlgOpen.FileName;
     FModified    := False;
-    edtReportTitle.Text  := Designer.Report.Title;
-    edtReportAuthor.Text := Designer.Report.Author;
+    edtReportTitle.Text  := FDesigner.Report.Title;
+    edtReportAuthor.Text := FDesigner.Report.Author;
     UpdateTitleBar;
     UpdateMenuState;
     StatusBar1.Panels[1].Text := 'Loaded: ' + ExtractFileName(FCurrentFile);
@@ -482,10 +504,10 @@ begin
   else
   begin
     // Commit report-info edits
-    Designer.Report.Title  := edtReportTitle.Text;
-    Designer.Report.Author := edtReportAuthor.Text;
+    FDesigner.Report.Title  := edtReportTitle.Text;
+    FDesigner.Report.Author := edtReportAuthor.Text;
     try
-      TReportSerializer.SaveToFile(Designer.Report, FCurrentFile);
+      TReportSerializer.SaveToFile(FDesigner.Report, FCurrentFile);
       FModified := False;
       UpdateTitleBar;
       StatusBar1.Panels[1].Text := 'Saved: ' + ExtractFileName(FCurrentFile);
@@ -523,7 +545,7 @@ begin
     try
       Rend := TReportRenderer.Create;
       try
-        Rend.Render(Designer.Report, nil {no live dataset in designer});
+        Rend.Render(FDesigner.Report, nil {no live dataset in designer});
         if Rend.Pages.Count = 0 then
         begin
           ShowMessage('No pages were generated. Add a MasterData band with objects and ensure a DataSet is assigned.');
@@ -557,42 +579,42 @@ end;
 
 procedure TfrmMain.mnuUndoClick(Sender: TObject);
 begin
-  Designer.Undo;
+  FDesigner.Undo;
   UpdateMenuState;
   UpdatePropertyPanel;
 end;
 
 procedure TfrmMain.mnuRedoClick(Sender: TObject);
 begin
-  Designer.Redo;
+  FDesigner.Redo;
   UpdateMenuState;
   UpdatePropertyPanel;
 end;
 
 procedure TfrmMain.mnuCutClick(Sender: TObject);
 begin
-  Designer.CopySelection;
-  Designer.DeleteSelected;
+  FDesigner.CopySelection;
+  FDesigner.DeleteSelected;
 end;
 
 procedure TfrmMain.mnuCopyClick(Sender: TObject);
 begin
-  Designer.CopySelection;
+  FDesigner.CopySelection;
 end;
 
 procedure TfrmMain.mnuPasteClick(Sender: TObject);
 begin
-  Designer.PasteSelection;
+  FDesigner.PasteSelection;
 end;
 
 procedure TfrmMain.mnuDeleteClick(Sender: TObject);
 begin
-  Designer.DeleteSelected;
+  FDesigner.DeleteSelected;
 end;
 
 procedure TfrmMain.mnuSelectAllClick(Sender: TObject);
 begin
-  Designer.SelectAllObjects;
+  FDesigner.SelectAllObjects;
 end;
 
 { =========================================================================== }
@@ -606,8 +628,8 @@ begin
   Band := TReportBand.Create;
   Band.BandType := ABandType;
   Band.Height   := 40;
-  Designer.Report.Objects.Add(Band);
-  Designer.RebuildLayout;
+  FDesigner.Report.Objects.Add(Band);
+  FDesigner.RebuildLayout;
   FModified := True;
   UpdateTitleBar;
   StatusBar1.Panels[1].Text := 'Band added: ' + BandTypeName(ABandType);
@@ -650,18 +672,18 @@ begin AddBand(btReportSummary); end;
 {  Align / Z-order                                                             }
 { =========================================================================== }
 
-procedure TfrmMain.mnuAlignLeftClick(Sender: TObject);   begin Designer.AlignLeft;    end;
-procedure TfrmMain.mnuAlignRightClick(Sender: TObject);  begin Designer.AlignRight;   end;
-procedure TfrmMain.mnuAlignTopClick(Sender: TObject);    begin Designer.AlignTop;     end;
-procedure TfrmMain.mnuAlignBottomClick(Sender: TObject); begin Designer.AlignBottom;  end;
-procedure TfrmMain.mnuSameWidthClick(Sender: TObject);   begin Designer.SameWidth;    end;
-procedure TfrmMain.mnuSameHeightClick(Sender: TObject);  begin Designer.SameHeight;   end;
-procedure TfrmMain.mnuCenterHClick(Sender: TObject);     begin Designer.CenterH;      end;
-procedure TfrmMain.mnuCenterVClick(Sender: TObject);     begin Designer.CenterV;      end;
-procedure TfrmMain.mnuDistHClick(Sender: TObject);       begin Designer.DistributeH;  end;
-procedure TfrmMain.mnuDistVClick(Sender: TObject);       begin Designer.DistributeV;  end;
-procedure TfrmMain.mnuFrontClick(Sender: TObject);       begin Designer.BringToFront; end;
-procedure TfrmMain.mnuBackClick(Sender: TObject);        begin Designer.SendToBack;   end;
+procedure TfrmMain.mnuAlignLeftClick(Sender: TObject);   begin FDesigner.AlignLeft;    end;
+procedure TfrmMain.mnuAlignRightClick(Sender: TObject);  begin FDesigner.AlignRight;   end;
+procedure TfrmMain.mnuAlignTopClick(Sender: TObject);    begin FDesigner.AlignTop;     end;
+procedure TfrmMain.mnuAlignBottomClick(Sender: TObject); begin FDesigner.AlignBottom;  end;
+procedure TfrmMain.mnuSameWidthClick(Sender: TObject);   begin FDesigner.SameWidth;    end;
+procedure TfrmMain.mnuSameHeightClick(Sender: TObject);  begin FDesigner.SameHeight;   end;
+procedure TfrmMain.mnuCenterHClick(Sender: TObject);     begin FDesigner.CenterH;      end;
+procedure TfrmMain.mnuCenterVClick(Sender: TObject);     begin FDesigner.CenterV;      end;
+procedure TfrmMain.mnuDistHClick(Sender: TObject);       begin FDesigner.DistributeH;  end;
+procedure TfrmMain.mnuDistVClick(Sender: TObject);       begin FDesigner.DistributeV;  end;
+procedure TfrmMain.mnuFrontClick(Sender: TObject);       begin FDesigner.BringToFront; end;
+procedure TfrmMain.mnuBackClick(Sender: TObject);        begin FDesigner.SendToBack;   end;
 
 { =========================================================================== }
 {  View / Zoom                                                                 }
@@ -669,44 +691,44 @@ procedure TfrmMain.mnuBackClick(Sender: TObject);        begin Designer.SendToBa
 
 procedure TfrmMain.mnuZoomInClick(Sender: TObject);
 begin
-  Designer.ZoomIn;
-  edtZoom.Text := IntToStr(Designer.Zoom);
+  FDesigner.ZoomIn;
+  edtZoom.Text := IntToStr(FDesigner.Zoom);
 end;
 
 procedure TfrmMain.mnuZoomOutClick(Sender: TObject);
 begin
-  Designer.ZoomOut;
-  edtZoom.Text := IntToStr(Designer.Zoom);
+  FDesigner.ZoomOut;
+  edtZoom.Text := IntToStr(FDesigner.Zoom);
 end;
 
 procedure TfrmMain.mnuZoomResetClick(Sender: TObject);
 begin
-  Designer.ZoomReset;
+  FDesigner.ZoomReset;
   edtZoom.Text := '100';
 end;
 
 procedure TfrmMain.mnuShowGridClick(Sender: TObject);
 begin
-  Designer.ShowGrid    := not Designer.ShowGrid;
-  mnuShowGrid.Checked  := Designer.ShowGrid;
+  FDesigner.ShowGrid    := not FDesigner.ShowGrid;
+  mnuShowGrid.Checked  := FDesigner.ShowGrid;
 end;
 
 procedure TfrmMain.mnuSnapGridClick(Sender: TObject);
 begin
-  Designer.SnapToGrid  := not Designer.SnapToGrid;
-  mnuSnapGrid.Checked  := Designer.SnapToGrid;
+  FDesigner.SnapToGrid  := not FDesigner.SnapToGrid;
+  mnuSnapGrid.Checked  := FDesigner.SnapToGrid;
 end;
 
 procedure TfrmMain.mnuShowRulersClick(Sender: TObject);
 begin
-  Designer.ShowRulers   := not Designer.ShowRulers;
-  mnuShowRulers.Checked := Designer.ShowRulers;
+  FDesigner.ShowRulers   := not FDesigner.ShowRulers;
+  mnuShowRulers.Checked := FDesigner.ShowRulers;
 end;
 
 procedure TfrmMain.mnuShowMarginsClick(Sender: TObject);
 begin
-  Designer.ShowMargins   := not Designer.ShowMargins;
-  mnuShowMargins.Checked := Designer.ShowMargins;
+  FDesigner.ShowMargins   := not FDesigner.ShowMargins;
+  mnuShowMargins.Checked := FDesigner.ShowMargins;
 end;
 
 procedure TfrmMain.ApplyZoom;
@@ -715,8 +737,8 @@ begin
   Z := ZoomFromEdit;
   if Z > 0 then
   begin
-    Designer.Zoom := Z;
-    edtZoom.Text  := IntToStr(Designer.Zoom);
+    FDesigner.Zoom := Z;
+    edtZoom.Text  := IntToStr(FDesigner.Zoom);
   end;
 end;
 
@@ -747,7 +769,7 @@ var
 begin
   Frm := TfrmPreview.Create(Application);
   try
-    Frm.LoadReport(Designer.Report);
+    Frm.LoadReport(FDesigner.Report);
     Frm.ShowModal;
   finally
     Frm.Free;
@@ -760,11 +782,11 @@ var
 begin
   Frm := TfrmPageSettings.Create(Application);
   try
-    Frm.LoadSettings(Designer.Report.PageSettings);
+    Frm.LoadSettings(FDesigner.Report.PageSettings);
     if Frm.ShowModal = mrOk then
     begin
-      Frm.SaveSettings(Designer.Report.PageSettings);
-      Designer.RebuildLayout;
+      Frm.SaveSettings(FDesigner.Report.PageSettings);
+      FDesigner.RebuildLayout;
       FModified := True;
       UpdateTitleBar;
     end;
@@ -779,10 +801,10 @@ var
 begin
   Frm := TfrmBandManager.Create(Application);
   try
-    Frm.LoadReport(Designer.Report);
+    Frm.LoadReport(FDesigner.Report);
     if Frm.ShowModal = mrOk then
     begin
-      Designer.RebuildLayout;
+      FDesigner.RebuildLayout;
       FModified := True;
       UpdateTitleBar;
     end;
@@ -826,7 +848,7 @@ begin
   Cls := Toolbox.SelectedObjectClass;
   if Assigned(Cls) then
   begin
-    Designer.BeginInsertObject(Cls);
+    FDesigner.BeginInsertObject(Cls);
     StatusBar1.Panels[1].Text :=
       'Insert mode: click inside a band to place a ' + Cls.DisplayName;
   end;
@@ -840,7 +862,7 @@ procedure TfrmMain.UpdatePropertyPanel;
 var
   Obj: TReportObject;
 begin
-  Obj := Designer.PrimarySelected;
+  Obj := FDesigner.PrimarySelected;
   TReportPropertyBridge.LoadObjectToGrid(Obj, PropEditor);
   if Assigned(Obj) then
     lblProperties.Caption := 'Properties  —  ' + Obj.ClassName
@@ -852,10 +874,10 @@ procedure TfrmMain.ApplyPropertyPanel;
 var
   Obj: TReportObject;
 begin
-  Obj := Designer.PrimarySelected;
+  Obj := FDesigner.PrimarySelected;
   if not Assigned(Obj) then Exit;
   TReportPropertyBridge.SaveGridToObject(Obj, PropEditor);
-  Designer.RebuildLayout;   // repaint with new property values
+  FDesigner.RebuildLayout;   // repaint with new property values
   FModified := True;
   UpdateTitleBar;
 end;
@@ -894,13 +916,13 @@ procedure TfrmMain.UpdateStatusBar;
 var
   SelCount: Integer;
 begin
-  SelCount := Designer.SelectedCount;
+  SelCount := FDesigner.SelectedCount;
 
   if SelCount = 0 then
     StatusBar1.Panels[0].Text := 'No selection'
   else if SelCount = 1 then
   begin
-    var Obj := Designer.PrimarySelected;
+    var Obj := FDesigner.PrimarySelected;
     if Assigned(Obj) then
       StatusBar1.Panels[0].Text :=
         Obj.ClassName + '  at (' +
@@ -918,13 +940,13 @@ var
   HasSel: Boolean;
   Multi : Boolean;
 begin
-  HasSel := Designer.SelectedCount > 0;
-  Multi  := Designer.SelectedCount >= 2;
+  HasSel := FDesigner.SelectedCount > 0;
+  Multi  := FDesigner.SelectedCount >= 2;
 
-  mnuUndo.Enabled    := Designer.CanUndo;
-  mnuRedo.Enabled    := Designer.CanRedo;
-  btnUndo.Enabled    := Designer.CanUndo;
-  btnRedo.Enabled    := Designer.CanRedo;
+  mnuUndo.Enabled    := FDesigner.CanUndo;
+  mnuRedo.Enabled    := FDesigner.CanRedo;
+  btnUndo.Enabled    := FDesigner.CanUndo;
+  btnRedo.Enabled    := FDesigner.CanRedo;
 
   mnuCut.Enabled    := HasSel;
   mnuCopy.Enabled   := HasSel;
@@ -950,20 +972,20 @@ begin
   btnCenterH.Enabled := HasSel;
   btnCenterV.Enabled := HasSel;
 
-  mnuDistH.Enabled := Designer.SelectedCount >= 3;
-  mnuDistV.Enabled := Designer.SelectedCount >= 3;
-  btnDistH.Enabled := Designer.SelectedCount >= 3;
-  btnDistV.Enabled := Designer.SelectedCount >= 3;
+  mnuDistH.Enabled := FDesigner.SelectedCount >= 3;
+  mnuDistV.Enabled := FDesigner.SelectedCount >= 3;
+  btnDistH.Enabled := FDesigner.SelectedCount >= 3;
+  btnDistV.Enabled := FDesigner.SelectedCount >= 3;
 
   mnuFront.Enabled := HasSel;
   mnuBack.Enabled  := HasSel;
   btnFront.Enabled := HasSel;
   btnBack.Enabled  := HasSel;
 
-  mnuShowGrid.Checked    := Designer.ShowGrid;
-  mnuSnapGrid.Checked    := Designer.SnapToGrid;
-  mnuShowRulers.Checked  := Designer.ShowRulers;
-  mnuShowMargins.Checked := Designer.ShowMargins;
+  mnuShowGrid.Checked    := FDesigner.ShowGrid;
+  mnuSnapGrid.Checked    := FDesigner.SnapToGrid;
+  mnuShowRulers.Checked  := FDesigner.ShowRulers;
+  mnuShowMargins.Checked := FDesigner.ShowMargins;
 
   UpdateStatusBar;
 end;
@@ -987,7 +1009,7 @@ var
   Cls: TReportObjectClass;
 begin
   Cls := TReportObjectClass(TMenuItem(Sender).Tag);
-  Designer.BeginInsertObject(Cls);
+  FDesigner.BeginInsertObject(Cls);
   StatusBar1.Panels[1].Text :=
     'Insert mode — click inside a band to place a ' + Cls.DisplayName;
 end;
@@ -1001,29 +1023,33 @@ var
   Names: TArray<string>;
   N    : string;
 begin
-  lstFields.Items.BeginUpdate;
+  // FormCreate can trigger dataset notifications before this panel exists.
+  if not Assigned(FLstFields) or not Assigned(FLblFields) then
+    Exit;
+
+  FLstFields.Items.BeginUpdate;
   try
-    lstFields.Items.Clear;
-    Names := Designer.GetFieldNames;
+    FLstFields.Items.Clear;
+    Names := FDesigner.GetFieldNames;
     for N in Names do
-      lstFields.Items.Add(N);
+      FLstFields.Items.Add(N);
   finally
-    lstFields.Items.EndUpdate;
+    FLstFields.Items.EndUpdate;
   end;
 
-  if lstFields.Items.Count = 0 then
-    lblFields.Caption := ' Dataset Fields  (none)'
+  if FLstFields.Items.Count = 0 then
+    FLblFields.Caption := ' Dataset Fields  (none)'
   else
-    lblFields.Caption := Format(' Dataset Fields  (%d)', [lstFields.Items.Count]);
+    FLblFields.Caption := Format(' Dataset Fields  (%d)', [FLstFields.Items.Count]);
 end;
 
 procedure TfrmMain.FieldListDblClick(Sender: TObject);
 var
   FieldName: string;
 begin
-  if lstFields.ItemIndex < 0 then Exit;
-  FieldName := lstFields.Items[lstFields.ItemIndex];
-  if not Designer.InsertFieldObject(FieldName) then
+  if FLstFields.ItemIndex < 0 then Exit;
+  FieldName := FLstFields.Items[FLstFields.ItemIndex];
+  if not FDesigner.InsertFieldObject(FieldName) then
     ShowMessage('Please click a band on the canvas first to set the active band, then double-click a field.');
 end;
 
@@ -1049,3 +1075,4 @@ begin
 end;
 
 end.
+
