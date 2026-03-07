@@ -9,10 +9,12 @@
   -------------------
   Each band in Objects[] includes a Children[] array (was missing in v1).
   PageSettings is persisted as a nested object.
+  FieldNames[] array added: column names embedded so the standalone designer
+  can populate its "Dataset Fields" panel without a live DB connection.
 
   Versioning
   ----------
-  Reading a v1 file (no Version key) still works; Children defaults to empty.
+  Reading a v1 file (no Version key, no FieldNames) still works fine.
 
   Cloning
   -------
@@ -44,7 +46,7 @@ type
     /// <summary>Deep-clone a single object (band + its children, or leaf object).</summary>
     class function CloneObject(Obj: TReportObject): TReportObject;
 
-    /// <summary>Deep-clone an entire report model via serialize â†’ deserialize.</summary>
+    /// <summary>Deep-clone an entire report model via serialize -> deserialize.</summary>
     class function CloneReport(R: TReportModel): TReportModel;
   end;
 
@@ -56,10 +58,10 @@ implementation
 
 uses
   System.NetEncoding,
-  Vcl.Graphics,         // TFontStyles, TFont constants used when reading font fields
-  Vcl.Controls,         // TVerticalAlignment
-  Vcl.Imaging.pngimage, // register PNG format for picture load/save
-  Vcl.Imaging.Jpeg;     // register JPEG format for picture load/save
+  Vcl.Graphics,
+  Vcl.Controls,
+  Vcl.Imaging.pngimage,
+  Vcl.Imaging.Jpeg;
 
 // ---------------------------------------------------------------------------
 // Rect helpers
@@ -78,7 +80,6 @@ function JSONToRect(O: TJSONObject): TRect;
 begin
   if not Assigned(O) then
     Exit(Rect(0, 0, 0, 0));
-
   Result := Rect(
     O.GetValue<Integer>('L'),
     O.GetValue<Integer>('T'),
@@ -102,7 +103,7 @@ begin
 end;
 
 // ---------------------------------------------------------------------------
-// Single TReportObject â†” JSON
+// Single TReportObject <-> JSON
 // ---------------------------------------------------------------------------
 
 function ObjectToJSON(Obj: TReportObject): TJSONObject;
@@ -130,7 +131,6 @@ begin
   Result.AddPair('AnchorRight',  TJSONBool.Create(Obj.AnchorRight));
   Result.AddPair('AnchorBottom', TJSONBool.Create(Obj.AnchorBottom));
 
-  // ----- TReportTextObject fields -----
   if Obj is TReportTextObject then
   begin
     T := TReportTextObject(Obj);
@@ -163,7 +163,6 @@ begin
     Result.AddPair('BorderColorOnTrue',    TJSONNumber.Create(T.BorderColorOnTrue));
   end;
 
-  // ----- TReportShapeObject fields -----
   if Obj is TReportShapeObject then
   begin
     Sh := TReportShapeObject(Obj);
@@ -176,7 +175,6 @@ begin
     Result.AddPair('CornerRadius', TJSONNumber.Create(Sh.CornerRadius));
   end;
 
-  // ----- TReportImageObject fields -----
   if Obj is TReportImageObject then
   begin
     Img := TReportImageObject(Obj);
@@ -202,7 +200,6 @@ begin
     end;
   end;
 
-  // ----- TReportMemoObject extra fields (text fields handled above) -----
   if Obj is TReportMemoObject then
   begin
     Memo := TReportMemoObject(Obj);
@@ -231,7 +228,6 @@ begin
     Result.AddPair('BorderWidth',   TJSONNumber.Create(SubRep.BorderWidth));
   end;
 
-  // ----- TReportLineObject fields -----
   if Obj is TReportLineObject then
   begin
     Ln := TReportLineObject(Obj);
@@ -241,7 +237,6 @@ begin
     Result.AddPair('LineStyle',   TJSONNumber.Create(Ord(Ln.LineStyle)));
   end;
 
-  // ----- TReportBand fields + children -----
   if Obj is TReportBand then
   begin
     Band := TReportBand(Obj);
@@ -305,7 +300,6 @@ begin
     Obj.AnchorRight  := O.GetValue<Boolean>('AnchorRight',  False);
     Obj.AnchorBottom := O.GetValue<Boolean>('AnchorBottom', False);
 
-    // ----- TReportTextObject fields -----
     if Obj is TReportTextObject then
     begin
       T := TReportTextObject(Obj);
@@ -315,7 +309,6 @@ begin
       T.Font.Name   := O.GetValue<string>('FontName',   'Tahoma');
       T.Font.Size   := O.GetValue<Integer>('FontSize',  10);
       T.Font.Color  := O.GetValue<Integer>('FontColor', 0);
-
       Style := [];
       if O.GetValue<Boolean>('FontBold',   False) then Include(Style, fsBold);
       if O.GetValue<Boolean>('FontItalic', False) then Include(Style, fsItalic);
@@ -341,7 +334,6 @@ begin
       T.BorderColorOnTrue    := O.GetValue<Integer>('BorderColorOnTrue',    Integer(clRed));
     end;
 
-    // ----- TReportShapeObject fields -----
     if Obj is TReportShapeObject then
     begin
       Sh := TReportShapeObject(Obj);
@@ -354,7 +346,6 @@ begin
       Sh.CornerRadius := O.GetValue<Integer>('CornerRadius', 12);
     end;
 
-    // ----- TReportImageObject fields -----
     if Obj is TReportImageObject then
     begin
       Img := TReportImageObject(Obj);
@@ -395,7 +386,6 @@ begin
       end;
     end;
 
-    // ----- TReportMemoObject extra fields -----
     if Obj is TReportMemoObject then
     begin
       Memo := TReportMemoObject(Obj);
@@ -424,7 +414,6 @@ begin
       SubRep.BorderWidth  := O.GetValue<Integer>('BorderWidth', 1);
     end;
 
-    // ----- TReportLineObject fields -----
     if Obj is TReportLineObject then
     begin
       Ln := TReportLineObject(Obj);
@@ -434,7 +423,6 @@ begin
       Ln.LineStyle   := TPenStyle(O.GetValue<Integer>('LineStyle', 0));
     end;
 
-    // ----- TReportBand fields + children -----
     if Obj is TReportBand then
     begin
       Band := TReportBand(Obj);
@@ -468,7 +456,7 @@ begin
 end;
 
 // ---------------------------------------------------------------------------
-// PageSettings â†” JSON
+// PageSettings <-> JSON
 // ---------------------------------------------------------------------------
 
 function PageSettingsToJSON(PS: TReportPageSettings): TJSONObject;
@@ -489,12 +477,10 @@ var
   M: TReportMargins;
 begin
   if not Assigned(O) then Exit;
-
-  PS.PaperSize   := TReportPaperSize(O.GetValue<Integer>('PaperSize',   0));
-  PS.Orientation := TReportOrientation(O.GetValue<Integer>('Orientation', 0));
+  PS.PaperSize    := TReportPaperSize(O.GetValue<Integer>('PaperSize',   0));
+  PS.Orientation  := TReportOrientation(O.GetValue<Integer>('Orientation', 0));
   PS.CustomWidth  := O.GetValue<Integer>('CustomWidth',  793);
   PS.CustomHeight := O.GetValue<Integer>('CustomHeight', 1122);
-
   M.Left   := O.GetValue<Integer>('MarginLeft',   40);
   M.Top    := O.GetValue<Integer>('MarginTop',    40);
   M.Right  := O.GetValue<Integer>('MarginRight',  40);
@@ -519,71 +505,22 @@ begin
 end;
 
 class function TReportSerializer.CloneReport(R: TReportModel): TReportModel;
-var
-  Root: TJSONObject;
-  Arr : TJSONArray;
-  Obj : TReportObject;
-  JSON: string;
-  i   : Integer;
 begin
-  if not Assigned(R) then
-    raise Exception.Create('Report model must be assigned.');
-
-  { Serialize to an in-memory JSON string -- no disk I/O, no temp-file risks }
-  Root := TJSONObject.Create;
-  try
-    Root.AddPair('Version',      TJSONNumber.Create(2));
-    Root.AddPair('Title',        R.Title);
-    Root.AddPair('Author',       R.Author);
-    Root.AddPair('Description',  R.Description);
-    Root.AddPair('PageSettings', PageSettingsToJSON(R.PageSettings));
-
-    Arr := TJSONArray.Create;
-    for Obj in R.Objects do
-      Arr.AddElement(ObjectToJSON(Obj));
-    Root.AddPair('Objects', Arr);
-
-    JSON := Root.ToJSON;
-  finally
-    Root.Free;
-  end;
-
-  { Deserialize from the string back into a fresh TReportModel }
-  Root := nil;
-  try
-    Root := TJSONObject.ParseJSONValue(JSON) as TJSONObject;
-    if not Assigned(Root) then
-      raise Exception.Create('CloneReport: JSON round-trip produced invalid output');
-
-    Result := TReportModel.Create;
-    try
-      Result.Title       := Root.GetValue<string>('Title',       '');
-      Result.Author      := Root.GetValue<string>('Author',      '');
-      Result.Description := Root.GetValue<string>('Description', '');
-      JSONToPageSettings(Root.GetValue<TJSONObject>('PageSettings'), Result.PageSettings);
-
-      Arr := Root.GetValue<TJSONArray>('Objects');
-      if Assigned(Arr) then
-        for i := 0 to Arr.Count - 1 do
-          Result.Objects.Add(JSONToObject(Arr.Items[i] as TJSONObject));
-    except
-      Result.Free;
-      raise;
-    end;
-  finally
-    Root.Free;
-  end;
+  // Round-trip through SaveToJSON/LoadFromJSON so FieldNames are preserved
+  Result := LoadFromJSON(SaveToJSON(R));
 end;
 
 // ---------------------------------------------------------------------------
-// Save
+// Save  (FieldNames array written here)
 // ---------------------------------------------------------------------------
 
 class function TReportSerializer.SaveToJSON(R: TReportModel): string;
 var
-  Root: TJSONObject;
-  Arr:  TJSONArray;
-  Obj:  TReportObject;
+  Root:   TJSONObject;
+  Arr:    TJSONArray;
+  FldArr: TJSONArray;
+  Obj:    TReportObject;
+  I:      Integer;
 begin
   if not Assigned(R) then
     raise Exception.Create('Report model must be assigned.');
@@ -595,6 +532,12 @@ begin
     Root.AddPair('Author',       R.Author);
     Root.AddPair('Description',  R.Description);
     Root.AddPair('PageSettings', PageSettingsToJSON(R.PageSettings));
+
+    // Persist field names so the standalone designer shows them without a DB
+    FldArr := TJSONArray.Create;
+    for I := 0 to R.FieldNames.Count - 1 do
+      FldArr.Add(R.FieldNames[I]);
+    Root.AddPair('FieldNames', FldArr);
 
     Arr := TJSONArray.Create;
     for Obj in R.Objects do
@@ -613,19 +556,19 @@ begin
 end;
 
 // ---------------------------------------------------------------------------
-// Load
+// Load  (FieldNames array read here — absent in old files is fine)
 // ---------------------------------------------------------------------------
 
 class function TReportSerializer.LoadFromJSON(const S: string): TReportModel;
 var
   JsonText: string;
-  Root: TJSONObject;
-  Arr:  TJSONArray;
-  i:    Integer;
+  Root:   TJSONObject;
+  Arr:    TJSONArray;
+  FldArr: TJSONArray;
+  i:      Integer;
 begin
   JsonText := S;
-  // TFile.ReadAllText(TEncoding.UTF8) may yield a leading BOM character.
-  // Strip it so ParseJSONValue does not fail on otherwise valid JSON.
+  // Strip any leading BOM
   if (JsonText <> '') and (JsonText[1] = #$FEFF) then
     Delete(JsonText, 1, 1);
   if (Length(JsonText) >= 3) and
@@ -659,6 +602,12 @@ begin
         Root.GetValue<TJSONObject>('PageSettings'),
         Result.PageSettings);
 
+      // Read field names — absent in old v1/v2 files, that is fine
+      FldArr := Root.GetValue('FieldNames') as TJSONArray;
+      if Assigned(FldArr) then
+        for i := 0 to FldArr.Count - 1 do
+          Result.FieldNames.Add((FldArr.Items[i] as TJSONString).Value);
+
       Arr := Root.GetValue<TJSONArray>('Objects');
       if Assigned(Arr) then
         for i := 0 to Arr.Count - 1 do
@@ -677,7 +626,6 @@ class function TReportSerializer.LoadFromFile(const FN: string): TReportModel;
 begin
   if not TFile.Exists(FN) then
     raise Exception.CreateFmt('Report file not found: "%s"', [FN]);
-
   Result := LoadFromJSON(TFile.ReadAllText(FN, TEncoding.UTF8));
 end;
 

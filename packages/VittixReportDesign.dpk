@@ -38,9 +38,7 @@ requires
   adortl;
 
 contains
-  // Two lightweight units only — no VCL forms, no DFM streaming.
-  // VittixDesigner.exe is launched as a separate process by the editor.
   Vittix.Report.ComponentEditor in '..\source\Vittix.Report.ComponentEditor.pas',
-  Vittix.Report.Reg             in '..\source\Vittix.Report.Reg.pas';
+  Vittix.Report.Reg in '..\source\Vittix.Report.Reg.pas';
 
 end.

@@ -708,6 +708,10 @@ begin
   FObjectBandMap.Clear;
   ComputeBandLayouts;
   Invalidate;
+  // Notify the host (designer EXE field panel) that the dataset may have changed.
+  // This causes the "Dataset Fields" panel to refresh from the newly loaded report.
+  if Assigned(FOnDataSetChanged) then
+    FOnDataSetChanged(Self);
 end;
 
 procedure TVittixReportDesigner.NewReport;
@@ -1316,10 +1320,20 @@ var
   I: Integer;
 begin
   Result := [];
-  if not Assigned(FDataSet) then Exit;
-  SetLength(Result, FDataSet.FieldCount);
-  for I := 0 to FDataSet.FieldCount - 1 do
-    Result[I] := FDataSet.Fields[I].FieldName;
+  if Assigned(FDataSet) then
+  begin
+    // Live dataset connected (design-time / host app) — read field names directly
+    SetLength(Result, FDataSet.FieldCount);
+    for I := 0 to FDataSet.FieldCount - 1 do
+      Result[I] := FDataSet.Fields[I].FieldName;
+  end
+  else if Assigned(FReport) and (FReport.FieldNames.Count > 0) then
+  begin
+    // Standalone designer: no live DB — use field names embedded in the .vrt file
+    SetLength(Result, FReport.FieldNames.Count);
+    for I := 0 to FReport.FieldNames.Count - 1 do
+      Result[I] := FReport.FieldNames[I];
+  end;
 end;
 
 function TVittixReportDesigner.InsertFieldObject(const AFieldName: string): Boolean;

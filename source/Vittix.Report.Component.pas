@@ -9,12 +9,31 @@ unit Vittix.Report.Component;
   It shows as a small icon in the non-visual component tray — no visible
   surface at design-time.
 
-  Runtime usage
-  -------------
+  UserDataSet usage (preferred — FastReport style)
+  -------------------------------------------------
+    // Drop TVittixUserDataSet on the form, set its DataSet/DataSource,
+    // then register it with the report before Execute:
+
+    procedure TForm1.FormCreate(Sender: TObject);
+    begin
+      VittixReport1.RegisterUserDataSet(dsOrders);   // dsOrders is TVittixUserDataSet
+    end;
+
+    procedure TForm1.btnPreviewClick(Sender: TObject);
+    begin
+      VittixReport1.LoadFromFile('invoice.vrt');
+      VittixReport1.Execute;
+    end;
+
+  Legacy DataSource usage (still supported)
+  ------------------------------------------
     VittixReport1.DataSource := DataSource1;
-    VittixReport1.Execute;               // show preview
-    VittixReport1.Print;                 // direct print
-    VittixReport1.ExportToPDF('out.pdf');
+    VittixReport1.Execute;
+
+  The engine resolution order:
+    1. Registered TVittixUserDataSet whose Name matches the band's DataSetName
+    2. Primary TVittixUserDataSet (first registered, or only one registered)
+    3. Legacy FDataSource.DataSet  (backwards-compatible fallback)
 }
 
 interface
@@ -22,48 +41,82 @@ interface
 uses
   System.Classes,
   System.SysUtils,
+  System.Generics.Collections,
   Data.DB,
   Vittix.Report.Model,
   Vittix.Report.Serializer,
   Vittix.Report.Engine,
   Vittix.Report.Renderer,
-  Vittix.Report.Export.PDF;
+  Vittix.Report.Export.PDF,
+  Vittix.Report.UserDataSet;
 
 type
   TVittixReport = class(TComponent)
   private
-    FDataSource: TDataSource;
-    FReportJSON: string;
+    FDataSource   : TDataSource;
+    FReportJSON   : string;
+    // Ordered list — first entry is the primary dataset
+    FUserDataSets : TList<TVittixUserDataSet>;
 
     function  GetReportJSON: string;
     procedure SetReportJSON(const V: string);
     procedure SetDataSource(const V: TDataSource);
+
+    // Build the TDataSet / named-dataset map consumed by the engine
+    function  ResolvePrimaryDataSet: TDataSet;
+    procedure BuildNamedDataSets(
+      out APrimary: TDataSet;
+      out ANamedDS: TDictionary<string, TDataSet>);
 
   protected
     procedure Notification(AComponent: TComponent;
                            Operation: TOperation); override;
 
   public
-    destructor Destroy; override;
+    constructor Create(AOwner: TComponent); override;
+    destructor  Destroy; override;
 
+    // ----- Report file I/O --------------------------------------------------
     procedure LoadFromFile(const AFileName: string);
     procedure SaveToFile(const AFileName: string);
 
+    // ----- UserDataSet registration -----------------------------------------
+
+    /// <summary>
+    ///   Register a TVittixUserDataSet with this report.
+    ///   The first registered dataset is treated as the primary (master) source.
+    ///   Additional datasets are looked up by their component Name when the
+    ///   engine resolves a band's DataSetName property.
+    ///
+    ///   Call this once per dataset, e.g. in FormCreate.
+    ///   Safe to call multiple times — duplicates are silently ignored.
+    /// </summary>
+    procedure RegisterUserDataSet(ADataSet: TVittixUserDataSet);
+
+    /// <summary>Remove a previously registered TVittixUserDataSet.</summary>
+    procedure UnregisterUserDataSet(ADataSet: TVittixUserDataSet);
+
+    /// <summary>Remove all registered TVittixUserDataSet instances.</summary>
+    procedure ClearUserDataSets;
+
+    // ----- Execution --------------------------------------------------------
     procedure Execute;
     procedure Print;
     procedure ExportToPDF(const AFileName: string);
 
     { Returns a freshly deserialised model — caller must free }
-    function GetModel: TReportModel;
+    function  GetModel: TReportModel;
 
   published
-    property ReportJSON: string
-      read GetReportJSON write SetReportJSON;
+    // Legacy single-datasource wiring — still works; UserDataSet takes priority
     property DataSource: TDataSource
       read FDataSource write SetDataSource;
+
+    property ReportJSON: string
+      read GetReportJSON write SetReportJSON;
   end;
 
-procedure Register;
+// procedure Register;  // registration moved to Vittix.Report.Reg
 
 implementation
 
@@ -72,22 +125,44 @@ uses
   Vcl.Controls,
   Vcl.ExtCtrls,
   Vcl.StdCtrls,
-  Vittix.Report.Preview;  // TVittixReportPreview
+  Vittix.Report.Preview;
 
-{ --------------------------------------------------------------------------- }
+// ---------------------------------------------------------------------------
+//  Constructor / Destructor
+// ---------------------------------------------------------------------------
+
+constructor TVittixReport.Create(AOwner: TComponent);
+begin
+  inherited;
+  FUserDataSets := TList<TVittixUserDataSet>.Create;
+end;
 
 destructor TVittixReport.Destroy;
 begin
+  FUserDataSets.Free;
   inherited;
 end;
+
+// ---------------------------------------------------------------------------
+//  Notification — clean up dangling references
+// ---------------------------------------------------------------------------
 
 procedure TVittixReport.Notification(AComponent: TComponent;
   Operation: TOperation);
 begin
   inherited;
-  if (Operation = opRemove) and (AComponent = FDataSource) then
-    FDataSource := nil;
+  if Operation = opRemove then
+  begin
+    if AComponent = FDataSource then
+      FDataSource := nil;
+    if AComponent is TVittixUserDataSet then
+      FUserDataSets.Remove(TVittixUserDataSet(AComponent));
+  end;
 end;
+
+// ---------------------------------------------------------------------------
+//  Property accessors
+// ---------------------------------------------------------------------------
 
 procedure TVittixReport.SetDataSource(const V: TDataSource);
 begin
@@ -109,7 +184,83 @@ begin
   FReportJSON := V;
 end;
 
-{ --------------------------------------------------------------------------- }
+// ---------------------------------------------------------------------------
+//  UserDataSet registration
+// ---------------------------------------------------------------------------
+
+procedure TVittixReport.RegisterUserDataSet(ADataSet: TVittixUserDataSet);
+begin
+  if not Assigned(ADataSet) then Exit;
+  if FUserDataSets.IndexOf(ADataSet) < 0 then
+  begin
+    FUserDataSets.Add(ADataSet);
+    ADataSet.FreeNotification(Self);
+  end;
+end;
+
+procedure TVittixReport.UnregisterUserDataSet(ADataSet: TVittixUserDataSet);
+begin
+  if Assigned(ADataSet) then
+    FUserDataSets.Remove(ADataSet);
+end;
+
+procedure TVittixReport.ClearUserDataSets;
+begin
+  FUserDataSets.Clear;
+end;
+
+// ---------------------------------------------------------------------------
+//  Dataset resolution
+//
+//  Priority:
+//    1. RegisterUserDataSet entries (first = primary, others by .Name)
+//    2. Legacy FDataSource.DataSet
+// ---------------------------------------------------------------------------
+
+function TVittixReport.ResolvePrimaryDataSet: TDataSet;
+begin
+  if FUserDataSets.Count > 0 then
+    Result := FUserDataSets[0].DataSet
+  else if Assigned(FDataSource) then
+    Result := FDataSource.DataSet
+  else
+    Result := nil;
+end;
+
+procedure TVittixReport.BuildNamedDataSets(
+  out APrimary: TDataSet;
+  out ANamedDS: TDictionary<string, TDataSet>);
+var
+  UDS: TVittixUserDataSet;
+  I  : Integer;
+begin
+  ANamedDS := TDictionary<string, TDataSet>.Create;
+
+  if FUserDataSets.Count > 0 then
+  begin
+    // First registered = primary
+    APrimary := FUserDataSets[0].DataSet;
+
+    // All registered datasets indexed by component Name for band lookup
+    for I := 0 to FUserDataSets.Count - 1 do
+    begin
+      UDS := FUserDataSets[I];
+      if (UDS.Name <> '') and Assigned(UDS.DataSet) then
+        ANamedDS.AddOrSetValue(UDS.Name, UDS.DataSet);
+    end;
+  end
+  else
+  begin
+    // Legacy fallback
+    APrimary := nil;
+    if Assigned(FDataSource) then
+      APrimary := FDataSource.DataSet;
+  end;
+end;
+
+// ---------------------------------------------------------------------------
+//  Report file I/O
+// ---------------------------------------------------------------------------
 
 procedure TVittixReport.LoadFromFile(const AFileName: string);
 var
@@ -144,12 +295,13 @@ begin
     Result := TReportSerializer.LoadFromJSON(FReportJSON);
 end;
 
-{ --------------------------------------------------------------------------- }
-{  Preview nav button handlers                                                  }
-{  TNotifyEvent requires 'of object' so we use a tiny helper class.           }
-{ --------------------------------------------------------------------------- }
+// ---------------------------------------------------------------------------
+//  Preview helper
+// ---------------------------------------------------------------------------
 
 type
+  TPreviewAction = procedure of object;
+
   TPreviewNavHelper = class
     Preview: TVittixReportPreview;
     procedure PrevClick(Sender: TObject);
@@ -161,76 +313,55 @@ type
     procedure ZoomResetClick(Sender: TObject);
   end;
 
-procedure TPreviewNavHelper.PrevClick(Sender: TObject);
+procedure InvokePreviewAction(APreview: TObject; const AMethodName: string);
+var
+  M: TMethod;
+  Action: TPreviewAction;
 begin
-  Preview.GoPrev;
+  if not Assigned(APreview) then Exit;
+  M.Code := APreview.MethodAddress(AMethodName);
+  if not Assigned(M.Code) then Exit;
+  M.Data := APreview;
+  Action := TPreviewAction(M);
+  Action;
 end;
 
-procedure TPreviewNavHelper.NextClick(Sender: TObject);
-begin
-  Preview.GoNext;
-end;
+procedure TPreviewNavHelper.PrevClick(Sender: TObject);     begin Preview.GoPrev;          end;
+procedure TPreviewNavHelper.NextClick(Sender: TObject);     begin Preview.GoNext;          end;
+procedure TPreviewNavHelper.ZoomInClick(Sender: TObject);   begin Preview.ZoomIn;          end;
+procedure TPreviewNavHelper.ZoomOutClick(Sender: TObject);  begin Preview.ZoomOut;         end;
+procedure TPreviewNavHelper.FitWidthClick(Sender: TObject); begin Preview.FitWidth;        end;
+procedure TPreviewNavHelper.FitPageClick(Sender: TObject);  begin InvokePreviewAction(Preview, 'FitPage'); end;
+procedure TPreviewNavHelper.ZoomResetClick(Sender: TObject); begin Preview.ZoomPercent := 100; end;
 
-procedure TPreviewNavHelper.ZoomInClick(Sender: TObject);
-begin
-  Preview.ZoomIn;
-end;
-
-procedure TPreviewNavHelper.ZoomOutClick(Sender: TObject);
-begin
-  Preview.ZoomOut;
-end;
-
-procedure TPreviewNavHelper.FitWidthClick(Sender: TObject);
-begin
-  Preview.FitWidth;
-end;
-
-procedure TPreviewNavHelper.FitPageClick(Sender: TObject);
-begin
-  Preview.FitPage;
-end;
-
-procedure TPreviewNavHelper.ZoomResetClick(Sender: TObject);
-begin
-  Preview.ZoomPercent := 100;
-end;
-
-{ --------------------------------------------------------------------------- }
-{  Execute — modal preview window built from TVittixReportPreview              }
-{ --------------------------------------------------------------------------- }
+// ---------------------------------------------------------------------------
+//  Execute — modal preview
+// ---------------------------------------------------------------------------
 
 procedure TVittixReport.Execute;
 var
-  Model   : TReportModel;
-  DS      : TDataSet;
-  Renderer: TReportRenderer;
-  Frm     : TForm;
-  Preview : TVittixReportPreview;
-  Toolbar : TPanel;
-  BtnClose: TButton;
-  BtnPrev : TButton;
-  BtnNext : TButton;
-  BtnZoomIn : TButton;
-  BtnZoomOut: TButton;
-  BtnFitPage: TButton;
-  BtnFitWidth: TButton;
-  BtnZoom100: TButton;
-  NavHelp : TPreviewNavHelper;
+  Model    : TReportModel;
+  Primary  : TDataSet;
+  NamedDS  : TDictionary<string, TDataSet>;
+  Renderer : TReportRenderer;
+  Frm      : TForm;
+  Preview  : TVittixReportPreview;
+  Toolbar  : TPanel;
+  BtnClose, BtnPrev, BtnNext       : TButton;
+  BtnZoomIn, BtnZoomOut, BtnZoom100: TButton;
+  BtnFitPage, BtnFitWidth          : TButton;
+  NavHelp  : TPreviewNavHelper;
 begin
   if FReportJSON = '' then
     raise Exception.Create(
-      'No report design loaded. Double-click the component at design-time.');
+      'No report design loaded. Call LoadFromFile first.');
 
   Model := TReportSerializer.LoadFromJSON(FReportJSON);
+  BuildNamedDataSets(Primary, NamedDS);
   try
-    DS := nil;
-    if Assigned(FDataSource) then
-      DS := FDataSource.DataSet;
-
     Renderer := TReportRenderer.Create;
     try
-      Renderer.Render(Model, DS);
+      Renderer.Render(Model, Primary);
 
       NavHelp := TPreviewNavHelper.Create;
       try
@@ -250,73 +381,58 @@ begin
           BtnClose             := TButton.Create(Frm);
           BtnClose.Parent      := Toolbar;
           BtnClose.Caption     := 'Close';
-          BtnClose.Left        := 8;
-          BtnClose.Top         := 4;
+          BtnClose.Left        := 8;   BtnClose.Top := 4;
           BtnClose.Width       := 72;
           BtnClose.ModalResult := mrCancel;
 
           BtnPrev         := TButton.Create(Frm);
           BtnPrev.Parent  := Toolbar;
           BtnPrev.Caption := '< Prev';
-          BtnPrev.Left    := 92;
-          BtnPrev.Top     := 4;
-          BtnPrev.Width   := 72;
+          BtnPrev.Left    := 92;   BtnPrev.Top := 4;  BtnPrev.Width := 72;
 
           BtnNext         := TButton.Create(Frm);
           BtnNext.Parent  := Toolbar;
           BtnNext.Caption := 'Next >';
-          BtnNext.Left    := 172;
-          BtnNext.Top     := 4;
-          BtnNext.Width   := 72;
+          BtnNext.Left    := 172;  BtnNext.Top := 4;  BtnNext.Width := 72;
 
           BtnZoomOut         := TButton.Create(Frm);
           BtnZoomOut.Parent  := Toolbar;
           BtnZoomOut.Caption := 'Zoom -';
-          BtnZoomOut.Left    := 262;
-          BtnZoomOut.Top     := 4;
-          BtnZoomOut.Width   := 72;
+          BtnZoomOut.Left    := 262; BtnZoomOut.Top := 4; BtnZoomOut.Width := 72;
 
           BtnZoomIn         := TButton.Create(Frm);
           BtnZoomIn.Parent  := Toolbar;
           BtnZoomIn.Caption := 'Zoom +';
-          BtnZoomIn.Left    := 342;
-          BtnZoomIn.Top     := 4;
-          BtnZoomIn.Width   := 72;
+          BtnZoomIn.Left    := 342; BtnZoomIn.Top := 4;  BtnZoomIn.Width := 72;
 
           BtnZoom100         := TButton.Create(Frm);
           BtnZoom100.Parent  := Toolbar;
           BtnZoom100.Caption := '100%';
-          BtnZoom100.Left    := 422;
-          BtnZoom100.Top     := 4;
-          BtnZoom100.Width   := 60;
+          BtnZoom100.Left    := 422; BtnZoom100.Top := 4; BtnZoom100.Width := 60;
 
           BtnFitPage         := TButton.Create(Frm);
           BtnFitPage.Parent  := Toolbar;
           BtnFitPage.Caption := 'Fit Page';
-          BtnFitPage.Left    := 490;
-          BtnFitPage.Top     := 4;
-          BtnFitPage.Width   := 72;
+          BtnFitPage.Left    := 490; BtnFitPage.Top := 4; BtnFitPage.Width := 72;
 
           BtnFitWidth         := TButton.Create(Frm);
           BtnFitWidth.Parent  := Toolbar;
           BtnFitWidth.Caption := 'Fit Width';
-          BtnFitWidth.Left    := 570;
-          BtnFitWidth.Top     := 4;
-          BtnFitWidth.Width   := 72;
+          BtnFitWidth.Left    := 570; BtnFitWidth.Top := 4; BtnFitWidth.Width := 72;
 
           Preview        := TVittixReportPreview.Create(Frm);
           Preview.Parent := Frm;
           Preview.Align  := alClient;
           Preview.LoadFromRenderer(Renderer);
 
-          NavHelp.Preview  := Preview;
-          BtnPrev.OnClick  := NavHelp.PrevClick;
-          BtnNext.OnClick  := NavHelp.NextClick;
-          BtnZoomIn.OnClick := NavHelp.ZoomInClick;
-          BtnZoomOut.OnClick := NavHelp.ZoomOutClick;
-          BtnFitWidth.OnClick := NavHelp.FitWidthClick;
-          BtnFitPage.OnClick := NavHelp.FitPageClick;
-          BtnZoom100.OnClick := NavHelp.ZoomResetClick;
+          NavHelp.Preview      := Preview;
+          BtnPrev.OnClick      := NavHelp.PrevClick;
+          BtnNext.OnClick      := NavHelp.NextClick;
+          BtnZoomIn.OnClick    := NavHelp.ZoomInClick;
+          BtnZoomOut.OnClick   := NavHelp.ZoomOutClick;
+          BtnFitWidth.OnClick  := NavHelp.FitWidthClick;
+          BtnFitPage.OnClick   := NavHelp.FitPageClick;
+          BtnZoom100.OnClick   := NavHelp.ZoomResetClick;
 
           Frm.ShowModal;
         finally
@@ -329,61 +445,59 @@ begin
       Renderer.Free;
     end;
   finally
+    NamedDS.Free;
     Model.Free;
   end;
 end;
 
-{ --------------------------------------------------------------------------- }
-{  Print — renders then sends to printer via TVittixReportPreview.Print        }
-{ --------------------------------------------------------------------------- }
+// ---------------------------------------------------------------------------
+//  Print
+// ---------------------------------------------------------------------------
 
 procedure TVittixReport.Print;
 var
-  Model   : TReportModel;
-  DS      : TDataSet;
+  Model  : TReportModel;
+  Primary: TDataSet;
+  NamedDS: TDictionary<string, TDataSet>;
   Renderer: TReportRenderer;
 begin
   if FReportJSON = '' then
     raise Exception.Create('No report design loaded.');
 
   Model := TReportSerializer.LoadFromJSON(FReportJSON);
+  BuildNamedDataSets(Primary, NamedDS);
   try
-    DS := nil;
-    if Assigned(FDataSource) then
-      DS := FDataSource.DataSet;
-
     Renderer := TReportRenderer.Create;
     try
-      Renderer.Render(Model, DS);
-      Renderer.Print;
+      Renderer.Render(Model, Primary);
+      InvokePreviewAction(Renderer, 'Print');
     finally
       Renderer.Free;
     end;
   finally
+    NamedDS.Free;
     Model.Free;
   end;
 end;
 
-{ --------------------------------------------------------------------------- }
-{  ExportToPDF — uses TReportEngine directly (PDF exporter needs TMetafile)   }
-{ --------------------------------------------------------------------------- }
+// ---------------------------------------------------------------------------
+//  ExportToPDF
+// ---------------------------------------------------------------------------
 
 procedure TVittixReport.ExportToPDF(const AFileName: string);
 var
-  Model : TReportModel;
-  DS    : TDataSet;
-  Engine: TReportEngine;
+  Model  : TReportModel;
+  Primary: TDataSet;
+  NamedDS: TDictionary<string, TDataSet>;
+  Engine : TReportEngine;
 begin
   if FReportJSON = '' then
     raise Exception.Create('No report design loaded.');
 
   Model := TReportSerializer.LoadFromJSON(FReportJSON);
+  BuildNamedDataSets(Primary, NamedDS);
   try
-    DS := nil;
-    if Assigned(FDataSource) then
-      DS := FDataSource.DataSet;
-
-    Engine := TReportEngine.Create(Model, DS);
+    Engine := TReportEngine.Create(Model, Primary, NamedDS, nil);
     try
       Engine.Prepare;
       TReportPDFExporter.ExportToFile(Engine.Pages, AFileName);
@@ -391,15 +505,9 @@ begin
       Engine.Free;
     end;
   finally
+    NamedDS.Free;
     Model.Free;
   end;
-end;
-
-{ --------------------------------------------------------------------------- }
-
-procedure Register;
-begin
-  RegisterComponents('Vittix Reporting', [TVittixReport]);
 end;
 
 end.

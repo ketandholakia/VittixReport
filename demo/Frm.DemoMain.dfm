@@ -134,4 +134,3 @@ object frmDemoMain: TfrmDemoMain
     SimplePanel = True
   end
 end
-
