@@ -263,6 +263,7 @@ type
     procedure btnApplyPropsClick(Sender: TObject);
     procedure PropEditorKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure PropEditorDblClick(Sender: TObject);
+    procedure PropEditorEditButtonClick(Sender: TObject);
     procedure PropEditorSelectCell(Sender: TObject; ACol, ARow: Integer;
       var CanSelect: Boolean);
     procedure btnFontQuickClick(Sender: TObject);
@@ -302,7 +303,9 @@ type
     procedure PromoteImportantProperties(AObj: TReportObject);
     procedure InsertVisualGroupRows(AObj: TReportObject);
     function  IsVisualGroupRow(const AKey: string): Boolean;
+    function  IsColorPropertyKey(const AKey: string): Boolean;
     function  CurrentPropertyTarget: TReportObject;
+    function  EditColorPropertyRow(ARow: Integer): Boolean;
     procedure ApplyZoom;
 
     procedure AddBand(ABandType: TReportBandType);
@@ -419,6 +422,7 @@ begin
   FDesigner.OnDragOver         := DesignerDragOver;
   FDesigner.OnDragDrop         := DesignerDragDrop;
   PropEditor.OnDblClick        := PropEditorDblClick;
+  PropEditor.OnEditButtonClick := PropEditorEditButtonClick;
   PropEditor.OnSelectCell      := PropEditorSelectCell;
 
   // Connect the shared DataSource so the designer sees whatever dataset
@@ -1231,6 +1235,10 @@ begin
           PropEditor.ItemProps[KeyName].PickList.EndUpdate;
         end;
       end
+      else if IsColorPropertyKey(KeyName) then
+      begin
+        PropEditor.ItemProps[KeyName].EditStyle := esEllipsis;
+      end
       else if SameText(ValueText, 'True') or SameText(ValueText, 'False') then
       begin
         PropEditor.ItemProps[KeyName].EditStyle := esPickList;
@@ -1353,6 +1361,9 @@ begin
   if (PropEditor.Row < 0) or (PropEditor.Row >= PropEditor.RowCount) then
     Exit;
 
+  if EditColorPropertyRow(PropEditor.Row) then
+    Exit;
+
   RowKey := PropEditor.Keys[PropEditor.Row];
   if not SameText(RowKey, 'Font') then
     Exit;
@@ -1375,6 +1386,11 @@ begin
   finally
     Dlg.Free;
   end;
+end;
+
+procedure TfrmMain.PropEditorEditButtonClick(Sender: TObject);
+begin
+  EditColorPropertyRow(PropEditor.Row);
 end;
 
 { =========================================================================== }
@@ -1573,6 +1589,50 @@ end;
 function TfrmMain.IsVisualGroupRow(const AKey: string): Boolean;
 begin
   Result := (Length(AKey) >= 3) and (AKey[1] = '[') and (AKey[Length(AKey)] = ']');
+end;
+
+function TfrmMain.IsColorPropertyKey(const AKey: string): Boolean;
+begin
+  Result :=
+    SameText(AKey, 'FontColor') or
+    SameText(AKey, 'Background') or
+    SameText(AKey, 'BorderColor') or
+    SameText(AKey, 'BackColor') or
+    SameText(AKey, 'BackgroundOnTrue') or
+    SameText(AKey, 'BorderColorOnTrue') or
+    SameText(AKey, 'FontColorOnTrue');
+end;
+
+function TfrmMain.EditColorPropertyRow(ARow: Integer): Boolean;
+var
+  KeyName: string;
+  ValueText: string;
+  Dlg: TColorDialog;
+  ColorValue: Integer;
+begin
+  Result := False;
+  if (ARow <= 0) or (ARow >= PropEditor.RowCount) then
+    Exit;
+
+  KeyName := PropEditor.Keys[ARow];
+  if IsVisualGroupRow(KeyName) or not IsColorPropertyKey(KeyName) then
+    Exit;
+
+  ValueText := PropEditor.Values[KeyName];
+  if not TryStrToInt(ValueText, ColorValue) then
+    ColorValue := clBlack;
+
+  Dlg := TColorDialog.Create(Self);
+  try
+    Dlg.Color := TColor(ColorValue);
+    if not Dlg.Execute then
+      Exit;
+
+    PropEditor.Values[KeyName] := IntToStr(Dlg.Color);
+    Result := True;
+  finally
+    Dlg.Free;
+  end;
 end;
 
 procedure TfrmMain.PromoteImportantProperties(AObj: TReportObject);

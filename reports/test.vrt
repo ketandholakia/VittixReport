@@ -32,7 +32,7 @@
       "AnchorRight": false,
       "AnchorBottom": false,
       "BandType": 2,
-      "Height": 40,
+      "Height": 104,
       "DataSetName": "",
       "MasterField": "",
       "DetailField": "",
@@ -51,9 +51,9 @@
           "Name": "",
           "Bounds": {
             "L": 176,
-            "T": 8,
+            "T": 24,
             "R": 296,
-            "B": 28
+            "B": 44
           },
           "Visible": true,
           "PrintWhen": "",
