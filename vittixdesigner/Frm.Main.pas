@@ -303,9 +303,11 @@ type
     procedure PromoteImportantProperties(AObj: TReportObject);
     procedure InsertVisualGroupRows(AObj: TReportObject);
     function  IsVisualGroupRow(const AKey: string): Boolean;
+    function  IsFontDialogRowKey(const AKey: string): Boolean;
     function  IsColorPropertyKey(const AKey: string): Boolean;
     function  CurrentPropertyTarget: TReportObject;
     function  EditColorPropertyRow(ARow: Integer): Boolean;
+    function  EditFontPropertyRow(ARow: Integer): Boolean;
     procedure ApplyZoom;
 
     procedure AddBand(ABandType: TReportBandType);
@@ -1353,39 +1355,11 @@ begin
 end;
 
 procedure TfrmMain.PropEditorDblClick(Sender: TObject);
-var
-  Obj: TReportObject;
-  RowKey: string;
-  Dlg: TFontDialog;
 begin
   if (PropEditor.Row < 0) or (PropEditor.Row >= PropEditor.RowCount) then
     Exit;
 
-  if EditColorPropertyRow(PropEditor.Row) then
-    Exit;
-
-  RowKey := PropEditor.Keys[PropEditor.Row];
-  if not SameText(RowKey, 'Font') then
-    Exit;
-
-  Obj := FDesigner.PrimarySelected;
-  if not (Obj is TReportTextObject) then
-    Exit;
-
-  Dlg := TFontDialog.Create(Self);
-  try
-    Dlg.Font.Assign(TReportTextObject(Obj).Font);
-    if not Dlg.Execute then
-      Exit;
-
-    TReportTextObject(Obj).Font.Assign(Dlg.Font);
-    FDesigner.RebuildLayout;
-    FModified := True;
-    UpdateTitleBar;
-    UpdatePropertyPanel;
-  finally
-    Dlg.Free;
-  end;
+  EditFontPropertyRow(PropEditor.Row);
 end;
 
 procedure TfrmMain.PropEditorEditButtonClick(Sender: TObject);
@@ -1591,6 +1565,17 @@ begin
   Result := (Length(AKey) >= 3) and (AKey[1] = '[') and (AKey[Length(AKey)] = ']');
 end;
 
+function TfrmMain.IsFontDialogRowKey(const AKey: string): Boolean;
+begin
+  Result :=
+    SameText(AKey, 'Font') or
+    SameText(AKey, 'FontName') or
+    SameText(AKey, 'FontSize') or
+    SameText(AKey, 'FontBold') or
+    SameText(AKey, 'FontItalic') or
+    SameText(AKey, 'FontColor');
+end;
+
 function TfrmMain.IsColorPropertyKey(const AKey: string): Boolean;
 begin
   Result :=
@@ -1629,6 +1614,41 @@ begin
       Exit;
 
     PropEditor.Values[KeyName] := IntToStr(Dlg.Color);
+    Result := True;
+  finally
+    Dlg.Free;
+  end;
+end;
+
+function TfrmMain.EditFontPropertyRow(ARow: Integer): Boolean;
+var
+  Obj: TReportObject;
+  KeyName: string;
+  Dlg: TFontDialog;
+begin
+  Result := False;
+  if (ARow <= 0) or (ARow >= PropEditor.RowCount) then
+    Exit;
+
+  KeyName := PropEditor.Keys[ARow];
+  if IsVisualGroupRow(KeyName) or not IsFontDialogRowKey(KeyName) then
+    Exit;
+
+  Obj := CurrentPropertyTarget;
+  if not (Obj is TReportTextObject) then
+    Exit;
+
+  Dlg := TFontDialog.Create(Self);
+  try
+    Dlg.Font.Assign(TReportTextObject(Obj).Font);
+    if not Dlg.Execute then
+      Exit;
+
+    TReportTextObject(Obj).Font.Assign(Dlg.Font);
+    FDesigner.RebuildLayout;
+    FModified := True;
+    UpdateTitleBar;
+    UpdatePropertyPanel;
     Result := True;
   finally
     Dlg.Free;
