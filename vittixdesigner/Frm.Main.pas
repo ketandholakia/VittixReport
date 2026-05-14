@@ -271,6 +271,7 @@ type
 
     { Zoom edit }
     procedure btnZoomApplyClick(Sender: TObject);
+    procedure CheckListBox1ClickCheck(Sender: TObject);
     procedure edtZoomKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
 
     { Form lifecycle }
@@ -299,6 +300,7 @@ type
     procedure UpdateStatusBar;
     procedure UpdateMenuState;
     procedure ConfigureLayoutGuidance;
+    procedure ConfigureViewToggleStrip;
     procedure UpdatePropertyPanel;
     procedure ApplyPropertyPanel;
     procedure ConfigurePropertyEditors;
@@ -443,6 +445,7 @@ begin
   dlgSave.Filter := 'Vittix Report Files (*.vrt)|*.vrt|All Files (*.*)|*.*';
   dlgSave.DefaultExt := 'vrt';
   ConfigureLayoutGuidance;
+  ConfigureViewToggleStrip;
 
   FCurrentFile := '';
   FModified    := False;
@@ -994,42 +997,49 @@ procedure TfrmMain.mnuZoomInClick(Sender: TObject);
 begin
   FDesigner.ZoomIn;
   edtZoom.Text := IntToStr(FDesigner.Zoom);
+  UpdateStatusBar;
 end;
 
 procedure TfrmMain.mnuZoomOutClick(Sender: TObject);
 begin
   FDesigner.ZoomOut;
   edtZoom.Text := IntToStr(FDesigner.Zoom);
+  UpdateStatusBar;
 end;
 
 procedure TfrmMain.mnuZoomResetClick(Sender: TObject);
 begin
   FDesigner.ZoomReset;
   edtZoom.Text := '100';
+  UpdateStatusBar;
 end;
 
 procedure TfrmMain.mnuShowGridClick(Sender: TObject);
 begin
   FDesigner.ShowGrid    := not FDesigner.ShowGrid;
   mnuShowGrid.Checked  := FDesigner.ShowGrid;
+  UpdateMenuState;
 end;
 
 procedure TfrmMain.mnuSnapGridClick(Sender: TObject);
 begin
   FDesigner.SnapToGrid  := not FDesigner.SnapToGrid;
   mnuSnapGrid.Checked  := FDesigner.SnapToGrid;
+  UpdateMenuState;
 end;
 
 procedure TfrmMain.mnuShowRulersClick(Sender: TObject);
 begin
   FDesigner.ShowRulers   := not FDesigner.ShowRulers;
   mnuShowRulers.Checked := FDesigner.ShowRulers;
+  UpdateMenuState;
 end;
 
 procedure TfrmMain.mnuShowMarginsClick(Sender: TObject);
 begin
   FDesigner.ShowMargins   := not FDesigner.ShowMargins;
   mnuShowMargins.Checked := FDesigner.ShowMargins;
+  UpdateMenuState;
 end;
 
 procedure TfrmMain.ApplyZoom;
@@ -1040,6 +1050,7 @@ begin
   begin
     FDesigner.Zoom := Z;
     edtZoom.Text  := IntToStr(FDesigner.Zoom);
+    UpdateStatusBar;
   end;
 end;
 
@@ -1050,6 +1061,16 @@ end;
 
 procedure TfrmMain.btnZoomApplyClick(Sender: TObject);
 begin ApplyZoom; end;
+
+procedure TfrmMain.CheckListBox1ClickCheck(Sender: TObject);
+begin
+  case CheckListBox1.ItemIndex of
+    0: mnuShowGridClick(mnuShowGrid);
+    1: mnuSnapGridClick(mnuSnapGrid);
+    2: mnuShowRulersClick(mnuShowRulers);
+    3: mnuShowMarginsClick(mnuShowMargins);
+  end;
+end;
 
 procedure TfrmMain.edtZoomKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
 begin
@@ -1501,6 +1522,29 @@ begin
   mnuSnapGrid.Hint := 'Snap moved and resized objects to the designer grid';
   mnuShowRulers.Hint := 'Show or hide page rulers around the designer surface';
   mnuShowMargins.Hint := 'Show or hide page margin guides';
+  btnZoomIn.Hint := 'Zoom in the designer surface';
+  btnZoomOut.Hint := 'Zoom out the designer surface';
+  btnZoomApply.Hint := 'Apply zoom percentage';
+  mnuZoomIn.Hint := btnZoomIn.Hint;
+  mnuZoomOut.Hint := btnZoomOut.Hint;
+  mnuZoomReset.Hint := 'Reset zoom to 100%';
+end;
+
+procedure TfrmMain.ConfigureViewToggleStrip;
+begin
+  CheckListBox1.Items.BeginUpdate;
+  try
+    CheckListBox1.Items.Clear;
+    CheckListBox1.Items.Add('Grid');
+    CheckListBox1.Items.Add('Snap');
+    CheckListBox1.Items.Add('Rulers');
+    CheckListBox1.Items.Add('Margins');
+  finally
+    CheckListBox1.Items.EndUpdate;
+  end;
+  CheckListBox1.Hint := 'Quick view toggles: Grid, Snap, Rulers, Margins';
+  CheckListBox1.ShowHint := True;
+  CheckListBox1.OnClickCheck := CheckListBox1ClickCheck;
 end;
 
 procedure TfrmMain.UpdateStatusBar;
@@ -1516,15 +1560,20 @@ begin
     var Obj := FDesigner.PrimarySelected;
     if Assigned(Obj) then
       StatusBar1.Panels[0].Text :=
-        Obj.ClassName + '  at (' +
-        IntToStr(Obj.Bounds.Left) + ', ' + IntToStr(Obj.Bounds.Top) + ')  ' +
-        IntToStr(Obj.Bounds.Width) + ' × ' + IntToStr(Obj.Bounds.Height)
+        'Selected: ' + Obj.ClassName +
+        ' | X=' + IntToStr(Obj.Bounds.Left) +
+        ' Y=' + IntToStr(Obj.Bounds.Top) +
+        ' W=' + IntToStr(Obj.Bounds.Width) +
+        ' H=' + IntToStr(Obj.Bounds.Height)
     else
       StatusBar1.Panels[0].Text := '1 object selected';
   end
   else
     StatusBar1.Panels[0].Text :=
       IntToStr(SelCount) + ' objects selected | Reference: last selected';
+
+  if StatusBar1.Panels.Count > 2 then
+    StatusBar1.Panels[2].Text := 'Zoom: ' + IntToStr(FDesigner.Zoom) + '%';
 end;
 
 procedure TfrmMain.UpdateMenuState;
@@ -1578,6 +1627,13 @@ begin
   mnuSnapGrid.Checked    := FDesigner.SnapToGrid;
   mnuShowRulers.Checked  := FDesigner.ShowRulers;
   mnuShowMargins.Checked := FDesigner.ShowMargins;
+  if CheckListBox1.Items.Count >= 4 then
+  begin
+    CheckListBox1.Checked[0] := FDesigner.ShowGrid;
+    CheckListBox1.Checked[1] := FDesigner.SnapToGrid;
+    CheckListBox1.Checked[2] := FDesigner.ShowRulers;
+    CheckListBox1.Checked[3] := FDesigner.ShowMargins;
+  end;
 
   UpdateStatusBar;
 end;
