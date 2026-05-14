@@ -37,6 +37,27 @@ function DataSetSupportsBookmarks(ADataSet: TDataSet): Boolean;
 /// </summary>
 function SafeRecordCount(ADataSet: TDataSet): Integer;
 
+/// <summary>
+///   Safely resolves a dataset field by name.
+///   Returns False when dataset is nil/inactive, field name is blank, field is
+///   missing, or the lookup raises an exception.
+/// </summary>
+function TryGetField(ADataSet: TDataSet; const AFieldName: string; out AField: TField): Boolean;
+
+/// <summary>
+///   Safe field-value accessor.
+///   Returns Null when dataset/field is unavailable, field value is null, or any
+///   access step raises an exception.
+/// </summary>
+function SafeFieldValue(ADataSet: TDataSet; const AFieldName: string): Variant;
+
+/// <summary>
+///   Safe field-string accessor.
+///   Returns '' when dataset/field is unavailable, field value is null/empty,
+///   or any access step raises an exception.
+/// </summary>
+function SafeFieldAsString(ADataSet: TDataSet; const AFieldName: string): string;
+
 // ---------------------------------------------------------------------------
 // Variant helpers
 // ---------------------------------------------------------------------------
@@ -96,6 +117,58 @@ begin
     Result := ADataSet.RecordCount;
   except
     Result := 0;
+  end;
+end;
+
+function TryGetField(ADataSet: TDataSet; const AFieldName: string; out AField: TField): Boolean;
+begin
+  AField := nil;
+  Result := False;
+
+  if not Assigned(ADataSet) or not ADataSet.Active then
+    Exit;
+  if Trim(AFieldName) = '' then
+    Exit;
+
+  try
+    AField := ADataSet.FindField(AFieldName);
+    Result := Assigned(AField);
+  except
+    AField := nil;
+    Result := False;
+  end;
+end;
+
+function SafeFieldValue(ADataSet: TDataSet; const AFieldName: string): Variant;
+var
+  F: TField;
+begin
+  Result := Null;
+  if not TryGetField(ADataSet, AFieldName, F) then
+    Exit;
+
+  try
+    Result := F.Value;
+    if VarIsNull(Result) or System.Variants.VarIsEmpty(Result) then
+      Result := Null;
+  except
+    Result := Null;
+  end;
+end;
+
+function SafeFieldAsString(ADataSet: TDataSet; const AFieldName: string): string;
+var
+  V: Variant;
+begin
+  Result := '';
+  V := SafeFieldValue(ADataSet, AFieldName);
+  if VarIsNull(V) or System.Variants.VarIsEmpty(V) then
+    Exit;
+
+  try
+    Result := VarToStr(V);
+  except
+    Result := '';
   end;
 end;
 

@@ -37,6 +37,7 @@ type
     FObjects:      TObjectList<TReportObject>;
     FPageSettings: TReportPageSettings;
     FFieldNames:   TStringList;              // <-- ADDED
+    FDataSetNames: TStringList;
     FTitle:        string;
     FAuthor:       string;
     FDescription:  string;
@@ -70,6 +71,12 @@ type
     /// </summary>
     property FieldNames: TStringList read FFieldNames;  // <-- ADDED
 
+    /// <summary>
+    ///   Known dataset aliases embedded in the .vrt file so the standalone
+    ///   designer can offer them in dataset-selection UI.
+    /// </summary>
+    property DataSetNames: TStringList read FDataSetNames;
+
   published
     { Metadata — persisted to/from the .vrt JSON file }
     property Title:       string read FTitle       write FTitle;
@@ -87,6 +94,7 @@ begin
   FObjects      := TObjectList<TReportObject>.Create(True); // owns items
   FPageSettings := TReportPageSettings.Create;
   FFieldNames   := TStringList.Create;      // <-- ADDED
+  FDataSetNames := TStringList.Create;
   FTitle        := 'New Report';
 end;
 
@@ -95,6 +103,7 @@ begin
   FObjects.Free;
   FPageSettings.Free;
   FFieldNames.Free;                          // <-- ADDED
+  FDataSetNames.Free;
   inherited;
 end;
 

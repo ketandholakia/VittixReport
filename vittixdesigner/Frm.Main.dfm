@@ -112,31 +112,31 @@ object frmMain: TfrmMain
     object btnAlignLeft: TToolButton
       Left = 332
       Top = 0
-      Hint = 'Align Left'
-      Caption = 'AL'
+      Hint = 'Align selected objects to left edge'
+      Caption = 'Left'
       ImageIndex = 5
       OnClick = mnuAlignLeftClick
     end
     object btnAlignRight: TToolButton
       Left = 363
       Top = 0
-      Hint = 'Align Right'
-      Caption = 'AR'
+      Hint = 'Align selected objects to right edge'
+      Caption = 'Right'
       ImageIndex = 6
       OnClick = mnuAlignRightClick
     end
     object btnAlignTop: TToolButton
       Left = 394
       Top = 0
-      Hint = 'Align Top'
-      Caption = 'AT'
+      Hint = 'Align selected objects to top edge'
+      Caption = 'Top'
       OnClick = mnuAlignTopClick
     end
     object btnAlignBottom: TToolButton
       Left = 425
       Top = 0
-      Hint = 'Align Bottom'
-      Caption = 'AB'
+      Hint = 'Align selected objects to bottom edge'
+      Caption = 'Bottom'
       OnClick = mnuAlignBottomClick
     end
     object tbSep4: TToolButton
@@ -148,15 +148,15 @@ object frmMain: TfrmMain
     object btnSameW: TToolButton
       Left = 484
       Top = 0
-      Hint = 'Same Width'
-      Caption = 'SW'
+      Hint = 'Make selected objects same width'
+      Caption = 'Width'
       OnClick = mnuSameWidthClick
     end
     object btnSameH: TToolButton
       Left = 515
       Top = 0
-      Hint = 'Same Height'
-      Caption = 'SH'
+      Hint = 'Make selected objects same height'
+      Caption = 'Height'
       OnClick = mnuSameHeightClick
     end
     object tbSep5: TToolButton
@@ -168,15 +168,15 @@ object frmMain: TfrmMain
     object btnCenterH: TToolButton
       Left = 574
       Top = 0
-      Hint = 'Center Horizontal'
-      Caption = 'CH'
+      Hint = 'Center selected objects horizontally'
+      Caption = 'Center H'
       OnClick = mnuCenterHClick
     end
     object btnCenterV: TToolButton
       Left = 605
       Top = 0
-      Hint = 'Center Vertical'
-      Caption = 'CV'
+      Hint = 'Center selected objects vertically'
+      Caption = 'Center V'
       OnClick = mnuCenterVClick
     end
     object tbSep6: TToolButton
@@ -188,15 +188,15 @@ object frmMain: TfrmMain
     object btnDistH: TToolButton
       Left = 664
       Top = 0
-      Hint = 'Distribute Horizontal'
-      Caption = 'DH'
+      Hint = 'Distribute selected objects horizontally'
+      Caption = 'Dist H'
       OnClick = mnuDistHClick
     end
     object btnDistV: TToolButton
       Left = 695
       Top = 0
-      Hint = 'Distribute Vertical'
-      Caption = 'DV'
+      Hint = 'Distribute selected objects vertically'
+      Caption = 'Dist V'
       OnClick = mnuDistVClick
     end
     object tbSep7: TToolButton
@@ -208,15 +208,15 @@ object frmMain: TfrmMain
     object btnFront: TToolButton
       Left = 754
       Top = 0
-      Hint = 'Bring to Front'
-      Caption = 'BTF'
+      Hint = 'Bring selected objects to front'
+      Caption = 'Front'
       OnClick = mnuFrontClick
     end
     object btnBack: TToolButton
       Left = 785
       Top = 0
-      Hint = 'Send to Back'
-      Caption = 'STB'
+      Hint = 'Send selected objects to back'
+      Caption = 'Back'
       OnClick = mnuBackClick
     end
     object tbSep8: TToolButton

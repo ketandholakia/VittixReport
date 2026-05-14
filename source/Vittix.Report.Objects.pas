@@ -176,6 +176,10 @@ type
   TReportImageObject = class(TReportObject)
   private
     FPicture:        TPicture;
+    FCachedImagePath: string;
+    FCachedPicture:   TPicture;
+    FCachedImageValid: Boolean;
+    FCachedImageAttempted: Boolean;
     FStretch:        Boolean;
     FCenter:         Boolean;
     FProportional:   Boolean;
@@ -697,6 +701,10 @@ constructor TReportImageObject.Create;
 begin
   inherited;
   FPicture       := TPicture.Create;
+  FCachedPicture := TPicture.Create;
+  FCachedImagePath := '';
+  FCachedImageValid := False;
+  FCachedImageAttempted := False;
   FStretch       := True;
   FCenter        := True;
   FProportional  := True;
@@ -708,6 +716,7 @@ end;
 
 destructor TReportImageObject.Destroy;
 begin
+  FCachedPicture.Free;
   FPicture.Free;
   inherited;
 end;
@@ -724,14 +733,42 @@ begin
   R := FBounds;
 
   // Try loading from DataField at runtime
-  if (FDataField <> '') and Assigned(Context.DataSet) and Context.DataSet.Active then
+  if FDataField <> '' then
   begin
-    PathOrBase64 := Context.DataSet.FieldByName(FDataField).AsString;
-    if FileExists(PathOrBase64) then
-    try
-      FPicture.LoadFromFile(PathOrBase64);
-    except
-      // silently ignore bad path
+    PathOrBase64 := SafeFieldAsString(Context.DataSet, FDataField);
+    FPicture.Assign(nil); // avoid stale image reuse when field is blank/missing/null
+
+    if PathOrBase64 = '' then
+    begin
+      // Blank/missing/null field: keep empty and do not reuse prior row image.
+    end
+    else if (FCachedImageAttempted) and SameText(PathOrBase64, FCachedImagePath) then
+    begin
+      if FCachedImageValid then
+        FPicture.Assign(FCachedPicture);
+      // Cached invalid path stays empty.
+    end
+    else
+    begin
+      FCachedImagePath := PathOrBase64;
+      FCachedImageAttempted := True;
+      FCachedImageValid := False;
+      FCachedPicture.Assign(nil);
+
+      if FileExists(PathOrBase64) then
+      begin
+        try
+          FCachedPicture.LoadFromFile(PathOrBase64);
+          FCachedImageValid := Assigned(FCachedPicture.Graphic) and
+                               (not FCachedPicture.Graphic.Empty);
+          if FCachedImageValid then
+            FPicture.Assign(FCachedPicture);
+        except
+          // silently ignore invalid image data/path
+          FCachedImageValid := False;
+          FCachedPicture.Assign(nil);
+        end;
+      end;
     end;
   end;
 

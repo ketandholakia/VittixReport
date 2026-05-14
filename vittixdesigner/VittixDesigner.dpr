@@ -1,7 +1,14 @@
 program VittixDesigner;
 
+{$IFDEF DEBUG}
+  {$APPTYPE CONSOLE}
+{$ENDIF}
+
 uses
   Vcl.Forms,
+  System.SysUtils,
+  vcl.Dialogs,
+  Winapi.Windows,
   Frm.Main in 'Frm.Main.pas' {frmMain},
   Frm.BandManager in 'Frm.BandManager.pas' {frmBandManager},
   Frm.PageSettings in 'Frm.PageSettings.pas' {frmPageSettings},
@@ -29,10 +36,35 @@ uses
 
 {$R *.res}
 
+procedure InitializeApplication;
 begin
-  Application.Initialize;
-  Application.MainFormOnTaskbar := True;
-  Application.Title := 'Vittix Report Designer';
-  Application.CreateForm(TfrmMain, frmMain);
-  Application.Run;
+  { Enable high DPI awareness for better display on modern monitors }
+  try
+    if CheckWin32Version(6, 0) then
+      SetProcessDPIAware;
+  except
+    // DPI awareness might not be available on older Windows versions
+  end;
+end;
+
+begin
+  try
+    InitializeApplication;
+    
+    Application.Initialize;
+    Application.MainFormOnTaskbar := True;
+    Application.Title := 'Vittix Report Designer';
+    Application.HelpFile := '';
+    
+    Application.CreateForm(TfrmMain, frmMain);
+    
+    Application.Run;
+  except
+    on E: Exception do
+    begin
+      ShowMessage('Fatal Error: ' + E.Message + sLineBreak + sLineBreak +
+        'The application will now close.');
+      ExitProcess(1);
+    end;
+  end;
 end.

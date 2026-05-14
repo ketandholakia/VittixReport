@@ -14,6 +14,12 @@ object frmDemoMain: TfrmDemoMain
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   TextHeight = 15
+  object Splitter1: TSplitter
+    Left = 320
+    Top = 0
+    Width = 6
+    Height = 701
+  end
   object pnlLeft: TPanel
     Left = 0
     Top = 0
@@ -34,12 +40,6 @@ object frmDemoMain: TfrmDemoMain
       OnChange = tvSamplesChange
     end
   end
-  object Splitter1: TSplitter
-    Left = 320
-    Top = 0
-    Width = 6
-    Height = 701
-  end
   object pnlRight: TPanel
     Left = 326
     Top = 0
@@ -51,8 +51,8 @@ object frmDemoMain: TfrmDemoMain
     object lblTitle: TLabel
       Left = 16
       Top = 12
-      Width = 223
-      Height = 25
+      Width = 213
+      Height = 28
       Caption = 'Select a report sample'
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWindowText
@@ -71,7 +71,7 @@ object frmDemoMain: TfrmDemoMain
     object lblReportFile: TLabel
       Left = 16
       Top = 72
-      Width = 4
+      Width = 5
       Height = 15
       Caption = '-'
     end

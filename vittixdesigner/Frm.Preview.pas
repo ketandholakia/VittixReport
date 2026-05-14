@@ -71,6 +71,9 @@ implementation
 
 {$R *.dfm}
 
+uses
+  Winapi.Windows;
+
 procedure TfrmPreview.FormCreate(Sender: TObject);
 begin
   Preview.OnPageChanged := PreviewPageChanged;
@@ -85,8 +88,15 @@ end;
 procedure TfrmPreview.LoadReport(AReport: TReportModel; ADataSet: TDataSet);
 var
   Rend: TReportRenderer;
+{$IFDEF DEBUG}
+  StartMs: UInt64;
+  ElapsedMs: UInt64;
+{$ENDIF}
 begin
   Screen.Cursor := crHourGlass;
+{$IFDEF DEBUG}
+  StartMs := GetTickCount64;
+{$ENDIF}
   try
     Rend := TReportRenderer.Create;
     try
@@ -99,21 +109,28 @@ begin
     Screen.Cursor := crDefault;
   end;
 
+{$IFDEF DEBUG}
+  ElapsedMs := GetTickCount64 - StartMs;
   UpdateNav;
-  StatusBar1.SimpleText :=
-    Format('%d page(s) rendered', [Preview.PageCount]);
+  StatusBar1.SimpleText := Format('%d page(s) rendered in %d ms', [Preview.PageCount, ElapsedMs]);
+  OutputDebugString(PChar(Format('VittixDesigner Preview: %d page(s) rendered in %d ms',
+    [Preview.PageCount, ElapsedMs])));
+{$ELSE}
+  UpdateNav;
+  StatusBar1.SimpleText := Format('%d page(s) rendered', [Preview.PageCount]);
+{$ENDIF}
 end;
 
 procedure TfrmPreview.UpdateNav;
 begin
-  btnFirst.Enabled := Preview.CurrentPage > 1;
-  btnPrev.Enabled  := Preview.CurrentPage > 1;
-  btnNext.Enabled  := Preview.CurrentPage < Preview.PageCount;
-  btnLast.Enabled  := Preview.CurrentPage < Preview.PageCount;
+  btnFirst.Enabled := Preview.CurrentPage > 0;
+  btnPrev.Enabled  := Preview.CurrentPage > 0;
+  btnNext.Enabled  := (Preview.PageCount > 0) and (Preview.CurrentPage < Preview.PageCount - 1);
+  btnLast.Enabled  := (Preview.PageCount > 0) and (Preview.CurrentPage < Preview.PageCount - 1);
 
   if Preview.PageCount > 0 then
     lblPageInfo.Caption :=
-      Format('Page %d / %d', [Preview.CurrentPage, Preview.PageCount])
+      Format('Page %d / %d', [Preview.CurrentPage + 1, Preview.PageCount])
   else
     lblPageInfo.Caption := 'No pages';
 end;

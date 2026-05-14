@@ -1,4 +1,4 @@
-unit Frm.DemoMain;
+﻿unit Frm.DemoMain;
 
 // =============================================================================
 //  VittixReport Demo  –  Northwind SQLite edition
@@ -643,6 +643,12 @@ begin
   end;
 end;
 
+procedure PopulateDataSetNames(R: TReportModel);
+begin
+  R.DataSetNames.Clear;
+  R.DataSetNames.Add('MainData');
+end;
+
 procedure TfrmDemoMain.EnsureReportFileExists(const ADemo: TReportDemoDef);
 var
   Path: string;
@@ -659,6 +665,7 @@ begin
     // was changed since the file was first created.
     R := TReportSerializer.LoadFromFile(Path);
     try
+      PopulateDataSetNames(R);
       PopulateFieldNames(R, ADemo);
       TReportSerializer.SaveToFile(R, Path);
     finally
@@ -673,6 +680,7 @@ begin
       R.Title       := ADemo.Title;
       R.Author      := 'VittixReport Northwind Demo';
       R.Description := ADemo.Description;
+      PopulateDataSetNames(R);
       PopulateFieldNames(R, ADemo);
       TReportSerializer.SaveToFile(R, Path);
     finally

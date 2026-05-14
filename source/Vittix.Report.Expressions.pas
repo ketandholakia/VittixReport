@@ -32,8 +32,8 @@ uses
   System.StrUtils,
   System.Variants,
   Data.DB,
-  Vittix.Report.Aggregates,
-  Vittix.Report.Context;
+  Vittix.Report.Context,
+  Vittix.Report.Utils;
 
 type
   TReportExpression = class
@@ -44,6 +44,9 @@ type
   end;
 
 implementation
+
+uses
+  Vittix.Report.Aggregates;
 
 // ---------------------------------------------------------------------------
 // System token resolver
@@ -65,6 +68,13 @@ begin
     Value := DateToStr(Context.ReportDate)
   else if SameText(Token, 'DateTime') then
     Value := DateTimeToStr(Context.ReportDate)
+  else if SameText(Token, 'RecNo') then
+  begin
+    if Assigned(Context.DataSet) and Context.DataSet.Active then
+      Value := IntToStr(Context.DataSet.RecNo)
+    else
+      Value := '0';
+  end
   else
     Result := False;  // not a system token
 end;
@@ -80,6 +90,7 @@ function ResolveFieldTokens(
 var
   i, j: Integer;
   TokenName, TokenValue: string;
+  F: TField;
 begin
   Result := '';
   i := 1;
@@ -99,8 +110,14 @@ begin
       // 2. Then dataset fields
       else if Assigned(ADataSet)
            and ADataSet.Active
-           and (ADataSet.FindField(TokenName) <> nil) then
-        Result := Result + ADataSet.FieldByName(TokenName).AsString
+           and TryGetField(ADataSet, TokenName, F) then
+      begin
+        try
+          Result := Result + F.AsString;
+        except
+          Result := Result + '0';
+        end;
+      end
       else
         Result := Result + '0';
 

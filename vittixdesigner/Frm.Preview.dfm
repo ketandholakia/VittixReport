@@ -39,14 +39,14 @@ object frmPreview: TfrmPreview
     ButtonWidth  = 26
     ShowCaptions = True
 
-    object btnFirst:    TToolButton  Caption = '|◄'  Hint = 'First Page'    OnClick = btnFirstClick    end
-    object btnPrev:     TToolButton  Caption = '◄'   Hint = 'Previous Page' OnClick = btnPrevClick     end
-    object btnNext:     TToolButton  Caption = '►'   Hint = 'Next Page'     OnClick = btnNextClick     end
-    object btnLast:     TToolButton  Caption = '►|'  Hint = 'Last Page'     OnClick = btnLastClick     end
+    object btnFirst:    TToolButton  Caption = 'First'    Hint = 'First Page'    OnClick = btnFirstClick    end
+    object btnPrev:     TToolButton  Caption = 'Prev'     Hint = 'Previous Page' OnClick = btnPrevClick     end
+    object btnNext:     TToolButton  Caption = 'Next'     Hint = 'Next Page'     OnClick = btnNextClick     end
+    object btnLast:     TToolButton  Caption = 'Last'     Hint = 'Last Page'     OnClick = btnLastClick     end
     object tbSep1:      TToolButton  Style = tbsSeparator  end
-    object btnZoomIn:   TToolButton  Caption = 'Z+'  Hint = 'Zoom In'       OnClick = btnZoomInClick   end
-    object btnZoomOut:  TToolButton  Caption = 'Z-'  Hint = 'Zoom Out'      OnClick = btnZoomOutClick  end
-    object btnFitWidth: TToolButton  Caption = 'Fit' Hint = 'Fit Width'     OnClick = btnFitWidthClick end
+    object btnZoomIn:   TToolButton  Caption = 'Zoom In'   Hint = 'Zoom In'       OnClick = btnZoomInClick   end
+    object btnZoomOut:  TToolButton  Caption = 'Zoom Out'  Hint = 'Zoom Out'      OnClick = btnZoomOutClick  end
+    object btnFitWidth: TToolButton  Caption = 'Fit'       Hint = 'Fit Width'     OnClick = btnFitWidthClick end
     object tbSep2:      TToolButton  Style = tbsSeparator  end
     object lblPageInfo: TLabel
       Caption = 'Page 1 / 1'

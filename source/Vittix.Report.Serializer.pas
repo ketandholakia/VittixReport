@@ -539,6 +539,11 @@ begin
       FldArr.Add(R.FieldNames[I]);
     Root.AddPair('FieldNames', FldArr);
 
+    FldArr := TJSONArray.Create;
+    for I := 0 to R.DataSetNames.Count - 1 do
+      FldArr.Add(R.DataSetNames[I]);
+    Root.AddPair('DataSetNames', FldArr);
+
     Arr := TJSONArray.Create;
     for Obj in R.Objects do
       Arr.AddElement(ObjectToJSON(Obj));
@@ -602,11 +607,16 @@ begin
         Root.GetValue<TJSONObject>('PageSettings'),
         Result.PageSettings);
 
-      // Read field names — absent in old v1/v2 files, that is fine
+      // Read field names — absent in old files is fine
       FldArr := Root.GetValue('FieldNames') as TJSONArray;
       if Assigned(FldArr) then
         for i := 0 to FldArr.Count - 1 do
           Result.FieldNames.Add((FldArr.Items[i] as TJSONString).Value);
+
+      FldArr := Root.GetValue('DataSetNames') as TJSONArray;
+      if Assigned(FldArr) then
+        for i := 0 to FldArr.Count - 1 do
+          Result.DataSetNames.Add((FldArr.Items[i] as TJSONString).Value);
 
       Arr := Root.GetValue<TJSONArray>('Objects');
       if Assigned(Arr) then

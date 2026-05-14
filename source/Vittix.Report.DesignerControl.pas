@@ -1320,7 +1320,7 @@ var
   I: Integer;
 begin
   Result := [];
-  if Assigned(FDataSet) then
+  if Assigned(FDataSet) and FDataSet.Active and (FDataSet.FieldCount > 0) then
   begin
     // Live dataset connected (design-time / host app) — read field names directly
     SetLength(Result, FDataSet.FieldCount);
@@ -1405,10 +1405,10 @@ begin
         NextY := Obj.Bounds.Bottom + 2;
   end;
 
-  NewObj           := TReportTextObject.Create;
+  NewObj           := TReportFieldObject.Create;
   NewObj.Bounds    := Bounds(SnapV(NextX), SnapV(NextY), 120, 20);
   NewObj.DataField := AFieldName;
-  NewObj.Text      := '';   // runtime value comes from DataField
+  NewObj.Text      := '[' + AFieldName + ']';
 
   Cmd := TInsertObjectCommand.Create(TargetBand.Children, NewObj);
   FCommands.DoCommand(Cmd);

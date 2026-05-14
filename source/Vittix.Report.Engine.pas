@@ -87,7 +87,8 @@ type
     procedure StartNewPage;
     procedure EndCurrentPage;
     procedure PrintPageHeader;  // prints PageHeader + ColumnHeader together
-    procedure PrintBand(ABand: TReportBand; ADataSet: TDataSet = nil);
+    procedure PrintBand(ABand: TReportBand; ADataSet: TDataSet = nil; AEffectiveHeight: Integer = -1);
+    function  ComputeEffectiveBandHeight(ABand: TReportBand; ADataSet: TDataSet): Integer;
     function  ResolveBandDataSet(ABand: TReportBand): TDataSet;
     procedure PrintDetailBands;
     function  ExecutePass(ATotalPages: Integer; AReportProgress: Boolean): Integer;
@@ -180,6 +181,12 @@ end;
 
 destructor TReportEngine.Destroy;
 begin
+  FCanvas.Free;
+  FCanvas := nil;
+
+  FCurrentPage.Free;
+  FCurrentPage := nil;
+
   // Free any bookmarks we may have allocated
   if DataSetSupportsBookmarks(FDataSet) then
   begin
@@ -262,11 +269,16 @@ begin
   Inc(FPageNumber);
 
   FCurrentPage := TMetafile.Create;
-  FCurrentPage.Enhanced := True;
-  FCurrentPage.Width  := FPageWidth;
-  FCurrentPage.Height := FPageHeight;
-
-  FCanvas   := TMetafileCanvas.Create(FCurrentPage, 0);
+  try
+    FCurrentPage.Enhanced := True;
+    FCurrentPage.Width  := FPageWidth;
+    FCurrentPage.Height := FPageHeight;
+    FCanvas := TMetafileCanvas.Create(FCurrentPage, 0);
+  except
+    FCurrentPage.Free;
+    FCurrentPage := nil;
+    raise;
+  end;
   FCurrentY := FReport.PageSettings.Margins.Top;
 end;
 
@@ -279,44 +291,107 @@ end;
 
 procedure TReportEngine.EndCurrentPage;
 var
-  OverlayRect: TRect;
+  KeepPage: Boolean;
+  OverlayOldBounds: TRect;
 begin
   if not Assigned(FCanvas) then Exit;
 
-  { footer forced to bottom }
-  if Assigned(FFooterBand) and (FFooterBand.Height > 0) then
-  begin
-    FCurrentY := FPageHeight - FReport.PageSettings.Margins.Bottom - FFooterBand.Height;
-    PrintBand(FFooterBand);
-  end;
-
-  { overlay drawn last — spans the full printable area }
-  if Assigned(FOverlayBand) and FOverlayBand.Visible then
-  begin
-    SaveDC(FCanvas.Handle);
+  KeepPage := True;
+  try
     try
-      // Set band Bounds to full page so its children can use absolute positions
-      FOverlayBand.Bounds := Rect(0, 0, FPageWidth, FPageHeight);
-      var Ctx2: TExpressionContext := Default(TExpressionContext);
-      Ctx2.DataSet    := FDataSet;
-      Ctx2.PageNumber := FPageNumber;
-      Ctx2.TotalPages := FTotalPagesForPass;
-      Ctx2.ReportTitle := FReport.Title;
-      Ctx2.ReportDate  := FReportDate;
-      FOverlayBand.Draw(FCanvas, Ctx2);
-    finally
-      RestoreDC(FCanvas.Handle, -1);
+      { footer forced to bottom }
+      if Assigned(FFooterBand) and (FFooterBand.Height > 0) then
+      begin
+        FCurrentY := FPageHeight - FReport.PageSettings.Margins.Bottom - FFooterBand.Height;
+        PrintBand(FFooterBand);
+      end;
+
+      { overlay drawn last — spans the full printable area }
+      if Assigned(FOverlayBand) and FOverlayBand.Visible then
+      begin
+        SaveDC(FCanvas.Handle);
+        try
+          OverlayOldBounds := FOverlayBand.Bounds;
+          // Set band Bounds to full page so its children can use absolute positions
+          FOverlayBand.Bounds := Rect(0, 0, FPageWidth, FPageHeight);
+          var Ctx2: TExpressionContext := Default(TExpressionContext);
+          Ctx2.DataSet    := FDataSet;
+          Ctx2.PageNumber := FPageNumber;
+          Ctx2.TotalPages := FTotalPagesForPass;
+          Ctx2.ReportTitle := FReport.Title;
+          Ctx2.ReportDate  := FReportDate;
+          FOverlayBand.Draw(FCanvas, Ctx2);
+        finally
+          FOverlayBand.Bounds := OverlayOldBounds;
+          RestoreDC(FCanvas.Handle, -1);
+        end;
+      end;
+    except
+      KeepPage := False;
+      raise;
+    end;
+  finally
+    FCanvas.Free; // finalize metafile
+    FCanvas := nil;
+
+    if Assigned(FCurrentPage) then
+    begin
+      if KeepPage then
+        FPages.Add(FCurrentPage)
+      else
+        FCurrentPage.Free;
+      FCurrentPage := nil;
     end;
   end;
+end;
 
-  FCanvas.Free; // finalize metafile
-  FCanvas := nil;
+function TReportEngine.ComputeEffectiveBandHeight(ABand: TReportBand;
+  ADataSet: TDataSet): Integer;
+var
+  Ctx: TExpressionContext;
+  MaxBottom: Integer;
+begin
+  Result := 1;
+  if not Assigned(ABand) then Exit;
 
-  if Assigned(FCurrentPage) then
+  Result := ABand.Height;
+  if Result <= 0 then
+    Result := 1;
+
+  if not (ABand.CanGrow or ABand.CanShrink) then Exit;
+  if not Assigned(FCanvas) then Exit;
+
+  if not Assigned(ADataSet) then
+    ADataSet := FDataSet;
+
+  Ctx := Default(TExpressionContext);
+  Ctx.DataSet     := ADataSet;
+  Ctx.GroupStart  := FGroupStartBookmark;
+  Ctx.GroupEnd    := FGroupEndBookmark;
+  Ctx.PageNumber  := FPageNumber;
+  Ctx.TotalPages  := FTotalPagesForPass;
+  Ctx.ReportTitle := FReport.Title;
+  Ctx.ReportDate  := FReportDate;
+
+  MaxBottom := 0;
+  for var Child in ABand.Children do
+    if Child.Visible then
+    begin
+      var CB := Child.MeasuredBottom(FCanvas, Ctx);
+      if CB > MaxBottom then
+        MaxBottom := CB;
+    end;
+
+  if MaxBottom > 0 then
   begin
-    FPages.Add(FCurrentPage);
-    FCurrentPage := nil;
+    var Natural := MaxBottom + 4; // same clearance logic as PrintBand
+    if ABand.CanGrow and (Natural > Result) then
+      Result := Natural;
+    if ABand.CanShrink and (Natural < Result) and (Natural > 0) then
+      Result := Natural;
   end;
+  if Result <= 0 then
+    Result := 1;
 end;
 
 { ================= Space Check ================= }
@@ -338,9 +413,13 @@ end;
 
 { ================= Band Printing ================= }
 
-procedure TReportEngine.PrintBand(ABand: TReportBand; ADataSet: TDataSet);
+procedure TReportEngine.PrintBand(ABand: TReportBand; ADataSet: TDataSet; AEffectiveHeight: Integer);
 var
   Ctx: TExpressionContext;
+  AdjustedObjs: array of TReportObject;
+  OriginalBounds: array of TRect;
+  AdjustedCount: Integer;
+  EffectiveH: Integer;
 begin
   if not Assigned(ADataSet) then
     ADataSet := FDataSet;
@@ -388,24 +467,50 @@ begin
   if (ABand.OnBeforePrint <> '') and Assigned(FScriptEngine) then
     FScriptEngine.ExecuteBeforePrint(ABand.OnBeforePrint, Ctx);
 
-  var EffectiveH := ABand.Height;
-  if ABand.CanGrow or ABand.CanShrink then
+  EffectiveH := AEffectiveHeight;
+  if EffectiveH <= 0 then
   begin
-    var MaxBottom := 0;
+    EffectiveH := ABand.Height;
+    if ABand.CanGrow or ABand.CanShrink then
+    begin
+      var MaxBottom := 0;
+      for var Child in ABand.Children do
+        if Child.Visible then
+        begin
+          var CB := Child.MeasuredBottom(FCanvas, Ctx);
+          if CB > MaxBottom then MaxBottom := CB;
+        end;
+      if MaxBottom > 0 then
+      begin
+        var Natural := MaxBottom + 4; // 4px bottom clearance
+        if ABand.CanGrow and (Natural > EffectiveH) then
+          EffectiveH := Natural;
+        if ABand.CanShrink and (Natural < EffectiveH) and (Natural > 0) then
+          EffectiveH := Natural;
+      end;
+    end;
+  end;
+
+  AdjustedCount := 0;
+  if EffectiveH > ABand.Height then
+  begin
     for var Child in ABand.Children do
       if Child.Visible then
       begin
         var CB := Child.MeasuredBottom(FCanvas, Ctx);
-        if CB > MaxBottom then MaxBottom := CB;
+        if CB > Child.Bounds.Bottom then
+        begin
+          SetLength(AdjustedObjs, AdjustedCount + 1);
+          SetLength(OriginalBounds, AdjustedCount + 1);
+          AdjustedObjs[AdjustedCount] := Child;
+          OriginalBounds[AdjustedCount] := Child.Bounds;
+          Inc(AdjustedCount);
+
+          var NewB := Child.Bounds;
+          NewB.Bottom := CB;
+          Child.Bounds := NewB;
+        end;
       end;
-    if MaxBottom > 0 then
-    begin
-      var Natural := MaxBottom + 4; // 4px bottom clearance
-      if ABand.CanGrow and (Natural > EffectiveH) then
-        EffectiveH := Natural;
-      if ABand.CanShrink and (Natural < EffectiveH) and (Natural > 0) then
-        EffectiveH := Natural;
-    end;
   end;
 
   // Translate the DC vertically so the band draws at FCurrentY on the page
@@ -416,6 +521,8 @@ begin
     if (ABand.OnAfterPrint <> '') and Assigned(FScriptEngine) then
       FScriptEngine.ExecuteAfterPrint(ABand.OnAfterPrint, Ctx);
   finally
+    for var I := AdjustedCount - 1 downto 0 do
+      AdjustedObjs[I].Bounds := OriginalBounds[I];
     RestoreDC(FCanvas.Handle, -1);
   end;
 
@@ -446,6 +553,9 @@ var
   HasSaveBM: Boolean;
   MasterValue: Variant;
   HasMasterField: Boolean;
+  EffH: Integer;
+  MasterFld: TField;
+  DetailFld: TField;
 begin
   for Band in FDetailBands do
   begin
@@ -466,11 +576,11 @@ begin
       HasMasterField :=
         Assigned(FDataSet) and FDataSet.Active and
         (Band.MasterField <> '') and (Band.DetailField <> '') and
-        Assigned(FDataSet.FindField(Band.MasterField)) and
-        Assigned(DetailDS.FindField(Band.DetailField));
+        TryGetField(FDataSet, Band.MasterField, MasterFld) and
+        TryGetField(DetailDS, Band.DetailField, DetailFld);
 
       if HasMasterField then
-        MasterValue := FDataSet.FieldByName(Band.MasterField).Value
+        MasterValue := MasterFld.Value
       else
         MasterValue := Null;
 
@@ -478,9 +588,10 @@ begin
       while not DetailDS.Eof do
       begin
         if (not HasMasterField) or
-           VarSameValue(DetailDS.FieldByName(Band.DetailField).Value, MasterValue) then
+           VarSameValue(DetailFld.Value, MasterValue) then
         begin
-          if not CheckSpace(Band.Height) then
+          EffH := ComputeEffectiveBandHeight(Band, DetailDS);
+          if not CheckSpace(EffH) then
           begin
             StartNewPage;
             PrintPageHeader;
@@ -488,7 +599,7 @@ begin
               PrintBand(FColumnHeaderBand, FDataSet);
           end;
 
-          PrintBand(Band, DetailDS);
+          PrintBand(Band, DetailDS, EffH);
         end;
 
         DetailDS.Next;
@@ -516,8 +627,23 @@ function TReportEngine.ExecutePass(ATotalPages: Integer; AReportProgress: Boolea
 var
   i, RowNumber, TotalRows: Integer;
   GH, GF: TReportBand;
+  GroupByField: TField;
   NewValue: Variant;
   BreakLevel: Integer;
+  HasOpenedGroups: Boolean;
+  EffH: Integer;
+  ActiveGroupHeader: array of Boolean;
+  HasAnyActiveGroup: Boolean;
+  OpenedThisBreak: Boolean;
+  function IsGroupLevelActive(ALevel: Integer): Boolean;
+  var
+    J: Integer;
+  begin
+    Result := False;
+    for J := 0 to FGroupHeaders.Count - 1 do
+      if ActiveGroupHeader[J] and (FGroupHeaders[J].GroupLevel = ALevel) then
+        Exit(True);
+  end;
 begin
   SetReportNamedDataSets(FNamedDataSets);
   try
@@ -551,13 +677,26 @@ begin
     PrintBand(FColumnHeaderBand);
 
   SetLength(FLastGroupValues, FGroupHeaders.Count);
+  SetLength(ActiveGroupHeader, FGroupHeaders.Count);
+  HasAnyActiveGroup := False;
   for i := 0 to High(FLastGroupValues) do
+  begin
     FLastGroupValues[i] := Null;
+    GH := FGroupHeaders[i];
+    GroupByField := nil;
+    ActiveGroupHeader[i] :=
+      Assigned(FDataSet) and FDataSet.Active and
+      (Trim(GH.GroupField) <> '') and
+      TryGetField(FDataSet, GH.GroupField, GroupByField);
+    if ActiveGroupHeader[i] then
+      HasAnyActiveGroup := True;
+  end;
 
   FGroupStartBookmark := nil; // Initialize
   FGroupEndBookmark := nil;   // Initialize
   FHasGroupStartBookmark := False;
   FHasGroupEndBookmark := False;
+  HasOpenedGroups := False;
 
   { Master data loop }
   if Assigned(FDataSet) and FDataSet.Active then
@@ -573,25 +712,26 @@ begin
         BreakLevel := -1;
         for i := 0 to FGroupHeaders.Count-1 do
         begin
-          GH := FGroupHeaders[i];
-          if GH.GroupField <> '' then // Only consider groups with a field
-          begin
-            if Assigned(FDataSet.FindField(GH.GroupField)) then
-              NewValue := FDataSet.FieldByName(GH.GroupField).Value
-            else
-              NewValue := Null;
+          if not ActiveGroupHeader[i] then
+            Continue;
 
-            if VarIsNull(FLastGroupValues[i]) or
-               (NewValue <> FLastGroupValues[i]) then
-            begin
-              BreakLevel := i;
-              Break;
-            end;
+          GH := FGroupHeaders[i];
+          GroupByField := nil;
+          if not TryGetField(FDataSet, GH.GroupField, GroupByField) then
+            Continue;
+
+          NewValue := GroupByField.Value;
+
+          if VarIsNull(FLastGroupValues[i]) or
+             (NewValue <> FLastGroupValues[i]) then
+          begin
+            BreakLevel := i;
+            Break;
           end;
         end;
 
         // Close lower groups first (from lowest level up to BreakLevel)
-        if BreakLevel >= 0 then
+        if (BreakLevel >= 0) and HasOpenedGroups then
         begin
           if DataSetSupportsBookmarks(FDataSet) then
           begin
@@ -609,7 +749,7 @@ begin
           for i := 0 to FGroupFooters.Count-1 do
           begin
             GF := FGroupFooters[i];
-            if GF.GroupLevel >= BreakLevel then
+            if (GF.GroupLevel >= BreakLevel) and IsGroupLevelActive(GF.GroupLevel) then
               PrintBand(GF);
           end;
         end;
@@ -617,8 +757,12 @@ begin
         // Open new groups top-down (from BreakLevel down to lowest level)
         if BreakLevel >= 0 then
         begin
+          OpenedThisBreak := False;
           for i := BreakLevel to FGroupHeaders.Count-1 do
           begin
+            if not ActiveGroupHeader[i] then
+              Continue;
+
             GH := FGroupHeaders[i];
 
             if GH.StartNewPage then
@@ -628,16 +772,19 @@ begin
             end;
 
             PrintBand(GH);
+            OpenedThisBreak := True;
 
             // Print column header below each group header
             if Assigned(FColumnHeaderBand) then
               PrintBand(FColumnHeaderBand);
 
-            if Assigned(FDataSet.FindField(GH.GroupField)) then
-              FLastGroupValues[i] := FDataSet.FieldByName(GH.GroupField).Value
-            else
-              FLastGroupValues[i] := Null;
+            GroupByField := nil;
+            if TryGetField(FDataSet, GH.GroupField, GroupByField) then
+              FLastGroupValues[i] := GroupByField.Value;
           end;
+
+          if OpenedThisBreak then
+            HasOpenedGroups := True;
 
           if DataSetSupportsBookmarks(FDataSet) then
           begin
@@ -654,7 +801,8 @@ begin
         end;
 
         { -------- PAGE BREAK -------- }
-        if not CheckSpace(FMasterBand.Height) then
+        EffH := ComputeEffectiveBandHeight(FMasterBand, FDataSet);
+        if not CheckSpace(EffH) then
         begin
           StartNewPage;
           PrintPageHeader;
@@ -663,7 +811,7 @@ begin
             PrintBand(FColumnHeaderBand);
         end;
         { -------- PRINT RECORD -------- }
-        PrintBand(FMasterBand, FDataSet);
+        PrintBand(FMasterBand, FDataSet, EffH);
         PrintDetailBands;
 
         // Report progress and check for cancellation
@@ -684,27 +832,32 @@ begin
 
   { close last group }
   // After the loop, FDataSet is at EOF. The FGroupEndBookmark for the LAST group is set if supported.
-  if DataSetSupportsBookmarks(FDataSet) then
+  if HasOpenedGroups and HasAnyActiveGroup then
   begin
-    if FHasGroupEndBookmark then
-      FDataSet.FreeBookmark(FGroupEndBookmark);
-    FGroupEndBookmark := FDataSet.GetBookmark;
-    FHasGroupEndBookmark := True;
-  end
-  else
-  begin
-    FGroupEndBookmark := nil;
-    FHasGroupEndBookmark := False;
+    if DataSetSupportsBookmarks(FDataSet) then
+    begin
+      if FHasGroupEndBookmark then
+        FDataSet.FreeBookmark(FGroupEndBookmark);
+      FGroupEndBookmark := FDataSet.GetBookmark;
+      FHasGroupEndBookmark := True;
+    end
+    else
+    begin
+      FGroupEndBookmark := nil;
+      FHasGroupEndBookmark := False;
+    end;
+    for GF in FGroupFooters do
+      if IsGroupLevelActive(GF.GroupLevel) then
+        PrintBand(GF);
   end;
-  for GF in FGroupFooters do
-    PrintBand(GF);
 
   if Assigned(FSummaryBand) then
   begin
-    if not CheckSpace(FSummaryBand.Height) then
+    EffH := ComputeEffectiveBandHeight(FSummaryBand, FDataSet);
+    if not CheckSpace(EffH) then
       StartNewPage;
 
-    PrintBand(FSummaryBand);
+    PrintBand(FSummaryBand, FDataSet, EffH);
   end;
 
     EndCurrentPage;
@@ -717,7 +870,16 @@ end;
 procedure TReportEngine.Prepare;
 var
   CountedPages: Integer;
+{$IFDEF DEBUG}
+  StartMs: UInt64;
+  ElapsedMs: UInt64;
+  RowCount: Integer;
+  Msg: string;
+{$ENDIF}
 begin
+{$IFDEF DEBUG}
+  StartMs := GetTickCount64;
+{$ENDIF}
   try
     CacheBands;
 
@@ -740,6 +902,14 @@ begin
 
     // Pass 2: final render with resolved TotalPages available to expressions.
     ExecutePass(CountedPages, True);
+
+{$IFDEF DEBUG}
+    ElapsedMs := GetTickCount64 - StartMs;
+    RowCount := SafeRecordCount(FDataSet);
+    Msg := Format('VittixReport Prepare: %d ms, %d page(s), %d row(s)',
+      [ElapsedMs, PageCount, RowCount]);
+    OutputDebugString(PChar(Msg));
+{$ENDIF}
   except
     on E: EReportException do
       raise; // Re-raise custom report exceptions

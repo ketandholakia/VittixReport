@@ -32,6 +32,7 @@ uses
   Vcl.ValEdit, Vcl.ActnList, Vcl.ActnMan, Vcl.ActnCtrls,
   Vcl.ImgList, Vcl.Graphics, Vcl.Buttons,
   Data.DB, Data.Win.ADODB,
+  Datasnap.DBClient,
   Vittix.Report.Model,
   Vittix.Report.Objects,
   Vittix.Report.Bands,
@@ -239,6 +240,11 @@ type
     procedure mnuPageSetupClick(Sender: TObject);
     procedure mnuBandMgrClick(Sender: TObject);
     procedure mnuReportPropsClick(Sender: TObject);
+    procedure mnuCreateSimpleSampleReportClick(Sender: TObject);
+    procedure mnuCreateSampleGroupedReportClick(Sender: TObject);
+    procedure mnuCreateCanGrowRemarksTestReportClick(Sender: TObject);
+    procedure mnuCreateBarcodeTestReportClick(Sender: TObject);
+    procedure mnuCreateImagePathTestReportClick(Sender: TObject);
 
     { Designer events }
     procedure DesignerSelectionChanged(Sender: TObject);
@@ -270,6 +276,7 @@ type
     FPnlFields  : TPanel;
     FLblFields  : TLabel;
     FLstFields  : TListBox;
+    FSampleDataSet: TClientDataSet;
 
     // Command-line mode: set when launched by the component editor
     FCmdLineInputFile : string;   // file to load on startup
@@ -285,6 +292,15 @@ type
     procedure ApplyZoom;
 
     procedure AddBand(ABandType: TReportBandType);
+    function  AddTextObject(ABand: TReportBand; const AText: string; X, Y, W, H: Integer): TReportTextObject;
+    function  AddFieldObject(ABand: TReportBand; const AFieldName: string; X, Y, W, H: Integer): TReportFieldObject;
+    function  PrepareForSampleTemplate(const APrompt: string): Integer;
+    procedure FinalizeSampleTemplate(const AStatus: string);
+    procedure BuildSimpleSampleReport;
+    procedure BuildGroupedSampleReport;
+    procedure BuildCanGrowRemarksTestReport;
+    procedure BuildBarcodeTestReport;
+    procedure BuildImagePathTestReport;
     procedure ConfirmSaveIfModified;
     procedure DynInsertMenuClick(Sender: TObject);
     procedure DynAddBandMenuClick(Sender: TObject);
@@ -295,6 +311,9 @@ type
       State: TDragState; var Accept: Boolean);
     procedure DesignerDragDrop(Sender, Source: TObject; X, Y: Integer);
     procedure DesignerDataSetChanged(Sender: TObject);
+    procedure CreateSampleDataSet;
+    procedure ReloadSampleDataSet;
+    procedure UseSampleDataSet;
 
     function  ZoomFromEdit: Integer;
 
@@ -325,6 +344,11 @@ function BandTypeName(BT: TReportBandType): string; forward;
 procedure TfrmMain.FormCreate(Sender: TObject);
 var
   Splitter: TSplitter;
+  MICreateImagePathTestReport: TMenuItem;
+  MICreateBarcodeTestReport: TMenuItem;
+  MICreateCanGrowRemarksTestReport: TMenuItem;
+  MICreateSampleGroupedReport: TMenuItem;
+  MICreateSimpleSampleReport: TMenuItem;
 begin
   // Defensive registration for command-line open mode.
   // Some environments can start with an incomplete registry; ensure bands
@@ -385,6 +409,8 @@ begin
   // Connect the shared DataSource so the designer sees whatever dataset
   // is assigned at runtime.
   FDesigner.DataSource := FDataSource1;
+  CreateSampleDataSet;
+  UseSampleDataSet;
 
   // File dialogs
   dlgOpen.Filter := 'Vittix Report Files (*.vrt)|*.vrt|All Files (*.*)|*.*';
@@ -435,6 +461,31 @@ begin
   UpdateTitleBar;
   UpdateStatusBar;
   UpdateMenuState;
+
+  MICreateImagePathTestReport := TMenuItem.Create(Self);
+  MICreateImagePathTestReport.Caption := 'Create ImagePath Test Report';
+  MICreateImagePathTestReport.OnClick := mnuCreateImagePathTestReportClick;
+  mnuReport.Insert(0, MICreateImagePathTestReport);
+
+  MICreateBarcodeTestReport := TMenuItem.Create(Self);
+  MICreateBarcodeTestReport.Caption := 'Create Barcode Test Report';
+  MICreateBarcodeTestReport.OnClick := mnuCreateBarcodeTestReportClick;
+  mnuReport.Insert(0, MICreateBarcodeTestReport);
+
+  MICreateCanGrowRemarksTestReport := TMenuItem.Create(Self);
+  MICreateCanGrowRemarksTestReport.Caption := 'Create CanGrow Remarks Test Report';
+  MICreateCanGrowRemarksTestReport.OnClick := mnuCreateCanGrowRemarksTestReportClick;
+  mnuReport.Insert(0, MICreateCanGrowRemarksTestReport);
+
+  MICreateSampleGroupedReport := TMenuItem.Create(Self);
+  MICreateSampleGroupedReport.Caption := 'Create Grouped Sample Report';
+  MICreateSampleGroupedReport.OnClick := mnuCreateSampleGroupedReportClick;
+  mnuReport.Insert(0, MICreateSampleGroupedReport);
+
+  MICreateSimpleSampleReport := TMenuItem.Create(Self);
+  MICreateSimpleSampleReport.Caption := 'Create Simple Sample Report';
+  MICreateSimpleSampleReport.OnClick := mnuCreateSimpleSampleReportClick;
+  mnuReport.Insert(0, MICreateSimpleSampleReport);
 end;
 
 procedure TfrmMain.FormDestroy(Sender: TObject);
@@ -645,6 +696,210 @@ begin
   StatusBar1.Panels[1].Text := 'Band added: ' + BandTypeName(ABandType);
 end;
 
+function TfrmMain.AddTextObject(ABand: TReportBand; const AText: string; X, Y, W, H: Integer): TReportTextObject;
+begin
+  Result := TReportTextObject.Create;
+  Result.Bounds := Rect(X, Y, X + W, Y + H);
+  Result.Text := AText;
+  ABand.Children.Add(Result);
+end;
+
+function TfrmMain.AddFieldObject(ABand: TReportBand; const AFieldName: string; X, Y, W, H: Integer): TReportFieldObject;
+begin
+  Result := TReportFieldObject.Create;
+  Result.Bounds := Rect(X, Y, X + W, Y + H);
+  Result.DataField := AFieldName;
+  Result.Text := '[' + AFieldName + ']';
+  ABand.Children.Add(Result);
+end;
+
+function TfrmMain.PrepareForSampleTemplate(const APrompt: string): Integer;
+var
+  I: Integer;
+begin
+  ConfirmSaveIfModified;
+  if (FDesigner.Report.Objects.Count > 0) or FModified then
+    if MessageDlg(APrompt, mtConfirmation, [mbYes, mbNo], 0) <> mrYes then
+      Abort;
+
+  UseSampleDataSet;
+  FDesigner.NewReport;
+  FCurrentFile := '';
+  FModified := True;
+
+  FDesigner.Report.FieldNames.Clear;
+  for I := 0 to FSampleDataSet.FieldDefs.Count - 1 do
+    FDesigner.Report.FieldNames.Add(FSampleDataSet.FieldDefs[I].Name);
+
+  FDesigner.Report.DataSetNames.Clear;
+  FDesigner.Report.DataSetNames.Add('MainData');
+
+  Result := FDesigner.Report.PageSettings.PageWidth;
+  if Result <= 0 then
+    Result := 793;
+end;
+
+procedure TfrmMain.FinalizeSampleTemplate(const AStatus: string);
+begin
+  FDesigner.RebuildLayout;
+  RefreshFieldList;
+  UpdateTitleBar;
+  UpdateMenuState;
+  UpdateStatusBar;
+  StatusBar1.Panels[1].Text := AStatus;
+end;
+
+procedure TfrmMain.BuildSimpleSampleReport;
+var
+  TitleBand, MasterBand: TReportBand;
+  Obj: TReportTextObject;
+  BandRight: Integer;
+begin
+  BandRight := PrepareForSampleTemplate('This will replace the current report with a simple sample layout. Continue?');
+  TitleBand := TReportBand.Create;
+  TitleBand.BandType := btReportTitle;
+  TitleBand.Bounds := Rect(0, 0, BandRight, 46);
+  TitleBand.Height := 46;
+  Obj := AddTextObject(TitleBand, 'Simple Sample Report', 12, 10, 260, 20);
+  Obj.Font.Style := [fsBold];
+  FDesigner.Report.Objects.Add(TitleBand);
+
+  MasterBand := TReportBand.Create;
+  MasterBand.BandType := btMasterData;
+  MasterBand.Bounds := Rect(0, 0, BandRight, 24);
+  MasterBand.Height := 24;
+  AddFieldObject(MasterBand, 'CustomerName', 12, 3, 150, 18);
+  AddFieldObject(MasterBand, 'ItemName', 168, 3, 170, 18);
+  AddFieldObject(MasterBand, 'Qty', 344, 3, 45, 18);
+  AddFieldObject(MasterBand, 'Rate', 394, 3, 80, 18);
+  AddFieldObject(MasterBand, 'Amount', 479, 3, 90, 18);
+  FDesigner.Report.Objects.Add(MasterBand);
+  FinalizeSampleTemplate('Simple sample report created');
+end;
+
+procedure TfrmMain.BuildGroupedSampleReport;
+var
+  TitleBand, GroupHeader, MasterBand: TReportBand;
+  Obj: TReportTextObject;
+  BandRight: Integer;
+begin
+  BandRight := PrepareForSampleTemplate('This will replace the current report with a grouped sample layout. Continue?');
+  TitleBand := TReportBand.Create;
+  TitleBand.BandType := btReportTitle;
+  TitleBand.Bounds := Rect(0, 0, BandRight, 50);
+  TitleBand.Height := 50;
+  Obj := AddTextObject(TitleBand, 'Grouped Sample Report', 12, 10, 260, 24);
+  Obj.Font.Style := [fsBold];
+  FDesigner.Report.Objects.Add(TitleBand);
+
+  GroupHeader := TReportBand.Create;
+  GroupHeader.BandType := btGroupHeader;
+  GroupHeader.Bounds := Rect(0, 0, BandRight, 28);
+  GroupHeader.Height := 28;
+  GroupHeader.GroupField := 'GroupName';
+  Obj := AddFieldObject(GroupHeader, 'GroupName', 12, 4, 220, 18);
+  Obj.Font.Style := [fsBold];
+  FDesigner.Report.Objects.Add(GroupHeader);
+
+  MasterBand := TReportBand.Create;
+  MasterBand.BandType := btMasterData;
+  MasterBand.Bounds := Rect(0, 0, BandRight, 24);
+  MasterBand.Height := 24;
+  AddFieldObject(MasterBand, 'CustomerName', 12, 3, 160, 18);
+  AddFieldObject(MasterBand, 'ItemName', 180, 3, 160, 18);
+  AddFieldObject(MasterBand, 'Qty', 350, 3, 50, 18);
+  AddFieldObject(MasterBand, 'Amount', 410, 3, 90, 18);
+  FDesigner.Report.Objects.Add(MasterBand);
+  FinalizeSampleTemplate('Grouped sample report created');
+end;
+
+procedure TfrmMain.BuildCanGrowRemarksTestReport;
+var
+  TitleBand, MasterBand: TReportBand;
+  Obj: TReportTextObject;
+  FieldObj: TReportFieldObject;
+  BandRight: Integer;
+begin
+  BandRight := PrepareForSampleTemplate('This will replace the current report with a CanGrow remarks test layout. Continue?');
+  TitleBand := TReportBand.Create;
+  TitleBand.BandType := btReportTitle;
+  TitleBand.Bounds := Rect(0, 0, BandRight, 46);
+  TitleBand.Height := 46;
+  Obj := AddTextObject(TitleBand, 'CanGrow Remarks Test Report', 12, 10, 300, 20);
+  Obj.Font.Style := [fsBold];
+  FDesigner.Report.Objects.Add(TitleBand);
+
+  MasterBand := TReportBand.Create;
+  MasterBand.BandType := btMasterData;
+  MasterBand.Bounds := Rect(0, 0, BandRight, 60);
+  MasterBand.Height := 60;
+  MasterBand.CanGrow := True;
+  AddFieldObject(MasterBand, 'CustomerName', 12, 3, 170, 18);
+  FieldObj := AddFieldObject(MasterBand, 'Remarks', 12, 24, BandRight - 32, 30);
+  FieldObj.WordWrap := True;
+  FieldObj.AutoSize := False;
+  FDesigner.Report.Objects.Add(MasterBand);
+  FinalizeSampleTemplate('CanGrow remarks test report created');
+end;
+
+procedure TfrmMain.BuildBarcodeTestReport;
+var
+  TitleBand, MasterBand: TReportBand;
+  Obj: TReportTextObject;
+  BarcodeObj: TReportBarcodeObject;
+  BandRight: Integer;
+begin
+  BandRight := PrepareForSampleTemplate('This will replace the current report with a barcode test layout. Continue?');
+  TitleBand := TReportBand.Create;
+  TitleBand.BandType := btReportTitle;
+  TitleBand.Bounds := Rect(0, 0, BandRight, 46);
+  TitleBand.Height := 46;
+  Obj := AddTextObject(TitleBand, 'Barcode Test Report', 12, 10, 240, 20);
+  Obj.Font.Style := [fsBold];
+  FDesigner.Report.Objects.Add(TitleBand);
+
+  MasterBand := TReportBand.Create;
+  MasterBand.BandType := btMasterData;
+  MasterBand.Bounds := Rect(0, 0, BandRight, 64);
+  MasterBand.Height := 64;
+  AddFieldObject(MasterBand, 'CustomerName', 12, 3, 180, 18);
+  BarcodeObj := TReportBarcodeObject.Create;
+  BarcodeObj.Bounds := Rect(200, 3, 520, 56);
+  BarcodeObj.DataField := 'BarcodeValue';
+  MasterBand.Children.Add(BarcodeObj);
+  FDesigner.Report.Objects.Add(MasterBand);
+  FinalizeSampleTemplate('Barcode test report created');
+end;
+
+procedure TfrmMain.BuildImagePathTestReport;
+var
+  TitleBand, MasterBand: TReportBand;
+  Obj: TReportTextObject;
+  ImageObj: TReportImageObject;
+  BandRight: Integer;
+begin
+  BandRight := PrepareForSampleTemplate('This will replace the current report with an image path test layout. Continue?');
+  TitleBand := TReportBand.Create;
+  TitleBand.BandType := btReportTitle;
+  TitleBand.Bounds := Rect(0, 0, BandRight, 46);
+  TitleBand.Height := 46;
+  Obj := AddTextObject(TitleBand, 'ImagePath Test Report', 12, 10, 260, 20);
+  Obj.Font.Style := [fsBold];
+  FDesigner.Report.Objects.Add(TitleBand);
+
+  MasterBand := TReportBand.Create;
+  MasterBand.BandType := btMasterData;
+  MasterBand.Bounds := Rect(0, 0, BandRight, 64);
+  MasterBand.Height := 64;
+  AddFieldObject(MasterBand, 'CustomerName', 12, 3, 180, 18);
+  ImageObj := TReportImageObject.Create;
+  ImageObj.Bounds := Rect(200, 3, 300, 58);
+  ImageObj.DataField := 'ImagePath';
+  MasterBand.Children.Add(ImageObj);
+  FDesigner.Report.Objects.Add(MasterBand);
+  FinalizeSampleTemplate('Image path test report created');
+end;
+
 function BandTypeName(BT: TReportBandType): string;
 begin
   case BT of
@@ -827,6 +1082,31 @@ procedure TfrmMain.mnuReportPropsClick(Sender: TObject);
 begin
   // Focus the report-info strip in the right panel
   edtReportTitle.SetFocus;
+end;
+
+procedure TfrmMain.mnuCreateSimpleSampleReportClick(Sender: TObject);
+begin
+  BuildSimpleSampleReport;
+end;
+
+procedure TfrmMain.mnuCreateSampleGroupedReportClick(Sender: TObject);
+begin
+  BuildGroupedSampleReport;
+end;
+
+procedure TfrmMain.mnuCreateCanGrowRemarksTestReportClick(Sender: TObject);
+begin
+  BuildCanGrowRemarksTestReport;
+end;
+
+procedure TfrmMain.mnuCreateBarcodeTestReportClick(Sender: TObject);
+begin
+  BuildBarcodeTestReport;
+end;
+
+procedure TfrmMain.mnuCreateImagePathTestReportClick(Sender: TObject);
+begin
+  BuildImagePathTestReport;
 end;
 
 { =========================================================================== }
@@ -1116,6 +1396,54 @@ end;
 
 procedure TfrmMain.DesignerDataSetChanged(Sender: TObject);
 begin
+  RefreshFieldList;
+end;
+
+procedure TfrmMain.CreateSampleDataSet;
+begin
+  if Assigned(FSampleDataSet) then
+    Exit;
+
+  FSampleDataSet := TClientDataSet.Create(Self);
+  with FSampleDataSet.FieldDefs do
+  begin
+    Clear;
+    Add('CustomerName', ftString, 80);
+    Add('InvoiceNo', ftString, 30);
+    Add('InvoiceDate', ftDate);
+    Add('ItemName', ftString, 80);
+    Add('Qty', ftInteger);
+    Add('Rate', ftCurrency);
+    Add('Amount', ftCurrency);
+    Add('GroupName', ftString, 40);
+    Add('ImagePath', ftString, 260);
+    Add('BarcodeValue', ftString, 80);
+    Add('Remarks', ftMemo);
+  end;
+  FSampleDataSet.CreateDataSet;
+end;
+
+procedure TfrmMain.ReloadSampleDataSet;
+begin
+  CreateSampleDataSet;
+  FSampleDataSet.DisableControls;
+  try
+    FSampleDataSet.EmptyDataSet;
+    FSampleDataSet.AppendRecord(['Acme Retail', 'INV-1001', EncodeDate(2026, 1, 3), 'A4 Paper Ream', 5, 120.50, 602.50, 'Office Supplies', 'D:\test\sample.bmp', '890123450001', 'Urgent delivery requested for the head office stock refill.']);
+    FSampleDataSet.AppendRecord(['Acme Retail', 'INV-1002', EncodeDate(2026, 1, 5), 'Laser Toner Black', 2, 1850.00, 3700.00, 'Office Supplies', '', '890123450002', 'Handle with care during transport and avoid stacking near heat sources.']);
+    FSampleDataSet.AppendRecord(['Northwind Foods', 'INV-1003', EncodeDate(2026, 1, 7), 'Cold Storage Box', 3, 760.75, 2282.25, 'Logistics', 'D:\test\sample.bmp', '890123450003', 'Keep dry']);
+    FSampleDataSet.AppendRecord(['Northwind Foods', 'INV-1004', EncodeDate(2026, 1, 10), 'Barcode Labels', 12, 45.00, 540.00, 'Logistics', '', '890123450004', 'Batch A']);
+  finally
+    FSampleDataSet.EnableControls;
+  end;
+  FSampleDataSet.First;
+end;
+
+procedure TfrmMain.UseSampleDataSet;
+begin
+  ReloadSampleDataSet;
+  FDataSource1.DataSet := FSampleDataSet;
+  FDesigner.DataSet := FSampleDataSet;
   RefreshFieldList;
 end;
 

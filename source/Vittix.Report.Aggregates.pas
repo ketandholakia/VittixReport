@@ -19,7 +19,8 @@ uses
   System.SysUtils,
   System.Variants,
   Data.DB,
-  Vittix.Report.Context;
+  Vittix.Report.Context,
+  Vittix.Report.Expressions;
 
 type
   TReportAggregates = class
@@ -32,8 +33,7 @@ type
 
 implementation
 
-uses
-  Vittix.Report.Expressions;
+
 
 class function TReportAggregates.TryEvaluate(
   const Expr: string;

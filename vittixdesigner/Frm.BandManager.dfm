@@ -194,23 +194,30 @@ object frmBandManager: TfrmBandManager
       Height = 15
       Caption = 'Height (px):'
     end
-    object lblGroupField: TLabel
+    object lblDataSetName: TLabel
       Left = 10
       Top = 92
+      Width = 79
+      Height = 15
+      Caption = 'DataSet Name:'
+    end
+    object lblGroupField: TLabel
+      Left = 10
+      Top = 124
       Width = 64
       Height = 15
       Caption = 'Group Field:'
     end
     object lblGroupLevel: TLabel
       Left = 10
-      Top = 124
+      Top = 156
       Width = 66
       Height = 15
       Caption = 'Group Level:'
     end
     object lblBackColor: TLabel
       Left = 10
-      Top = 258
+      Top = 290
       Width = 99
       Height = 15
       Caption = 'Background Color:'
@@ -231,68 +238,76 @@ object frmBandManager: TfrmBandManager
       TabOrder = 1
       Text = '40'
     end
-    object edtGroupField: TEdit
+    object cboDataSetName: TComboBox
       Left = 110
       Top = 88
       Width = 190
       Height = 23
+      Style = csDropDown
       TabOrder = 2
+    end
+    object edtGroupField: TEdit
+      Left = 110
+      Top = 120
+      Width = 190
+      Height = 23
+      TabOrder = 3
     end
     object edtGroupLevel: TEdit
       Left = 110
-      Top = 120
+      Top = 152
       Width = 60
       Height = 23
-      TabOrder = 3
+      TabOrder = 4
       Text = '0'
     end
     object chkCanGrow: TCheckBox
       Left = 10
-      Top = 154
+      Top = 186
       Width = 140
       Height = 22
       Caption = 'Can Grow'
-      TabOrder = 4
+      TabOrder = 5
     end
     object chkCanShrink: TCheckBox
       Left = 10
-      Top = 178
+      Top = 210
       Width = 140
       Height = 22
       Caption = 'Can Shrink'
-      TabOrder = 5
+      TabOrder = 6
     end
     object chkStartNewPage: TCheckBox
       Left = 10
-      Top = 202
+      Top = 234
       Width = 180
       Height = 22
       Caption = 'Start on New Page'
-      TabOrder = 6
+      TabOrder = 7
     end
     object chkTransparent: TCheckBox
       Left = 10
-      Top = 226
+      Top = 258
       Width = 200
       Height = 22
       Caption = 'Background Transparent'
-      TabOrder = 7
+      TabOrder = 8
     end
     object pnlColorSwatch: TPanel
       Left = 140
-      Top = 254
+      Top = 318
       Width = 50
       Height = 22
       Color = clWhite
-      TabOrder = 9
+      TabOrder = 10
     end
     object btnPickColor: TButton
       Left = 196
-      Top = 253
+      Top = 317
       Width = 80
       Height = 24
       Caption = 'Pick...'
-      TabOrder = 8
+      TabOrder = 9
       OnClick = btnPickColorClick
     end
   end

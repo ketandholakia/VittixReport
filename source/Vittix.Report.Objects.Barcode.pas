@@ -6,9 +6,11 @@ uses
   System.Math,
   System.SysUtils,
   System.Types,
+  Data.DB,
   Vcl.Graphics,
   Vittix.Report.Objects,
-  Vittix.Report.Context;
+  Vittix.Report.Context,
+  Vittix.Report.Utils;
 
 type
   TReportBarcodeObject = class(TReportObject)
@@ -47,6 +49,7 @@ var
   R: TRect;
   TextRect: TRect;
   S: string;
+  Fld: TField;
   i, b, XPos, BarTop, BarBottom, DrawW: Integer;
   Ch: Char;
 begin
@@ -55,9 +58,18 @@ begin
 
   R := Bounds;
   S := FValue;
-  if (FDataField <> '') and Assigned(Context.DataSet) and Context.DataSet.Active
-    and Assigned(Context.DataSet.FindField(FDataField)) then
-    S := Context.DataSet.FieldByName(FDataField).AsString;
+  if Trim(FDataField) <> '' then
+  begin
+    Fld := nil;
+    if TryGetField(Context.DataSet, FDataField, Fld) then
+    begin
+      try
+        S := Fld.AsString; // preserve empty-string field values
+      except
+        // Keep fallback static value if provider raises.
+      end;
+    end;
+  end;
 
   C.Brush.Style := bsSolid;
   C.Brush.Color := FBackgroundColor;
