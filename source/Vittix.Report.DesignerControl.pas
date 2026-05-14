@@ -1224,6 +1224,8 @@ function TVittixReportDesigner.GetPrimarySelected: TReportObject;
 begin
   if FSelected.Count > 0 then
     Result := FSelected[FSelected.Count - 1]
+  else if Assigned(FActiveBand) then
+    Result := FActiveBand
   else
     Result := nil;
 end;
@@ -1985,6 +1987,7 @@ begin
     { ---- EMPTY SPACE = rubber band or band activate ---- }
     if not (ssCtrl in Shift) then
     begin
+      var HadSelection := FSelected.Count > 0;
       { Update active band }
       PP := ScreenToPage(Point(X, Y));
       for I := 0 to High(FBandLayouts) do
@@ -1998,6 +2001,8 @@ begin
       end;
 
       ClearSelection;
+      if not HadSelection then
+        DoSelectionChanged;
     end;
 
     FRubbering  := True;

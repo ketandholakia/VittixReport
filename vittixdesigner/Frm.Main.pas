@@ -26,7 +26,7 @@
 interface
 
 uses
-  System.SysUtils, System.Classes, System.Types, System.IOUtils,
+  System.SysUtils, System.Classes, System.Types, System.IOUtils, System.Rtti,
   Vcl.Forms, Vcl.Controls, Vcl.ComCtrls, Vcl.ToolWin,
   Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Menus, Vcl.Dialogs,
   Vcl.ValEdit, Vcl.ActnList, Vcl.ActnMan, Vcl.ActnCtrls,
@@ -167,8 +167,14 @@ type
 
     { ---- Property panel ---- }
     lblProperties: TLabel;
+    lblSelectedProps: TLabel;
     PropEditor   : TValueListEditor;
     btnApplyProps: TButton;
+    pnlQuickActions: TPanel;
+    btnFontQuick: TButton;
+    btnFrontQuick: TButton;
+    btnBackQuick: TButton;
+    btnPreviewQuick: TButton;
 
     { ---- Designer canvas in a scroll box ---- }
     ScrollBox1   : TScrollBox;
@@ -257,6 +263,7 @@ type
     procedure btnApplyPropsClick(Sender: TObject);
     procedure PropEditorKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure PropEditorDblClick(Sender: TObject);
+    procedure btnFontQuickClick(Sender: TObject);
 
     { Zoom edit }
     procedure btnZoomApplyClick(Sender: TObject);
@@ -289,6 +296,10 @@ type
     procedure UpdateMenuState;
     procedure UpdatePropertyPanel;
     procedure ApplyPropertyPanel;
+    procedure PromoteImportantProperties(AObj: TReportObject);
+    procedure InsertVisualGroupRows(AObj: TReportObject);
+    function  IsVisualGroupRow(const AKey: string): Boolean;
+    function  CurrentPropertyTarget: TReportObject;
     procedure ApplyZoom;
 
     procedure AddBand(ABandType: TReportBandType);
@@ -1151,25 +1162,71 @@ end;
 procedure TfrmMain.UpdatePropertyPanel;
 var
   Obj: TReportObject;
+  SelCount: Integer;
+  Band: TReportBand;
 begin
-  Obj := FDesigner.PrimarySelected;
+  Obj := CurrentPropertyTarget;
   TReportPropertyBridge.LoadObjectToGrid(Obj, PropEditor);
-  if Assigned(Obj) then
-    lblProperties.Caption := 'Properties  —  ' + Obj.ClassName
+  PromoteImportantProperties(Obj);
+  InsertVisualGroupRows(Obj);
+
+  SelCount := FDesigner.SelectedCount;
+  if SelCount > 1 then
+    lblProperties.Caption := Format('Selected: %d Objects', [SelCount])
+  else if Assigned(Obj) and (Obj is TReportBand) then
+  begin
+    Band := TReportBand(Obj);
+    lblProperties.Caption := 'Selected: ' + BandTypeName(Band.BandType) + ' Band';
+  end
+  else if Assigned(Obj) then
+    lblProperties.Caption := 'Selected: ' + Obj.ClassName
   else
-    lblProperties.Caption := 'Properties';
+    lblProperties.Caption := 'Selected: None';
 end;
 
 procedure TfrmMain.ApplyPropertyPanel;
 var
   Obj: TReportObject;
+  I: Integer;
 begin
-  Obj := FDesigner.PrimarySelected;
+  Obj := CurrentPropertyTarget;
   if not Assigned(Obj) then Exit;
+  for I := PropEditor.RowCount - 1 downto 0 do
+    if IsVisualGroupRow(PropEditor.Keys[I]) then
+      PropEditor.Strings.Delete(I);
   TReportPropertyBridge.SaveGridToObject(Obj, PropEditor);
   FDesigner.RebuildLayout;   // repaint with new property values
   FModified := True;
   UpdateTitleBar;
+end;
+
+function TfrmMain.CurrentPropertyTarget: TReportObject;
+var
+  Ctx: TRttiContext;
+  T: TRttiType;
+  F: TRttiField;
+  V: TValue;
+begin
+  Result := FDesigner.PrimarySelected;
+  if Assigned(Result) then
+    Exit;
+
+  // Band clicks can set FActiveBand while selection is empty.
+  Ctx := TRttiContext.Create;
+  try
+    T := Ctx.GetType(FDesigner.ClassType);
+    if not Assigned(T) then
+      Exit(nil);
+    F := T.GetField('FActiveBand');
+    if not Assigned(F) then
+      Exit(nil);
+
+    V := F.GetValue(FDesigner);
+    if not V.IsEmpty and (V.AsObject is TReportObject) then
+      Result := TReportObject(V.AsObject);
+  finally
+    Ctx.Free;
+  end;
 end;
 
 procedure TfrmMain.btnApplyPropsClick(Sender: TObject);
@@ -1397,6 +1454,144 @@ end;
 procedure TfrmMain.DesignerDataSetChanged(Sender: TObject);
 begin
   RefreshFieldList;
+end;
+
+procedure TfrmMain.btnFontQuickClick(Sender: TObject);
+var
+  I: Integer;
+begin
+  for I := 1 to PropEditor.RowCount - 1 do
+    if SameText(PropEditor.Keys[I], 'Font') then
+    begin
+      PropEditor.Row := I;
+      Break;
+    end;
+  PropEditorDblClick(PropEditor);
+end;
+
+function TfrmMain.IsVisualGroupRow(const AKey: string): Boolean;
+begin
+  Result := (Length(AKey) >= 3) and (AKey[1] = '[') and (AKey[Length(AKey)] = ']');
+end;
+
+procedure TfrmMain.PromoteImportantProperties(AObj: TReportObject);
+const
+  BandKeys: array[0..11] of string = (
+    'BandType', 'Height', 'DataSetName', 'GroupField', 'GroupLevel',
+    'CanGrow', 'CanShrink', 'StartNewPage', 'Visible', 'PrintWhen',
+    'BackColor', 'BackColorTransparent'
+  );
+  TextKeys: array[0..21] of string = (
+    'Text', 'DataField', 'Expression', 'DisplayFormat',
+    'Bounds', 'Left', 'Top', 'Width', 'Height',
+    'FontName', 'FontSize', 'FontBold', 'FontItalic', 'FontColor',
+    'WordWrap', 'AutoSize', 'Transparent', 'Background',
+    'BorderVisible', 'BorderColor', 'BorderWidth', 'PrintWhen'
+  );
+  ImageKeys: array[0..14] of string = (
+    'DataField', 'ImagePath', 'Picture', 'Stretch', 'Proportional', 'Center',
+    'Bounds', 'Left', 'Top', 'Width', 'Height',
+    'BorderVisible', 'BorderColor', 'Visible', 'PrintWhen'
+  );
+  BarcodeKeys: array[0..12] of string = (
+    'Value', 'DataField', 'Symbology', 'BarcodeType', 'ShowText',
+    'Bounds', 'Left', 'Top', 'Width', 'Height', 'Visible', 'PrintWhen', 'BarColor'
+  );
+var
+  Keys: TArray<string>;
+  I, Idx: Integer;
+  K, Val: string;
+  procedure AddKeys(const AKeys: array of string);
+  var J: Integer;
+  begin
+    for J := Low(AKeys) to High(AKeys) do
+    begin
+      SetLength(Keys, Length(Keys) + 1);
+      Keys[High(Keys)] := AKeys[J];
+    end;
+  end;
+begin
+  if PropEditor.RowCount <= 1 then Exit;
+
+  Keys := nil;
+  if AObj is TReportBand then
+    AddKeys(BandKeys)
+  else if (AObj is TReportTextObject) or (AObj is TReportFieldObject) or (AObj is TReportMemoObject) then
+    AddKeys(TextKeys)
+  else if AObj is TReportImageObject then
+    AddKeys(ImageKeys)
+  else if AObj is TReportBarcodeObject then
+    AddKeys(BarcodeKeys)
+  else
+    AddKeys(['Bounds', 'Left', 'Top', 'Width', 'Height', 'Visible', 'PrintWhen']);
+
+  for I := High(Keys) downto Low(Keys) do
+  begin
+    K := Keys[I];
+    Idx := PropEditor.Strings.IndexOfName(K);
+    if Idx > 0 then
+    begin
+      Val := PropEditor.Values[K];
+      PropEditor.Strings.Delete(Idx);
+      PropEditor.Strings.Insert(1, K + '=' + Val);
+    end;
+  end;
+end;
+
+procedure TfrmMain.InsertVisualGroupRows(AObj: TReportObject);
+var
+  I: Integer;
+  procedure InsertGroupAt(const GroupName: string; AIndex: Integer);
+  var
+    GroupKey: string;
+  begin
+    GroupKey := '[' + GroupName + ']';
+    if PropEditor.Strings.IndexOfName(GroupKey) >= 0 then
+      Exit;
+    if AIndex < 1 then
+      AIndex := 1;
+    if AIndex > PropEditor.RowCount then
+      AIndex := PropEditor.RowCount;
+    PropEditor.Strings.Insert(AIndex, GroupKey + '=');
+  end;
+
+  function FindFirstExistingIndex(const KeyNames: array of string): Integer;
+  var
+    J, Idx: Integer;
+  begin
+    Result := -1;
+    for J := Low(KeyNames) to High(KeyNames) do
+    begin
+      Idx := PropEditor.Strings.IndexOfName(KeyNames[J]);
+      if Idx > 0 then
+      begin
+        Result := Idx;
+        Exit;
+      end;
+    end;
+  end;
+begin
+  if not Assigned(AObj) then Exit;
+
+  for I := PropEditor.RowCount - 1 downto 0 do
+    if IsVisualGroupRow(PropEditor.Keys[I]) then
+      PropEditor.Strings.Delete(I);
+
+  InsertGroupAt('Common', FindFirstExistingIndex(['Visible', 'Name', 'PrintWhen', 'Bounds']));
+  InsertGroupAt('Layout', FindFirstExistingIndex(['Bounds', 'Left', 'Top', 'Width', 'Height']));
+  InsertGroupAt('Data', FindFirstExistingIndex(['DataField', 'DataSetName', 'Expression', 'Value']));
+  InsertGroupAt('Appearance', FindFirstExistingIndex(['Transparent', 'Background', 'BackColor', 'BrushColor']));
+  InsertGroupAt('Font', FindFirstExistingIndex(['FontName', 'FontSize', 'FontBold', 'Font']));
+  InsertGroupAt('Border', FindFirstExistingIndex(['BorderVisible', 'BorderColor', 'BorderWidth', 'PenColor']));
+  InsertGroupAt('Behavior', FindFirstExistingIndex(['PrintWhen', 'CanGrow', 'CanShrink', 'StartNewPage']));
+
+  if AObj is TReportBand then
+  begin
+    if PropEditor.Strings.IndexOfName('[Data]') < 0 then
+      InsertGroupAt('Data', FindFirstExistingIndex(['DataSetName', 'GroupField', 'GroupLevel']));
+    if PropEditor.Strings.IndexOfName('[Behavior]') < 0 then
+      InsertGroupAt('Behavior', FindFirstExistingIndex(['CanGrow', 'CanShrink', 'StartNewPage']));
+  end;
 end;
 
 procedure TfrmMain.CreateSampleDataSet;

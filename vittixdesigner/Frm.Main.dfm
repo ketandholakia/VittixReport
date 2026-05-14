@@ -356,7 +356,7 @@ object frmMain: TfrmMain
         Width = 260
         Height = 15
         Align = alTop
-        Caption = '  Properties'
+        Caption = '  Selected Object Header'
         Color = 2894892
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWhite
@@ -410,6 +410,17 @@ object frmMain: TfrmMain
           TabOrder = 1
         end
       end
+      object lblSelectedProps: TLabel
+        Left = 0
+        Top = 159
+        Width = 260
+        Height = 15
+        Align = alTop
+        Caption = '  Selected Object Properties'
+        Color = 12105912
+        ParentColor = False
+        Transparent = False
+      end
       object pnlZoom: TPanel
         Left = 0
         Top = 125
@@ -446,9 +457,9 @@ object frmMain: TfrmMain
       end
       object PropEditor: TValueListEditor
         Left = 0
-        Top = 159
+        Top = 174
         Width = 260
-        Height = 485
+        Height = 413
         Align = alClient
         KeyOptions = [keyEdit, keyAdd, keyDelete, keyUnique]
         TabOrder = 2
@@ -457,6 +468,51 @@ object frmMain: TfrmMain
           120
           134)
       end
+      object pnlQuickActions: TPanel
+        Left = 0
+        Top = 587
+        Width = 260
+        Height = 57
+        Align = alBottom
+        BevelOuter = bvNone
+        TabOrder = 3
+        object btnFontQuick: TButton
+          Left = 6
+          Top = 4
+          Width = 60
+          Height = 24
+          Caption = 'Font...'
+          TabOrder = 0
+          OnClick = btnFontQuickClick
+        end
+        object btnFrontQuick: TButton
+          Left = 70
+          Top = 4
+          Width = 86
+          Height = 24
+          Caption = 'Bring Front'
+          TabOrder = 1
+          OnClick = mnuFrontClick
+        end
+        object btnBackQuick: TButton
+          Left = 160
+          Top = 4
+          Width = 92
+          Height = 24
+          Caption = 'Send Back'
+          TabOrder = 2
+          OnClick = mnuBackClick
+        end
+        object btnPreviewQuick: TButton
+          Left = 6
+          Top = 30
+          Width = 246
+          Height = 24
+          Caption = 'Preview'
+          TabOrder = 3
+          OnClick = mnuPreviewClick
+        end
+      end
       object btnApplyProps: TButton
         Left = 0
         Top = 644
@@ -464,7 +520,7 @@ object frmMain: TfrmMain
         Height = 28
         Align = alBottom
         Caption = 'Apply Properties  [Enter]'
-        TabOrder = 3
+        TabOrder = 4
         OnClick = btnApplyPropsClick
       end
     end
