@@ -31,7 +31,7 @@
       "PrintWhen": "",
       "AnchorRight": false,
       "AnchorBottom": false,
-      "BandType": 0,
+      "BandType": 2,
       "Height": 40,
       "DataSetName": "",
       "MasterField": "",

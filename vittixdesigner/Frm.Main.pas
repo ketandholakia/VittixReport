@@ -26,7 +26,7 @@
 interface
 
 uses
-  System.SysUtils, System.Classes, System.Types, System.IOUtils, System.Rtti,
+  System.SysUtils, System.Classes, System.Types, System.IOUtils, System.Rtti, System.TypInfo,
   Vcl.Forms, Vcl.Controls, Vcl.ComCtrls, Vcl.ToolWin,
   Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Menus, Vcl.Dialogs,
   Vcl.ValEdit, Vcl.ActnList, Vcl.ActnMan, Vcl.ActnCtrls,
@@ -1194,42 +1194,78 @@ var
   I, J: Integer;
   KeyName, ValueText: string;
   Fields: TArray<string>;
+  Obj: TReportObject;
+  Ctx: TRttiContext;
+  RttiType: TRttiType;
+  RttiProp: TRttiProperty;
+  TypeData: PTypeData;
+  EnumValue: Integer;
 begin
+  Obj := CurrentPropertyTarget;
   Fields := FDesigner.GetFieldNames;
+  Ctx := TRttiContext.Create;
+  try
+    if Assigned(Obj) then
+      RttiType := Ctx.GetType(Obj.ClassType)
+    else
+      RttiType := nil;
 
-  for I := 1 to PropEditor.RowCount - 1 do
-  begin
-    KeyName := PropEditor.Keys[I];
-    ValueText := PropEditor.Values[KeyName];
-
-    if IsVisualGroupRow(KeyName) then
-      Continue;
-
-    if SameText(KeyName, 'DataField') then
+    for I := 1 to PropEditor.RowCount - 1 do
     begin
-      PropEditor.ItemProps[KeyName].EditStyle := esPickList;
-      PropEditor.ItemProps[KeyName].PickList.BeginUpdate;
-      try
-        PropEditor.ItemProps[KeyName].PickList.Clear;
-        PropEditor.ItemProps[KeyName].PickList.Add('');
-        for J := 0 to High(Fields) do
-          PropEditor.ItemProps[KeyName].PickList.Add(Fields[J]);
-      finally
-        PropEditor.ItemProps[KeyName].PickList.EndUpdate;
-      end;
-    end
-    else if SameText(ValueText, 'True') or SameText(ValueText, 'False') then
-    begin
-      PropEditor.ItemProps[KeyName].EditStyle := esPickList;
-      PropEditor.ItemProps[KeyName].PickList.BeginUpdate;
-      try
-        PropEditor.ItemProps[KeyName].PickList.Clear;
-        PropEditor.ItemProps[KeyName].PickList.Add('True');
-        PropEditor.ItemProps[KeyName].PickList.Add('False');
-      finally
-        PropEditor.ItemProps[KeyName].PickList.EndUpdate;
+      KeyName := PropEditor.Keys[I];
+      ValueText := PropEditor.Values[KeyName];
+
+      if IsVisualGroupRow(KeyName) then
+        Continue;
+
+      if SameText(KeyName, 'DataField') then
+      begin
+        PropEditor.ItemProps[KeyName].EditStyle := esPickList;
+        PropEditor.ItemProps[KeyName].PickList.BeginUpdate;
+        try
+          PropEditor.ItemProps[KeyName].PickList.Clear;
+          PropEditor.ItemProps[KeyName].PickList.Add('');
+          for J := 0 to High(Fields) do
+            PropEditor.ItemProps[KeyName].PickList.Add(Fields[J]);
+        finally
+          PropEditor.ItemProps[KeyName].PickList.EndUpdate;
+        end;
+      end
+      else if SameText(ValueText, 'True') or SameText(ValueText, 'False') then
+      begin
+        PropEditor.ItemProps[KeyName].EditStyle := esPickList;
+        PropEditor.ItemProps[KeyName].PickList.BeginUpdate;
+        try
+          PropEditor.ItemProps[KeyName].PickList.Clear;
+          PropEditor.ItemProps[KeyName].PickList.Add('True');
+          PropEditor.ItemProps[KeyName].PickList.Add('False');
+        finally
+          PropEditor.ItemProps[KeyName].PickList.EndUpdate;
+        end;
+      end
+      else if Assigned(RttiType) then
+      begin
+        RttiProp := RttiType.GetProperty(KeyName);
+        if Assigned(RttiProp) and Assigned(RttiProp.PropertyType) and
+           (RttiProp.PropertyType.TypeKind = tkEnumeration) then
+        begin
+          PropEditor.ItemProps[KeyName].EditStyle := esPickList;
+          PropEditor.ItemProps[KeyName].PickList.BeginUpdate;
+          try
+            PropEditor.ItemProps[KeyName].PickList.Clear;
+            TypeData := GetTypeData(RttiProp.PropertyType.Handle);
+            if Assigned(TypeData) then
+              for EnumValue := TypeData.MinValue to TypeData.MaxValue do
+                PropEditor.ItemProps[KeyName].PickList.Add(
+                  GetEnumName(RttiProp.PropertyType.Handle, EnumValue));
+          finally
+            PropEditor.ItemProps[KeyName].PickList.EndUpdate;
+          end;
+        end;
       end;
     end;
+  finally
+    Ctx.Free;
   end;
 end;
 
