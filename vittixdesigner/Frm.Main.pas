@@ -252,6 +252,11 @@ type
     procedure mnuCreateCanGrowRemarksTestReportClick(Sender: TObject);
     procedure mnuCreateBarcodeTestReportClick(Sender: TObject);
     procedure mnuCreateImagePathTestReportClick(Sender: TObject);
+    procedure mnuOpenSimpleTestReportClick(Sender: TObject);
+    procedure mnuOpenGroupedTestReportClick(Sender: TObject);
+    procedure mnuOpenCanGrowTestReportClick(Sender: TObject);
+    procedure mnuOpenBarcodeTestReportClick(Sender: TObject);
+    procedure mnuOpenImagePathTestReportClick(Sender: TObject);
 
     { Designer events }
     procedure DesignerSelectionChanged(Sender: TObject);
@@ -330,6 +335,10 @@ type
     procedure BuildCanGrowRemarksTestReport;
     procedure BuildBarcodeTestReport;
     procedure BuildImagePathTestReport;
+    function  GetRegressionReportPath(const AFileName: string): string;
+    procedure OpenRegressionReport(const AFileName: string);
+    procedure LoadDesignerReportFromFile(const AFileName: string;
+      AUseSampleDataSet: Boolean = False);
     procedure ConfirmSaveIfModified;
     procedure DynInsertMenuClick(Sender: TObject);
     procedure DynAddBandMenuClick(Sender: TObject);
@@ -380,6 +389,11 @@ function BandTypeName(BT: TReportBandType): string; forward;
 procedure TfrmMain.FormCreate(Sender: TObject);
 var
   Splitter: TSplitter;
+  MIOpenImagePathTestReport: TMenuItem;
+  MIOpenBarcodeTestReport: TMenuItem;
+  MIOpenCanGrowTestReport: TMenuItem;
+  MIOpenGroupedTestReport: TMenuItem;
+  MIOpenSimpleTestReport: TMenuItem;
   MICreateImagePathTestReport: TMenuItem;
   MICreateBarcodeTestReport: TMenuItem;
   MICreateCanGrowRemarksTestReport: TMenuItem;
@@ -534,6 +548,31 @@ begin
   UpdateMenuState;
   SyncReportStructureSelection;
 
+  MIOpenImagePathTestReport := TMenuItem.Create(Self);
+  MIOpenImagePathTestReport.Caption := 'Open ImagePath Test Report';
+  MIOpenImagePathTestReport.OnClick := mnuOpenImagePathTestReportClick;
+  mnuReport.Insert(0, MIOpenImagePathTestReport);
+
+  MIOpenBarcodeTestReport := TMenuItem.Create(Self);
+  MIOpenBarcodeTestReport.Caption := 'Open Barcode Test Report';
+  MIOpenBarcodeTestReport.OnClick := mnuOpenBarcodeTestReportClick;
+  mnuReport.Insert(0, MIOpenBarcodeTestReport);
+
+  MIOpenCanGrowTestReport := TMenuItem.Create(Self);
+  MIOpenCanGrowTestReport.Caption := 'Open CanGrow Test Report';
+  MIOpenCanGrowTestReport.OnClick := mnuOpenCanGrowTestReportClick;
+  mnuReport.Insert(0, MIOpenCanGrowTestReport);
+
+  MIOpenGroupedTestReport := TMenuItem.Create(Self);
+  MIOpenGroupedTestReport.Caption := 'Open Grouped Test Report';
+  MIOpenGroupedTestReport.OnClick := mnuOpenGroupedTestReportClick;
+  mnuReport.Insert(0, MIOpenGroupedTestReport);
+
+  MIOpenSimpleTestReport := TMenuItem.Create(Self);
+  MIOpenSimpleTestReport.Caption := 'Open Simple Test Report';
+  MIOpenSimpleTestReport.OnClick := mnuOpenSimpleTestReportClick;
+  mnuReport.Insert(0, MIOpenSimpleTestReport);
+
   MICreateImagePathTestReport := TMenuItem.Create(Self);
   MICreateImagePathTestReport.Caption := 'Create ImagePath Test Report';
   MICreateImagePathTestReport.OnClick := mnuCreateImagePathTestReportClick;
@@ -610,24 +649,36 @@ begin
   SyncReportStructureSelection;
 end;
 
-procedure TfrmMain.mnuOpenClick(Sender: TObject);
+procedure TfrmMain.LoadDesignerReportFromFile(const AFileName: string;
+  AUseSampleDataSet: Boolean = False);
 var
   R: TReportModel;
+begin
+  R := TReportSerializer.LoadFromFile(AFileName);
+  if AUseSampleDataSet then
+    UseSampleDataSet;
+  FDesigner.LoadReport(R, True {take ownership});
+  FDesigner.RebuildLayout;
+  FCurrentFile := AFileName;
+  FModified := False;
+  edtReportTitle.Text := FDesigner.Report.Title;
+  edtReportAuthor.Text := FDesigner.Report.Author;
+  RefreshFieldList;
+  RefreshReportStructure;
+  UpdatePropertyPanel;
+  UpdateTitleBar;
+  UpdateStatusBar;
+  UpdateMenuState;
+  SyncReportStructureSelection;
+  StatusBar1.Panels[1].Text := 'Loaded: ' + ExtractFileName(FCurrentFile);
+end;
+
+procedure TfrmMain.mnuOpenClick(Sender: TObject);
 begin
   ConfirmSaveIfModified;
   if not dlgOpen.Execute then Exit;
   try
-    R := TReportSerializer.LoadFromFile(dlgOpen.FileName);
-    FDesigner.LoadReport(R, True {take ownership});
-    FCurrentFile := dlgOpen.FileName;
-    FModified    := False;
-    edtReportTitle.Text  := FDesigner.Report.Title;
-    edtReportAuthor.Text := FDesigner.Report.Author;
-    RefreshReportStructure;
-    UpdateTitleBar;
-    UpdateMenuState;
-    SyncReportStructureSelection;
-    StatusBar1.Panels[1].Text := 'Loaded: ' + ExtractFileName(FCurrentFile);
+    LoadDesignerReportFromFile(dlgOpen.FileName, False);
   except
     on E: Exception do
       ShowMessage('Error loading report: ' + E.Message);
@@ -981,6 +1032,43 @@ begin
   FinalizeSampleTemplate('Image path test report created');
 end;
 
+function TfrmMain.GetRegressionReportPath(const AFileName: string): string;
+var
+  Candidates: array[0..3] of string;
+  I: Integer;
+begin
+  Candidates[0] := TPath.Combine(ExtractFilePath(ParamStr(0)), 'reports\' + AFileName);
+  Candidates[1] := TPath.GetFullPath(TPath.Combine(ExtractFilePath(ParamStr(0)), '..\reports\' + AFileName));
+  Candidates[2] := TPath.GetFullPath(TPath.Combine(GetCurrentDir, 'reports\' + AFileName));
+  Candidates[3] := TPath.GetFullPath(TPath.Combine(GetCurrentDir, '..\reports\' + AFileName));
+
+  for I := Low(Candidates) to High(Candidates) do
+    if TFile.Exists(Candidates[I]) then
+      Exit(Candidates[I]);
+
+  Result := Candidates[1];
+end;
+
+procedure TfrmMain.OpenRegressionReport(const AFileName: string);
+var
+  FN: string;
+begin
+  ConfirmSaveIfModified;
+  FN := GetRegressionReportPath(AFileName);
+  if not TFile.Exists(FN) then
+  begin
+    ShowMessage('Test report file not found: ' + FN);
+    Exit;
+  end;
+
+  try
+    LoadDesignerReportFromFile(FN, True);
+  except
+    on E: Exception do
+      ShowMessage('Error loading report: ' + E.Message);
+  end;
+end;
+
 function BandTypeName(BT: TReportBandType): string;
 begin
   case BT of
@@ -1216,6 +1304,31 @@ end;
 procedure TfrmMain.mnuCreateImagePathTestReportClick(Sender: TObject);
 begin
   BuildImagePathTestReport;
+end;
+
+procedure TfrmMain.mnuOpenSimpleTestReportClick(Sender: TObject);
+begin
+  OpenRegressionReport('01_simple_masterdata.vrt');
+end;
+
+procedure TfrmMain.mnuOpenGroupedTestReportClick(Sender: TObject);
+begin
+  OpenRegressionReport('03_grouped_report.vrt');
+end;
+
+procedure TfrmMain.mnuOpenCanGrowTestReportClick(Sender: TObject);
+begin
+  OpenRegressionReport('05_cangrow_remarks.vrt');
+end;
+
+procedure TfrmMain.mnuOpenBarcodeTestReportClick(Sender: TObject);
+begin
+  OpenRegressionReport('06_barcode_test.vrt');
+end;
+
+procedure TfrmMain.mnuOpenImagePathTestReportClick(Sender: TObject);
+begin
+  OpenRegressionReport('07_imagepath_test.vrt');
 end;
 
 { =========================================================================== }
