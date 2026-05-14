@@ -263,6 +263,8 @@ type
     procedure btnApplyPropsClick(Sender: TObject);
     procedure PropEditorKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure PropEditorDblClick(Sender: TObject);
+    procedure PropEditorSelectCell(Sender: TObject; ACol, ARow: Integer;
+      var CanSelect: Boolean);
     procedure btnFontQuickClick(Sender: TObject);
 
     { Zoom edit }
@@ -296,6 +298,7 @@ type
     procedure UpdateMenuState;
     procedure UpdatePropertyPanel;
     procedure ApplyPropertyPanel;
+    procedure ConfigurePropertyEditors;
     procedure PromoteImportantProperties(AObj: TReportObject);
     procedure InsertVisualGroupRows(AObj: TReportObject);
     function  IsVisualGroupRow(const AKey: string): Boolean;
@@ -416,6 +419,7 @@ begin
   FDesigner.OnDragOver         := DesignerDragOver;
   FDesigner.OnDragDrop         := DesignerDragDrop;
   PropEditor.OnDblClick        := PropEditorDblClick;
+  PropEditor.OnSelectCell      := PropEditorSelectCell;
 
   // Connect the shared DataSource so the designer sees whatever dataset
   // is assigned at runtime.
@@ -1169,6 +1173,7 @@ begin
   TReportPropertyBridge.LoadObjectToGrid(Obj, PropEditor);
   PromoteImportantProperties(Obj);
   InsertVisualGroupRows(Obj);
+  ConfigurePropertyEditors;
 
   SelCount := FDesigner.SelectedCount;
   if SelCount > 1 then
@@ -1182,6 +1187,50 @@ begin
     lblProperties.Caption := 'Selected: ' + Obj.ClassName
   else
     lblProperties.Caption := 'Selected: None';
+end;
+
+procedure TfrmMain.ConfigurePropertyEditors;
+var
+  I, J: Integer;
+  KeyName, ValueText: string;
+  Fields: TArray<string>;
+begin
+  Fields := FDesigner.GetFieldNames;
+
+  for I := 1 to PropEditor.RowCount - 1 do
+  begin
+    KeyName := PropEditor.Keys[I];
+    ValueText := PropEditor.Values[KeyName];
+
+    if IsVisualGroupRow(KeyName) then
+      Continue;
+
+    if SameText(KeyName, 'DataField') then
+    begin
+      PropEditor.ItemProps[KeyName].EditStyle := esPickList;
+      PropEditor.ItemProps[KeyName].PickList.BeginUpdate;
+      try
+        PropEditor.ItemProps[KeyName].PickList.Clear;
+        PropEditor.ItemProps[KeyName].PickList.Add('');
+        for J := 0 to High(Fields) do
+          PropEditor.ItemProps[KeyName].PickList.Add(Fields[J]);
+      finally
+        PropEditor.ItemProps[KeyName].PickList.EndUpdate;
+      end;
+    end
+    else if SameText(ValueText, 'True') or SameText(ValueText, 'False') then
+    begin
+      PropEditor.ItemProps[KeyName].EditStyle := esPickList;
+      PropEditor.ItemProps[KeyName].PickList.BeginUpdate;
+      try
+        PropEditor.ItemProps[KeyName].PickList.Clear;
+        PropEditor.ItemProps[KeyName].PickList.Add('True');
+        PropEditor.ItemProps[KeyName].PickList.Add('False');
+      finally
+        PropEditor.ItemProps[KeyName].PickList.EndUpdate;
+      end;
+    end;
+  end;
 end;
 
 procedure TfrmMain.ApplyPropertyPanel;
@@ -1235,12 +1284,28 @@ begin
 end;
 
 procedure TfrmMain.PropEditorKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+const
+  NavKeys = [VK_UP, VK_DOWN, VK_LEFT, VK_RIGHT, VK_HOME, VK_END, VK_PRIOR, VK_NEXT, VK_TAB];
 begin
+  if (PropEditor.Row > 0) and IsVisualGroupRow(PropEditor.Keys[PropEditor.Row]) then
+  begin
+    if not (Key in NavKeys) then
+      Key := 0;
+    Exit;
+  end;
+
   if Key = VK_RETURN then
   begin
     ApplyPropertyPanel;
     Key := 0;
   end;
+end;
+
+procedure TfrmMain.PropEditorSelectCell(Sender: TObject; ACol, ARow: Integer;
+  var CanSelect: Boolean);
+begin
+  if (ARow > 0) and IsVisualGroupRow(PropEditor.Keys[ARow]) and (ACol > 0) then
+    CanSelect := False;
 end;
 
 procedure TfrmMain.PropEditorDblClick(Sender: TObject);
