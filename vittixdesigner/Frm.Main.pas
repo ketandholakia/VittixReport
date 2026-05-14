@@ -288,6 +288,9 @@ type
     FPnlFields  : TPanel;
     FLblFields  : TLabel;
     FLstFields  : TListBox;
+    FPnlStructure: TPanel;
+    FLblStructure: TLabel;
+    FTreeStructure: TTreeView;
     FSampleDataSet: TClientDataSet;
 
     // Command-line mode: set when launched by the component editor
@@ -331,6 +334,12 @@ type
     procedure DynAddBandMenuClick(Sender: TObject);
 
     procedure RefreshFieldList;
+    procedure RefreshReportStructure;
+    procedure SyncReportStructureSelection;
+    function  FindStructureNodeByData(AData: Pointer): TTreeNode;
+    function  StructureBandCaption(ABand: TReportBand): string;
+    function  StructureObjectCaption(AObj: TReportObject): string;
+    function  ShortNodePreview(const S: string; AMaxLen: Integer = 28): string;
     procedure FieldListDblClick(Sender: TObject);
     procedure DesignerDragOver(Sender, Source: TObject; X, Y: Integer;
       State: TDragState; var Accept: Boolean);
@@ -417,7 +426,36 @@ begin
   FLstFields.Hint     := 'Double-click or drag a field into a band to insert a bound label';
   FLstFields.ShowHint := True;
 
-  // Splitter between toolbox list and fields panel
+  FPnlStructure := TPanel.Create(Self);
+  FPnlStructure.Parent := pnlToolbox;
+  FPnlStructure.Align := alBottom;
+  FPnlStructure.Height := 200;
+  FPnlStructure.BevelOuter := bvNone;
+  FPnlStructure.Caption := '';
+
+  FLblStructure := TLabel.Create(Self);
+  FLblStructure.Parent := FPnlStructure;
+  FLblStructure.Align := alTop;
+  FLblStructure.Caption := ' Report Structure';
+  FLblStructure.Font.Style := [fsBold];
+  FLblStructure.Height := 18;
+
+  FTreeStructure := TTreeView.Create(Self);
+  FTreeStructure.Parent := FPnlStructure;
+  FTreeStructure.Align := alClient;
+  FTreeStructure.ReadOnly := True;
+  FTreeStructure.HideSelection := False;
+  FTreeStructure.RowSelect := True;
+  FTreeStructure.Indent := 18;
+  FTreeStructure.Hint := 'Read-only outline of report bands and objects';
+  FTreeStructure.ShowHint := True;
+
+  // Splitters between toolbox/structure/fields panels
+  Splitter           := TSplitter.Create(Self);
+  Splitter.Parent    := pnlToolbox;
+  Splitter.Align     := alBottom;
+  Splitter.Height    := 5;
+
   Splitter           := TSplitter.Create(Self);
   Splitter.Parent    := pnlToolbox;
   Splitter.Align     := alBottom;
@@ -486,10 +524,12 @@ begin
     end;
   end;
 
+  RefreshReportStructure;
   RefreshFieldList;
   UpdateTitleBar;
   UpdateStatusBar;
   UpdateMenuState;
+  SyncReportStructureSelection;
 
   MICreateImagePathTestReport := TMenuItem.Create(Self);
   MICreateImagePathTestReport.Caption := 'Create ImagePath Test Report';
@@ -561,8 +601,10 @@ begin
   FModified    := False;
   edtReportTitle.Text  := FDesigner.Report.Title;
   edtReportAuthor.Text := FDesigner.Report.Author;
+  RefreshReportStructure;
   UpdateTitleBar;
   UpdateMenuState;
+  SyncReportStructureSelection;
 end;
 
 procedure TfrmMain.mnuOpenClick(Sender: TObject);
@@ -578,8 +620,10 @@ begin
     FModified    := False;
     edtReportTitle.Text  := FDesigner.Report.Title;
     edtReportAuthor.Text := FDesigner.Report.Author;
+    RefreshReportStructure;
     UpdateTitleBar;
     UpdateMenuState;
+    SyncReportStructureSelection;
     StatusBar1.Panels[1].Text := 'Loaded: ' + ExtractFileName(FCurrentFile);
   except
     on E: Exception do
@@ -721,7 +765,10 @@ begin
   FDesigner.Report.Objects.Add(Band);
   FDesigner.RebuildLayout;
   FModified := True;
+  RefreshReportStructure;
   UpdateTitleBar;
+  UpdateMenuState;
+  SyncReportStructureSelection;
   StatusBar1.Panels[1].Text := 'Band added: ' + BandTypeName(ABandType);
 end;
 
@@ -771,10 +818,12 @@ end;
 procedure TfrmMain.FinalizeSampleTemplate(const AStatus: string);
 begin
   FDesigner.RebuildLayout;
+  RefreshReportStructure;
   RefreshFieldList;
   UpdateTitleBar;
   UpdateMenuState;
   UpdateStatusBar;
+  SyncReportStructureSelection;
   StatusBar1.Panels[1].Text := AStatus;
 end;
 
@@ -1174,14 +1223,17 @@ procedure TfrmMain.DesignerSelectionChanged(Sender: TObject);
 begin
   UpdatePropertyPanel;
   UpdateMenuState;
+  SyncReportStructureSelection;
 end;
 
 procedure TfrmMain.DesignerModified(Sender: TObject);
 begin
   FModified := True;
+  RefreshReportStructure;
   UpdateTitleBar;
   UpdateMenuState;
   UpdateStatusBar;
+  SyncReportStructureSelection;
 end;
 
 { =========================================================================== }
@@ -1645,6 +1697,158 @@ begin
                   mtConfirmation, [mbYes, mbNo, mbCancel], 0) of
     mrYes:    mnuSaveClick(nil);
     mrCancel: Abort;
+  end;
+end;
+
+function TfrmMain.ShortNodePreview(const S: string; AMaxLen: Integer): string;
+var
+  Text: string;
+begin
+  Text := Trim(StringReplace(StringReplace(S, sLineBreak, ' ', [rfReplaceAll]),
+    #10, ' ', [rfReplaceAll]));
+  if Length(Text) > AMaxLen then
+    Result := Copy(Text, 1, AMaxLen - 3) + '...'
+  else
+    Result := Text;
+end;
+
+function TfrmMain.StructureBandCaption(ABand: TReportBand): string;
+begin
+  if not Assigned(ABand) then
+    Exit('Band');
+
+  case ABand.BandType of
+    btReportTitle:   Result := 'Report Title Band';
+    btPageHeader:    Result := 'Page Header Band';
+    btPageFooter:    Result := 'Page Footer Band';
+    btMasterData:    Result := 'Master Data Band';
+    btGroupHeader:   Result := 'Group Header Band';
+    btGroupFooter:   Result := 'Group Footer Band';
+    btColumnHeader:  Result := 'Column Header Band';
+    btDetail:        Result := 'Detail Band';
+    btReportSummary: Result := 'Report Summary Band';
+    btOverlay:       Result := 'Overlay Band';
+  else
+    Result := 'Band';
+  end;
+end;
+
+function TfrmMain.StructureObjectCaption(AObj: TReportObject): string;
+begin
+  if AObj is TReportFieldObject then
+  begin
+    Result := 'Field';
+    if Trim(TReportFieldObject(AObj).DataField) <> '' then
+      Result := Result + ': ' + TReportFieldObject(AObj).DataField;
+  end
+  else if AObj is TReportMemoObject then
+  begin
+    Result := 'Memo';
+    if Trim(TReportMemoObject(AObj).DataField) <> '' then
+      Result := Result + ': ' + TReportMemoObject(AObj).DataField
+    else if Trim(TReportMemoObject(AObj).Text) <> '' then
+      Result := Result + ': ' + ShortNodePreview(TReportMemoObject(AObj).Text);
+  end
+  else if AObj is TReportImageObject then
+  begin
+    if Trim(TReportImageObject(AObj).DataField) <> '' then
+      Result := 'Image: ' + TReportImageObject(AObj).DataField
+    else
+      Result := 'Image';
+  end
+  else if AObj is TReportBarcodeObject then
+  begin
+    if Trim(TReportBarcodeObject(AObj).DataField) <> '' then
+      Result := 'Barcode: ' + TReportBarcodeObject(AObj).DataField
+    else if Trim(TReportBarcodeObject(AObj).Value) <> '' then
+      Result := 'Barcode: ' + ShortNodePreview(TReportBarcodeObject(AObj).Value)
+    else
+      Result := 'Barcode';
+  end
+  else if AObj is TReportShapeObject then
+    Result := 'Shape: ' +
+      GetEnumName(TypeInfo(TReportShapeType), Ord(TReportShapeObject(AObj).ShapeType))
+  else if AObj is TReportLineObject then
+    Result := 'Line'
+  else if AObj is TReportSubReportObject then
+    Result := 'SubReport'
+  else if AObj is TReportTableObject then
+    Result := 'Table'
+  else if AObj is TReportTextObject then
+  begin
+    Result := 'Text';
+    if Trim(TReportTextObject(AObj).Text) <> '' then
+      Result := Result + ': ' + ShortNodePreview(TReportTextObject(AObj).Text);
+  end
+  else
+    Result := TReportObjectClass(AObj.ClassType).DisplayName;
+end;
+
+function TfrmMain.FindStructureNodeByData(AData: Pointer): TTreeNode;
+begin
+  Result := nil;
+  if not Assigned(FTreeStructure) then
+    Exit;
+
+  Result := FTreeStructure.Items.GetFirstNode;
+  while Assigned(Result) do
+  begin
+    if Result.Data = AData then
+      Exit;
+    Result := Result.GetNext;
+  end;
+end;
+
+procedure TfrmMain.SyncReportStructureSelection;
+var
+  Node: TTreeNode;
+  Target: TReportObject;
+begin
+  if not Assigned(FTreeStructure) or (FTreeStructure.Items.Count = 0) then
+    Exit;
+
+  Target := CurrentPropertyTarget;
+  if Assigned(Target) then
+    Node := FindStructureNodeByData(Target)
+  else
+    Node := FTreeStructure.Items.GetFirstNode;
+
+  if Assigned(Node) then
+  begin
+    FTreeStructure.Selected := Node;
+    Node.MakeVisible;
+  end;
+end;
+
+procedure TfrmMain.RefreshReportStructure;
+var
+  RootNode, BandNode: TTreeNode;
+  TopObj, ChildObj: TReportObject;
+begin
+  if not Assigned(FTreeStructure) or not Assigned(FDesigner) or not Assigned(FDesigner.Report) then
+    Exit;
+
+  FTreeStructure.Items.BeginUpdate;
+  try
+    FTreeStructure.Items.Clear;
+    RootNode := FTreeStructure.Items.AddChildObject(nil, 'Report', nil);
+    for TopObj in FDesigner.Report.Objects do
+    begin
+      if TopObj is TReportBand then
+      begin
+        BandNode := FTreeStructure.Items.AddChildObject(RootNode,
+          StructureBandCaption(TReportBand(TopObj)), TopObj);
+        for ChildObj in TReportBand(TopObj).Children do
+          FTreeStructure.Items.AddChildObject(BandNode,
+            StructureObjectCaption(ChildObj), ChildObj);
+      end
+      else
+        FTreeStructure.Items.AddChildObject(RootNode,
+          StructureObjectCaption(TopObj), TopObj);
+    end;
+    RootNode.Expand(True);
+  finally
+    FTreeStructure.Items.EndUpdate;
   end;
 end;
 
