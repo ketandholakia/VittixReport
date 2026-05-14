@@ -27,6 +27,7 @@ interface
 
 uses
   System.SysUtils, System.Classes, System.Types, System.IOUtils, System.Rtti, System.TypInfo,
+  System.Generics.Collections,
   Vcl.Forms, Vcl.Controls, Vcl.ComCtrls, Vcl.ToolWin,
   Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Menus, Vcl.Dialogs,
   Vcl.ValEdit, Vcl.ActnList, Vcl.ActnMan, Vcl.ActnCtrls,
@@ -297,6 +298,7 @@ type
     procedure UpdateTitleBar;
     procedure UpdateStatusBar;
     procedure UpdateMenuState;
+    procedure ConfigureLayoutGuidance;
     procedure UpdatePropertyPanel;
     procedure ApplyPropertyPanel;
     procedure ConfigurePropertyEditors;
@@ -306,6 +308,8 @@ type
     function  IsFontDialogRowKey(const AKey: string): Boolean;
     function  IsColorPropertyKey(const AKey: string): Boolean;
     function  CurrentPropertyTarget: TReportObject;
+    function  SelectedObjectsSpanBands: Boolean;
+    function  ConfirmMixedBandVerticalLayout: Boolean;
     function  EditColorPropertyRow(ARow: Integer): Boolean;
     function  EditFontPropertyRow(ARow: Integer): Boolean;
     procedure ApplyZoom;
@@ -438,6 +442,7 @@ begin
   dlgOpen.DefaultExt := 'vrt';
   dlgSave.Filter := 'Vittix Report Files (*.vrt)|*.vrt|All Files (*.*)|*.*';
   dlgSave.DefaultExt := 'vrt';
+  ConfigureLayoutGuidance;
 
   FCurrentFile := '';
   FModified    := False;
@@ -965,9 +970,19 @@ procedure TfrmMain.mnuAlignBottomClick(Sender: TObject); begin FDesigner.AlignBo
 procedure TfrmMain.mnuSameWidthClick(Sender: TObject);   begin FDesigner.SameWidth;    end;
 procedure TfrmMain.mnuSameHeightClick(Sender: TObject);  begin FDesigner.SameHeight;   end;
 procedure TfrmMain.mnuCenterHClick(Sender: TObject);     begin FDesigner.CenterH;      end;
-procedure TfrmMain.mnuCenterVClick(Sender: TObject);     begin FDesigner.CenterV;      end;
+procedure TfrmMain.mnuCenterVClick(Sender: TObject);
+begin
+  if not ConfirmMixedBandVerticalLayout then
+    Exit;
+  FDesigner.CenterV;
+end;
 procedure TfrmMain.mnuDistHClick(Sender: TObject);       begin FDesigner.DistributeH;  end;
-procedure TfrmMain.mnuDistVClick(Sender: TObject);       begin FDesigner.DistributeV;  end;
+procedure TfrmMain.mnuDistVClick(Sender: TObject);
+begin
+  if not ConfirmMixedBandVerticalLayout then
+    Exit;
+  FDesigner.DistributeV;
+end;
 procedure TfrmMain.mnuFrontClick(Sender: TObject);       begin FDesigner.BringToFront; end;
 procedure TfrmMain.mnuBackClick(Sender: TObject);        begin FDesigner.SendToBack;   end;
 
@@ -1324,6 +1339,73 @@ begin
   end;
 end;
 
+function TfrmMain.SelectedObjectsSpanBands: Boolean;
+var
+  Ctx: TRttiContext;
+  T: TRttiType;
+  SelField, MapField: TRttiField;
+  SelValue, MapValue: TValue;
+  SelList: TList<TReportObject>;
+  ObjBandMap: TDictionary<TReportObject, TReportBand>;
+  Obj: TReportObject;
+  Band, FirstBand: TReportBand;
+  HasFirstBand: Boolean;
+begin
+  Result := False;
+  if FDesigner.SelectedCount < 2 then
+    Exit;
+
+  Ctx := TRttiContext.Create;
+  try
+    T := Ctx.GetType(FDesigner.ClassType);
+    if not Assigned(T) then
+      Exit;
+
+    SelField := T.GetField('FSelected');
+    MapField := T.GetField('FObjectBandMap');
+    if not Assigned(SelField) or not Assigned(MapField) then
+      Exit;
+
+    SelValue := SelField.GetValue(FDesigner);
+    MapValue := MapField.GetValue(FDesigner);
+    if SelValue.IsEmpty or MapValue.IsEmpty then
+      Exit;
+
+    SelList := TList<TReportObject>(SelValue.AsObject);
+    ObjBandMap := TDictionary<TReportObject, TReportBand>(MapValue.AsObject);
+    if not Assigned(SelList) or not Assigned(ObjBandMap) then
+      Exit;
+
+    HasFirstBand := False;
+    for Obj in SelList do
+    begin
+      if not ObjBandMap.TryGetValue(Obj, Band) then
+        Band := nil;
+
+      if not HasFirstBand then
+      begin
+        FirstBand := Band;
+        HasFirstBand := True;
+      end
+      else if FirstBand <> Band then
+        Exit(True);
+    end;
+  finally
+    Ctx.Free;
+  end;
+end;
+
+function TfrmMain.ConfirmMixedBandVerticalLayout: Boolean;
+begin
+  if not SelectedObjectsSpanBands then
+    Exit(True);
+
+  Result :=
+    MessageDlg(
+      'Selected objects are in different bands. Vertical layout uses local band coordinates and may look unexpected. Continue?',
+      mtWarning, [mbYes, mbNo], 0) = mrYes;
+end;
+
 procedure TfrmMain.btnApplyPropsClick(Sender: TObject);
 begin
   ApplyPropertyPanel;
@@ -1383,6 +1465,44 @@ begin
   Caption := Title;
 end;
 
+procedure TfrmMain.ConfigureLayoutGuidance;
+begin
+  btnAlignLeft.Hint := 'Align selected objects to the leftmost edge in the selection';
+  btnAlignRight.Hint := 'Align selected objects to the rightmost edge in the selection';
+  btnAlignTop.Hint := 'Align selected objects to the topmost edge in the selection';
+  btnAlignBottom.Hint := 'Align selected objects to the bottommost edge in the selection';
+  btnSameW.Hint := 'Make same width using last selected object as reference';
+  btnSameH.Hint := 'Make same height using last selected object as reference';
+  btnCenterH.Hint := 'Center selected objects horizontally on the page';
+  btnCenterV.Hint := 'Center vertically within each object''s band';
+  btnDistH.Hint := 'Distribute horizontally between current left/right bounds; works best within the same band';
+  btnDistV.Hint := 'Distribute vertically using object local band coordinates';
+  btnFront.Hint := 'Bring last selected object to front';
+  btnBack.Hint := 'Send last selected object to back';
+  btnFrontQuick.Hint := 'Bring last selected object to front';
+  btnBackQuick.Hint := 'Send last selected object to back';
+  btnFrontQuick.ShowHint := True;
+  btnBackQuick.ShowHint := True;
+
+  mnuAlignLeft.Hint := btnAlignLeft.Hint;
+  mnuAlignRight.Hint := btnAlignRight.Hint;
+  mnuAlignTop.Hint := btnAlignTop.Hint;
+  mnuAlignBottom.Hint := btnAlignBottom.Hint;
+  mnuSameWidth.Hint := btnSameW.Hint;
+  mnuSameHeight.Hint := btnSameH.Hint;
+  mnuCenterH.Hint := btnCenterH.Hint;
+  mnuCenterV.Hint := btnCenterV.Hint;
+  mnuDistH.Hint := btnDistH.Hint;
+  mnuDistV.Hint := btnDistV.Hint;
+  mnuFront.Hint := btnFront.Hint;
+  mnuBack.Hint := btnBack.Hint;
+
+  mnuShowGrid.Hint := 'Show or hide the designer grid';
+  mnuSnapGrid.Hint := 'Snap moved and resized objects to the designer grid';
+  mnuShowRulers.Hint := 'Show or hide page rulers around the designer surface';
+  mnuShowMargins.Hint := 'Show or hide page margin guides';
+end;
+
 procedure TfrmMain.UpdateStatusBar;
 var
   SelCount: Integer;
@@ -1403,7 +1523,8 @@ begin
       StatusBar1.Panels[0].Text := '1 object selected';
   end
   else
-    StatusBar1.Panels[0].Text := IntToStr(SelCount) + ' objects selected';
+    StatusBar1.Panels[0].Text :=
+      IntToStr(SelCount) + ' objects selected | Reference: last selected';
 end;
 
 procedure TfrmMain.UpdateMenuState;
