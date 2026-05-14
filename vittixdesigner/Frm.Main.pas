@@ -1265,6 +1265,7 @@ var
   Obj: TReportObject;
   SelCount: Integer;
   Band: TReportBand;
+  ObjName: string;
 begin
   Obj := CurrentPropertyTarget;
   TReportPropertyBridge.LoadObjectToGrid(Obj, PropEditor);
@@ -1278,10 +1279,20 @@ begin
   else if Assigned(Obj) and (Obj is TReportBand) then
   begin
     Band := TReportBand(Obj);
-    lblProperties.Caption := 'Selected: ' + BandTypeName(Band.BandType) + ' Band';
+    if Trim(Band.Name) <> '' then
+      lblProperties.Caption := 'Selected: ' + BandTypeName(Band.BandType) +
+        ' Band (' + Band.Name + ')'
+    else
+      lblProperties.Caption := 'Selected: ' + BandTypeName(Band.BandType) + ' Band';
   end
   else if Assigned(Obj) then
-    lblProperties.Caption := 'Selected: ' + Obj.ClassName
+  begin
+    ObjName := Trim(Obj.Name);
+    if ObjName <> '' then
+      lblProperties.Caption := 'Selected: ' + Obj.ClassName + ' (' + ObjName + ')'
+    else
+      lblProperties.Caption := 'Selected: ' + Obj.ClassName;
+  end
   else
     lblProperties.Caption := 'Selected: None';
 end;
@@ -1716,75 +1727,97 @@ begin
 end;
 
 function TfrmMain.StructureBandCaption(ABand: TReportBand): string;
+var
+  BaseCaption: string;
 begin
   if not Assigned(ABand) then
     Exit('Band');
 
   case ABand.BandType of
-    btReportTitle:   Result := 'Report Title Band';
-    btPageHeader:    Result := 'Page Header Band';
-    btPageFooter:    Result := 'Page Footer Band';
-    btMasterData:    Result := 'Master Data Band';
-    btGroupHeader:   Result := 'Group Header Band';
-    btGroupFooter:   Result := 'Group Footer Band';
-    btColumnHeader:  Result := 'Column Header Band';
-    btDetail:        Result := 'Detail Band';
-    btReportSummary: Result := 'Report Summary Band';
-    btOverlay:       Result := 'Overlay Band';
+    btReportTitle:   BaseCaption := 'Report Title Band';
+    btPageHeader:    BaseCaption := 'Page Header Band';
+    btPageFooter:    BaseCaption := 'Page Footer Band';
+    btMasterData:    BaseCaption := 'Master Data Band';
+    btGroupHeader:   BaseCaption := 'Group Header Band';
+    btGroupFooter:   BaseCaption := 'Group Footer Band';
+    btColumnHeader:  BaseCaption := 'Column Header Band';
+    btDetail:        BaseCaption := 'Detail Band';
+    btReportSummary: BaseCaption := 'Report Summary Band';
+    btOverlay:       BaseCaption := 'Overlay Band';
   else
-    Result := 'Band';
+    BaseCaption := 'Band';
   end;
+
+  if Trim(ABand.Name) <> '' then
+    Result := BaseCaption + ': ' + ABand.Name
+  else
+    Result := BaseCaption;
 end;
 
 function TfrmMain.StructureObjectCaption(AObj: TReportObject): string;
-begin
-  if AObj is TReportFieldObject then
+  function NamedValue(const APrefix, AName, AValue, AWrapLeft, AWrapRight: string): string;
   begin
-    Result := 'Field';
-    if Trim(TReportFieldObject(AObj).DataField) <> '' then
-      Result := Result + ': ' + TReportFieldObject(AObj).DataField;
-  end
+    if Trim(AName) <> '' then
+    begin
+      if Trim(AValue) <> '' then
+        Result := APrefix + ': ' + AName + ' ' + AWrapLeft + AValue + AWrapRight
+      else
+        Result := APrefix + ': ' + AName;
+    end
+    else if Trim(AValue) <> '' then
+      Result := APrefix + ': ' + AWrapLeft + AValue + AWrapRight
+    else
+      Result := APrefix;
+  end;
+var
+  ObjName: string;
+begin
+  ObjName := Trim(AObj.Name);
+  if AObj is TReportFieldObject then
+    Result := NamedValue('Field', ObjName, TReportFieldObject(AObj).DataField, '[', ']')
   else if AObj is TReportMemoObject then
   begin
-    Result := 'Memo';
     if Trim(TReportMemoObject(AObj).DataField) <> '' then
-      Result := Result + ': ' + TReportMemoObject(AObj).DataField
+      Result := NamedValue('Memo', ObjName, TReportMemoObject(AObj).DataField, '[', ']')
     else if Trim(TReportMemoObject(AObj).Text) <> '' then
-      Result := Result + ': ' + ShortNodePreview(TReportMemoObject(AObj).Text);
+      Result := NamedValue('Memo', ObjName, ShortNodePreview(TReportMemoObject(AObj).Text), '"', '"')
+    else
+      Result := NamedValue('Memo', ObjName, '', '', '');
   end
   else if AObj is TReportImageObject then
   begin
     if Trim(TReportImageObject(AObj).DataField) <> '' then
-      Result := 'Image: ' + TReportImageObject(AObj).DataField
+      Result := NamedValue('Image', ObjName, TReportImageObject(AObj).DataField, '[', ']')
     else
-      Result := 'Image';
+      Result := NamedValue('Image', ObjName, '', '', '');
   end
   else if AObj is TReportBarcodeObject then
   begin
     if Trim(TReportBarcodeObject(AObj).DataField) <> '' then
-      Result := 'Barcode: ' + TReportBarcodeObject(AObj).DataField
+      Result := NamedValue('Barcode', ObjName, TReportBarcodeObject(AObj).DataField, '[', ']')
     else if Trim(TReportBarcodeObject(AObj).Value) <> '' then
-      Result := 'Barcode: ' + ShortNodePreview(TReportBarcodeObject(AObj).Value)
+      Result := NamedValue('Barcode', ObjName, ShortNodePreview(TReportBarcodeObject(AObj).Value), '"', '"')
     else
-      Result := 'Barcode';
+      Result := NamedValue('Barcode', ObjName, '', '', '');
   end
   else if AObj is TReportShapeObject then
-    Result := 'Shape: ' +
-      GetEnumName(TypeInfo(TReportShapeType), Ord(TReportShapeObject(AObj).ShapeType))
+    Result := NamedValue('Shape', ObjName,
+      GetEnumName(TypeInfo(TReportShapeType), Ord(TReportShapeObject(AObj).ShapeType)), '[', ']')
   else if AObj is TReportLineObject then
-    Result := 'Line'
+    Result := NamedValue('Line', ObjName, '', '', '')
   else if AObj is TReportSubReportObject then
-    Result := 'SubReport'
+    Result := NamedValue('SubReport', ObjName, '', '', '')
   else if AObj is TReportTableObject then
-    Result := 'Table'
+    Result := NamedValue('Table', ObjName, '', '', '')
   else if AObj is TReportTextObject then
   begin
-    Result := 'Text';
     if Trim(TReportTextObject(AObj).Text) <> '' then
-      Result := Result + ': ' + ShortNodePreview(TReportTextObject(AObj).Text);
+      Result := NamedValue('Text', ObjName, ShortNodePreview(TReportTextObject(AObj).Text), '"', '"')
+    else
+      Result := NamedValue('Text', ObjName, '', '', '');
   end
   else
-    Result := TReportObjectClass(AObj.ClassType).DisplayName;
+    Result := NamedValue(TReportObjectClass(AObj.ClassType).DisplayName, ObjName, '', '', '');
 end;
 
 function TfrmMain.FindStructureNodeByData(AData: Pointer): TTreeNode;
