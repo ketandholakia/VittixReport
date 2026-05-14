@@ -216,6 +216,7 @@ type
     procedure BeginInsertObject(AClass: TReportObjectClass);
 
     { Selection }
+    procedure SelectObject(AObj: TReportObject);
     procedure SelectAllObjects;
     procedure ClearSelection;
 
@@ -727,6 +728,36 @@ begin
   FMode        := dmInsert;
   Cursor       := crCross;
   ClearSelection;
+end;
+
+procedure TVittixReportDesigner.SelectObject(AObj: TReportObject);
+var
+  OwnerBand: TReportBand;
+begin
+  if AObj = nil then
+  begin
+    if (FSelected.Count > 0) or Assigned(FActiveBand) then
+    begin
+      FSelected.Clear;
+      FActiveBand := nil;
+      DoSelectionChanged;
+    end;
+    Exit;
+  end;
+
+  FSelected.Clear;
+
+  if AObj is TReportBand then
+  begin
+    FActiveBand := TReportBand(AObj);
+    DoSelectionChanged;
+    Exit;
+  end;
+
+  OwnerBand := BandOwnerOf(AObj);
+  FActiveBand := OwnerBand;
+  FSelected.Add(AObj);
+  DoSelectionChanged;
 end;
 
 procedure TVittixReportDesigner.SelectAllObjects;

@@ -291,6 +291,7 @@ type
     FPnlStructure: TPanel;
     FLblStructure: TLabel;
     FTreeStructure: TTreeView;
+    FUpdatingStructureSelection: Boolean;
     FSampleDataSet: TClientDataSet;
 
     // Command-line mode: set when launched by the component editor
@@ -336,6 +337,7 @@ type
     procedure RefreshFieldList;
     procedure RefreshReportStructure;
     procedure SyncReportStructureSelection;
+    procedure StructureTreeChange(Sender: TObject; Node: TTreeNode);
     function  FindStructureNodeByData(AData: Pointer): TTreeNode;
     function  StructureBandCaption(ABand: TReportBand): string;
     function  StructureObjectCaption(AObj: TReportObject): string;
@@ -449,6 +451,7 @@ begin
   FTreeStructure.Indent := 18;
   FTreeStructure.Hint := 'Read-only outline of report bands and objects';
   FTreeStructure.ShowHint := True;
+  FTreeStructure.OnChange := StructureTreeChange;
 
   // Splitters between toolbox/structure/fields panels
   Splitter           := TSplitter.Create(Self);
@@ -1815,9 +1818,25 @@ begin
 
   if Assigned(Node) then
   begin
-    FTreeStructure.Selected := Node;
-    Node.MakeVisible;
+    FUpdatingStructureSelection := True;
+    try
+      FTreeStructure.Selected := Node;
+      Node.MakeVisible;
+    finally
+      FUpdatingStructureSelection := False;
+    end;
   end;
+end;
+
+procedure TfrmMain.StructureTreeChange(Sender: TObject; Node: TTreeNode);
+begin
+  if FUpdatingStructureSelection or not Assigned(FDesigner) then
+    Exit;
+
+  if not Assigned(Node) or not Assigned(Node.Data) then
+    FDesigner.SelectObject(nil)
+  else
+    FDesigner.SelectObject(TReportObject(Node.Data));
 end;
 
 procedure TfrmMain.RefreshReportStructure;
@@ -1828,6 +1847,7 @@ begin
   if not Assigned(FTreeStructure) or not Assigned(FDesigner) or not Assigned(FDesigner.Report) then
     Exit;
 
+  FUpdatingStructureSelection := True;
   FTreeStructure.Items.BeginUpdate;
   try
     FTreeStructure.Items.Clear;
@@ -1849,6 +1869,7 @@ begin
     RootNode.Expand(True);
   finally
     FTreeStructure.Items.EndUpdate;
+    FUpdatingStructureSelection := False;
   end;
 end;
 
