@@ -260,6 +260,7 @@ type
     procedure mnuOpenCanGrowTestReportClick(Sender: TObject);
     procedure mnuOpenBarcodeTestReportClick(Sender: TObject);
     procedure mnuOpenImagePathTestReportClick(Sender: TObject);
+    procedure mnuOpenExpressionUsageDemoClick(Sender: TObject);
     procedure mnuRunRegressionTestReportsClick(Sender: TObject);
     procedure mnuKeyboardShortcutsClick(Sender: TObject);
 
@@ -303,6 +304,7 @@ type
     FTreeStructure: TTreeView;
     FUpdatingStructureSelection: Boolean;
     FReportSampleReportsMenu: TMenuItem;
+    FReportDemoReportsMenu: TMenuItem;
     FReportRegressionTestsMenu: TMenuItem;
     FReportMenuSeparator: TMenuItem;
     FSampleDataSet: TClientDataSet;
@@ -581,6 +583,14 @@ begin
   MI.OnClick := mnuCreateImagePathTestReportClick;
   FReportSampleReportsMenu.Add(MI);
 
+  FReportDemoReportsMenu := TMenuItem.Create(Self);
+  FReportDemoReportsMenu.Caption := 'Demo Reports';
+
+  MI := TMenuItem.Create(Self);
+  MI.Caption := 'Expression Usage Demo';
+  MI.OnClick := mnuOpenExpressionUsageDemoClick;
+  FReportDemoReportsMenu.Add(MI);
+
   FReportRegressionTestsMenu := TMenuItem.Create(Self);
   FReportRegressionTestsMenu.Caption := 'Regression Tests';
 
@@ -623,6 +633,7 @@ begin
 
   mnuReport.Add(FReportMenuSeparator);
   mnuReport.Add(FReportSampleReportsMenu);
+  mnuReport.Add(FReportDemoReportsMenu);
   mnuReport.Add(FReportRegressionTestsMenu);
 end;
 
@@ -1492,6 +1503,11 @@ end;
 procedure TfrmMain.mnuOpenImagePathTestReportClick(Sender: TObject);
 begin
   OpenRegressionReport('07_imagepath_test.vrt');
+end;
+
+procedure TfrmMain.mnuOpenExpressionUsageDemoClick(Sender: TObject);
+begin
+  OpenRegressionReport('22_expression_usage_demo.vrt');
 end;
 
 procedure TfrmMain.mnuRunRegressionTestReportsClick(Sender: TObject);
