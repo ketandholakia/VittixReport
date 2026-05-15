@@ -2319,11 +2319,15 @@ var
   end;
 
 begin
+  // Arrow-key behavior:
+  // Ctrl+Arrow       = fine move (1 unit)
+  // Ctrl+Shift+Arrow = coarse move (GridSize)
+  // Shift+Arrow      = resize (1 unit)
   Step := NUDGE_NORMAL;
-  if ssCtrl in Shift then
-    Step := NUDGE_NORMAL
-  else if ssShift in Shift then
+  if (ssCtrl in Shift) and (ssShift in Shift) then
     Step := FGridSize;
+  if (ssCtrl in Shift) and not (ssShift in Shift) then
+    Step := NUDGE_NORMAL;
 
   case Key of
     VK_DELETE:

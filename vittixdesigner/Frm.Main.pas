@@ -1507,6 +1507,7 @@ procedure TfrmMain.DesignerModified(Sender: TObject);
 begin
   FModified := True;
   RefreshReportStructure;
+  UpdatePropertyPanel;
   UpdateTitleBar;
   UpdateMenuState;
   UpdateStatusBar;
@@ -1712,7 +1713,15 @@ end;
 procedure TfrmMain.SendMessageToFocusedControl(AMsg: Cardinal);
 var
   FocusedCtrl: TWinControl;
+  FocusedWnd: HWND;
 begin
+  FocusedWnd := GetFocus;
+  if FocusedWnd <> 0 then
+  begin
+    SendMessage(FocusedWnd, AMsg, 0, 0);
+    Exit;
+  end;
+
   FocusedCtrl := Screen.ActiveControl;
   if not Assigned(FocusedCtrl) then
     FocusedCtrl := ActiveControl;
@@ -1724,13 +1733,24 @@ end;
 procedure TfrmMain.SendDeleteToFocusedControl;
 var
   FocusedCtrl: TWinControl;
+  FocusedWnd: HWND;
 begin
+  FocusedWnd := GetFocus;
+  if FocusedWnd <> 0 then
+  begin
+    SendMessage(FocusedWnd, WM_CLEAR, 0, 0);
+    SendMessage(FocusedWnd, WM_KEYDOWN, VK_DELETE, 0);
+    SendMessage(FocusedWnd, WM_KEYUP, VK_DELETE, 0);
+    Exit;
+  end;
+
   FocusedCtrl := Screen.ActiveControl;
   if not Assigned(FocusedCtrl) then
     FocusedCtrl := ActiveControl;
 
   if Assigned(FocusedCtrl) and FocusedCtrl.HandleAllocated then
   begin
+    SendMessage(FocusedCtrl.Handle, WM_CLEAR, 0, 0);
     SendMessage(FocusedCtrl.Handle, WM_KEYDOWN, VK_DELETE, 0);
     SendMessage(FocusedCtrl.Handle, WM_KEYUP, VK_DELETE, 0);
   end;
