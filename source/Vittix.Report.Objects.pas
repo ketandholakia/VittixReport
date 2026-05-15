@@ -494,6 +494,9 @@ function FormatFieldDisplayValue(
   const AValue: Variant;
   const ADisplayFormat: string;
   const AEditMask: string): string;
+var
+  ValueVarType: TVarType;
+  NumericValue: Double;
 begin
   if VarIsNull(AValue) or VarIsEmpty(AValue) then
     Exit('');
@@ -503,10 +506,17 @@ begin
   if ADisplayFormat <> '' then
   begin
     try
-      if VarType(AValue) = varDate then
+      // Normalize by-ref variants so date/datetime values are detected reliably.
+      ValueVarType := VarType(AValue) and varTypeMask;
+
+      if ValueVarType = varDate then
         Result := FormatDateTime(ADisplayFormat, VarToDateTime(AValue))
       else
-        Result := FormatFloat(ADisplayFormat, VarAsType(AValue, varDouble));
+      begin
+        // Guard numeric conversion before FormatFloat to keep failures non-fatal.
+        NumericValue := VarAsType(AValue, varDouble);
+        Result := FormatFloat(ADisplayFormat, NumericValue);
+      end;
     except
       on Exception do
       begin
