@@ -261,6 +261,7 @@ type
     procedure mnuOpenBarcodeTestReportClick(Sender: TObject);
     procedure mnuOpenImagePathTestReportClick(Sender: TObject);
     procedure mnuOpenExpressionUsageDemoClick(Sender: TObject);
+    procedure mnuOpenInvalidDataFieldDiagnosticsDemoClick(Sender: TObject);
     procedure mnuRunRegressionTestReportsClick(Sender: TObject);
     procedure mnuKeyboardShortcutsClick(Sender: TObject);
 
@@ -589,6 +590,11 @@ begin
   MI := TMenuItem.Create(Self);
   MI.Caption := 'Expression Usage Demo';
   MI.OnClick := mnuOpenExpressionUsageDemoClick;
+  FReportDemoReportsMenu.Add(MI);
+
+  MI := TMenuItem.Create(Self);
+  MI.Caption := 'Invalid DataField Diagnostics Demo';
+  MI.OnClick := mnuOpenInvalidDataFieldDiagnosticsDemoClick;
   FReportDemoReportsMenu.Add(MI);
 
   FReportRegressionTestsMenu := TMenuItem.Create(Self);
@@ -1140,6 +1146,13 @@ end;
 
 procedure TfrmMain.RunRegressionTestReports;
 const
+  // Automatic runner scope:
+  // - Includes lightweight, non-interactive regression reports that should
+  //   render deterministically using the sample dataset.
+  // - Intentionally excludes 16_large_preview_warning.vrt because it is a
+  //   manual interactive warning-path test for very large previews.
+  // - Intentionally excludes reports/test*.vrt dev artifacts.
+  // Manual reports can still be opened directly via OpenRegressionReport.
   ReportFiles: array[0..16] of string = (
     '01_simple_masterdata.vrt',
     '03_grouped_report.vrt',
@@ -1509,6 +1522,11 @@ end;
 procedure TfrmMain.mnuOpenExpressionUsageDemoClick(Sender: TObject);
 begin
   OpenRegressionReport('22_expression_usage_demo.vrt');
+end;
+
+procedure TfrmMain.mnuOpenInvalidDataFieldDiagnosticsDemoClick(Sender: TObject);
+begin
+  OpenRegressionReport('23_invalid_datafield_diagnostics.vrt');
 end;
 
 procedure TfrmMain.mnuRunRegressionTestReportsClick(Sender: TObject);
