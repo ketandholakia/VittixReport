@@ -1,0 +1,259 @@
+{
+  "Version": 2,
+  "Title": "19 DisplayFormat Values",
+  "Author": "Codex",
+  "Description": "DisplayFormat and EditMask regression coverage for numeric/date fields, invalid format resilience, and blank remarks handling.",
+  "PageSettings": {
+    "PaperSize": 0,
+    "Orientation": 0,
+    "MarginLeft": 32,
+    "MarginTop": 32,
+    "MarginRight": 32,
+    "MarginBottom": 32,
+    "CustomWidth": 793,
+    "CustomHeight": 1122
+  },
+  "FieldNames": [
+    "CustomerName",
+    "InvoiceNo",
+    "InvoiceDate",
+    "ItemName",
+    "Qty",
+    "Rate",
+    "Amount",
+    "GroupName",
+    "ImagePath",
+    "BarcodeValue",
+    "Remarks"
+  ],
+  "DataSetNames": [
+    "MainData"
+  ],
+  "Objects": [
+    {
+      "Class": "TReportBand",
+      "Name": "BandTitle",
+      "Bounds": { "L": 0, "T": 0, "R": 793, "B": 54 },
+      "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+      "BandType": 0, "Height": 54, "DataSetName": "", "MasterField": "", "DetailField": "",
+      "GroupField": "", "GroupLevel": 0, "StartNewPage": false, "CanGrow": false, "CanShrink": false,
+      "BackColor": 16777215, "BackColorTransparent": true, "OnBeforePrint": "", "OnAfterPrint": "",
+      "Children": [
+        {
+          "Class": "TReportTextObject",
+          "Name": "txtTitle",
+          "Bounds": { "L": 10, "T": 8, "R": 370, "B": 28 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "DisplayFormat / EditMask Regression", "DataField": "", "Expression": "",
+          "FontName": "Tahoma", "FontSize": 11, "FontColor": 0, "FontBold": true, "FontItalic": false,
+          "HAlign": 0, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": false, "BorderColor": 0, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255
+        },
+        {
+          "Class": "TReportTextObject",
+          "Name": "txtNote",
+          "Bounds": { "L": 10, "T": 30, "R": 760, "B": 48 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "Includes valid formats, invalid format fallback, and blank remarks rows.", "DataField": "", "Expression": "",
+          "FontName": "Tahoma", "FontSize": 9, "FontColor": 8421504, "FontBold": false, "FontItalic": false,
+          "HAlign": 0, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": false, "BorderColor": 0, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255
+        }
+      ]
+    },
+    {
+      "Class": "TReportBand",
+      "Name": "BandPageHeader",
+      "Bounds": { "L": 0, "T": 0, "R": 793, "B": 44 },
+      "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+      "BandType": 1, "Height": 44, "DataSetName": "", "MasterField": "", "DetailField": "",
+      "GroupField": "", "GroupLevel": 0, "StartNewPage": false, "CanGrow": false, "CanShrink": false,
+      "BackColor": 16777215, "BackColorTransparent": true, "OnBeforePrint": "", "OnAfterPrint": "",
+      "Children": [
+        {
+          "Class": "TReportTextObject",
+          "Name": "hdrCustomer",
+          "Bounds": { "L": 10, "T": 8, "R": 150, "B": 36 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "Customer", "DataField": "", "Expression": "",
+          "FontName": "Tahoma", "FontSize": 9, "FontColor": 0, "FontBold": true, "FontItalic": false,
+          "HAlign": 0, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": true, "BorderColor": 12632256, "BorderWidth": 1,
+          "WordWrap": true, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255
+        },
+        {
+          "Class": "TReportTextObject",
+          "Name": "hdrFormats",
+          "Bounds": { "L": 155, "T": 8, "R": 700, "B": 36 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "Date Raw | dd/mm/yyyy | yyyy-mm-dd | Qty0 | Rate#,##0.00 | Amt#,##0.00 | AmtNegFmt | Amt0.0000 | InvalidFmt | Remarks",
+          "DataField": "", "Expression": "",
+          "FontName": "Tahoma", "FontSize": 8, "FontColor": 0, "FontBold": true, "FontItalic": false,
+          "HAlign": 0, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": true, "BorderColor": 12632256, "BorderWidth": 1,
+          "WordWrap": true, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255
+        }
+      ]
+    },
+    {
+      "Class": "TReportBand",
+      "Name": "BandMaster",
+      "Bounds": { "L": 0, "T": 0, "R": 793, "B": 52 },
+      "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+      "BandType": 2, "Height": 52, "DataSetName": "", "MasterField": "", "DetailField": "",
+      "GroupField": "", "GroupLevel": 0, "StartNewPage": false, "CanGrow": false, "CanShrink": false,
+      "BackColor": 16777215, "BackColorTransparent": true, "OnBeforePrint": "", "OnAfterPrint": "",
+      "Children": [
+        {
+          "Class": "TReportFieldObject",
+          "Name": "fldCustomer",
+          "Bounds": { "L": 10, "T": 8, "R": 150, "B": 44 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "[CustomerName]", "DataField": "CustomerName", "Expression": "",
+          "FontName": "Tahoma", "FontSize": 9, "FontColor": 0, "FontBold": false, "FontItalic": false,
+          "HAlign": 0, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": true, "BorderColor": 12632256, "BorderWidth": 1,
+          "WordWrap": true, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255,
+          "DisplayFormat": "", "EditMask": ""
+        },
+        {
+          "Class": "TReportFieldObject",
+          "Name": "fldDateRaw",
+          "Bounds": { "L": 155, "T": 8, "R": 220, "B": 26 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "[InvoiceDate]", "DataField": "InvoiceDate", "Expression": "",
+          "FontName": "Tahoma", "FontSize": 8, "FontColor": 0, "FontBold": false, "FontItalic": false,
+          "HAlign": 0, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": true, "BorderColor": 12632256, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255,
+          "DisplayFormat": "", "EditMask": ""
+        },
+        {
+          "Class": "TReportFieldObject",
+          "Name": "fldDateDMY",
+          "Bounds": { "L": 222, "T": 8, "R": 287, "B": 26 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "[InvoiceDate]", "DataField": "InvoiceDate", "Expression": "",
+          "FontName": "Tahoma", "FontSize": 8, "FontColor": 0, "FontBold": false, "FontItalic": false,
+          "HAlign": 0, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": true, "BorderColor": 12632256, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255,
+          "DisplayFormat": "dd/mm/yyyy", "EditMask": "!99/99/0000;1;_"
+        },
+        {
+          "Class": "TReportFieldObject",
+          "Name": "fldDateISO",
+          "Bounds": { "L": 289, "T": 8, "R": 354, "B": 26 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "[InvoiceDate]", "DataField": "InvoiceDate", "Expression": "",
+          "FontName": "Tahoma", "FontSize": 8, "FontColor": 0, "FontBold": false, "FontItalic": false,
+          "HAlign": 0, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": true, "BorderColor": 12632256, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255,
+          "DisplayFormat": "yyyy-mm-dd", "EditMask": ""
+        },
+        {
+          "Class": "TReportFieldObject",
+          "Name": "fldQtyFmt",
+          "Bounds": { "L": 356, "T": 8, "R": 400, "B": 26 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "[Qty]", "DataField": "Qty", "Expression": "",
+          "FontName": "Tahoma", "FontSize": 8, "FontColor": 0, "FontBold": false, "FontItalic": false,
+          "HAlign": 2, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": true, "BorderColor": 12632256, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255,
+          "DisplayFormat": "0", "EditMask": ""
+        },
+        {
+          "Class": "TReportFieldObject",
+          "Name": "fldRateFmt",
+          "Bounds": { "L": 402, "T": 8, "R": 468, "B": 26 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "[Rate]", "DataField": "Rate", "Expression": "",
+          "FontName": "Tahoma", "FontSize": 8, "FontColor": 0, "FontBold": false, "FontItalic": false,
+          "HAlign": 2, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": true, "BorderColor": 12632256, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255,
+          "DisplayFormat": "#,##0.00", "EditMask": ""
+        },
+        {
+          "Class": "TReportFieldObject",
+          "Name": "fldAmountFmt",
+          "Bounds": { "L": 470, "T": 8, "R": 536, "B": 26 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "[Amount]", "DataField": "Amount", "Expression": "",
+          "FontName": "Tahoma", "FontSize": 8, "FontColor": 0, "FontBold": false, "FontItalic": false,
+          "HAlign": 2, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": true, "BorderColor": 12632256, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255,
+          "DisplayFormat": "#,##0.00", "EditMask": ""
+        },
+        {
+          "Class": "TReportFieldObject",
+          "Name": "fldAmountNegFmt",
+          "Bounds": { "L": 538, "T": 8, "R": 604, "B": 26 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "[Amount]", "DataField": "Amount", "Expression": "",
+          "FontName": "Tahoma", "FontSize": 8, "FontColor": 0, "FontBold": false, "FontItalic": false,
+          "HAlign": 2, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": true, "BorderColor": 12632256, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255,
+          "DisplayFormat": "#,##0.00;(#,##0.00)", "EditMask": ""
+        },
+        {
+          "Class": "TReportFieldObject",
+          "Name": "fldAmountPrecFmt",
+          "Bounds": { "L": 606, "T": 8, "R": 672, "B": 26 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "[Amount]", "DataField": "Amount", "Expression": "",
+          "FontName": "Tahoma", "FontSize": 8, "FontColor": 0, "FontBold": false, "FontItalic": false,
+          "HAlign": 2, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": true, "BorderColor": 12632256, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255,
+          "DisplayFormat": "0.0000", "EditMask": "#,##0.00"
+        },
+        {
+          "Class": "TReportFieldObject",
+          "Name": "fldInvalidFmt",
+          "Bounds": { "L": 674, "T": 8, "R": 760, "B": 26 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "[Amount]", "DataField": "Amount", "Expression": "",
+          "FontName": "Tahoma", "FontSize": 8, "FontColor": 0, "FontBold": false, "FontItalic": false,
+          "HAlign": 2, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": true, "BorderColor": 12632256, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255,
+          "DisplayFormat": "<<INVALID_FMT>>", "EditMask": ""
+        },
+        {
+          "Class": "TReportFieldObject",
+          "Name": "fldRemarks",
+          "Bounds": { "L": 155, "T": 28, "R": 760, "B": 44 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "[Remarks]", "DataField": "Remarks", "Expression": "",
+          "FontName": "Tahoma", "FontSize": 8, "FontColor": 0, "FontBold": false, "FontItalic": false,
+          "HAlign": 0, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": true, "BorderColor": 12632256, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255,
+          "DisplayFormat": "", "EditMask": ""
+        }
+      ]
+    }
+  ]
+}
