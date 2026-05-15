@@ -309,6 +309,9 @@ type
     FReportRegressionTestsMenu: TMenuItem;
     FReportMenuSeparator: TMenuItem;
     FSampleDataSet: TClientDataSet;
+    FExprHelperMemo: TMemo;
+    FExprHelperFields: TListBox;
+    FExprHelperExamples: TListBox;
 
     // Command-line mode: set when launched by the component editor
     FCmdLineInputFile : string;   // file to load on startup
@@ -329,6 +332,13 @@ type
     function  IsVisualGroupRow(const AKey: string): Boolean;
     function  IsFontDialogRowKey(const AKey: string): Boolean;
     function  IsColorPropertyKey(const AKey: string): Boolean;
+    function  IsExpressionPropertyKey(const AKey: string): Boolean;
+    function  EditExpressionPropertyRow(ARow: Integer): Boolean;
+    function  PromptExpressionHelper(const AInitialValue: string;
+      const AFields: TArray<string>; out AEditedValue: string): Boolean;
+    procedure ExpressionHelperInsertField(Sender: TObject);
+    procedure ExpressionHelperFieldDblClick(Sender: TObject);
+    procedure ExpressionHelperExampleDblClick(Sender: TObject);
     function  IsControlWithinParent(AControl, AParent: TWinControl): Boolean;
     function  IsTextEditingControlFocused: Boolean;
     procedure SendMessageToFocusedControl(AMsg: Cardinal);
@@ -1681,6 +1691,10 @@ begin
           PropEditor.ItemProps[KeyName].PickList.EndUpdate;
         end;
       end
+      else if IsExpressionPropertyKey(KeyName) then
+      begin
+        PropEditor.ItemProps[KeyName].EditStyle := esEllipsis;
+      end
       else if IsColorPropertyKey(KeyName) then
       begin
         PropEditor.ItemProps[KeyName].EditStyle := esEllipsis;
@@ -1959,6 +1973,8 @@ end;
 
 procedure TfrmMain.PropEditorEditButtonClick(Sender: TObject);
 begin
+  if EditExpressionPropertyRow(PropEditor.Row) then
+    Exit;
   EditColorPropertyRow(PropEditor.Row);
 end;
 
@@ -2447,6 +2463,203 @@ begin
     SameText(AKey, 'BackgroundOnTrue') or
     SameText(AKey, 'BorderColorOnTrue') or
     SameText(AKey, 'FontColorOnTrue');
+end;
+
+function TfrmMain.IsExpressionPropertyKey(const AKey: string): Boolean;
+begin
+  Result :=
+    SameText(AKey, 'Expression') or
+    SameText(AKey, 'PrintWhen') or
+    SameText(AKey, 'FontColorCondition') or
+    SameText(AKey, 'BackgroundCondition') or
+    SameText(AKey, 'BorderColorCondition');
+end;
+
+function TfrmMain.PromptExpressionHelper(const AInitialValue: string;
+  const AFields: TArray<string>; out AEditedValue: string): Boolean;
+var
+  Dlg: TForm;
+  PnlTop, PnlBottom, PnlLeft, PnlRight: TPanel;
+  LblFields, LblExamples: TLabel;
+  BtnInsert, BtnOK, BtnCancel: TButton;
+  I: Integer;
+  ExampleItems: array[0..7] of string;
+begin
+  Result := False;
+  AEditedValue := AInitialValue;
+
+  Dlg := TForm.Create(Self);
+  try
+    Dlg.Caption := 'Expression Helper';
+    Dlg.Position := poScreenCenter;
+    Dlg.BorderStyle := bsDialog;
+    Dlg.BorderIcons := [biSystemMenu];
+    Dlg.ClientWidth := 760;
+    Dlg.ClientHeight := 430;
+
+    PnlTop := TPanel.Create(Dlg);
+    PnlTop.Parent := Dlg;
+    PnlTop.Align := alClient;
+    PnlTop.BevelOuter := bvNone;
+
+    PnlBottom := TPanel.Create(Dlg);
+    PnlBottom.Parent := Dlg;
+    PnlBottom.Align := alBottom;
+    PnlBottom.Height := 44;
+    PnlBottom.BevelOuter := bvNone;
+
+    PnlLeft := TPanel.Create(Dlg);
+    PnlLeft.Parent := PnlTop;
+    PnlLeft.Align := alLeft;
+    PnlLeft.Width := 210;
+    PnlLeft.BevelOuter := bvNone;
+
+    PnlRight := TPanel.Create(Dlg);
+    PnlRight.Parent := PnlTop;
+    PnlRight.Align := alRight;
+    PnlRight.Width := 240;
+    PnlRight.BevelOuter := bvNone;
+
+    LblFields := TLabel.Create(Dlg);
+    LblFields.Parent := PnlLeft;
+    LblFields.Align := alTop;
+    LblFields.Caption := 'Available Fields';
+    LblFields.Height := 20;
+    LblFields.Font.Style := [fsBold];
+
+    FExprHelperFields := TListBox.Create(Dlg);
+    FExprHelperFields.Parent := PnlLeft;
+    FExprHelperFields.Align := alClient;
+    for I := 0 to High(AFields) do
+      FExprHelperFields.Items.Add(AFields[I]);
+
+    BtnInsert := TButton.Create(Dlg);
+    BtnInsert.Parent := PnlLeft;
+    BtnInsert.Align := alBottom;
+    BtnInsert.Caption := 'Insert Field';
+    BtnInsert.Height := 30;
+    BtnInsert.OnClick := ExpressionHelperInsertField;
+    FExprHelperFields.OnDblClick := ExpressionHelperFieldDblClick;
+
+    LblExamples := TLabel.Create(Dlg);
+    LblExamples.Parent := PnlRight;
+    LblExamples.Align := alTop;
+    LblExamples.Caption := 'Examples';
+    LblExamples.Height := 20;
+    LblExamples.Font.Style := [fsBold];
+
+    FExprHelperExamples := TListBox.Create(Dlg);
+    FExprHelperExamples.Parent := PnlRight;
+    FExprHelperExamples.Align := alClient;
+
+    ExampleItems[0] := '[Qty] * [Rate]';
+    ExampleItems[1] := '[Amount] > 1000';
+    ExampleItems[2] := '[GroupName] = ''Labels''';
+    ExampleItems[3] := '[Qty] > 5';
+    ExampleItems[4] := '[CustomerName] <> ''''';
+    ExampleItems[5] := '[RecNo]';
+    ExampleItems[6] := '1=1';
+    ExampleItems[7] := '1=0';
+    for I := Low(ExampleItems) to High(ExampleItems) do
+      FExprHelperExamples.Items.Add(ExampleItems[I]);
+
+    // Double-click replaces the entire expression for faster template usage.
+    FExprHelperExamples.OnDblClick := ExpressionHelperExampleDblClick;
+
+    FExprHelperMemo := TMemo.Create(Dlg);
+    FExprHelperMemo.Parent := PnlTop;
+    FExprHelperMemo.Align := alClient;
+    FExprHelperMemo.ScrollBars := ssBoth;
+    FExprHelperMemo.WordWrap := False;
+    FExprHelperMemo.Lines.Text := AInitialValue;
+
+    BtnOK := TButton.Create(Dlg);
+    BtnOK.Parent := PnlBottom;
+    BtnOK.Caption := 'OK';
+    BtnOK.ModalResult := mrOk;
+    BtnOK.Left := Dlg.ClientWidth - 180;
+    BtnOK.Top := 8;
+    BtnOK.Width := 80;
+    BtnOK.Anchors := [akRight, akBottom];
+
+    BtnCancel := TButton.Create(Dlg);
+    BtnCancel.Parent := PnlBottom;
+    BtnCancel.Caption := 'Cancel';
+    BtnCancel.ModalResult := mrCancel;
+    BtnCancel.Left := Dlg.ClientWidth - 92;
+    BtnCancel.Top := 8;
+    BtnCancel.Width := 80;
+    BtnCancel.Anchors := [akRight, akBottom];
+
+    Dlg.ActiveControl := FExprHelperMemo;
+    if Dlg.ShowModal = mrOk then
+    begin
+      AEditedValue := FExprHelperMemo.Lines.Text;
+      Result := True;
+    end;
+  finally
+    FExprHelperMemo := nil;
+    FExprHelperFields := nil;
+    FExprHelperExamples := nil;
+    Dlg.Free;
+  end;
+end;
+
+function TfrmMain.EditExpressionPropertyRow(ARow: Integer): Boolean;
+var
+  KeyName: string;
+  CurrentValue: string;
+  EditedValue: string;
+begin
+  Result := False;
+  if (ARow <= 0) or (ARow >= PropEditor.RowCount) then
+    Exit;
+
+  KeyName := Trim(PropEditor.Keys[ARow]);
+  if IsVisualGroupRow(KeyName) or not IsExpressionPropertyKey(KeyName) then
+    Exit;
+
+  CurrentValue := PropEditor.Values[KeyName];
+  if not PromptExpressionHelper(CurrentValue, FDesigner.GetFieldNames, EditedValue) then
+    Exit;
+
+  PropEditor.Values[KeyName] := EditedValue;
+  ApplyPropertyPanel;
+  Result := True;
+end;
+
+procedure TfrmMain.ExpressionHelperInsertField(Sender: TObject);
+var
+  FieldName: string;
+begin
+  if not Assigned(FExprHelperFields) or not Assigned(FExprHelperMemo) then
+    Exit;
+  if FExprHelperFields.ItemIndex < 0 then
+    Exit;
+
+  FieldName := Trim(FExprHelperFields.Items[FExprHelperFields.ItemIndex]);
+  if FieldName = '' then
+    Exit;
+
+  FExprHelperMemo.SelText := '[' + FieldName + ']';
+  FExprHelperMemo.SetFocus;
+end;
+
+procedure TfrmMain.ExpressionHelperFieldDblClick(Sender: TObject);
+begin
+  ExpressionHelperInsertField(Sender);
+end;
+
+procedure TfrmMain.ExpressionHelperExampleDblClick(Sender: TObject);
+begin
+  if not Assigned(FExprHelperExamples) or not Assigned(FExprHelperMemo) then
+    Exit;
+  if FExprHelperExamples.ItemIndex < 0 then
+    Exit;
+
+  // Simpler Phase 1 behavior: replace editor content with selected example.
+  FExprHelperMemo.Lines.Text := FExprHelperExamples.Items[FExprHelperExamples.ItemIndex];
+  FExprHelperMemo.SetFocus;
 end;
 
 function TfrmMain.EditColorPropertyRow(ARow: Integer): Boolean;
