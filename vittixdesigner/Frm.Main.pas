@@ -298,6 +298,9 @@ type
     FLblStructure: TLabel;
     FTreeStructure: TTreeView;
     FUpdatingStructureSelection: Boolean;
+    FReportSampleReportsMenu: TMenuItem;
+    FReportRegressionTestsMenu: TMenuItem;
+    FReportMenuSeparator: TMenuItem;
     FSampleDataSet: TClientDataSet;
 
     // Command-line mode: set when launched by the component editor
@@ -391,17 +394,7 @@ function BandTypeName(BT: TReportBandType): string; forward;
 procedure TfrmMain.FormCreate(Sender: TObject);
 var
   Splitter: TSplitter;
-  MIRunRegressionTestReports: TMenuItem;
-  MIOpenImagePathTestReport: TMenuItem;
-  MIOpenBarcodeTestReport: TMenuItem;
-  MIOpenCanGrowTestReport: TMenuItem;
-  MIOpenGroupedTestReport: TMenuItem;
-  MIOpenSimpleTestReport: TMenuItem;
-  MICreateImagePathTestReport: TMenuItem;
-  MICreateBarcodeTestReport: TMenuItem;
-  MICreateCanGrowRemarksTestReport: TMenuItem;
-  MICreateSampleGroupedReport: TMenuItem;
-  MICreateSimpleSampleReport: TMenuItem;
+  MI: TMenuItem;
 begin
   // Defensive registration for command-line open mode.
   // Some environments can start with an incomplete registry; ensure bands
@@ -551,60 +544,77 @@ begin
   UpdateMenuState;
   SyncReportStructureSelection;
 
-  MIRunRegressionTestReports := TMenuItem.Create(Self);
-  MIRunRegressionTestReports.Caption := 'Run Regression Test Reports';
-  MIRunRegressionTestReports.OnClick := mnuRunRegressionTestReportsClick;
-  mnuReport.Insert(0, MIRunRegressionTestReports);
+  FReportSampleReportsMenu := TMenuItem.Create(Self);
+  FReportSampleReportsMenu.Caption := 'Sample Reports';
 
-  MIOpenImagePathTestReport := TMenuItem.Create(Self);
-  MIOpenImagePathTestReport.Caption := 'Open ImagePath Test Report';
-  MIOpenImagePathTestReport.OnClick := mnuOpenImagePathTestReportClick;
-  mnuReport.Insert(0, MIOpenImagePathTestReport);
+  MI := TMenuItem.Create(Self);
+  MI.Caption := 'Create Simple Sample Report';
+  MI.OnClick := mnuCreateSimpleSampleReportClick;
+  FReportSampleReportsMenu.Add(MI);
 
-  MIOpenBarcodeTestReport := TMenuItem.Create(Self);
-  MIOpenBarcodeTestReport.Caption := 'Open Barcode Test Report';
-  MIOpenBarcodeTestReport.OnClick := mnuOpenBarcodeTestReportClick;
-  mnuReport.Insert(0, MIOpenBarcodeTestReport);
+  MI := TMenuItem.Create(Self);
+  MI.Caption := 'Create Grouped Sample Report';
+  MI.OnClick := mnuCreateSampleGroupedReportClick;
+  FReportSampleReportsMenu.Add(MI);
 
-  MIOpenCanGrowTestReport := TMenuItem.Create(Self);
-  MIOpenCanGrowTestReport.Caption := 'Open CanGrow Test Report';
-  MIOpenCanGrowTestReport.OnClick := mnuOpenCanGrowTestReportClick;
-  mnuReport.Insert(0, MIOpenCanGrowTestReport);
+  MI := TMenuItem.Create(Self);
+  MI.Caption := 'Create CanGrow Remarks Test Report';
+  MI.OnClick := mnuCreateCanGrowRemarksTestReportClick;
+  FReportSampleReportsMenu.Add(MI);
 
-  MIOpenGroupedTestReport := TMenuItem.Create(Self);
-  MIOpenGroupedTestReport.Caption := 'Open Grouped Test Report';
-  MIOpenGroupedTestReport.OnClick := mnuOpenGroupedTestReportClick;
-  mnuReport.Insert(0, MIOpenGroupedTestReport);
+  MI := TMenuItem.Create(Self);
+  MI.Caption := 'Create Barcode Test Report';
+  MI.OnClick := mnuCreateBarcodeTestReportClick;
+  FReportSampleReportsMenu.Add(MI);
 
-  MIOpenSimpleTestReport := TMenuItem.Create(Self);
-  MIOpenSimpleTestReport.Caption := 'Open Simple Test Report';
-  MIOpenSimpleTestReport.OnClick := mnuOpenSimpleTestReportClick;
-  mnuReport.Insert(0, MIOpenSimpleTestReport);
+  MI := TMenuItem.Create(Self);
+  MI.Caption := 'Create ImagePath Test Report';
+  MI.OnClick := mnuCreateImagePathTestReportClick;
+  FReportSampleReportsMenu.Add(MI);
 
-  MICreateImagePathTestReport := TMenuItem.Create(Self);
-  MICreateImagePathTestReport.Caption := 'Create ImagePath Test Report';
-  MICreateImagePathTestReport.OnClick := mnuCreateImagePathTestReportClick;
-  mnuReport.Insert(0, MICreateImagePathTestReport);
+  FReportRegressionTestsMenu := TMenuItem.Create(Self);
+  FReportRegressionTestsMenu.Caption := 'Regression Tests';
 
-  MICreateBarcodeTestReport := TMenuItem.Create(Self);
-  MICreateBarcodeTestReport.Caption := 'Create Barcode Test Report';
-  MICreateBarcodeTestReport.OnClick := mnuCreateBarcodeTestReportClick;
-  mnuReport.Insert(0, MICreateBarcodeTestReport);
+  MI := TMenuItem.Create(Self);
+  MI.Caption := 'Open Simple Test Report';
+  MI.OnClick := mnuOpenSimpleTestReportClick;
+  FReportRegressionTestsMenu.Add(MI);
 
-  MICreateCanGrowRemarksTestReport := TMenuItem.Create(Self);
-  MICreateCanGrowRemarksTestReport.Caption := 'Create CanGrow Remarks Test Report';
-  MICreateCanGrowRemarksTestReport.OnClick := mnuCreateCanGrowRemarksTestReportClick;
-  mnuReport.Insert(0, MICreateCanGrowRemarksTestReport);
+  MI := TMenuItem.Create(Self);
+  MI.Caption := 'Open Grouped Test Report';
+  MI.OnClick := mnuOpenGroupedTestReportClick;
+  FReportRegressionTestsMenu.Add(MI);
 
-  MICreateSampleGroupedReport := TMenuItem.Create(Self);
-  MICreateSampleGroupedReport.Caption := 'Create Grouped Sample Report';
-  MICreateSampleGroupedReport.OnClick := mnuCreateSampleGroupedReportClick;
-  mnuReport.Insert(0, MICreateSampleGroupedReport);
+  MI := TMenuItem.Create(Self);
+  MI.Caption := 'Open CanGrow Test Report';
+  MI.OnClick := mnuOpenCanGrowTestReportClick;
+  FReportRegressionTestsMenu.Add(MI);
 
-  MICreateSimpleSampleReport := TMenuItem.Create(Self);
-  MICreateSimpleSampleReport.Caption := 'Create Simple Sample Report';
-  MICreateSimpleSampleReport.OnClick := mnuCreateSimpleSampleReportClick;
-  mnuReport.Insert(0, MICreateSimpleSampleReport);
+  MI := TMenuItem.Create(Self);
+  MI.Caption := 'Open Barcode Test Report';
+  MI.OnClick := mnuOpenBarcodeTestReportClick;
+  FReportRegressionTestsMenu.Add(MI);
+
+  MI := TMenuItem.Create(Self);
+  MI.Caption := 'Open ImagePath Test Report';
+  MI.OnClick := mnuOpenImagePathTestReportClick;
+  FReportRegressionTestsMenu.Add(MI);
+
+  MI := TMenuItem.Create(Self);
+  MI.Caption := '-';
+  FReportRegressionTestsMenu.Add(MI);
+
+  MI := TMenuItem.Create(Self);
+  MI.Caption := 'Run Regression Test Reports';
+  MI.OnClick := mnuRunRegressionTestReportsClick;
+  FReportRegressionTestsMenu.Add(MI);
+
+  FReportMenuSeparator := TMenuItem.Create(Self);
+  FReportMenuSeparator.Caption := '-';
+
+  mnuReport.Add(FReportMenuSeparator);
+  mnuReport.Add(FReportSampleReportsMenu);
+  mnuReport.Add(FReportRegressionTestsMenu);
 end;
 
 procedure TfrmMain.FormDestroy(Sender: TObject);
