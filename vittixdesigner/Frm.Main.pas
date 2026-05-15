@@ -340,6 +340,10 @@ type
     procedure ExpressionHelperInsertField(Sender: TObject);
     procedure ExpressionHelperFieldDblClick(Sender: TObject);
     procedure ExpressionHelperExampleDblClick(Sender: TObject);
+    procedure ExpressionHelperOperatorClick(Sender: TObject);
+    procedure ExpressionHelperTemplateClick(Sender: TObject);
+    procedure ExpressionHelperInsertText(const AText: string);
+    function  ExpressionHelperTryGetSelectedField(out AFieldName: string): Boolean;
     function  IsControlWithinParent(AControl, AParent: TWinControl): Boolean;
     function  IsTextEditingControlFocused: Boolean;
     procedure SendMessageToFocusedControl(AMsg: Cardinal);
@@ -2511,11 +2515,26 @@ function TfrmMain.PromptExpressionHelper(const AInitialValue: string;
   const AFields: TArray<string>; out AEditedValue: string): Boolean;
 var
   Dlg: TForm;
-  PnlTop, PnlBottom, PnlLeft, PnlRight: TPanel;
+  PnlTop, PnlBottom, PnlLeft, PnlRight, PnlCenter, PnlOperators, PnlTemplates: TPanel;
   LblFields, LblExamples: TLabel;
-  BtnInsert, BtnOK, BtnCancel: TButton;
+  BtnInsert, BtnOK, BtnCancel, Btn: TButton;
   I: Integer;
   ExampleItems: array[0..7] of string;
+
+  procedure AddQuickButton(AParent: TWinControl; const ACaption, AInsertText: string;
+    ALeft, ATop, AWidth: Integer; AOnClick: TNotifyEvent; ATag: NativeInt = 0);
+  begin
+    Btn := TButton.Create(Dlg);
+    Btn.Parent := AParent;
+    Btn.Caption := ACaption;
+    Btn.Left := ALeft;
+    Btn.Top := ATop;
+    Btn.Width := AWidth;
+    Btn.Height := 24;
+    Btn.Hint := AInsertText;
+    Btn.Tag := ATag;
+    Btn.OnClick := AOnClick;
+  end;
 begin
   Result := False;
   AEditedValue := AInitialValue;
@@ -2551,6 +2570,11 @@ begin
     PnlRight.Align := alRight;
     PnlRight.Width := 240;
     PnlRight.BevelOuter := bvNone;
+
+    PnlCenter := TPanel.Create(Dlg);
+    PnlCenter.Parent := PnlTop;
+    PnlCenter.Align := alClient;
+    PnlCenter.BevelOuter := bvNone;
 
     LblFields := TLabel.Create(Dlg);
     LblFields.Parent := PnlLeft;
@@ -2598,8 +2622,40 @@ begin
     // Double-click replaces the entire expression for faster template usage.
     FExprHelperExamples.OnDblClick := ExpressionHelperExampleDblClick;
 
+    PnlOperators := TPanel.Create(Dlg);
+    PnlOperators.Parent := PnlCenter;
+    PnlOperators.Align := alTop;
+    PnlOperators.Height := 56;
+    PnlOperators.BevelOuter := bvNone;
+
+    AddQuickButton(PnlOperators, '+',  ' + ', 8,   6, 42, ExpressionHelperOperatorClick);
+    AddQuickButton(PnlOperators, '-',  ' - ', 54,  6, 42, ExpressionHelperOperatorClick);
+    AddQuickButton(PnlOperators, '*',  ' * ', 100, 6, 42, ExpressionHelperOperatorClick);
+    AddQuickButton(PnlOperators, '/',  ' / ', 146, 6, 42, ExpressionHelperOperatorClick);
+    AddQuickButton(PnlOperators, '=',  ' = ', 192, 6, 42, ExpressionHelperOperatorClick);
+    AddQuickButton(PnlOperators, '<>', ' <> ',238, 6, 42, ExpressionHelperOperatorClick);
+    AddQuickButton(PnlOperators, '>',  ' > ', 284, 6, 42, ExpressionHelperOperatorClick);
+    AddQuickButton(PnlOperators, '>=', ' >= ',330, 6, 42, ExpressionHelperOperatorClick);
+    AddQuickButton(PnlOperators, '<',  ' < ', 376, 6, 42, ExpressionHelperOperatorClick);
+    AddQuickButton(PnlOperators, '<=', ' <= ',422, 6, 42, ExpressionHelperOperatorClick);
+    AddQuickButton(PnlOperators, '(',  '(',   468, 6, 36, ExpressionHelperOperatorClick);
+    AddQuickButton(PnlOperators, ')',  ')',   508, 6, 36, ExpressionHelperOperatorClick);
+    AddQuickButton(PnlOperators, QuotedStr(''), QuotedStr(''), 548, 6, 44, ExpressionHelperOperatorClick);
+
+    PnlTemplates := TPanel.Create(Dlg);
+    PnlTemplates.Parent := PnlCenter;
+    PnlTemplates.Align := alTop;
+    PnlTemplates.Height := 32;
+    PnlTemplates.BevelOuter := bvNone;
+
+    AddQuickButton(PnlTemplates, '[Field] > 0',      '', 8,   4, 92,  ExpressionHelperTemplateClick, 1);
+    AddQuickButton(PnlTemplates, '[Field] = ''Text''', '', 104, 4, 108, ExpressionHelperTemplateClick, 2);
+    AddQuickButton(PnlTemplates, '[Field] <> ' + QuotedStr(''), '', 216, 4, 94, ExpressionHelperTemplateClick, 3);
+    AddQuickButton(PnlTemplates, '[Amount] > 1000',  '', 314, 4, 116, ExpressionHelperTemplateClick, 4);
+    AddQuickButton(PnlTemplates, '[Qty] > 5',        '', 434, 4, 92,  ExpressionHelperTemplateClick, 5);
+
     FExprHelperMemo := TMemo.Create(Dlg);
-    FExprHelperMemo.Parent := PnlTop;
+    FExprHelperMemo.Parent := PnlCenter;
     FExprHelperMemo.Align := alClient;
     FExprHelperMemo.ScrollBars := ssBoth;
     FExprHelperMemo.WordWrap := False;
@@ -2675,6 +2731,80 @@ begin
 
   FExprHelperMemo.SelText := '[' + FieldName + ']';
   FExprHelperMemo.SetFocus;
+end;
+
+procedure TfrmMain.ExpressionHelperInsertText(const AText: string);
+begin
+  if not Assigned(FExprHelperMemo) then
+    Exit;
+  FExprHelperMemo.SelText := AText;
+  FExprHelperMemo.SetFocus;
+end;
+
+function TfrmMain.ExpressionHelperTryGetSelectedField(out AFieldName: string): Boolean;
+begin
+  AFieldName := '';
+  Result := Assigned(FExprHelperFields) and (FExprHelperFields.ItemIndex >= 0);
+  if not Result then
+    Exit;
+
+  AFieldName := Trim(FExprHelperFields.Items[FExprHelperFields.ItemIndex]);
+  Result := AFieldName <> '';
+end;
+
+procedure TfrmMain.ExpressionHelperOperatorClick(Sender: TObject);
+var
+  InsertText: string;
+begin
+  if not (Sender is TButton) then
+    Exit;
+  InsertText := TButton(Sender).Hint;
+  ExpressionHelperInsertText(InsertText);
+end;
+
+procedure TfrmMain.ExpressionHelperTemplateClick(Sender: TObject);
+var
+  FieldName: string;
+  InsertText: string;
+begin
+  if not (Sender is TButton) then
+    Exit;
+
+  InsertText := '';
+  case TButton(Sender).Tag of
+    1:
+      begin
+        if not ExpressionHelperTryGetSelectedField(FieldName) then
+        begin
+          ShowMessage('Select a field first.');
+          Exit;
+        end;
+        InsertText := '[' + FieldName + '] > 0';
+      end;
+    2:
+      begin
+        if not ExpressionHelperTryGetSelectedField(FieldName) then
+        begin
+          ShowMessage('Select a field first.');
+          Exit;
+        end;
+        InsertText := '[' + FieldName + '] = ''Text''';
+      end;
+    3:
+      begin
+        if not ExpressionHelperTryGetSelectedField(FieldName) then
+        begin
+          ShowMessage('Select a field first.');
+          Exit;
+        end;
+        InsertText := '[' + FieldName + '] <> ' + QuotedStr('');
+      end;
+    4: InsertText := '[Amount] > 1000';
+    5: InsertText := '[Qty] > 5';
+  end;
+
+  if InsertText <> '' then
+    ExpressionHelperInsertText(InsertText);
 end;
 
 procedure TfrmMain.ExpressionHelperFieldDblClick(Sender: TObject);
