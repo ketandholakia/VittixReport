@@ -323,6 +323,10 @@ type
     function  IsVisualGroupRow(const AKey: string): Boolean;
     function  IsFontDialogRowKey(const AKey: string): Boolean;
     function  IsColorPropertyKey(const AKey: string): Boolean;
+    function  IsControlWithinParent(AControl, AParent: TWinControl): Boolean;
+    function  IsTextEditingControlFocused: Boolean;
+    procedure SendMessageToFocusedControl(AMsg: Cardinal);
+    procedure SendDeleteToFocusedControl;
     function  CurrentPropertyTarget: TReportObject;
     function  SelectedObjectsSpanBands: Boolean;
     function  ConfirmMixedBandVerticalLayout: Boolean;
@@ -382,6 +386,7 @@ implementation
 
 uses
   Winapi.Windows,
+  Winapi.Messages,
   Frm.BandManager,
   Frm.PageSettings,
   Frm.Preview;
@@ -811,22 +816,42 @@ end;
 
 procedure TfrmMain.mnuCutClick(Sender: TObject);
 begin
+  if IsTextEditingControlFocused then
+  begin
+    SendMessageToFocusedControl(WM_CUT);
+    Exit;
+  end;
   FDesigner.CopySelection;
   FDesigner.DeleteSelected;
 end;
 
 procedure TfrmMain.mnuCopyClick(Sender: TObject);
 begin
+  if IsTextEditingControlFocused then
+  begin
+    SendMessageToFocusedControl(WM_COPY);
+    Exit;
+  end;
   FDesigner.CopySelection;
 end;
 
 procedure TfrmMain.mnuPasteClick(Sender: TObject);
 begin
+  if IsTextEditingControlFocused then
+  begin
+    SendMessageToFocusedControl(WM_PASTE);
+    Exit;
+  end;
   FDesigner.PasteSelection;
 end;
 
 procedure TfrmMain.mnuDeleteClick(Sender: TObject);
 begin
+  if IsTextEditingControlFocused then
+  begin
+    SendDeleteToFocusedControl;
+    Exit;
+  end;
   FDesigner.DeleteSelected;
 end;
 
@@ -1644,6 +1669,71 @@ begin
   FDesigner.RebuildLayout;   // repaint with new property values
   FModified := True;
   UpdateTitleBar;
+  // Keep the property list stable after Apply (same selected object, same rows).
+  UpdatePropertyPanel;
+end;
+
+function TfrmMain.IsControlWithinParent(AControl, AParent: TWinControl): Boolean;
+begin
+  Result := False;
+  if not Assigned(AControl) or not Assigned(AParent) then
+    Exit;
+
+  while Assigned(AControl) do
+  begin
+    if AControl = AParent then
+      Exit(True);
+    AControl := AControl.Parent;
+  end;
+end;
+
+function TfrmMain.IsTextEditingControlFocused: Boolean;
+var
+  FocusedCtrl: TWinControl;
+begin
+  FocusedCtrl := Screen.ActiveControl;
+  if not Assigned(FocusedCtrl) then
+    FocusedCtrl := ActiveControl;
+
+  Result := False;
+  if not Assigned(FocusedCtrl) then
+    Exit;
+
+  // Property panel (including TValueListEditor in-place editors) gets
+  // normal text/clipboard semantics and must not trigger designer object ops.
+  if IsControlWithinParent(FocusedCtrl, pnlProperties) then
+    Exit(True);
+
+  Result :=
+    (FocusedCtrl is TCustomEdit) or
+    (FocusedCtrl is TCustomComboBox);
+end;
+
+procedure TfrmMain.SendMessageToFocusedControl(AMsg: Cardinal);
+var
+  FocusedCtrl: TWinControl;
+begin
+  FocusedCtrl := Screen.ActiveControl;
+  if not Assigned(FocusedCtrl) then
+    FocusedCtrl := ActiveControl;
+
+  if Assigned(FocusedCtrl) and FocusedCtrl.HandleAllocated then
+    SendMessage(FocusedCtrl.Handle, AMsg, 0, 0);
+end;
+
+procedure TfrmMain.SendDeleteToFocusedControl;
+var
+  FocusedCtrl: TWinControl;
+begin
+  FocusedCtrl := Screen.ActiveControl;
+  if not Assigned(FocusedCtrl) then
+    FocusedCtrl := ActiveControl;
+
+  if Assigned(FocusedCtrl) and FocusedCtrl.HandleAllocated then
+  begin
+    SendMessage(FocusedCtrl.Handle, WM_KEYDOWN, VK_DELETE, 0);
+    SendMessage(FocusedCtrl.Handle, WM_KEYUP, VK_DELETE, 0);
+  end;
 end;
 
 function TfrmMain.CurrentPropertyTarget: TReportObject;

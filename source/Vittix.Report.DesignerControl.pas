@@ -2238,6 +2238,8 @@ end;
 procedure TVittixReportDesigner.KeyDown(var Key: Word; Shift: TShiftState);
 const
   NUDGE_NORMAL = 1;
+  RESIZE_STEP  = 1;
+  MIN_KEYBOARD_OBJ_SZ = 4;
 var
   Step : Integer;
   I    : Integer;
@@ -2271,9 +2273,57 @@ var
     DoModified;
   end;
 
+  procedure ResizeSelected(DW, DH: Integer);
+  var
+    I: Integer;
+    NewW, NewH: Integer;
+    ChangedCount: Integer;
+  begin
+    if FSelected.Count = 0 then Exit;
+
+    SetLength(Objects,   FSelected.Count);
+    SetLength(OldBounds, FSelected.Count);
+    SetLength(NewBounds, FSelected.Count);
+    ChangedCount := 0;
+
+    for I := 0 to FSelected.Count - 1 do
+    begin
+      Obj := FSelected[I];
+      // Keyboard resize is only for regular objects in this phase.
+      if Obj is TReportBand then
+        Continue;
+
+      R := Obj.Bounds;
+      NewW := Max(MIN_KEYBOARD_OBJ_SZ, R.Width + DW);
+      NewH := Max(MIN_KEYBOARD_OBJ_SZ, R.Height + DH);
+
+      if (NewW = R.Width) and (NewH = R.Height) then
+        Continue;
+
+      Objects[ChangedCount]   := Obj;
+      OldBounds[ChangedCount] := R;
+      NewBounds[ChangedCount] := Bounds(R.Left, R.Top, NewW, NewH);
+      Obj.Bounds := NewBounds[ChangedCount];
+      Inc(ChangedCount);
+    end;
+
+    if ChangedCount = 0 then
+      Exit;
+
+    SetLength(Objects, ChangedCount);
+    SetLength(OldBounds, ChangedCount);
+    SetLength(NewBounds, ChangedCount);
+    Cmd := TMultiMoveCommand.Create(Objects, OldBounds, NewBounds);
+    FCommands.DoCommand(Cmd);
+    DoModified;
+  end;
+
 begin
   Step := NUDGE_NORMAL;
-  if ssShift in Shift then Step := FGridSize;
+  if ssCtrl in Shift then
+    Step := NUDGE_NORMAL
+  else if ssShift in Shift then
+    Step := FGridSize;
 
   case Key of
     VK_DELETE:
@@ -2285,22 +2335,34 @@ begin
 
     VK_LEFT:
     begin
-      NudgeSelected(-Step, 0);
+      if (ssShift in Shift) and not (ssCtrl in Shift) then
+        ResizeSelected(-RESIZE_STEP, 0)
+      else
+        NudgeSelected(-Step, 0);
       Key := 0;
     end;
     VK_RIGHT:
     begin
-      NudgeSelected(Step, 0);
+      if (ssShift in Shift) and not (ssCtrl in Shift) then
+        ResizeSelected(RESIZE_STEP, 0)
+      else
+        NudgeSelected(Step, 0);
       Key := 0;
     end;
     VK_UP:
     begin
-      NudgeSelected(0, -Step);
+      if (ssShift in Shift) and not (ssCtrl in Shift) then
+        ResizeSelected(0, -RESIZE_STEP)
+      else
+        NudgeSelected(0, -Step);
       Key := 0;
     end;
     VK_DOWN:
     begin
-      NudgeSelected(0, Step);
+      if (ssShift in Shift) and not (ssCtrl in Shift) then
+        ResizeSelected(0, RESIZE_STEP)
+      else
+        NudgeSelected(0, Step);
       Key := 0;
     end;
     VK_ESCAPE:
