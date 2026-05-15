@@ -27,6 +27,7 @@ interface
 
 uses
   System.SysUtils, System.Classes, System.Types, System.IOUtils, System.Rtti, System.TypInfo,
+  System.Variants,
   System.Generics.Collections,
   Vcl.Forms, Vcl.Controls, Vcl.ComCtrls, Vcl.ToolWin,
   Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Menus, Vcl.Dialogs,
@@ -42,6 +43,8 @@ uses
   Vittix.Report.DesignerControl,
   Vittix.Report.Toolbox,
   Vittix.Report.PropertyBridge,
+  Vittix.Report.Context,
+  Vittix.Report.Expressions,
   Vittix.Report.Engine,
   Vittix.Report.Renderer,
   Vittix.Report.Export.PDF,
@@ -344,6 +347,7 @@ type
     procedure ExpressionHelperTemplateClick(Sender: TObject);
     procedure ExpressionHelperInsertText(const AText: string);
     function  ExpressionHelperTryGetSelectedField(out AFieldName: string): Boolean;
+    procedure ExpressionHelperCheckClick(Sender: TObject);
     function  IsControlWithinParent(AControl, AParent: TWinControl): Boolean;
     function  IsTextEditingControlFocused: Boolean;
     procedure SendMessageToFocusedControl(AMsg: Cardinal);
@@ -2517,7 +2521,7 @@ var
   Dlg: TForm;
   PnlTop, PnlBottom, PnlLeft, PnlRight, PnlCenter, PnlOperators, PnlTemplates: TPanel;
   LblFields, LblExamples: TLabel;
-  BtnInsert, BtnOK, BtnCancel, Btn: TButton;
+  BtnInsert, BtnCheck, BtnOK, BtnCancel, Btn: TButton;
   I: Integer;
   ExampleItems: array[0..7] of string;
 
@@ -2679,6 +2683,15 @@ begin
     BtnCancel.Width := 80;
     BtnCancel.Anchors := [akRight, akBottom];
 
+    BtnCheck := TButton.Create(Dlg);
+    BtnCheck.Parent := PnlBottom;
+    BtnCheck.Caption := 'Check';
+    BtnCheck.Left := 8;
+    BtnCheck.Top := 8;
+    BtnCheck.Width := 80;
+    BtnCheck.Anchors := [akLeft, akBottom];
+    BtnCheck.OnClick := ExpressionHelperCheckClick;
+
     Dlg.ActiveControl := FExprHelperMemo;
     if Dlg.ShowModal = mrOk then
     begin
@@ -2805,6 +2818,48 @@ begin
 
   if InsertText <> '' then
     ExpressionHelperInsertText(InsertText);
+end;
+
+procedure TfrmMain.ExpressionHelperCheckClick(Sender: TObject);
+var
+  ExprText: string;
+  EvalResult: Variant;
+  Ctx: TExpressionContext;
+begin
+  if not Assigned(FExprHelperMemo) then
+    Exit;
+
+  ExprText := Trim(FExprHelperMemo.Lines.Text);
+  if ExprText = '' then
+  begin
+    ShowMessage('Nothing to check.');
+    Exit;
+  end;
+
+  Ctx := Default(TExpressionContext);
+  if Assigned(FDataSource1) then
+    Ctx.DataSet := FDataSource1.DataSet;
+  Ctx.PageNumber := 1;
+  Ctx.TotalPages := 1;
+  Ctx.ReportTitle := edtReportTitle.Text;
+  Ctx.ReportDate := Now;
+
+  try
+    EvalResult := TReportExpression.Evaluate(ExprText, Ctx);
+
+    ShowMessage(
+      'Check OK.' + sLineBreak +
+      'Result: ' + VarToStr(EvalResult) + sLineBreak + sLineBreak +
+      'Check uses the current dataset row and runtime fallback rules.'
+    );
+  except
+    on E: Exception do
+      ShowMessage(
+        'Check Error:' + sLineBreak +
+        E.Message + sLineBreak + sLineBreak +
+        'You can still click OK to save the expression.'
+      );
+  end;
 end;
 
 procedure TfrmMain.ExpressionHelperFieldDblClick(Sender: TObject);
