@@ -55,6 +55,47 @@ uses
   Winapi.Windows,
   Vcl.Dialogs;
 
+type
+  TPDFExportScaleMode = (pesFullStretch, pesFitPreserveAspectCentered);
+
+function CalculatePDFDestRect(
+  const MF: TMetafile;
+  PrinterWidth: Integer;
+  PrinterHeight: Integer;
+  Mode: TPDFExportScaleMode): TRect;
+var
+  Scale: Double;
+  W: Integer;
+  H: Integer;
+  X: Integer;
+  Y: Integer;
+begin
+  case Mode of
+    pesFitPreserveAspectCentered:
+      begin
+        if (not Assigned(MF)) or (MF.Width <= 0) or (MF.Height <= 0) or
+           (PrinterWidth <= 0) or (PrinterHeight <= 0) then
+        begin
+          Result := Rect(0, 0, PrinterWidth, PrinterHeight);
+          Exit;
+        end;
+
+        Scale := PrinterWidth / MF.Width;
+        if (PrinterHeight / MF.Height) < Scale then
+          Scale := PrinterHeight / MF.Height;
+
+        W := Round(MF.Width * Scale);
+        H := Round(MF.Height * Scale);
+        X := (PrinterWidth - W) div 2;
+        Y := (PrinterHeight - H) div 2;
+        Result := Rect(X, Y, X + W, Y + H);
+      end;
+  else
+    // Default mode preserves existing export behavior exactly.
+    Result := Rect(0, 0, PrinterWidth, PrinterHeight);
+  end;
+end;
+
 // ---------------------------------------------------------------------------
 // IReportExporter
 // ---------------------------------------------------------------------------
@@ -76,6 +117,7 @@ var
   i:    Integer;
   MF:   TMetafile;
   Dest: TRect;
+  ScaleMode: TPDFExportScaleMode;
   ReportW: Integer;
   ReportH: Integer;
   PrinterW: Integer;
@@ -98,6 +140,8 @@ begin
 
   Printer.BeginDoc;
   try
+    ScaleMode := pesFullStretch;
+
     // Diagnostic only: warn if report/metafile page size and printer canvas
     // size differ materially; export path remains unchanged.
     SizeTolerance := 2;
@@ -121,7 +165,7 @@ begin
         Printer.NewPage;
 
       MF   := Pages[i];
-      Dest := Rect(0, 0, Printer.PageWidth, Printer.PageHeight);
+      Dest := CalculatePDFDestRect(MF, Printer.PageWidth, Printer.PageHeight, ScaleMode);
       Printer.Canvas.StretchDraw(Dest, MF);
     end;
   finally
