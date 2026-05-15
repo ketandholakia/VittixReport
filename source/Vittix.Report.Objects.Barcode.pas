@@ -5,11 +5,13 @@ interface
 uses
   System.Math,
   System.SysUtils,
+  System.Variants,
   System.Types,
   Data.DB,
   Vcl.Graphics,
   Vittix.Report.Objects,
   Vittix.Report.Context,
+  Vittix.Report.Expressions,
   Vittix.Report.Utils;
 
 type
@@ -34,6 +36,40 @@ type
 
 implementation
 
+function ShouldPrintBarcodeObject(AObj: TReportObject;
+  const Context: TExpressionContext): Boolean;
+var
+  PWResult: Variant;
+begin
+  Result := False;
+  if not Assigned(AObj) then
+    Exit;
+
+  if not AObj.Visible then
+    Exit;
+
+  if Trim(AObj.PrintWhen) = '' then
+  begin
+    Result := True;
+    Exit;
+  end;
+
+  try
+    PWResult := TReportExpression.Evaluate(AObj.PrintWhen, Context);
+  except
+    Exit(False);
+  end;
+
+  if VarIsNull(PWResult) or VarIsEmpty(PWResult) then
+    Exit(False);
+
+  try
+    Result := Boolean(VarAsType(PWResult, varBoolean));
+  except
+    Result := VarToStr(PWResult) <> '';
+  end;
+end;
+
 constructor TReportBarcodeObject.Create;
 begin
   inherited;
@@ -53,7 +89,7 @@ var
   i, b, XPos, BarTop, BarBottom, DrawW: Integer;
   Ch: Char;
 begin
-  if not Visible then
+  if not ShouldPrintBarcodeObject(Self, Context) then
     Exit;
 
   R := Bounds;
