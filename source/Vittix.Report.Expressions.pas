@@ -29,6 +29,7 @@ interface
 
 uses
   System.SysUtils,
+  System.Classes,
   System.StrUtils,
   System.Variants,
   Data.DB,
@@ -46,7 +47,48 @@ type
 implementation
 
 uses
-  Vittix.Report.Aggregates;
+  Vittix.Report.Aggregates
+  {$IFDEF DEBUG}
+  , Winapi.Windows
+  {$ENDIF}
+  ;
+
+{$IFDEF DEBUG}
+const
+  CExprDiagMaxMessages = 200;
+
+var
+  GExprDiagSeen: TStringList;
+  GExprDiagCount: Integer;
+
+procedure DebugLogUnresolvedToken(const Expr, TokenName, Reason: string);
+var
+  Key: string;
+  Msg: string;
+begin
+  if GExprDiagCount >= CExprDiagMaxMessages then
+    Exit;
+
+  if not Assigned(GExprDiagSeen) then
+  begin
+    GExprDiagSeen := TStringList.Create;
+    GExprDiagSeen.Sorted := True;
+    GExprDiagSeen.Duplicates := dupIgnore;
+  end;
+
+  Key := Expr + '|' + TokenName + '|' + Reason;
+  if GExprDiagSeen.IndexOf(Key) >= 0 then
+    Exit;
+
+  GExprDiagSeen.Add(Key);
+  Inc(GExprDiagCount);
+
+  Msg := Format(
+    '[VittixReport][Expr] Unresolved token "[%s]" in "%s": %s; using 0 fallback',
+    [TokenName, Expr, Reason]);
+  OutputDebugString(PChar(Msg));
+end;
+{$ENDIF}
 
 // ---------------------------------------------------------------------------
 // System token resolver
@@ -107,19 +149,46 @@ begin
       // 1. Try system tokens first
       if ResolveSystemToken(TokenName, Context, TokenValue) then
         Result := Result + TokenValue
+      else if Trim(TokenName) = '' then
+      begin
+{$IFDEF DEBUG}
+        DebugLogUnresolvedToken(S, TokenName, 'unknown token / unsupported token');
+{$ENDIF}
+        Result := Result + '0';
+      end
       // 2. Then dataset fields
-      else if Assigned(ADataSet)
-           and ADataSet.Active
-           and TryGetField(ADataSet, TokenName, F) then
+      else if not Assigned(ADataSet) then
+      begin
+{$IFDEF DEBUG}
+        DebugLogUnresolvedToken(S, TokenName, 'dataset nil');
+{$ENDIF}
+        Result := Result + '0';
+      end
+      else if not ADataSet.Active then
+      begin
+{$IFDEF DEBUG}
+        DebugLogUnresolvedToken(S, TokenName, 'dataset inactive');
+{$ENDIF}
+        Result := Result + '0';
+      end
+      else if TryGetField(ADataSet, TokenName, F) then
       begin
         try
           Result := Result + F.AsString;
         except
+{$IFDEF DEBUG}
+          DebugLogUnresolvedToken(S, TokenName, 'field conversion error');
+{$ENDIF}
           Result := Result + '0';
         end;
       end
       else
+      begin
+{$IFDEF DEBUG}
+        DebugLogUnresolvedToken(S, TokenName, 'field missing');
+{$ENDIF}
         Result := Result + '0';
+      end;
 
       i := j + 1;
     end
@@ -303,5 +372,14 @@ begin
   // Step 7 — string fallback
   Result := S;
 end;
+
+{$IFDEF DEBUG}
+initialization
+  GExprDiagSeen := nil;
+  GExprDiagCount := 0;
+
+finalization
+  GExprDiagSeen.Free;
+{$ENDIF}
 
 end.
