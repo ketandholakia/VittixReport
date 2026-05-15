@@ -783,6 +783,13 @@ object frmMain: TfrmMain
         OnClick = mnuReportPropsClick
       end
     end
+    object mnuHelp: TMenuItem
+      Caption = '&Help'
+      object mnuKeyboardShortcuts: TMenuItem
+        Caption = '&Keyboard Shortcuts'
+        OnClick = mnuKeyboardShortcutsClick
+      end
+    end
   end
   object dlgOpen: TOpenDialog
     Left = 400

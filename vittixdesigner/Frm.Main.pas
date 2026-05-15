@@ -112,6 +112,8 @@ type
       mnuBandMgr    : TMenuItem;
       mnuSep11      : TMenuItem;
       mnuReportProps: TMenuItem;
+    mnuHelp        : TMenuItem;
+      mnuKeyboardShortcuts: TMenuItem;
 
     { ---- Dialogs ---- }
     dlgOpen   : TOpenDialog;
@@ -259,6 +261,7 @@ type
     procedure mnuOpenBarcodeTestReportClick(Sender: TObject);
     procedure mnuOpenImagePathTestReportClick(Sender: TObject);
     procedure mnuRunRegressionTestReportsClick(Sender: TObject);
+    procedure mnuKeyboardShortcutsClick(Sender: TObject);
 
     { Designer events }
     procedure DesignerSelectionChanged(Sender: TObject);
@@ -1490,6 +1493,31 @@ end;
 procedure TfrmMain.mnuRunRegressionTestReportsClick(Sender: TObject);
 begin
   RunRegressionTestReports;
+end;
+
+procedure TfrmMain.mnuKeyboardShortcutsClick(Sender: TObject);
+begin
+  ShowMessage(
+    'File:' + sLineBreak +
+    '- Ctrl+N = New Report' + sLineBreak +
+    '- Ctrl+O = Open Report' + sLineBreak +
+    '- Ctrl+S = Save Report' + sLineBreak + sLineBreak +
+    'Canvas:' + sLineBreak +
+    '- Delete = Delete selected object' + sLineBreak +
+    '- Arrow Keys = Nudge selected object' + sLineBreak +
+    '- Ctrl + Arrow = Move selected object by 1' + sLineBreak +
+    '- Shift + Arrow = Resize selected object by 1' + sLineBreak +
+    '- Ctrl + Shift + Arrow = Move selected object by grid size' + sLineBreak + sLineBreak +
+    'Property Panel:' + sLineBreak +
+    '- Ctrl+C = Copy selected text' + sLineBreak +
+    '- Ctrl+X = Cut selected text' + sLineBreak +
+    '- Ctrl+V = Paste text' + sLineBreak +
+    '- Delete = Delete selected text/value' + sLineBreak +
+    '- Arrow Keys = Edit/navigate property value' + sLineBreak + sLineBreak +
+    'Notes:' + sLineBreak +
+    '- Keyboard move/resize works when canvas has focus.' + sLineBreak +
+    '- Property panel shortcuts work when editing a property value.'
+  );
 end;
 
 { =========================================================================== }
