@@ -304,8 +304,10 @@ begin
       if i < FPages.Count - 1 then
         Printer.NewPage;
     end;
-  finally
     Printer.EndDoc;
+  except
+    Printer.Abort;
+    raise;
   end;
 end;
 

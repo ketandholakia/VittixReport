@@ -97,13 +97,17 @@ begin
     for i := 0 to Engine.Pages.Count - 1 do
     begin
       Page := TRenderPage.Create(PW, PH);
+      try
+        DC := Page.Bitmap.Canvas.Handle;
+        R  := Rect(0, 0, PW, PH);
 
-      DC := Page.Bitmap.Canvas.Handle;
-      R  := Rect(0, 0, PW, PH);
+        PlayEnhMetaFile(DC, Engine.Pages[i].Handle, R);
 
-      PlayEnhMetaFile(DC, Engine.Pages[i].Handle, R);
-
-      FPages.Add(Page);
+        FPages.Add(Page);
+        Page := nil; // owned by FPages after Add
+      finally
+        Page.Free;
+      end;
     end;
   finally
     Engine.Free;
@@ -126,8 +130,10 @@ begin
       if i < FPages.Count - 1 then
         Printer.NewPage;
     end;
-  finally
     Printer.EndDoc;
+  except
+    Printer.Abort;
+    raise;
   end;
 end;
 

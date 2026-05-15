@@ -623,9 +623,9 @@ begin
         DetailDS.Next;
       end;
     finally
-      if HasSaveBM and DetailDS.BookmarkValid(SaveBM) then
+      if HasSaveBM and (SaveBM <> nil) and DetailDS.BookmarkValid(SaveBM) then
         DetailDS.GotoBookmark(SaveBM);
-      if HasSaveBM then
+      if HasSaveBM and (SaveBM <> nil) then
         DetailDS.FreeBookmark(SaveBM);
       DetailDS.EnableControls;
     end;

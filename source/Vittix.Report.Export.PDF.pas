@@ -168,8 +168,10 @@ begin
       Dest := CalculatePDFDestRect(MF, Printer.PageWidth, Printer.PageHeight, ScaleMode);
       Printer.Canvas.StretchDraw(Dest, MF);
     end;
-  finally
     Printer.EndDoc;
+  except
+    Printer.Abort;
+    raise;
   end;
 end;
 
