@@ -520,7 +520,7 @@ begin
   if not FTransparent then
   begin
     C.Brush.Style := bsSolid;
-    C.Brush.Color := FBackground;
+    C.Brush.Color := DrawBackground;
     C.FillRect(R);
   end
   else
@@ -529,7 +529,7 @@ begin
   // Border
   if FBorderVisible then
   begin
-    C.Pen.Color   := FBorderColor;
+    C.Pen.Color   := DrawBorderColor;
     C.Pen.Width   := FBorderWidth;
     C.Pen.Style   := psSolid;
     C.Brush.Style := bsClear;
@@ -543,11 +543,11 @@ begin
   begin
     if Self is TReportFieldObject then
       S := FormatFieldDisplayValue(
-        Context.DataSet.FieldByName(FDataField).Value,
+        SafeFieldValue(Context.DataSet, FDataField),
         TReportFieldObject(Self).FDisplayFormat,
         TReportFieldObject(Self).FEditMask)
     else
-      S := Context.DataSet.FieldByName(FDataField).AsString;
+      S := SafeFieldAsString(Context.DataSet, FDataField);
   end
   else
     S := FText;
@@ -883,7 +883,7 @@ begin
     Result := VarToStr(TReportExpression.Evaluate(AMemo.FExpression, Context))
   else if (AMemo.FDataField <> '') and Assigned(Context.DataSet)
        and Context.DataSet.Active then
-    Result := Context.DataSet.FieldByName(AMemo.FDataField).AsString
+    Result := SafeFieldAsString(Context.DataSet, AMemo.FDataField)
   else
     Result := AMemo.FText;
 end;
