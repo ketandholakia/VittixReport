@@ -287,6 +287,59 @@ var
   GRegistry: TList<TReportObjectClass>;
   GRegistryCS: TCriticalSection;
   GNamedDataSets: TDictionary<string, TDataSet>;
+{$IFDEF DEBUG}
+const
+  CDataFieldDiagMaxMessages = 200;
+var
+  GDataFieldDiagSeen: TStringList;
+  GDataFieldDiagCount: Integer;
+{$ENDIF}
+
+{$IFDEF DEBUG}
+function DataSetStateText(ADataSet: TDataSet): string;
+begin
+  if not Assigned(ADataSet) then
+    Exit('dataset nil');
+  if not ADataSet.Active then
+    Exit('dataset inactive');
+  Result := 'dataset active';
+end;
+
+procedure DebugLogDataFieldIssue(AObj: TReportObject; const ADataField, AReason: string;
+  ADataSet: TDataSet);
+var
+  ObjName: string;
+  ObjClass: string;
+  Key: string;
+  Msg: string;
+begin
+  if GDataFieldDiagCount >= CDataFieldDiagMaxMessages then
+    Exit;
+  if not Assigned(AObj) then
+    Exit;
+
+  if not Assigned(GDataFieldDiagSeen) then
+  begin
+    GDataFieldDiagSeen := TStringList.Create;
+    GDataFieldDiagSeen.Sorted := True;
+    GDataFieldDiagSeen.Duplicates := dupIgnore;
+  end;
+
+  ObjClass := AObj.ClassName;
+  ObjName := AObj.Name;
+  Key := ObjClass + '|' + ObjName + '|' + ADataField + '|' + AReason;
+  if GDataFieldDiagSeen.IndexOf(Key) >= 0 then
+    Exit;
+
+  GDataFieldDiagSeen.Add(Key);
+  Inc(GDataFieldDiagCount);
+
+  Msg := Format(
+    '[VittixReport][DataField] %s "%s" DataField="%s": %s (%s); rendering fallback',
+    [ObjClass, ObjName, ADataField, AReason, DataSetStateText(ADataSet)]);
+  OutputDebugString(PChar(Msg));
+end;
+{$ENDIF}
 
 procedure EnsureRegistryInitialized;
 begin
@@ -549,6 +602,11 @@ var
   DrawFontColor: TColor;
   DrawBackground: TColor;
   DrawBorderColor: TColor;
+{$IFDEF DEBUG}
+  Fld: TField;
+  DiagStr: string;
+  DiagVal: Variant;
+{$ENDIF}
 begin
   if not ShouldPrintObject(Self, Context) then Exit;
 
@@ -580,6 +638,19 @@ begin
     S := VarToStr(TReportExpression.Evaluate(FExpression, Context))
   else if (FDataField <> '') and Assigned(Context.DataSet) and Context.DataSet.Active then
   begin
+{$IFDEF DEBUG}
+    if not TryGetField(Context.DataSet, FDataField, Fld) then
+      DebugLogDataFieldIssue(Self, FDataField, 'field missing', Context.DataSet);
+    if Assigned(Fld) then
+      try
+        if Self is TReportFieldObject then
+          DiagVal := Fld.Value
+        else
+          DiagStr := Fld.AsString;
+      except
+        DebugLogDataFieldIssue(Self, FDataField, 'field value conversion/read error', Context.DataSet);
+      end;
+{$ENDIF}
     if Self is TReportFieldObject then
       S := FormatFieldDisplayValue(
         SafeFieldValue(Context.DataSet, FDataField),
@@ -588,6 +659,16 @@ begin
     else
       S := SafeFieldAsString(Context.DataSet, FDataField);
   end
+{$IFDEF DEBUG}
+  else if FDataField <> '' then
+  begin
+    if not Assigned(Context.DataSet) then
+      DebugLogDataFieldIssue(Self, FDataField, 'dataset nil', Context.DataSet)
+    else if not Context.DataSet.Active then
+      DebugLogDataFieldIssue(Self, FDataField, 'dataset inactive', Context.DataSet);
+    S := FText;
+  end
+{$ENDIF}
   else
     S := FText;
 
@@ -766,6 +847,10 @@ var
   PW, PH, BW, BH: Integer;
   ScaleX, ScaleY, Scale: Double;
   PathOrBase64:   string;
+{$IFDEF DEBUG}
+  Fld: TField;
+  DiagStr: string;
+{$ENDIF}
 begin
   if not ShouldPrintObject(Self, Context) then Exit;
 
@@ -774,6 +859,20 @@ begin
   // Try loading from DataField at runtime
   if FDataField <> '' then
   begin
+{$IFDEF DEBUG}
+    if not Assigned(Context.DataSet) then
+      DebugLogDataFieldIssue(Self, FDataField, 'dataset nil', Context.DataSet)
+    else if not Context.DataSet.Active then
+      DebugLogDataFieldIssue(Self, FDataField, 'dataset inactive', Context.DataSet)
+    else if not TryGetField(Context.DataSet, FDataField, Fld) then
+      DebugLogDataFieldIssue(Self, FDataField, 'field missing', Context.DataSet);
+    if Assigned(Fld) then
+      try
+        DiagStr := Fld.AsString;
+      except
+        DebugLogDataFieldIssue(Self, FDataField, 'field value conversion/read error', Context.DataSet);
+      end;
+{$ENDIF}
     PathOrBase64 := SafeFieldAsString(Context.DataSet, FDataField);
     FPicture.Assign(nil); // avoid stale image reuse when field is blank/missing/null
 
@@ -917,12 +1016,39 @@ end;
 
 function ResolveMemoText(AMemo: TReportMemoObject;
   const Context: TExpressionContext): string;
+{$IFDEF DEBUG}
+var
+  Fld: TField;
+  DiagStr: string;
+{$ENDIF}
 begin
   if AMemo.FExpression <> '' then
     Result := VarToStr(TReportExpression.Evaluate(AMemo.FExpression, Context))
   else if (AMemo.FDataField <> '') and Assigned(Context.DataSet)
        and Context.DataSet.Active then
+  begin
+{$IFDEF DEBUG}
+    if not TryGetField(Context.DataSet, AMemo.FDataField, Fld) then
+      DebugLogDataFieldIssue(AMemo, AMemo.FDataField, 'field missing', Context.DataSet);
+    if Assigned(Fld) then
+      try
+        DiagStr := Fld.AsString;
+      except
+        DebugLogDataFieldIssue(AMemo, AMemo.FDataField, 'field value conversion/read error', Context.DataSet);
+      end;
+{$ENDIF}
     Result := SafeFieldAsString(Context.DataSet, AMemo.FDataField)
+  end
+{$IFDEF DEBUG}
+  else if AMemo.FDataField <> '' then
+  begin
+    if not Assigned(Context.DataSet) then
+      DebugLogDataFieldIssue(AMemo, AMemo.FDataField, 'dataset nil', Context.DataSet)
+    else if not Context.DataSet.Active then
+      DebugLogDataFieldIssue(AMemo, AMemo.FDataField, 'dataset inactive', Context.DataSet);
+    Result := AMemo.FText;
+  end
+{$ENDIF}
   else
     Result := AMemo.FText;
 end;
@@ -1598,6 +1724,9 @@ initialization
   RegisterReportObject(TReportLineObject);
 
 finalization
+{$IFDEF DEBUG}
+  FreeAndNil(GDataFieldDiagSeen);
+{$ENDIF}
   FreeAndNil(GRegistry);
   FreeAndNil(GRegistryCS);
 

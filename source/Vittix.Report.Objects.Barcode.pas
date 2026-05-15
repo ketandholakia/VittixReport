@@ -3,6 +3,7 @@ unit Vittix.Report.Objects.Barcode;
 interface
 
 uses
+  System.Classes,
   System.Math,
   System.SysUtils,
   System.Variants,
@@ -35,6 +36,62 @@ type
   end;
 
 implementation
+
+{$IFDEF DEBUG}
+uses
+  Winapi.Windows;
+
+const
+  CDataFieldDiagMaxMessages = 200;
+
+var
+  GDataFieldDiagSeen: TStringList;
+  GDataFieldDiagCount: Integer;
+
+function DataSetStateText(ADataSet: TDataSet): string;
+begin
+  if not Assigned(ADataSet) then
+    Exit('dataset nil');
+  if not ADataSet.Active then
+    Exit('dataset inactive');
+  Result := 'dataset active';
+end;
+
+procedure DebugLogDataFieldIssue(AObj: TReportObject; const ADataField, AReason: string;
+  ADataSet: TDataSet);
+var
+  ObjName: string;
+  ObjClass: string;
+  Key: string;
+  Msg: string;
+begin
+  if GDataFieldDiagCount >= CDataFieldDiagMaxMessages then
+    Exit;
+  if not Assigned(AObj) then
+    Exit;
+
+  if not Assigned(GDataFieldDiagSeen) then
+  begin
+    GDataFieldDiagSeen := TStringList.Create;
+    GDataFieldDiagSeen.Sorted := True;
+    GDataFieldDiagSeen.Duplicates := dupIgnore;
+  end;
+
+  ObjClass := AObj.ClassName;
+  ObjName := AObj.Name;
+  Key := ObjClass + '|' + ObjName + '|' + ADataField + '|' + AReason;
+  if GDataFieldDiagSeen.IndexOf(Key) >= 0 then
+    Exit;
+
+  GDataFieldDiagSeen.Add(Key);
+  Inc(GDataFieldDiagCount);
+
+  Msg := Format(
+    '[VittixReport][DataField] %s "%s" DataField="%s": %s (%s); rendering fallback',
+    [ObjClass, ObjName, ADataField, AReason, DataSetStateText(ADataSet)]);
+  OutputDebugString(PChar(Msg));
+end;
+{$ENDIF}
 
 function ShouldPrintBarcodeObject(AObj: TReportObject;
   const Context: TExpressionContext): Boolean;
@@ -92,15 +149,28 @@ begin
   S := FValue;
   if Trim(FDataField) <> '' then
   begin
+{$IFDEF DEBUG}
+    if not Assigned(Context.DataSet) then
+      DebugLogDataFieldIssue(Self, FDataField, 'dataset nil', Context.DataSet)
+    else if not Context.DataSet.Active then
+      DebugLogDataFieldIssue(Self, FDataField, 'dataset inactive', Context.DataSet);
+{$ENDIF}
     Fld := nil;
     if TryGetField(Context.DataSet, FDataField, Fld) then
     begin
       try
         S := Fld.AsString; // preserve empty-string field values
       except
+{$IFDEF DEBUG}
+        DebugLogDataFieldIssue(Self, FDataField, 'field value conversion/read error', Context.DataSet);
+{$ENDIF}
         // Keep fallback static value if provider raises.
       end;
     end;
+{$IFDEF DEBUG}
+    if Assigned(Context.DataSet) and Context.DataSet.Active and (Fld = nil) then
+      DebugLogDataFieldIssue(Self, FDataField, 'field missing', Context.DataSet);
+{$ENDIF}
   end;
 
   C.Brush.Style := bsSolid;
@@ -163,5 +233,10 @@ end;
 
 initialization
   RegisterReportObject(TReportBarcodeObject);
+
+{$IFDEF DEBUG}
+finalization
+  GDataFieldDiagSeen.Free;
+{$ENDIF}
 
 end.
