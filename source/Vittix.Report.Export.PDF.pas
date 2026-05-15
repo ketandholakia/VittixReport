@@ -52,7 +52,8 @@ implementation
 uses
   System.SysUtils,
   Vcl.Printers,
-  Winapi.Windows;
+  Winapi.Windows,
+  Vcl.Dialogs;
 
 // ---------------------------------------------------------------------------
 // IReportExporter
@@ -75,6 +76,11 @@ var
   i:    Integer;
   MF:   TMetafile;
   Dest: TRect;
+  ReportW: Integer;
+  ReportH: Integer;
+  PrinterW: Integer;
+  PrinterH: Integer;
+  SizeTolerance: Integer;
 begin
   if not Assigned(Pages) or (Pages.Count = 0) then
     raise Exception.Create('Nothing to export: the page list is empty.');
@@ -92,6 +98,23 @@ begin
 
   Printer.BeginDoc;
   try
+    // Diagnostic only: warn if report/metafile page size and printer canvas
+    // size differ materially; export path remains unchanged.
+    SizeTolerance := 2;
+    ReportW := Pages[0].Width;
+    ReportH := Pages[0].Height;
+    PrinterW := Printer.PageWidth;
+    PrinterH := Printer.PageHeight;
+    if (Abs(ReportW - PrinterW) > SizeTolerance) or
+       (Abs(ReportH - PrinterH) > SizeTolerance) then
+    begin
+      ShowMessage(Format(
+        'PDF export page size differs from report page size. Output may be scaled.' + sLineBreak +
+        'Report: %d x %d' + sLineBreak +
+        'Printer: %d x %d',
+        [ReportW, ReportH, PrinterW, PrinterH]));
+    end;
+
     for i := 0 to Pages.Count - 1 do
     begin
       if i > 0 then
