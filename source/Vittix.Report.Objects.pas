@@ -429,12 +429,11 @@ var
   V: Variant;
 begin
   if Trim(Expr) = '' then Exit(False);
-  V := TReportExpression.Evaluate(Expr, Context);
-  if VarIsNull(V) or VarIsEmpty(V) then Exit(False);
   try
-    Result := Boolean(VarAsType(V, varBoolean));
+    V := TReportExpression.Evaluate(Expr, Context);
+    Result := ConditionVariantToBool(V);
   except
-    Result := VarToStr(V) <> '';
+    Result := False;
   end;
 end;
 
@@ -465,11 +464,7 @@ begin
   if VarIsNull(PWResult) or VarIsEmpty(PWResult) then
     Exit(False);
 
-  try
-    Result := Boolean(VarAsType(PWResult, varBoolean));
-  except
-    Result := VarToStr(PWResult) <> '';
-  end;
+  Result := ConditionVariantToBool(PWResult);
 end;
 
 procedure TReportTextObject.ResolveConditionalStyle(

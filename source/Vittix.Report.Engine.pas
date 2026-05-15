@@ -441,16 +441,14 @@ begin
     Ctx0.TotalPages := FTotalPagesForPass;
     Ctx0.ReportTitle := FReport.Title;
     Ctx0.ReportDate  := FReportDate;
-    var PWResult := TReportExpression.Evaluate(ABand.PrintWhen, Ctx0);
+    var PWResult: Variant;
     var ShouldPrint: Boolean;
-    if VarIsNull(PWResult) or VarIsEmpty(PWResult) then
-      ShouldPrint := False
-    else
-      try
-        ShouldPrint := Boolean(VarAsType(PWResult, varBoolean));
-      except
-        ShouldPrint := VarToStr(PWResult) <> '';
-      end;
+    try
+      PWResult := TReportExpression.Evaluate(ABand.PrintWhen, Ctx0);
+      ShouldPrint := ConditionVariantToBool(PWResult);
+    except
+      ShouldPrint := False;
+    end;
     if not ShouldPrint then Exit;
   end;
 

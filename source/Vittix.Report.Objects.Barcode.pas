@@ -63,11 +63,7 @@ begin
   if VarIsNull(PWResult) or VarIsEmpty(PWResult) then
     Exit(False);
 
-  try
-    Result := Boolean(VarAsType(PWResult, varBoolean));
-  except
-    Result := VarToStr(PWResult) <> '';
-  end;
+  Result := ConditionVariantToBool(PWResult);
 end;
 
 constructor TReportBarcodeObject.Create;

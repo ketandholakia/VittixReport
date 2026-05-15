@@ -68,6 +68,14 @@ function SafeFieldAsString(ADataSet: TDataSet; const AFieldName: string): string
 /// </summary>
 function VarIsBlank(const V: Variant): Boolean;
 
+/// <summary>
+///   Strict condition coercion for PrintWhen/conditional expressions.
+///   Null/empty => False; numbers => zero=False/non-zero=True;
+///   strings map: 0/false/no/n/off => False, 1/true/yes/y/on => True;
+///   unknown non-empty strings => False.
+/// </summary>
+function ConditionVariantToBool(const V: Variant): Boolean;
+
 // ---------------------------------------------------------------------------
 // String helpers
 // ---------------------------------------------------------------------------
@@ -184,6 +192,47 @@ begin
   Result := VarIsNull(V)
          or System.Variants.VarIsEmpty(V)
          or ((VT = varString) or (VT = varUString)) and (V = '');
+end;
+
+function ConditionVariantToBool(const V: Variant): Boolean;
+var
+  VT: TVarType;
+  S: string;
+  D: Double;
+begin
+  Result := False;
+
+  if VarIsNull(V) or System.Variants.VarIsEmpty(V) then
+    Exit(False);
+
+  try
+    VT := VarType(V) and varTypeMask;
+
+    if VT = varBoolean then
+      Exit(Boolean(V));
+
+    if VT in [varSmallint, varInteger, varSingle, varDouble, varCurrency,
+              varShortInt, varByte, varWord, varLongWord, varInt64] then
+    begin
+      D := VarAsType(V, varDouble);
+      Exit(D <> 0);
+    end;
+
+    S := Trim(LowerCase(VarToStr(V)));
+    if S = '' then Exit(False);
+
+    if (S = '0') or (S = 'false') or (S = 'no') or (S = 'n') or (S = 'off') then
+      Exit(False);
+    if (S = '1') or (S = 'true') or (S = 'yes') or (S = 'y') or (S = 'on') then
+      Exit(True);
+
+    if TryStrToFloat(S, D) then
+      Exit(D <> 0);
+
+    Result := False;
+  except
+    Result := False;
+  end;
 end;
 
 // ---------------------------------------------------------------------------
