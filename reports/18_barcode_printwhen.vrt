@@ -1,0 +1,186 @@
+{
+  "Version": 2,
+  "Title": "18 Barcode PrintWhen",
+  "Author": "Codex",
+  "Description": "Barcode object PrintWhen regression coverage.",
+  "PageSettings": {
+    "PaperSize": 0,
+    "Orientation": 0,
+    "MarginLeft": 40,
+    "MarginTop": 40,
+    "MarginRight": 40,
+    "MarginBottom": 40,
+    "CustomWidth": 793,
+    "CustomHeight": 1122
+  },
+  "FieldNames": [
+    "CustomerName",
+    "InvoiceNo",
+    "InvoiceDate",
+    "ItemName",
+    "Qty",
+    "Rate",
+    "Amount",
+    "GroupName",
+    "ImagePath",
+    "BarcodeValue",
+    "Remarks"
+  ],
+  "DataSetNames": [
+    "MainData"
+  ],
+  "Objects": [
+    {
+      "Class": "TReportBand",
+      "Name": "BandTitle",
+      "Bounds": { "L": 0, "T": 0, "R": 793, "B": 46 },
+      "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+      "BandType": 0, "Height": 46, "DataSetName": "", "MasterField": "", "DetailField": "",
+      "GroupField": "", "GroupLevel": 0, "StartNewPage": false, "CanGrow": false, "CanShrink": false,
+      "BackColor": 16777215, "BackColorTransparent": true, "OnBeforePrint": "", "OnAfterPrint": "",
+      "Children": [
+        {
+          "Class": "TReportTextObject",
+          "Name": "txtTitle",
+          "Bounds": { "L": 10, "T": 8, "R": 360, "B": 28 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "Barcode PrintWhen Test", "DataField": "", "Expression": "",
+          "FontName": "Tahoma", "FontSize": 11, "FontColor": 0, "FontBold": true, "FontItalic": false,
+          "HAlign": 0, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": false, "BorderColor": 0, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255
+        }
+      ]
+    },
+    {
+      "Class": "TReportBand",
+      "Name": "BandPageHeader",
+      "Bounds": { "L": 0, "T": 0, "R": 793, "B": 26 },
+      "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+      "BandType": 1, "Height": 26, "DataSetName": "", "MasterField": "", "DetailField": "",
+      "GroupField": "", "GroupLevel": 0, "StartNewPage": false, "CanGrow": false, "CanShrink": false,
+      "BackColor": 16777215, "BackColorTransparent": true, "OnBeforePrint": "", "OnAfterPrint": "",
+      "Children": [
+        {
+          "Class": "TReportTextObject",
+          "Name": "txtHeader",
+          "Bounds": { "L": 10, "T": 4, "R": 280, "B": 22 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "BARCODE-PRINTWHEN", "DataField": "", "Expression": "",
+          "FontName": "Tahoma", "FontSize": 9, "FontColor": 255, "FontBold": true, "FontItalic": false,
+          "HAlign": 0, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": true, "BorderColor": 12632256, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255
+        }
+      ]
+    },
+    {
+      "Class": "TReportBand",
+      "Name": "BandMaster",
+      "Bounds": { "L": 0, "T": 0, "R": 793, "B": 170 },
+      "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+      "BandType": 2, "Height": 170, "DataSetName": "", "MasterField": "", "DetailField": "",
+      "GroupField": "", "GroupLevel": 0, "StartNewPage": false, "CanGrow": false, "CanShrink": false,
+      "BackColor": 16777215, "BackColorTransparent": true, "OnBeforePrint": "", "OnAfterPrint": "",
+      "Children": [
+        {
+          "Class": "TReportTextObject",
+          "Name": "lblBlankRule",
+          "Bounds": { "L": 10, "T": 8, "R": 300, "B": 26 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "BLANK_PRINTWHEN_BARCODE_SHOULD_SHOW", "DataField": "", "Expression": "",
+          "FontName": "Tahoma", "FontSize": 8, "FontColor": 0, "FontBold": true, "FontItalic": false,
+          "HAlign": 0, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": false, "BorderColor": 0, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255
+        },
+        {
+          "Class": "TReportBarcodeObject",
+          "Name": "barBlankRule",
+          "Bounds": { "L": 308, "T": 4, "R": 560, "B": 38 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Value": "000000000000", "DataField": "", "ShowText": true, "BarColor": 0, "BackgroundColor": 16777215
+        },
+        {
+          "Class": "TReportTextObject",
+          "Name": "lblHidden",
+          "Bounds": { "L": 10, "T": 38, "R": 300, "B": 56 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "HIDDEN_BARCODE_SHOULD_NOT_SHOW", "DataField": "", "Expression": "",
+          "FontName": "Tahoma", "FontSize": 8, "FontColor": 0, "FontBold": true, "FontItalic": false,
+          "HAlign": 0, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": false, "BorderColor": 0, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255
+        },
+        {
+          "Class": "TReportBarcodeObject",
+          "Name": "barHidden",
+          "Bounds": { "L": 308, "T": 34, "R": 560, "B": 68 },
+          "Visible": true, "PrintWhen": "1=0", "AnchorRight": false, "AnchorBottom": false,
+          "Value": "111111111111", "DataField": "", "ShowText": true, "BarColor": 0, "BackgroundColor": 16777215
+        },
+        {
+          "Class": "TReportTextObject",
+          "Name": "lblVisible",
+          "Bounds": { "L": 10, "T": 68, "R": 300, "B": 86 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "VISIBLE_BARCODE_SHOULD_SHOW", "DataField": "", "Expression": "",
+          "FontName": "Tahoma", "FontSize": 8, "FontColor": 0, "FontBold": true, "FontItalic": false,
+          "HAlign": 0, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": false, "BorderColor": 0, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255
+        },
+        {
+          "Class": "TReportBarcodeObject",
+          "Name": "barVisible",
+          "Bounds": { "L": 308, "T": 64, "R": 560, "B": 98 },
+          "Visible": true, "PrintWhen": "1=1", "AnchorRight": false, "AnchorBottom": false,
+          "Value": "222222222222", "DataField": "", "ShowText": true, "BarColor": 0, "BackgroundColor": 16777215
+        },
+        {
+          "Class": "TReportTextObject",
+          "Name": "lblQtyGt5",
+          "Bounds": { "L": 10, "T": 98, "R": 300, "B": 116 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "QTY_GT_5_BARCODE", "DataField": "", "Expression": "",
+          "FontName": "Tahoma", "FontSize": 8, "FontColor": 0, "FontBold": true, "FontItalic": false,
+          "HAlign": 0, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": false, "BorderColor": 0, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255
+        },
+        {
+          "Class": "TReportBarcodeObject",
+          "Name": "barQtyGt5",
+          "Bounds": { "L": 308, "T": 94, "R": 560, "B": 128 },
+          "Visible": true, "PrintWhen": "[Qty] > 5", "AnchorRight": false, "AnchorBottom": false,
+          "Value": "333333333333", "DataField": "BarcodeValue", "ShowText": true, "BarColor": 0, "BackgroundColor": 16777215
+        },
+        {
+          "Class": "TReportTextObject",
+          "Name": "lblInvalid",
+          "Bounds": { "L": 10, "T": 128, "R": 300, "B": 146 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "INVALID_BARCODE_SHOULD_NOT_CRASH", "DataField": "", "Expression": "",
+          "FontName": "Tahoma", "FontSize": 8, "FontColor": 0, "FontBold": true, "FontItalic": false,
+          "HAlign": 0, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": false, "BorderColor": 0, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255
+        },
+        {
+          "Class": "TReportBarcodeObject",
+          "Name": "barInvalid",
+          "Bounds": { "L": 308, "T": 124, "R": 560, "B": 158 },
+          "Visible": true, "PrintWhen": "[MissingField] > 0", "AnchorRight": false, "AnchorBottom": false,
+          "Value": "444444444444", "DataField": "", "ShowText": true, "BarColor": 0, "BackgroundColor": 16777215
+        }
+      ]
+    }
+  ]
+}

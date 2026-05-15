@@ -1101,12 +1101,19 @@ end;
 
 procedure TfrmMain.RunRegressionTestReports;
 const
-  ReportFiles: array[0..4] of string = (
+  ReportFiles: array[0..11] of string = (
     '01_simple_masterdata.vrt',
     '03_grouped_report.vrt',
     '05_cangrow_remarks.vrt',
     '06_barcode_test.vrt',
-    '07_imagepath_test.vrt'
+    '07_imagepath_test.vrt',
+    '11_exact_fit_boundary.vrt',
+    '12_summary_new_page_header.vrt',
+    '13_group_header_pagebreak.vrt',
+    '14_group_footer_pagebreak.vrt',
+    '15_large_preview_stress.vrt',
+    '17_object_printwhen_core.vrt',
+    '18_barcode_printwhen.vrt'
   );
 var
   Lines: TStringList;
