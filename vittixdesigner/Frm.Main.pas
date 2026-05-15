@@ -42,6 +42,7 @@ uses
   Vittix.Report.DesignerControl,
   Vittix.Report.Toolbox,
   Vittix.Report.PropertyBridge,
+  Vittix.Report.Engine,
   Vittix.Report.Renderer,
   Vittix.Report.Export.PDF,
   Vittix.Report.Objects.Barcode,
@@ -736,7 +737,8 @@ end;
 procedure TfrmMain.mnuExportPDFClick(Sender: TObject);
 var
   dlgPDF: TSaveDialog;
-  Rend  : TReportRenderer;
+  Eng   : TReportEngine;
+  DS    : TDataSet;
 begin
   dlgPDF := TSaveDialog.Create(nil);
   try
@@ -749,22 +751,32 @@ begin
 
     Screen.Cursor := crHourGlass;
     try
-      Rend := TReportRenderer.Create;
+      DS := nil;
+      if Assigned(FDataSource1) then
+        DS := FDataSource1.DataSet;
+      if not Assigned(DS) then
+      begin
+        UseSampleDataSet;
+        if Assigned(FDataSource1) then
+          DS := FDataSource1.DataSet;
+      end;
+      if not Assigned(DS) then
+      begin
+        ShowMessage('PDF export requires a dataset for report preparation.');
+        Exit;
+      end;
+
+      Eng := TReportEngine.Create(FDesigner.Report, DS);
       try
-        Rend.Render(FDesigner.Report, nil {no live dataset in designer});
-        if Rend.Pages.Count = 0 then
+        Eng.Prepare;
+        if Eng.Pages.Count = 0 then
         begin
           ShowMessage('No pages were generated. Add a MasterData band with objects and ensure a DataSet is assigned.');
           Exit;
         end;
-        // Build a TObjectList<TMetafile> for the exporter
-        // (The renderer has TRenderPage wrappers; we need the metafile pages
-        //  from the engine — use TReportEngine directly here)
-        ShowMessage('PDF export requires a live DataSet connected to the engine. ' +
-                    'Connect a DataSet and call the engine from your application code. ' +
-                    'The report has been designed and saved; wire it to a TReportEngine for PDF output.');
+        TReportPDFExporter.ExportToFile(Eng.Pages, dlgPDF.FileName);
       finally
-        Rend.Free;
+        Eng.Free;
       end;
     finally
       Screen.Cursor := crDefault;
@@ -2465,15 +2477,102 @@ begin
 end;
 
 procedure TfrmMain.ReloadSampleDataSet;
+const
+  SampleRowCount = 150;
+  ImagePathHint = 'D:\test\sample.bmp'; // For image binding test, create D:\test\sample.bmp or edit this path.
+  ImagePathHint2 = 'D:\test\sample2.bmp'; // For image binding test, create D:\test\sample2.bmp or edit this path.
+  Customers: array[0..19] of string = (
+    'Acme Retail', 'Northwind Foods', 'BluePeak Pharma', 'GreenLeaf Traders',
+    'Sunrise Packaging', 'Metro Stationers', 'Delta Logistics', 'Orchid Prints',
+    'Crown Labels', 'Polar Cold Chain', 'Silverline Office', 'Rapid Supplies',
+    'BrightKart', 'Nimbus Distribution', 'Vertex Stores', 'Prime Exports',
+    'Urban Cart', 'EverFresh Foods', 'Galaxy Wholesale', 'Trident Industries'
+  );
+  Items: array[0..29] of string = (
+    'A4 Paper Ream', 'A3 Paper Ream', 'Laser Toner Black', 'Laser Toner Cyan',
+    'Thermal Label Roll', 'Barcode Sticker Sheet', 'Cold Storage Box', 'Bubble Wrap Roll',
+    'Packing Tape 2inch', 'Corrugated Carton L', 'Corrugated Carton M', 'Inkjet Ink Set',
+    'Offset Plate 0.30', 'CTP Plate Standard', 'Flexo Plate 1.14', 'Leaflet Gloss 130gsm',
+    'Flyer Matte 170gsm', 'Business Card 300gsm', 'Shipping Label 4x6', 'QR Label 2x2',
+    'Poly Mailer Medium', 'Shrink Film Roll', 'Invoice Book 2-Ply', 'Receipt Roll 80mm',
+    'Catalog Print A5', 'Poster Print A2', 'Sticker Vinyl Sheet', 'Ribbon Wax 110mm',
+    'Pallet Tag Set', 'Misc Consumables Kit'
+  );
+  Groups: array[0..9] of string = (
+    'Stationery', 'Packaging', 'Printing', 'Cold Chain', 'Labels',
+    'Leaflets', 'Flexo Plates', 'Offset CTP', 'Digital Print', 'Miscellaneous'
+  );
+var
+  I: Integer;
+  Qty: Integer;
+  Rate: Currency;
+  Amount: Currency;
+  CustomerName: string;
+  ItemName: string;
+  GroupName: string;
+  InvoiceNo: string;
+  InvoiceDate: TDateTime;
+  ImagePath: string;
+  BarcodeValue: string;
+  Remarks: string;
 begin
   CreateSampleDataSet;
   FSampleDataSet.DisableControls;
   try
     FSampleDataSet.EmptyDataSet;
-    FSampleDataSet.AppendRecord(['Acme Retail', 'INV-1001', EncodeDate(2026, 1, 3), 'A4 Paper Ream', 5, 120.50, 602.50, 'Office Supplies', 'D:\test\sample.bmp', '890123450001', 'Urgent delivery requested for the head office stock refill.']);
-    FSampleDataSet.AppendRecord(['Acme Retail', 'INV-1002', EncodeDate(2026, 1, 5), 'Laser Toner Black', 2, 1850.00, 3700.00, 'Office Supplies', '', '890123450002', 'Handle with care during transport and avoid stacking near heat sources.']);
-    FSampleDataSet.AppendRecord(['Northwind Foods', 'INV-1003', EncodeDate(2026, 1, 7), 'Cold Storage Box', 3, 760.75, 2282.25, 'Logistics', 'D:\test\sample.bmp', '890123450003', 'Keep dry']);
-    FSampleDataSet.AppendRecord(['Northwind Foods', 'INV-1004', EncodeDate(2026, 1, 10), 'Barcode Labels', 12, 45.00, 540.00, 'Logistics', '', '890123450004', 'Batch A']);
+    for I := 1 to SampleRowCount do
+    begin
+      CustomerName := Customers[(I - 1) mod Length(Customers)];
+      ItemName := Items[((I * 3) - 1) mod Length(Items)];
+      GroupName := Groups[((I * 2) - 1) mod Length(Groups)];
+      InvoiceNo := Format('INV-2026-%.4d', [I]);
+      InvoiceDate := EncodeDate(2026, 1, 1) + ((I * 3) mod 180);
+
+      Qty := 1 + ((I * 7) mod 24);
+      Rate := 75.00 + ((I * 37) mod 2400) / 10;
+      Amount := Qty * Rate;
+
+      if (I mod 15 = 0) then
+        ImagePath := ''
+      else if (I mod 17 = 0) then
+        ImagePath := ImagePathHint2
+      else if (I mod 10 = 0) then
+        ImagePath := ImagePathHint
+      else
+        ImagePath := '';
+
+      if (I mod 13 = 0) then
+        BarcodeValue := ''
+      else if (I mod 17 = 0) then
+        BarcodeValue := '890123459999'
+      else if (I mod 29 = 0) then
+        BarcodeValue := '890123450007'
+      else
+        BarcodeValue := Format('89012345%.4d', [I]);
+
+      if (I mod 11 = 0) then
+        Remarks := ''
+      else if (I mod 7 = 0) then
+        Remarks := 'Long remarks: customer requested staggered delivery, temperature-safe stacking, barcode scan verification at dispatch and arrival, and carton-level recount before final invoice closure.'
+      else if (I mod 5 = 0) then
+        Remarks := 'Medium remarks: prioritize packing and dispatch in second half of the day.'
+      else
+        Remarks := 'Short remarks: standard handling.';
+
+      FSampleDataSet.AppendRecord([
+        CustomerName,
+        InvoiceNo,
+        InvoiceDate,
+        ItemName,
+        Qty,
+        Rate,
+        Amount,
+        GroupName,
+        ImagePath,
+        BarcodeValue,
+        Remarks
+      ]);
+    end;
   finally
     FSampleDataSet.EnableControls;
   end;
