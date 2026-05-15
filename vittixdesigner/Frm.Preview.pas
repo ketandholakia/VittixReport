@@ -82,17 +82,30 @@ end;
 
 procedure TfrmPreview.FormDestroy(Sender: TObject);
 begin
-  // TVittixReportPreview owns its pages
+  // Release copied preview page bitmaps as early as possible.
+  Preview.Clear;
 end;
 
 procedure TfrmPreview.LoadReport(AReport: TReportModel; ADataSet: TDataSet);
 var
   Rend: TReportRenderer;
+  const
+    PreviewWarnThresholdMB = 300;
+  var
+    PageCount: Integer;
+    PageW: Integer;
+    PageH: Integer;
+    EstimatedBytes: Int64;
+    EstimatedMB: Int64;
 {$IFDEF DEBUG}
   StartMs: UInt64;
   ElapsedMs: UInt64;
 {$ENDIF}
 begin
+  // Free previously copied pages before building a new preview set.
+  // This keeps memory/GDI pressure lower if rendering fails or is retried.
+  Preview.Clear;
+
   Screen.Cursor := crHourGlass;
 {$IFDEF DEBUG}
   StartMs := GetTickCount64;
@@ -101,6 +114,31 @@ begin
     Rend := TReportRenderer.Create;
     try
       Rend.Render(AReport, ADataSet);
+      PageCount := Rend.Pages.Count;
+      if PageCount > 0 then
+      begin
+        PageW := Rend.Pages[0].Bitmap.Width;
+        PageH := Rend.Pages[0].Bitmap.Height;
+        if (PageW > 0) and (PageH > 0) then
+        begin
+          EstimatedBytes := Int64(PageCount) * Int64(PageW) * Int64(PageH) * 4;
+          EstimatedMB := EstimatedBytes div (1024 * 1024);
+          if EstimatedMB > PreviewWarnThresholdMB then
+          begin
+            if MessageDlg(
+              Format('Preview may use approximately %d MB for %d pages.' + sLineBreak +
+                     'Continue loading preview?', [EstimatedMB, PageCount]),
+              mtWarning, [mbYes, mbNo], 0) <> mrYes then
+            begin
+              Preview.Clear;
+              UpdateNav;
+              StatusBar1.SimpleText := 'Preview loading cancelled.';
+              Exit;
+            end;
+          end;
+        end;
+      end;
+
       Preview.LoadFromRenderer(Rend);
     finally
       Rend.Free;
