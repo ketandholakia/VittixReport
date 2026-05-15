@@ -1322,10 +1322,28 @@ end;
 procedure TfrmMain.mnuPreviewClick(Sender: TObject);
 var
   Frm: TfrmPreview;
+  DS: TDataSet;
 begin
+  DS := nil;
+  if Assigned(FDataSource1) then
+    DS := FDataSource1.DataSet;
+
+  if not Assigned(DS) then
+  begin
+    UseSampleDataSet;
+    if Assigned(FDataSource1) then
+      DS := FDataSource1.DataSet;
+  end;
+
+  if not Assigned(DS) then
+  begin
+    ShowMessage('No dataset is available for preview.');
+    Exit;
+  end;
+
   Frm := TfrmPreview.Create(Application);
   try
-    Frm.LoadReport(FDesigner.Report);
+    Frm.LoadReport(FDesigner.Report, DS);
     Frm.ShowModal;
   finally
     Frm.Free;

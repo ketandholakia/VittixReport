@@ -88,6 +88,7 @@ type
     procedure EndCurrentPage;
     procedure PrintPageHeader;  // prints PageHeader + ColumnHeader together
     procedure PrintBand(ABand: TReportBand; ADataSet: TDataSet = nil; AEffectiveHeight: Integer = -1);
+    procedure PrintBandWithSpaceCheck(ABand: TReportBand; ADataSet: TDataSet = nil);
     function  ComputeEffectiveBandHeight(ABand: TReportBand; ADataSet: TDataSet): Integer;
     function  ResolveBandDataSet(ABand: TReportBand): TDataSet;
     procedure PrintDetailBands;
@@ -407,7 +408,7 @@ begin
   if Assigned(FFooterBand) then FooterH := FFooterBand.Height;
 
   Result :=
-    (FCurrentY + RequiredHeight) <
+    (FCurrentY + RequiredHeight) <=
     (FPageHeight - FReport.PageSettings.Margins.Bottom - FooterH);
 end;
 
@@ -529,6 +530,23 @@ begin
   Inc(FCurrentY, EffectiveH);
 end;
 
+procedure TReportEngine.PrintBandWithSpaceCheck(ABand: TReportBand; ADataSet: TDataSet);
+var
+  EffH: Integer;
+begin
+  if not Assigned(ABand) then
+    Exit;
+
+  EffH := ComputeEffectiveBandHeight(ABand, ADataSet);
+  if not CheckSpace(EffH) then
+  begin
+    StartNewPage;
+    PrintPageHeader;
+  end;
+
+  PrintBand(ABand, ADataSet, EffH);
+end;
+
 function TReportEngine.ResolveBandDataSet(ABand: TReportBand): TDataSet;
 begin
   Result := FDataSet;
@@ -596,7 +614,7 @@ begin
             StartNewPage;
             PrintPageHeader;
             if Assigned(FColumnHeaderBand) then
-              PrintBand(FColumnHeaderBand, FDataSet);
+              PrintBandWithSpaceCheck(FColumnHeaderBand, FDataSet);
           end;
 
           PrintBand(Band, DetailDS, EffH);
@@ -750,7 +768,7 @@ begin
           begin
             GF := FGroupFooters[i];
             if (GF.GroupLevel >= BreakLevel) and IsGroupLevelActive(GF.GroupLevel) then
-              PrintBand(GF);
+              PrintBandWithSpaceCheck(GF);
           end;
         end;
 
@@ -771,12 +789,12 @@ begin
               PrintPageHeader;
             end;
 
-            PrintBand(GH);
+            PrintBandWithSpaceCheck(GH);
             OpenedThisBreak := True;
 
             // Print column header below each group header
             if Assigned(FColumnHeaderBand) then
-              PrintBand(FColumnHeaderBand);
+              PrintBandWithSpaceCheck(FColumnHeaderBand);
 
             GroupByField := nil;
             if TryGetField(FDataSet, GH.GroupField, GroupByField) then
@@ -808,7 +826,7 @@ begin
           PrintPageHeader;
           // Column header always repeats on each page (with or without groups)
           if Assigned(FColumnHeaderBand) then
-            PrintBand(FColumnHeaderBand);
+            PrintBandWithSpaceCheck(FColumnHeaderBand);
         end;
         { -------- PRINT RECORD -------- }
         PrintBand(FMasterBand, FDataSet, EffH);
@@ -848,14 +866,17 @@ begin
     end;
     for GF in FGroupFooters do
       if IsGroupLevelActive(GF.GroupLevel) then
-        PrintBand(GF);
+        PrintBandWithSpaceCheck(GF);
   end;
 
   if Assigned(FSummaryBand) then
   begin
     EffH := ComputeEffectiveBandHeight(FSummaryBand, FDataSet);
     if not CheckSpace(EffH) then
+    begin
       StartNewPage;
+      PrintPageHeader;
+    end;
 
     PrintBand(FSummaryBand, FDataSet, EffH);
   end;
