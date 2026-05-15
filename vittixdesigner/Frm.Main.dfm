@@ -316,7 +316,7 @@ object frmMain: TfrmMain
       object lblToolbox: TLabel
         Left = 0
         Top = 0
-        Width = 140
+        Width = 48
         Height = 15
         Align = alTop
         Caption = '  Objects'
@@ -329,7 +329,6 @@ object frmMain: TfrmMain
         ParentColor = False
         ParentFont = False
         Transparent = False
-        ExplicitWidth = 48
       end
       object Toolbox: TVittixReportToolbox
         Left = 0
@@ -353,7 +352,7 @@ object frmMain: TfrmMain
       object lblProperties: TLabel
         Left = 0
         Top = 0
-        Width = 260
+        Width = 139
         Height = 15
         Align = alTop
         Caption = '  Selected Object Header'
@@ -366,19 +365,17 @@ object frmMain: TfrmMain
         ParentColor = False
         ParentFont = False
         Transparent = False
-        ExplicitWidth = 139
       end
       object lblSelectedProps: TLabel
         Left = 0
         Top = 159
-        Width = 260
+        Width = 144
         Height = 15
         Align = alTop
         Caption = '  Selected Object Properties'
         Color = 12105912
         ParentColor = False
         Transparent = False
-        ExplicitWidth = 144
       end
       object pnlReportInfo: TPanel
         Left = 0
