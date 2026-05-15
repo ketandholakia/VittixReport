@@ -438,6 +438,40 @@ begin
   end;
 end;
 
+function ShouldPrintObject(AObj: TReportObject;
+  const Context: TExpressionContext): Boolean;
+var
+  PWResult: Variant;
+begin
+  Result := False;
+  if not Assigned(AObj) then
+    Exit;
+
+  if not AObj.Visible then
+    Exit;
+
+  if Trim(AObj.PrintWhen) = '' then
+  begin
+    Result := True;
+    Exit;
+  end;
+
+  try
+    PWResult := TReportExpression.Evaluate(AObj.PrintWhen, Context);
+  except
+    Exit(False);
+  end;
+
+  if VarIsNull(PWResult) or VarIsEmpty(PWResult) then
+    Exit(False);
+
+  try
+    Result := Boolean(VarAsType(PWResult, varBoolean));
+  except
+    Result := VarToStr(PWResult) <> '';
+  end;
+end;
+
 procedure TReportTextObject.ResolveConditionalStyle(
   const Context: TExpressionContext;
   out AFontColor: TColor;
@@ -511,7 +545,7 @@ var
   DrawBackground: TColor;
   DrawBorderColor: TColor;
 begin
-  if not FVisible then Exit;
+  if not ShouldPrintObject(Self, Context) then Exit;
 
   R := FBounds;
   ResolveConditionalStyle(Context, DrawFontColor, DrawBackground, DrawBorderColor);
@@ -661,7 +695,7 @@ end;
 
 procedure TReportShapeObject.Draw(C: TCanvas; const Context: TExpressionContext);
 begin
-  if not FVisible then Exit;
+  if not ShouldPrintObject(Self, Context) then Exit;
 
   C.Pen.Color   := FPenColor;
   C.Pen.Width   := FPenWidth;
@@ -728,7 +762,7 @@ var
   ScaleX, ScaleY, Scale: Double;
   PathOrBase64:   string;
 begin
-  if not FVisible then Exit;
+  if not ShouldPrintObject(Self, Context) then Exit;
 
   R := FBounds;
 
@@ -1137,7 +1171,7 @@ var
   DrawBackground: TColor;
   DrawBorderColor: TColor;
 begin
-  if not FVisible then Exit;
+  if not ShouldPrintObject(Self, Context) then Exit;
 
   R := FBounds;
   ResolveConditionalStyle(Context, DrawFontColor, DrawBackground, DrawBorderColor);
@@ -1227,6 +1261,7 @@ var
   Needed: Integer;
 begin
   Result := FBounds.Bottom;
+  if not ShouldPrintObject(Self, Context) then Exit;
   if not FAutoHeight then Exit;
   if not Assigned(C) then Exit;
 
@@ -1343,7 +1378,7 @@ var
   DrawY: Integer;
   SubCtx: TExpressionContext;
 begin
-  if not FVisible then Exit;
+  if not ShouldPrintObject(Self, Context) then Exit;
 
   R := FBounds;
   if not FTransparent then
@@ -1447,6 +1482,7 @@ var
   NeededH: Integer;
 begin
   Result := FBounds.Bottom;
+  if not ShouldPrintObject(Self, Context) then Exit;
   if Trim(FReportJSON) = '' then Exit;
 
   Model := nil;
@@ -1514,7 +1550,7 @@ var
   R: TRect;
   CX, CY: Integer;
 begin
-  if not FVisible then Exit;
+  if not ShouldPrintObject(Self, Context) then Exit;
   R  := FBounds;
   CX := (R.Left + R.Right)  div 2;
   CY := (R.Top  + R.Bottom) div 2;
