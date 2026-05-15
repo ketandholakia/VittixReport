@@ -257,6 +257,7 @@ type
     procedure mnuOpenCanGrowTestReportClick(Sender: TObject);
     procedure mnuOpenBarcodeTestReportClick(Sender: TObject);
     procedure mnuOpenImagePathTestReportClick(Sender: TObject);
+    procedure mnuRunRegressionTestReportsClick(Sender: TObject);
 
     { Designer events }
     procedure DesignerSelectionChanged(Sender: TObject);
@@ -339,6 +340,7 @@ type
     procedure OpenRegressionReport(const AFileName: string);
     procedure LoadDesignerReportFromFile(const AFileName: string;
       AUseSampleDataSet: Boolean = False);
+    procedure RunRegressionTestReports;
     procedure ConfirmSaveIfModified;
     procedure DynInsertMenuClick(Sender: TObject);
     procedure DynAddBandMenuClick(Sender: TObject);
@@ -389,6 +391,7 @@ function BandTypeName(BT: TReportBandType): string; forward;
 procedure TfrmMain.FormCreate(Sender: TObject);
 var
   Splitter: TSplitter;
+  MIRunRegressionTestReports: TMenuItem;
   MIOpenImagePathTestReport: TMenuItem;
   MIOpenBarcodeTestReport: TMenuItem;
   MIOpenCanGrowTestReport: TMenuItem;
@@ -547,6 +550,11 @@ begin
   UpdateStatusBar;
   UpdateMenuState;
   SyncReportStructureSelection;
+
+  MIRunRegressionTestReports := TMenuItem.Create(Self);
+  MIRunRegressionTestReports.Caption := 'Run Regression Test Reports';
+  MIRunRegressionTestReports.OnClick := mnuRunRegressionTestReportsClick;
+  mnuReport.Insert(0, MIRunRegressionTestReports);
 
   MIOpenImagePathTestReport := TMenuItem.Create(Self);
   MIOpenImagePathTestReport.Caption := 'Open ImagePath Test Report';
@@ -1069,6 +1077,82 @@ begin
   end;
 end;
 
+procedure TfrmMain.RunRegressionTestReports;
+const
+  ReportFiles: array[0..4] of string = (
+    '01_simple_masterdata.vrt',
+    '03_grouped_report.vrt',
+    '05_cangrow_remarks.vrt',
+    '06_barcode_test.vrt',
+    '07_imagepath_test.vrt'
+  );
+var
+  Lines: TStringList;
+  I: Integer;
+  FN: string;
+  ReportModel: TReportModel;
+  Renderer: TReportRenderer;
+  PassedCount: Integer;
+  FailedCount: Integer;
+  PageSuffix: string;
+begin
+  UseSampleDataSet;
+
+  Lines := TStringList.Create;
+  try
+    PassedCount := 0;
+    FailedCount := 0;
+
+    for I := Low(ReportFiles) to High(ReportFiles) do
+    begin
+      FN := GetRegressionReportPath(ReportFiles[I]);
+      if not TFile.Exists(FN) then
+      begin
+        Inc(FailedCount);
+        Lines.Add('FAIL ' + ReportFiles[I] + ' - Test report file not found: ' + FN);
+        Continue;
+      end;
+
+      ReportModel := nil;
+      Renderer := nil;
+      try
+        ReportModel := TReportSerializer.LoadFromFile(FN);
+        Renderer := TReportRenderer.Create;
+        Renderer.Render(ReportModel, FSampleDataSet);
+        Inc(PassedCount);
+        if Renderer.Pages.Count = 1 then
+          PageSuffix := ''
+        else
+          PageSuffix := 's';
+        Lines.Add(Format('PASS %s (%d page%s)',
+          [ReportFiles[I], Renderer.Pages.Count, PageSuffix]));
+      except
+        on E: Exception do
+        begin
+          Inc(FailedCount);
+          Lines.Add('FAIL ' + ReportFiles[I] + ' - ' + E.Message);
+        end;
+      end;
+      Renderer.Free;
+      ReportModel.Free;
+    end;
+
+    Lines.Insert(0, Format('Failed: %d', [FailedCount]));
+    Lines.Insert(0, Format('Passed: %d', [PassedCount]));
+    Lines.Insert(0, Format('Total tests: %d', [Length(ReportFiles)]));
+    ShowMessage(Lines.Text);
+  finally
+    Lines.Free;
+    RefreshFieldList;
+    RefreshReportStructure;
+    UpdatePropertyPanel;
+    UpdateTitleBar;
+    UpdateStatusBar;
+    UpdateMenuState;
+    SyncReportStructureSelection;
+  end;
+end;
+
 function BandTypeName(BT: TReportBandType): string;
 begin
   case BT of
@@ -1329,6 +1413,11 @@ end;
 procedure TfrmMain.mnuOpenImagePathTestReportClick(Sender: TObject);
 begin
   OpenRegressionReport('07_imagepath_test.vrt');
+end;
+
+procedure TfrmMain.mnuRunRegressionTestReportsClick(Sender: TObject);
+begin
+  RunRegressionTestReports;
 end;
 
 { =========================================================================== }
