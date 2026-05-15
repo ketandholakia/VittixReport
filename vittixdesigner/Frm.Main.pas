@@ -264,6 +264,7 @@ type
     procedure mnuOpenInvalidDataFieldDiagnosticsDemoClick(Sender: TObject);
     procedure mnuRunRegressionTestReportsClick(Sender: TObject);
     procedure mnuKeyboardShortcutsClick(Sender: TObject);
+    procedure mnuExpressionHelpClick(Sender: TObject);
 
     { Designer events }
     procedure DesignerSelectionChanged(Sender: TObject);
@@ -651,6 +652,11 @@ begin
   mnuReport.Add(FReportSampleReportsMenu);
   mnuReport.Add(FReportDemoReportsMenu);
   mnuReport.Add(FReportRegressionTestsMenu);
+
+  MI := TMenuItem.Create(Self);
+  MI.Caption := 'Expression Help';
+  MI.OnClick := mnuExpressionHelpClick;
+  mnuHelp.Add(MI);
 end;
 
 procedure TfrmMain.FormDestroy(Sender: TObject);
@@ -1566,6 +1572,32 @@ begin
     'Notes:' + sLineBreak +
     '- Keyboard move/resize works when canvas has focus.' + sLineBreak +
     '- Property panel shortcuts work when editing a property value.'
+  );
+end;
+
+procedure TfrmMain.mnuExpressionHelpClick(Sender: TObject);
+begin
+  ShowMessage(
+    'Expression Help' + sLineBreak + sLineBreak +
+    'Field token syntax:' + sLineBreak +
+    '[FieldName]' + sLineBreak + sLineBreak +
+    'Common examples:' + sLineBreak +
+    '[Qty] * [Rate]' + sLineBreak +
+    '[Amount] > 1000' + sLineBreak +
+    '[GroupName] = ''Labels''' + sLineBreak +
+    '[Qty] > 5' + sLineBreak +
+    '[CustomerName] <> ' + QuotedStr('') + sLineBreak +
+    '[RecNo]' + sLineBreak + sLineBreak +
+    'Use expressions in:' + sLineBreak +
+    'Expression' + sLineBreak +
+    'PrintWhen' + sLineBreak +
+    'BackgroundCondition' + sLineBreak +
+    'FontColorCondition' + sLineBreak +
+    'BorderColorCondition' + sLineBreak + sLineBreak +
+    'Tips:' + sLineBreak +
+    'Use the Expression Helper ellipsis button in the property panel.' + sLineBreak +
+    'Use Preview to verify the result.' + sLineBreak +
+    'Open Report -> Demo Reports -> Expression Usage Demo for live examples.'
   );
 end;
 
@@ -2556,7 +2588,7 @@ begin
     ExampleItems[1] := '[Amount] > 1000';
     ExampleItems[2] := '[GroupName] = ''Labels''';
     ExampleItems[3] := '[Qty] > 5';
-    ExampleItems[4] := '[CustomerName] <> ''''';
+    ExampleItems[4] := '[CustomerName] <> ' + QuotedStr('');
     ExampleItems[5] := '[RecNo]';
     ExampleItems[6] := '1=1';
     ExampleItems[7] := '1=0';
