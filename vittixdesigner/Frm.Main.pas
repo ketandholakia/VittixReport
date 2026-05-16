@@ -317,7 +317,7 @@ type
     FExprHelperFields: TListBox;
     FExprHelperExamples: TListBox;
     FExprHelperRecent: TListBox;
-    FExprHelperPropertyKey: string;
+    // Session-only in-memory expression recents; cleared when designer closes.
     FExprRecentsByKey: TObjectDictionary<string, TStringList>;
 
     // Command-line mode: set when launched by the component editor
@@ -2554,7 +2554,6 @@ var
 begin
   Result := False;
   AEditedValue := AInitialValue;
-  FExprHelperPropertyKey := APropertyKey;
 
   Dlg := TForm.Create(Self);
   try
@@ -2735,7 +2734,6 @@ begin
     FExprHelperFields := nil;
     FExprHelperExamples := nil;
     FExprHelperRecent := nil;
-    FExprHelperPropertyKey := '';
     Dlg.Free;
   end;
 end;
