@@ -452,6 +452,18 @@ type
     procedure Rollback; override;
   end;
 
+  TTextFontChangeCommand = class(TUndoableAction)
+  private
+    FObj: TReportTextObject;
+    FOldFont: TFont;
+    FNewFont: TFont;
+  public
+    constructor Create(AObj: TReportTextObject; const AOldFont, ANewFont: TFont);
+    destructor Destroy; override;
+    procedure Execute; override;
+    procedure Rollback; override;
+  end;
+
 constructor TPropertyBatchChangeCommand.Create(AObj: TObject;
   const APropNames: TArray<string>; const AOldValues, ANewValues: TArray<TValue>);
 begin
@@ -497,6 +509,36 @@ end;
 procedure TPropertyBatchChangeCommand.Rollback;
 begin
   ApplyValues(FOldValues);
+end;
+
+constructor TTextFontChangeCommand.Create(AObj: TReportTextObject;
+  const AOldFont, ANewFont: TFont);
+begin
+  inherited Create;
+  FObj := AObj;
+  FOldFont := TFont.Create;
+  FNewFont := TFont.Create;
+  FOldFont.Assign(AOldFont);
+  FNewFont.Assign(ANewFont);
+end;
+
+destructor TTextFontChangeCommand.Destroy;
+begin
+  FOldFont.Free;
+  FNewFont.Free;
+  inherited;
+end;
+
+procedure TTextFontChangeCommand.Execute;
+begin
+  if Assigned(FObj) then
+    FObj.Font.Assign(FNewFont);
+end;
+
+procedure TTextFontChangeCommand.Rollback;
+begin
+  if Assigned(FObj) then
+    FObj.Font.Assign(FOldFont);
 end;
 
 { =========================================================================== }
@@ -3267,6 +3309,9 @@ var
   Obj: TReportObject;
   KeyName: string;
   Dlg: TFontDialog;
+  OldFont: TFont;
+  NewFont: TFont;
+  Cmd: TTextFontChangeCommand;
 begin
   Result := False;
   if (ARow <= 0) or (ARow >= PropEditor.RowCount) then
@@ -3281,18 +3326,39 @@ begin
     Exit;
 
   Dlg := TFontDialog.Create(Self);
+  OldFont := TFont.Create;
+  NewFont := TFont.Create;
   try
+    OldFont.Assign(TReportTextObject(Obj).Font);
     Dlg.Font.Assign(TReportTextObject(Obj).Font);
     if not Dlg.Execute then
       Exit;
 
-    TReportTextObject(Obj).Font.Assign(Dlg.Font);
+    NewFont.Assign(Dlg.Font);
+    if (OldFont.Name = NewFont.Name) and
+       (OldFont.Size = NewFont.Size) and
+       (OldFont.Style = NewFont.Style) and
+       (OldFont.Color = NewFont.Color) and
+       (OldFont.Charset = NewFont.Charset) then
+      Exit;
+
+    Cmd := TTextFontChangeCommand.Create(TReportTextObject(Obj), OldFont, NewFont);
+    if Assigned(FDesigner) then
+      FDesigner.ExecuteUndoCommand(Cmd)
+    else
+      Cmd.Free;
+
     FDesigner.RebuildLayout;
     FModified := True;
     UpdateTitleBar;
     UpdatePropertyPanel;
+    UpdateStatusBar;
+    RefreshReportStructure;
+    SyncReportStructureSelection;
     Result := True;
   finally
+    NewFont.Free;
+    OldFont.Free;
     Dlg.Free;
   end;
 end;
