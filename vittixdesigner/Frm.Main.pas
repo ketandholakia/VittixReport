@@ -1597,15 +1597,24 @@ end;
 procedure TfrmMain.mnuBandMgrClick(Sender: TObject);
 var
   Frm: TfrmBandManager;
+  StagedReport: TReportModel;
 begin
+  StagedReport := nil;
   Frm := TfrmBandManager.Create(Application);
   try
     Frm.LoadReport(FDesigner.Report);
     if Frm.ShowModal = mrOk then
     begin
-      FDesigner.RebuildLayout;
+      StagedReport := Frm.TakeStagedReport;
+      if Assigned(StagedReport) then
+        FDesigner.LoadReport(StagedReport, True);
       FModified := True;
+      RefreshReportStructure;
+      UpdatePropertyPanel;
       UpdateTitleBar;
+      UpdateStatusBar;
+      UpdateMenuState;
+      SyncReportStructureSelection;
     end;
   finally
     Frm.Free;

@@ -21,7 +21,8 @@ uses
   Vcl.ExtCtrls, Vcl.Dialogs, Vcl.Graphics,
   Vittix.Report.Model,
   Vittix.Report.Objects,
-  Vittix.Report.Bands;
+  Vittix.Report.Bands,
+  Vittix.Report.Serializer;
 
 type
   TfrmBandManager = class(TForm)
@@ -70,7 +71,7 @@ type
     procedure btnOKClick(Sender: TObject);
 
   private
-    FReport     : TReportModel;
+    FReport     : TReportModel; // staged working report owned by dialog
     FCurrentBand: TReportBand;
     FLoadingEditor: Boolean;
 
@@ -84,7 +85,9 @@ type
     function  ComboIndexFromBandType(ABandType: TReportBandType): Integer;
 
   public
+    destructor Destroy; override;
     procedure LoadReport(AReport: TReportModel);
+    function  TakeStagedReport: TReportModel;
   end;
 
 implementation
@@ -130,9 +133,26 @@ end;
 
 procedure TfrmBandManager.LoadReport(AReport: TReportModel);
 begin
-  FReport := AReport;
+  FreeAndNil(FReport);
+  if Assigned(AReport) then
+    FReport := TReportSerializer.CloneReport(AReport)
+  else
+    FReport := TReportModel.Create;
   RefreshDataSetNameList;
   RefreshList;
+end;
+
+destructor TfrmBandManager.Destroy;
+begin
+  FReport.Free;
+  inherited;
+end;
+
+function TfrmBandManager.TakeStagedReport: TReportModel;
+begin
+  Result := FReport;
+  FReport := nil;
+  FCurrentBand := nil;
 end;
 
 procedure TfrmBandManager.RefreshDataSetNameList;
