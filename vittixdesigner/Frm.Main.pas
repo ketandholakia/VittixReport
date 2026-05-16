@@ -357,6 +357,7 @@ type
     function  ExpressionHelperRecentList(const APropertyKey: string;
       ACreate: Boolean): TStringList;
     procedure ExpressionHelperAddRecent(const APropertyKey, AExpr: string);
+    function  ExpressionHelperIsRecentHintItem(const AValue: string): Boolean;
     function  IsControlWithinParent(AControl, AParent: TWinControl): Boolean;
     function  IsTextEditingControlFocused: Boolean;
     procedure SendMessageToFocusedControl(AMsg: Cardinal);
@@ -2652,9 +2653,11 @@ begin
     FExprHelperRecent.OnDblClick := ExpressionHelperRecentDblClick;
 
     RecentItems := ExpressionHelperRecentList(APropertyKey, False);
-    if Assigned(RecentItems) then
+    if Assigned(RecentItems) and (RecentItems.Count > 0) then
       for I := 0 to RecentItems.Count - 1 do
         FExprHelperRecent.Items.Add(RecentItems[I]);
+    if FExprHelperRecent.Items.Count = 0 then
+      FExprHelperRecent.Items.Add('No recent expressions (session only)');
 
     PnlOperators := TPanel.Create(Dlg);
     PnlOperators.Parent := PnlCenter;
@@ -2682,11 +2685,21 @@ begin
     PnlTemplates.Height := 32;
     PnlTemplates.BevelOuter := bvNone;
 
-    AddQuickButton(PnlTemplates, '[Field] > 0',      '', 8,   4, 92,  ExpressionHelperTemplateClick, 1);
+    AddQuickButton(PnlTemplates, '[Field] > 0', '', 8, 4, 92, ExpressionHelperTemplateClick, 1);
+    Btn.ShowHint := True;
+    Btn.Hint := 'Uses selected field from Available Fields';
     AddQuickButton(PnlTemplates, '[Field] = ''Text''', '', 104, 4, 108, ExpressionHelperTemplateClick, 2);
+    Btn.ShowHint := True;
+    Btn.Hint := 'Uses selected field from Available Fields';
     AddQuickButton(PnlTemplates, '[Field] <> ' + QuotedStr(''), '', 216, 4, 94, ExpressionHelperTemplateClick, 3);
-    AddQuickButton(PnlTemplates, '[Amount] > 1000',  '', 314, 4, 116, ExpressionHelperTemplateClick, 4);
-    AddQuickButton(PnlTemplates, '[Qty] > 5',        '', 434, 4, 92,  ExpressionHelperTemplateClick, 5);
+    Btn.ShowHint := True;
+    Btn.Hint := 'Uses selected field from Available Fields';
+    AddQuickButton(PnlTemplates, '[Amount] > 1000', '', 314, 4, 116, ExpressionHelperTemplateClick, 4);
+    Btn.ShowHint := True;
+    Btn.Hint := 'Inserts fixed example';
+    AddQuickButton(PnlTemplates, '[Qty] > 5', '', 434, 4, 92, ExpressionHelperTemplateClick, 5);
+    Btn.ShowHint := True;
+    Btn.Hint := 'Inserts fixed example';
 
     FExprHelperMemo := TMemo.Create(Dlg);
     FExprHelperMemo.Parent := PnlCenter;
@@ -2944,6 +2957,8 @@ begin
   ExprText := Trim(AExpr);
   if ExprText = '' then
     Exit;
+  if ExpressionHelperIsRecentHintItem(ExprText) then
+    Exit;
 
   Recent := ExpressionHelperRecentList(APropertyKey, True);
   if not Assigned(Recent) then
@@ -2956,6 +2971,11 @@ begin
   Recent.Insert(0, ExprText);
   while Recent.Count > CMaxRecentItems do
     Recent.Delete(Recent.Count - 1);
+end;
+
+function TfrmMain.ExpressionHelperIsRecentHintItem(const AValue: string): Boolean;
+begin
+  Result := SameText(Trim(AValue), 'No recent expressions (session only)');
 end;
 
 procedure TfrmMain.ExpressionHelperFieldDblClick(Sender: TObject);
@@ -2976,14 +2996,19 @@ begin
 end;
 
 procedure TfrmMain.ExpressionHelperRecentDblClick(Sender: TObject);
+var
+  SelectedText: string;
 begin
   if not Assigned(FExprHelperRecent) or not Assigned(FExprHelperMemo) then
     Exit;
   if FExprHelperRecent.ItemIndex < 0 then
     Exit;
+  SelectedText := Trim(FExprHelperRecent.Items[FExprHelperRecent.ItemIndex]);
+  if ExpressionHelperIsRecentHintItem(SelectedText) then
+    Exit;
 
   // Keep behavior aligned with examples: replace editor content.
-  FExprHelperMemo.Lines.Text := FExprHelperRecent.Items[FExprHelperRecent.ItemIndex];
+  FExprHelperMemo.Lines.Text := SelectedText;
   FExprHelperMemo.SetFocus;
 end;
 
