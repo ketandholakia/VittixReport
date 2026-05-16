@@ -138,6 +138,23 @@ type
   end;
 
   // ---------------------------------------------------------------------------
+  // Delete one band from report top-level list (ownership-safe extract/insert)
+  // ---------------------------------------------------------------------------
+  TDeleteBandCommand = class(TUndoableAction)
+  private
+    FList: TObjectList<TReportObject>;
+    FBand: TReportBand;
+    FOrigIndex: Integer;
+    FOwned: Boolean;
+  public
+    constructor Create(AList: TObjectList<TReportObject>; ABand: TReportBand;
+      AOrigIndex: Integer);
+    destructor Destroy; override;
+    procedure Execute; override;
+    procedure Rollback; override;
+  end;
+
+  // ---------------------------------------------------------------------------
   // Change z-order within a list
   // ---------------------------------------------------------------------------
   TZOrderCommand = class(TUndoableAction)
@@ -321,6 +338,60 @@ begin FBand := ABand; FOldH := OldH; FNewH := NewH; end;
 
 procedure TBandResizeCommand.Execute;  begin FBand.Height := FNewH; end;
 procedure TBandResizeCommand.Rollback; begin FBand.Height := FOldH; end;
+
+// ===========================================================================
+// TDeleteBandCommand
+// ===========================================================================
+
+constructor TDeleteBandCommand.Create(AList: TObjectList<TReportObject>;
+  ABand: TReportBand; AOrigIndex: Integer);
+begin
+  inherited Create;
+  FList := AList;
+  FBand := ABand;
+  FOrigIndex := AOrigIndex;
+  FOwned := False;
+end;
+
+destructor TDeleteBandCommand.Destroy;
+begin
+  if FOwned then
+    FBand.Free;
+  inherited;
+end;
+
+procedure TDeleteBandCommand.Execute;
+begin
+  if not Assigned(FList) or not Assigned(FBand) then
+    Exit;
+  if FList.Extract(FBand) <> nil then
+    FOwned := True;
+end;
+
+procedure TDeleteBandCommand.Rollback;
+var
+  InsertAt: Integer;
+begin
+  if not Assigned(FList) or not Assigned(FBand) then
+    Exit;
+  if FList.IndexOf(FBand) >= 0 then
+  begin
+    FOwned := False;
+    Exit;
+  end;
+
+  InsertAt := FOrigIndex;
+  if InsertAt < 0 then
+    InsertAt := FList.Count;
+  if InsertAt > FList.Count then
+    InsertAt := FList.Count;
+
+  if InsertAt = FList.Count then
+    FList.Add(FBand)
+  else
+    FList.Insert(InsertAt, FBand);
+  FOwned := False;
+end;
 
 // ===========================================================================
 // TZOrderCommand

@@ -785,8 +785,28 @@ var
   I      : Integer;
   Obj    : TReportObject;
   Cmd    : TDeleteObjectsCommand;
+  BandCmd: TDeleteBandCommand;
+  ActiveBand: TReportBand;
+  BandIdx: Integer;
 begin
-  if FSelected.Count = 0 then Exit;
+  if FSelected.Count = 0 then
+  begin
+    ActiveBand := FActiveBand;
+    if not Assigned(ActiveBand) then
+      Exit;
+
+    BandIdx := FReport.Objects.IndexOf(ActiveBand);
+    if BandIdx < 0 then
+      Exit;
+
+    FSelected.Clear;
+    FActiveBand := nil;
+    BandCmd := TDeleteBandCommand.Create(FReport.Objects, ActiveBand, BandIdx);
+    FCommands.DoCommand(BandCmd);
+    ComputeBandLayouts;
+    DoModified;
+    Exit;
+  end;
   SetLength(Objs,    FSelected.Count);
   SetLength(Owners,  FSelected.Count);
   SetLength(Indices, FSelected.Count);
