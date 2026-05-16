@@ -247,6 +247,7 @@ type
     procedure ZoomReset;
 
     { Undo / Redo }
+    procedure ExecuteUndoCommand(ACommand: TUndoableAction);
     procedure Undo;
     procedure Redo;
 
@@ -1213,6 +1214,15 @@ procedure TVittixReportDesigner.ZoomOut;  begin SetZoom(FZoom - 10); end;
 procedure TVittixReportDesigner.ZoomReset;begin SetZoom(100);        end;
 
 { -- Undo/Redo -------------------------------------------------------------- }
+
+procedure TVittixReportDesigner.ExecuteUndoCommand(ACommand: TUndoableAction);
+begin
+  if not Assigned(ACommand) then
+    Exit;
+  FCommands.DoCommand(ACommand);
+  ComputeBandLayouts;
+  DoModified;
+end;
 
 procedure TVittixReportDesigner.Undo;
 begin

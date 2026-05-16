@@ -26,7 +26,7 @@
 interface
 
 uses
-  System.SysUtils, System.Classes, System.Types, System.IOUtils, System.Rtti, System.TypInfo,
+  System.SysUtils, System.Classes, System.Types, System.IOUtils, System.Rtti, System.TypInfo, System.Math,
   System.Variants,
   System.Generics.Collections,
   Vcl.Forms, Vcl.Controls, Vcl.ComCtrls, Vcl.ToolWin,
@@ -45,6 +45,7 @@ uses
   Vittix.Report.PropertyBridge,
   Vittix.Report.Context,
   Vittix.Report.Expressions,
+  Vittix.Report.Undo,
   Vittix.Report.Engine,
   Vittix.Report.Renderer,
   Vittix.Report.Export.PDF,
@@ -358,6 +359,14 @@ type
       ACreate: Boolean): TStringList;
     procedure ExpressionHelperAddRecent(const APropertyKey, AExpr: string);
     function  ExpressionHelperIsRecentHintItem(const AValue: string): Boolean;
+    function  SamePropertyValue(const AOld, ANew: TValue): Boolean;
+    function  BuildChangedPropertyBatch(
+      AObj: TReportObject;
+      const AOldByProp: TDictionary<string, TValue>;
+      const APropNames: TArray<string>;
+      out ChangedNames: TArray<string>;
+      out OldValues: TArray<TValue>;
+      out NewValues: TArray<TValue>): Boolean;
     function  IsControlWithinParent(AControl, AParent: TWinControl): Boolean;
     function  IsTextEditingControlFocused: Boolean;
     procedure SendMessageToFocusedControl(AMsg: Cardinal);
@@ -427,6 +436,68 @@ uses
   Frm.Preview;
 
 function BandTypeName(BT: TReportBandType): string; forward;
+
+type
+  TPropertyBatchChangeCommand = class(TUndoableAction)
+  private
+    FObj: TObject;
+    FPropNames: TArray<string>;
+    FOldValues: TArray<TValue>;
+    FNewValues: TArray<TValue>;
+    procedure ApplyValues(const AValues: TArray<TValue>);
+  public
+    constructor Create(AObj: TObject; const APropNames: TArray<string>;
+      const AOldValues, ANewValues: TArray<TValue>);
+    procedure Execute; override;
+    procedure Rollback; override;
+  end;
+
+constructor TPropertyBatchChangeCommand.Create(AObj: TObject;
+  const APropNames: TArray<string>; const AOldValues, ANewValues: TArray<TValue>);
+begin
+  inherited Create;
+  FObj := AObj;
+  FPropNames := APropNames;
+  FOldValues := AOldValues;
+  FNewValues := ANewValues;
+end;
+
+procedure TPropertyBatchChangeCommand.ApplyValues(const AValues: TArray<TValue>);
+var
+  Ctx: TRttiContext;
+  RttiType: TRttiType;
+  Prop: TRttiProperty;
+  I: Integer;
+begin
+  if not Assigned(FObj) then
+    Exit;
+
+  Ctx := TRttiContext.Create;
+  try
+    RttiType := Ctx.GetType(FObj.ClassType);
+    if not Assigned(RttiType) then
+      Exit;
+
+    for I := 0 to High(FPropNames) do
+    begin
+      Prop := RttiType.GetProperty(FPropNames[I]);
+      if Assigned(Prop) and Prop.IsWritable then
+        Prop.SetValue(FObj, AValues[I]);
+    end;
+  finally
+    Ctx.Free;
+  end;
+end;
+
+procedure TPropertyBatchChangeCommand.Execute;
+begin
+  ApplyValues(FNewValues);
+end;
+
+procedure TPropertyBatchChangeCommand.Rollback;
+begin
+  ApplyValues(FOldValues);
+end;
 
 { =========================================================================== }
 {  Form lifecycle                                                              }
@@ -860,6 +931,9 @@ begin
   FDesigner.Undo;
   UpdateMenuState;
   UpdatePropertyPanel;
+  UpdateStatusBar;
+  RefreshReportStructure;
+  SyncReportStructureSelection;
 end;
 
 procedure TfrmMain.mnuRedoClick(Sender: TObject);
@@ -867,6 +941,9 @@ begin
   FDesigner.Redo;
   UpdateMenuState;
   UpdatePropertyPanel;
+  UpdateStatusBar;
+  RefreshReportStructure;
+  SyncReportStructureSelection;
 end;
 
 procedure TfrmMain.mnuCutClick(Sender: TObject);
@@ -1792,18 +1869,159 @@ procedure TfrmMain.ApplyPropertyPanel;
 var
   Obj: TReportObject;
   I: Integer;
+  KeyName: string;
+  Ctx: TRttiContext;
+  RttiType: TRttiType;
+  Prop: TRttiProperty;
+  PropNames: TArray<string>;
+  ChangedNames: TArray<string>;
+  OldValues: TArray<TValue>;
+  NewValues: TArray<TValue>;
+  OldByProp: TDictionary<string, TValue>;
+  PropIndex: Integer;
 begin
   Obj := CurrentPropertyTarget;
   if not Assigned(Obj) then Exit;
-  for I := PropEditor.RowCount - 1 downto 0 do
-    if IsVisualGroupRow(PropEditor.Keys[I]) then
-      PropEditor.Strings.Delete(I);
-  TReportPropertyBridge.SaveGridToObject(Obj, PropEditor);
-  FDesigner.RebuildLayout;   // repaint with new property values
-  FModified := True;
-  UpdateTitleBar;
-  // Keep the property list stable after Apply (same selected object, same rows).
-  UpdatePropertyPanel;
+
+  OldByProp := TDictionary<string, TValue>.Create;
+  try
+    SetLength(PropNames, 0);
+    Ctx := TRttiContext.Create;
+    try
+      RttiType := Ctx.GetType(Obj.ClassType);
+      if Assigned(RttiType) then
+      begin
+        for I := 1 to PropEditor.RowCount - 1 do
+        begin
+          KeyName := PropEditor.Keys[I];
+          if IsVisualGroupRow(KeyName) then
+            Continue;
+          if OldByProp.ContainsKey(KeyName) then
+            Continue;
+
+          Prop := RttiType.GetProperty(KeyName);
+          if not Assigned(Prop) or not Prop.IsReadable or not Prop.IsWritable then
+            Continue;
+
+          OldByProp.Add(KeyName, Prop.GetValue(Obj));
+          PropIndex := Length(PropNames);
+          SetLength(PropNames, PropIndex + 1);
+          PropNames[PropIndex] := KeyName;
+        end;
+      end;
+    finally
+      Ctx.Free;
+    end;
+
+    for I := PropEditor.RowCount - 1 downto 0 do
+      if IsVisualGroupRow(PropEditor.Keys[I]) then
+        PropEditor.Strings.Delete(I);
+    TReportPropertyBridge.SaveGridToObject(Obj, PropEditor);
+
+    if BuildChangedPropertyBatch(Obj, OldByProp, PropNames, ChangedNames, OldValues, NewValues) then
+    begin
+      var Cmd := TPropertyBatchChangeCommand.Create(Obj, ChangedNames, OldValues, NewValues);
+      if not Assigned(FDesigner) then
+        Cmd.Free;
+      if Assigned(FDesigner) then
+        FDesigner.ExecuteUndoCommand(Cmd);
+    end;
+    FDesigner.RebuildLayout;   // repaint with new property values
+    FModified := True;
+    UpdateTitleBar;
+    // Keep the property list stable after Apply (same selected object, same rows).
+    UpdatePropertyPanel;
+  finally
+    OldByProp.Free;
+  end;
+end;
+
+function TfrmMain.SamePropertyValue(const AOld, ANew: TValue): Boolean;
+var
+  K: TTypeKind;
+begin
+  if AOld.IsEmpty and ANew.IsEmpty then
+    Exit(True);
+  if AOld.IsEmpty xor ANew.IsEmpty then
+    Exit(False);
+
+  if AOld.TypeInfo <> ANew.TypeInfo then
+    Exit(False);
+
+  K := AOld.Kind;
+  case K of
+    tkString, tkLString, tkWString, tkUString:
+      Exit(AOld.AsString = ANew.AsString);
+    tkChar, tkWChar:
+      Exit(AOld.AsOrdinal = ANew.AsOrdinal);
+    tkInteger, tkInt64, tkEnumeration, tkSet:
+      Exit(AOld.AsOrdinal = ANew.AsOrdinal);
+    tkFloat:
+      Exit(SameValue(AOld.AsExtended, ANew.AsExtended, 1E-12));
+    tkClass:
+      Exit(AOld.AsObject = ANew.AsObject);
+    tkMethod:
+      Exit(AOld.GetReferenceToRawData = ANew.GetReferenceToRawData);
+  else
+    // Conservative fallback for unsupported types:
+    // treat as changed unless definitely equal was proven above.
+    Exit(False);
+  end;
+end;
+
+function TfrmMain.BuildChangedPropertyBatch(
+  AObj: TReportObject;
+  const AOldByProp: TDictionary<string, TValue>;
+  const APropNames: TArray<string>;
+  out ChangedNames: TArray<string>;
+  out OldValues: TArray<TValue>;
+  out NewValues: TArray<TValue>): Boolean;
+var
+  Ctx: TRttiContext;
+  RttiType: TRttiType;
+  Prop: TRttiProperty;
+  OldV, NewV: TValue;
+  I, OutIdx: Integer;
+begin
+  SetLength(ChangedNames, 0);
+  SetLength(OldValues, 0);
+  SetLength(NewValues, 0);
+  Result := False;
+  if not Assigned(AObj) then
+    Exit;
+
+  Ctx := TRttiContext.Create;
+  try
+    RttiType := Ctx.GetType(AObj.ClassType);
+    if not Assigned(RttiType) then
+      Exit;
+
+    for I := 0 to High(APropNames) do
+    begin
+      if not AOldByProp.TryGetValue(APropNames[I], OldV) then
+        Continue;
+
+      Prop := RttiType.GetProperty(APropNames[I]);
+      if not Assigned(Prop) or not Prop.IsReadable then
+        Continue;
+      NewV := Prop.GetValue(AObj);
+
+      if SamePropertyValue(OldV, NewV) then
+        Continue;
+
+      OutIdx := Length(ChangedNames);
+      SetLength(ChangedNames, OutIdx + 1);
+      SetLength(OldValues, OutIdx + 1);
+      SetLength(NewValues, OutIdx + 1);
+      ChangedNames[OutIdx] := APropNames[I];
+      OldValues[OutIdx] := OldV;
+      NewValues[OutIdx] := NewV;
+    end;
+  finally
+    Ctx.Free;
+  end;
+
+  Result := Length(ChangedNames) > 0;
 end;
 
 function TfrmMain.IsControlWithinParent(AControl, AParent: TWinControl): Boolean;
