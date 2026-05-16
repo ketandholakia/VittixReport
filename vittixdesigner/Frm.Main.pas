@@ -1045,13 +1045,8 @@ begin
   Band := TReportBand.Create;
   Band.BandType := ABandType;
   Band.Height   := 40;
-  FDesigner.Report.Objects.Add(Band);
-  FDesigner.RebuildLayout;
-  FModified := True;
-  RefreshReportStructure;
-  UpdateTitleBar;
-  UpdateMenuState;
-  SyncReportStructureSelection;
+  FDesigner.ExecuteUndoCommand(
+    TInsertObjectCommand.Create(FDesigner.Report.Objects, Band));
   StatusBar1.Panels[1].Text := 'Band added: ' + BandTypeName(ABandType);
 end;
 
