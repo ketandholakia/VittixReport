@@ -316,6 +316,9 @@ type
     FExprHelperMemo: TMemo;
     FExprHelperFields: TListBox;
     FExprHelperExamples: TListBox;
+    FExprHelperRecent: TListBox;
+    FExprHelperPropertyKey: string;
+    FExprRecentsByKey: TObjectDictionary<string, TStringList>;
 
     // Command-line mode: set when launched by the component editor
     FCmdLineInputFile : string;   // file to load on startup
@@ -339,15 +342,21 @@ type
     function  IsExpressionPropertyKey(const AKey: string): Boolean;
     function  EditExpressionPropertyRow(ARow: Integer): Boolean;
     function  PromptExpressionHelper(const AInitialValue: string;
-      const AFields: TArray<string>; out AEditedValue: string): Boolean;
+      const AFields: TArray<string>; const APropertyKey: string;
+      out AEditedValue: string): Boolean;
     procedure ExpressionHelperInsertField(Sender: TObject);
     procedure ExpressionHelperFieldDblClick(Sender: TObject);
     procedure ExpressionHelperExampleDblClick(Sender: TObject);
+    procedure ExpressionHelperRecentDblClick(Sender: TObject);
     procedure ExpressionHelperOperatorClick(Sender: TObject);
     procedure ExpressionHelperTemplateClick(Sender: TObject);
     procedure ExpressionHelperInsertText(const AText: string);
     function  ExpressionHelperTryGetSelectedField(out AFieldName: string): Boolean;
     procedure ExpressionHelperCheckClick(Sender: TObject);
+    function  ExpressionHelperBucketKey(const APropertyKey: string): string;
+    function  ExpressionHelperRecentList(const APropertyKey: string;
+      ACreate: Boolean): TStringList;
+    procedure ExpressionHelperAddRecent(const APropertyKey, AExpr: string);
     function  IsControlWithinParent(AControl, AParent: TWinControl): Boolean;
     function  IsTextEditingControlFocused: Boolean;
     procedure SendMessageToFocusedControl(AMsg: Cardinal);
@@ -670,6 +679,7 @@ end;
 procedure TfrmMain.FormDestroy(Sender: TObject);
 begin
   // Designer frees its own TReportModel when it owns it
+  FreeAndNil(FExprRecentsByKey);
 end;
 
 procedure TfrmMain.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
@@ -2516,14 +2526,16 @@ begin
 end;
 
 function TfrmMain.PromptExpressionHelper(const AInitialValue: string;
-  const AFields: TArray<string>; out AEditedValue: string): Boolean;
+  const AFields: TArray<string>; const APropertyKey: string;
+  out AEditedValue: string): Boolean;
 var
   Dlg: TForm;
   PnlTop, PnlBottom, PnlLeft, PnlRight, PnlCenter, PnlOperators, PnlTemplates: TPanel;
-  LblFields, LblExamples: TLabel;
+  LblFields, LblExamples, LblRecent: TLabel;
   BtnInsert, BtnCheck, BtnOK, BtnCancel, Btn: TButton;
   I: Integer;
   ExampleItems: array[0..7] of string;
+  RecentItems: TStringList;
 
   procedure AddQuickButton(AParent: TWinControl; const ACaption, AInsertText: string;
     ALeft, ATop, AWidth: Integer; AOnClick: TNotifyEvent; ATag: NativeInt = 0);
@@ -2542,6 +2554,7 @@ var
 begin
   Result := False;
   AEditedValue := AInitialValue;
+  FExprHelperPropertyKey := APropertyKey;
 
   Dlg := TForm.Create(Self);
   try
@@ -2610,7 +2623,8 @@ begin
 
     FExprHelperExamples := TListBox.Create(Dlg);
     FExprHelperExamples.Parent := PnlRight;
-    FExprHelperExamples.Align := alClient;
+    FExprHelperExamples.Align := alBottom;
+    FExprHelperExamples.Height := 150;
 
     ExampleItems[0] := '[Qty] * [Rate]';
     ExampleItems[1] := '[Amount] > 1000';
@@ -2625,6 +2639,23 @@ begin
 
     // Double-click replaces the entire expression for faster template usage.
     FExprHelperExamples.OnDblClick := ExpressionHelperExampleDblClick;
+
+    LblRecent := TLabel.Create(Dlg);
+    LblRecent.Parent := PnlRight;
+    LblRecent.Align := alTop;
+    LblRecent.Caption := 'Recent';
+    LblRecent.Height := 20;
+    LblRecent.Font.Style := [fsBold];
+
+    FExprHelperRecent := TListBox.Create(Dlg);
+    FExprHelperRecent.Parent := PnlRight;
+    FExprHelperRecent.Align := alClient;
+    FExprHelperRecent.OnDblClick := ExpressionHelperRecentDblClick;
+
+    RecentItems := ExpressionHelperRecentList(APropertyKey, False);
+    if Assigned(RecentItems) then
+      for I := 0 to RecentItems.Count - 1 do
+        FExprHelperRecent.Items.Add(RecentItems[I]);
 
     PnlOperators := TPanel.Create(Dlg);
     PnlOperators.Parent := PnlCenter;
@@ -2696,12 +2727,15 @@ begin
     if Dlg.ShowModal = mrOk then
     begin
       AEditedValue := FExprHelperMemo.Lines.Text;
+      ExpressionHelperAddRecent(APropertyKey, AEditedValue);
       Result := True;
     end;
   finally
     FExprHelperMemo := nil;
     FExprHelperFields := nil;
     FExprHelperExamples := nil;
+    FExprHelperRecent := nil;
+    FExprHelperPropertyKey := '';
     Dlg.Free;
   end;
 end;
@@ -2721,7 +2755,7 @@ begin
     Exit;
 
   CurrentValue := PropEditor.Values[KeyName];
-  if not PromptExpressionHelper(CurrentValue, FDesigner.GetFieldNames, EditedValue) then
+  if not PromptExpressionHelper(CurrentValue, FDesigner.GetFieldNames, KeyName, EditedValue) then
     Exit;
 
   PropEditor.Values[KeyName] := EditedValue;
@@ -2862,6 +2896,70 @@ begin
   end;
 end;
 
+function TfrmMain.ExpressionHelperBucketKey(const APropertyKey: string): string;
+begin
+  if SameText(APropertyKey, 'Expression') then
+    Exit('expression');
+  if SameText(APropertyKey, 'PrintWhen') then
+    Exit('printwhen');
+  if SameText(APropertyKey, 'BackgroundCondition') then
+    Exit('backgroundcondition');
+  if SameText(APropertyKey, 'FontColorCondition') then
+    Exit('fontcolorcondition');
+  if SameText(APropertyKey, 'BorderColorCondition') then
+    Exit('bordercolorcondition');
+  Result := '';
+end;
+
+function TfrmMain.ExpressionHelperRecentList(const APropertyKey: string;
+  ACreate: Boolean): TStringList;
+var
+  Key: string;
+begin
+  Result := nil;
+  Key := ExpressionHelperBucketKey(APropertyKey);
+  if Key = '' then
+    Exit;
+
+  if not Assigned(FExprRecentsByKey) then
+  begin
+    if not ACreate then
+      Exit;
+    FExprRecentsByKey := TObjectDictionary<string, TStringList>.Create([doOwnsValues]);
+  end;
+
+  if not FExprRecentsByKey.TryGetValue(Key, Result) and ACreate then
+  begin
+    Result := TStringList.Create;
+    FExprRecentsByKey.Add(Key, Result);
+  end;
+end;
+
+procedure TfrmMain.ExpressionHelperAddRecent(const APropertyKey, AExpr: string);
+const
+  CMaxRecentItems = 20;
+var
+  ExprText: string;
+  Recent: TStringList;
+  I: Integer;
+begin
+  ExprText := Trim(AExpr);
+  if ExprText = '' then
+    Exit;
+
+  Recent := ExpressionHelperRecentList(APropertyKey, True);
+  if not Assigned(Recent) then
+    Exit;
+
+  for I := Recent.Count - 1 downto 0 do
+    if SameText(Trim(Recent[I]), ExprText) then
+      Recent.Delete(I);
+
+  Recent.Insert(0, ExprText);
+  while Recent.Count > CMaxRecentItems do
+    Recent.Delete(Recent.Count - 1);
+end;
+
 procedure TfrmMain.ExpressionHelperFieldDblClick(Sender: TObject);
 begin
   ExpressionHelperInsertField(Sender);
@@ -2876,6 +2974,18 @@ begin
 
   // Simpler Phase 1 behavior: replace editor content with selected example.
   FExprHelperMemo.Lines.Text := FExprHelperExamples.Items[FExprHelperExamples.ItemIndex];
+  FExprHelperMemo.SetFocus;
+end;
+
+procedure TfrmMain.ExpressionHelperRecentDblClick(Sender: TObject);
+begin
+  if not Assigned(FExprHelperRecent) or not Assigned(FExprHelperMemo) then
+    Exit;
+  if FExprHelperRecent.ItemIndex < 0 then
+    Exit;
+
+  // Keep behavior aligned with examples: replace editor content.
+  FExprHelperMemo.Lines.Text := FExprHelperRecent.Items[FExprHelperRecent.ItemIndex];
   FExprHelperMemo.SetFocus;
 end;
 
