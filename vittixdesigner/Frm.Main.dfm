@@ -279,7 +279,6 @@ object frmMain: TfrmMain
       Top = 2
       Width = 102
       Height = 23
-      Style = csDropDown
       TabOrder = 1
       Text = '100%'
     end
@@ -382,8 +381,14 @@ object frmMain: TfrmMain
         Top = 15
         Width = 140
         Height = 657
+        Hint = 
+          'Select a report object tool, then click the designer canvas to i' +
+          'nsert it.'
+        Style = lbOwnerDrawFixed
         Align = alClient
         ItemHeight = 15
+        ParentShowHint = False
+        ShowHint = True
         TabOrder = 0
         OnToolSelected = ToolboxToolSelected
       end

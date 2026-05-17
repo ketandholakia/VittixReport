@@ -100,17 +100,25 @@ function ResolveSystemToken(
   out Value: string): Boolean;
 begin
   Result := True;
-  if SameText(Token, 'PageNo') then
+  if SameText(Token, 'PageNo') or
+     SameText(Token, 'Page') or
+     SameText(Token, 'Page#') then
     Value := IntToStr(Context.PageNumber)
-  else if SameText(Token, 'TotalPages') then
+  else if SameText(Token, 'TotalPages') or
+          SameText(Token, 'TotalPages#') then
     Value := IntToStr(Context.TotalPages)
   else if SameText(Token, 'ReportTitle') then
     Value := Context.ReportTitle
-  else if SameText(Token, 'ReportDate') then
+  else if SameText(Token, 'ReportDate') or
+          SameText(Token, 'Date') then
     Value := DateToStr(Context.ReportDate)
   else if SameText(Token, 'DateTime') then
     Value := DateTimeToStr(Context.ReportDate)
-  else if SameText(Token, 'RecNo') then
+  else if SameText(Token, 'Time') then
+    Value := TimeToStr(Context.ReportDate)
+  else if SameText(Token, 'RecNo') or
+          SameText(Token, 'Line') or
+          SameText(Token, 'Line#') then
   begin
     if Assigned(Context.DataSet) and Context.DataSet.Active then
       Value := IntToStr(Context.DataSet.RecNo)

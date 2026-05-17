@@ -33,6 +33,7 @@ uses
   Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Menus, Vcl.Dialogs,
   Vcl.ValEdit, Vcl.ActnList, Vcl.ActnMan, Vcl.ActnCtrls,
   Vcl.ImgList, Vcl.Graphics, Vcl.Buttons,
+  Vcl.Clipbrd,
   Data.DB, Data.Win.ADODB,
   Datasnap.DBClient,
   Vittix.Report.Model,
@@ -316,6 +317,9 @@ type
     FPnlFields  : TPanel;
     FLblFields  : TLabel;
     FLstFields  : TListBox;
+    FPnlVariables: TPanel;
+    FLblVariables: TLabel;
+    FTreeVariables: TTreeView;
     FPnlStructure: TPanel;
     FLblStructure: TLabel;
     FTreeStructure: TTreeView;
@@ -446,6 +450,7 @@ type
       State: TDragState; var Accept: Boolean);
     procedure DesignerDragDrop(Sender, Source: TObject; X, Y: Integer);
     procedure DesignerDataSetChanged(Sender: TObject);
+    procedure VariableListDblClick(Sender: TObject);
     procedure CreateSampleDataSet;
     procedure ReloadSampleDataSet;
     procedure UseSampleDataSet;
@@ -453,6 +458,10 @@ type
     function  ZoomFromEdit: Integer;
     function  ZoomPercentFromText(const AText: string): Integer;
     procedure cboZoomToolbarChange(Sender: TObject);
+    function  VariableTokenForNode(ANode: TTreeNode; out AToken: string;
+      out ASupported: Boolean): Boolean;
+    function  CanInsertVariableIntoCurrentProperty(out AKey: string): Boolean;
+    procedure InsertVariableToken(const AToken: string);
 
   public
     property CurrentFile: string  read FCurrentFile;
@@ -831,6 +840,46 @@ begin
   FLstFields.Hint     := 'Double-click or drag a field into a band to insert a bound label';
   FLstFields.ShowHint := True;
 
+  FPnlVariables := TPanel.Create(Self);
+  FPnlVariables.Parent := pnlToolbox;
+  FPnlVariables.Align := alBottom;
+  FPnlVariables.Height := 170;
+  FPnlVariables.BevelOuter := bvNone;
+  FPnlVariables.Caption := '';
+
+  FLblVariables := TLabel.Create(Self);
+  FLblVariables.Parent := FPnlVariables;
+  FLblVariables.Align := alTop;
+  FLblVariables.Caption := ' Variables';
+  FLblVariables.Font.Style := [fsBold];
+  FLblVariables.Height := 18;
+
+  FTreeVariables := TTreeView.Create(Self);
+  FTreeVariables.Parent := FPnlVariables;
+  FTreeVariables.Align := alClient;
+  FTreeVariables.ReadOnly := True;
+  FTreeVariables.HideSelection := False;
+  FTreeVariables.RowSelect := True;
+  FTreeVariables.Indent := 18;
+  FTreeVariables.OnDblClick := VariableListDblClick;
+  FTreeVariables.Hint := 'Double-click a system variable to insert its token';
+  FTreeVariables.ShowHint := True;
+  var VarsRoot := FTreeVariables.Items.AddChild(nil, 'Variables');
+  var SysRoot := FTreeVariables.Items.AddChild(VarsRoot, 'System variables');
+  FTreeVariables.Items.AddChild(SysRoot, 'Date');
+  FTreeVariables.Items.AddChild(SysRoot, 'Time');
+  FTreeVariables.Items.AddChild(SysRoot, 'Page');
+  FTreeVariables.Items.AddChild(SysRoot, 'Page#');
+  FTreeVariables.Items.AddChild(SysRoot, 'TotalPages');
+  FTreeVariables.Items.AddChild(SysRoot, 'TotalPages#');
+  FTreeVariables.Items.AddChild(SysRoot, 'Line');
+  FTreeVariables.Items.AddChild(SysRoot, 'Line#');
+  FTreeVariables.Items.AddChild(SysRoot, 'CopyName# (not supported yet)');
+  FTreeVariables.Items.AddChild(SysRoot, 'TableRow (not supported yet)');
+  FTreeVariables.Items.AddChild(SysRoot, 'TableColumn (not supported yet)');
+  VarsRoot.Expand(True);
+  SysRoot.Expand(True);
+
   FPnlStructure := TPanel.Create(Self);
   FPnlStructure.Parent := pnlToolbox;
   FPnlStructure.Align := alBottom;
@@ -895,6 +944,11 @@ begin
   TrySetOrdinalProp(SVGIconVirtualImageList1, 'DisabledOpacity', 125);
 
   // Splitters between toolbox/structure/fields panels
+  Splitter           := TSplitter.Create(Self);
+  Splitter.Parent    := pnlToolbox;
+  Splitter.Align     := alBottom;
+  Splitter.Height    := 5;
+
   Splitter           := TSplitter.Create(Self);
   Splitter.Parent    := pnlToolbox;
   Splitter.Align     := alBottom;
@@ -3546,6 +3600,106 @@ begin
   FieldName := FLstFields.Items[FLstFields.ItemIndex];
   if not FDesigner.InsertFieldObject(FieldName) then
     ShowMessage('Please click a band on the canvas first to set the active band, then double-click a field.');
+end;
+
+function TfrmMain.VariableTokenForNode(ANode: TTreeNode; out AToken: string;
+  out ASupported: Boolean): Boolean;
+var
+  S: string;
+begin
+  Result := False;
+  AToken := '';
+  ASupported := False;
+  if not Assigned(ANode) then
+    Exit;
+
+  S := Trim(ANode.Text);
+  if Pos('(', S) > 0 then
+    S := Trim(Copy(S, 1, Pos('(', S) - 1));
+
+  if SameText(S, 'Date') then
+    AToken := '[Date]'
+  else if SameText(S, 'Time') then
+    AToken := '[Time]'
+  else if SameText(S, 'Page') then
+    AToken := '[Page]'
+  else if SameText(S, 'Page#') then
+    AToken := '[Page#]'
+  else if SameText(S, 'TotalPages') then
+    AToken := '[TotalPages]'
+  else if SameText(S, 'TotalPages#') then
+    AToken := '[TotalPages#]'
+  else if SameText(S, 'Line') then
+    AToken := '[Line]'
+  else if SameText(S, 'Line#') then
+    AToken := '[Line#]';
+
+  ASupported := AToken <> '';
+  Result := ASupported or SameText(S, 'CopyName#') or SameText(S, 'TableRow') or SameText(S, 'TableColumn');
+end;
+
+function TfrmMain.CanInsertVariableIntoCurrentProperty(out AKey: string): Boolean;
+begin
+  Result := False;
+  AKey := '';
+  if (PropEditor.Row <= 0) or (PropEditor.Row >= PropEditor.RowCount) then
+    Exit;
+
+  AKey := Trim(PropEditor.Keys[PropEditor.Row]);
+  if IsVisualGroupRow(AKey) then
+    Exit;
+
+  Result :=
+    SameText(AKey, 'Text') or
+    SameText(AKey, 'Expression') or
+    SameText(AKey, 'PrintWhen') or
+    SameText(AKey, 'BackgroundCondition') or
+    SameText(AKey, 'FontColorCondition') or
+    SameText(AKey, 'BorderColorCondition');
+end;
+
+procedure TfrmMain.InsertVariableToken(const AToken: string);
+var
+  KeyName: string;
+  CurV: string;
+begin
+  if CanInsertVariableIntoCurrentProperty(KeyName) then
+  begin
+    CurV := Trim(PropEditor.Values[KeyName]);
+    if CurV = '' then
+      PropEditor.Values[KeyName] := AToken
+    else if (Length(CurV) > 0) and (CurV[Length(CurV)] = ' ') then
+      PropEditor.Values[KeyName] := CurV + AToken
+    else
+      PropEditor.Values[KeyName] := CurV + ' ' + AToken;
+
+    SetPropertyPanelDirty(True);
+    UpdatePropertyPanelHintForRow(PropEditor.Row);
+    Exit;
+  end;
+
+  Clipboard.AsText := AToken;
+  ShowMessage('No compatible property row is active. Token copied to clipboard: ' + AToken);
+end;
+
+procedure TfrmMain.VariableListDblClick(Sender: TObject);
+var
+  Token: string;
+  Supported: Boolean;
+begin
+  if not Assigned(FTreeVariables) or not Assigned(FTreeVariables.Selected) then
+    Exit;
+
+  if not VariableTokenForNode(FTreeVariables.Selected, Token, Supported) then
+    Exit;
+
+  if not Supported then
+  begin
+    ShowMessage('This variable is not supported yet.');
+    Exit;
+  end;
+
+  InsertVariableToken(Token);
 end;
 
 procedure TfrmMain.DesignerDragOver(Sender, Source: TObject; X, Y: Integer;
