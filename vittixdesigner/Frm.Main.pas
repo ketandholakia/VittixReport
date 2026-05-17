@@ -609,6 +609,18 @@ type
     property SkipMasterDataBand: Boolean read FSkipMasterDataBand write FSkipMasterDataBand;
   end;
 
+  TBandEventScriptDialogHelper = class
+  private
+    FDialog: TForm;
+    FMemo: TMemo;
+    FStatsLabel: TLabel;
+  public
+    constructor Create(ADialog: TForm; AMemo: TMemo; AStatsLabel: TLabel);
+    procedure UpdateStats;
+    procedure MemoChange(Sender: TObject);
+    procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+  end;
+
 function PageSettingsEqual(A, B: TReportPageSettings): Boolean;
 begin
   Result := Assigned(A) and Assigned(B) and
@@ -704,6 +716,50 @@ procedure TRuntimeEventDemoHarness.AfterObject(Sender, AEngine: TObject;
 begin
   Inc(AfterObjectCount);
   FTrace.Add('AfterObject: ' + AObject.ClassName);
+end;
+
+{ TBandEventScriptDialogHelper }
+
+constructor TBandEventScriptDialogHelper.Create(ADialog: TForm; AMemo: TMemo;
+  AStatsLabel: TLabel);
+begin
+  inherited Create;
+  FDialog := ADialog;
+  FMemo := AMemo;
+  FStatsLabel := AStatsLabel;
+end;
+
+procedure TBandEventScriptDialogHelper.UpdateStats;
+var
+  LineCount: Integer;
+  CharCount: Integer;
+begin
+  if not Assigned(FMemo) or not Assigned(FStatsLabel) then
+    Exit;
+
+  CharCount := Length(FMemo.Text);
+  if FMemo.Text = '' then
+    LineCount := 0
+  else
+    LineCount := FMemo.Lines.Count;
+
+  FStatsLabel.Caption := Format('Lines: %d | Chars: %d', [LineCount, CharCount]);
+end;
+
+procedure TBandEventScriptDialogHelper.MemoChange(Sender: TObject);
+begin
+  UpdateStats;
+end;
+
+procedure TBandEventScriptDialogHelper.FormKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  if (Key = VK_RETURN) and (ssCtrl in Shift) then
+  begin
+    Key := 0;
+    if Assigned(FDialog) then
+      FDialog.ModalResult := mrOk;
+  end;
 end;
 
 constructor TPropertyBatchChangeCommand.Create(AObj: TObject;
@@ -4379,9 +4435,12 @@ var
   Dlg: TForm;
   PnlBottom: TPanel;
   LblHelp: TLabel;
+  LblTip: TLabel;
+  LblStats: TLabel;
   MemoScript: TMemo;
   BtnOK: TButton;
   BtnCancel: TButton;
+  Helper: TBandEventScriptDialogHelper;
 begin
   Result := False;
   if (ARow <= 0) or (ARow >= PropEditor.RowCount) then
@@ -4394,11 +4453,13 @@ begin
   CurrentValue := PropEditor.Values[KeyName];
 
   Dlg := TForm.Create(Self);
+  Helper := nil;
   try
     Dlg.Caption := 'Band Event Script';
     Dlg.Position := poScreenCenter;
     Dlg.BorderStyle := bsDialog;
     Dlg.BorderIcons := [biSystemMenu];
+    Dlg.KeyPreview := True;
     Dlg.ClientWidth := 760;
     Dlg.ClientHeight := 460;
 
@@ -4410,18 +4471,27 @@ begin
     LblHelp.Height := 34;
     LblHelp.WordWrap := True;
     LblHelp.Caption :=
-      'This text is passed to the host script callback for the selected band. ' +
+      'This text is stored with the band and passed to the host script callback.' + sLineBreak +
       'Runtime Delphi callbacks are separate and are not stored in the report.';
+
+    LblTip := TLabel.Create(Dlg);
+    LblTip.Parent := Dlg;
+    LblTip.Left := 12;
+    LblTip.Top := 46;
+    LblTip.Width := Dlg.ClientWidth - 24;
+    LblTip.Caption := 'Tip: Ctrl+Enter to save';
 
     MemoScript := TMemo.Create(Dlg);
     MemoScript.Parent := Dlg;
     MemoScript.Left := 12;
-    MemoScript.Top := 50;
+    MemoScript.Top := 66;
     MemoScript.Width := Dlg.ClientWidth - 24;
     MemoScript.Height := Dlg.ClientHeight - 102;
     MemoScript.Anchors := [akLeft, akTop, akRight, akBottom];
     MemoScript.ScrollBars := ssBoth;
     MemoScript.WordWrap := False;
+    MemoScript.Font.Name := 'Consolas';
+    MemoScript.Font.Size := 10;
     MemoScript.Lines.Text := CurrentValue;
 
     PnlBottom := TPanel.Create(Dlg);
@@ -4429,6 +4499,12 @@ begin
     PnlBottom.Align := alBottom;
     PnlBottom.Height := 44;
     PnlBottom.BevelOuter := bvNone;
+
+    LblStats := TLabel.Create(Dlg);
+    LblStats.Parent := PnlBottom;
+    LblStats.Left := 12;
+    LblStats.Top := 14;
+    LblStats.Caption := 'Lines: 0 | Chars: 0';
 
     BtnOK := TButton.Create(Dlg);
     BtnOK.Parent := PnlBottom;
@@ -4448,6 +4524,11 @@ begin
     BtnCancel.Width := 80;
     BtnCancel.Anchors := [akRight, akBottom];
 
+    Helper := TBandEventScriptDialogHelper.Create(Dlg, MemoScript, LblStats);
+    MemoScript.OnChange := Helper.MemoChange;
+    Dlg.OnKeyDown := Helper.FormKeyDown;
+    Helper.UpdateStats;
+
     Dlg.ActiveControl := MemoScript;
     if Dlg.ShowModal <> mrOk then
       Exit;
@@ -4460,6 +4541,7 @@ begin
     end;
     Result := True;
   finally
+    Helper.Free;
     Dlg.Free;
   end;
 end;
