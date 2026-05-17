@@ -126,6 +126,7 @@ type
     FOnSelectionChanged: TNotifyEvent;
     FOnModified        : TNotifyEvent;
     FOnDataSetChanged  : TNotifyEvent;
+    FOnViewChanged     : TNotifyEvent;
 
     { Internal helpers - coordinate transforms }
     function  Scale(V: Integer): Integer;    // logical -> screen  (apply zoom)
@@ -134,6 +135,7 @@ type
     function  PageTop: Integer;
     function  PageWidth: Integer;
     function  PageHeight: Integer;
+    procedure UpdateSurfaceExtent;
 
     function  ScreenToPage(const P: TPoint): TPoint;
 
@@ -160,6 +162,7 @@ type
     procedure RemoveFromSelection(Obj: TReportObject);
     procedure DoSelectionChanged;
     procedure DoModified;
+    procedure DoViewChanged;
 
     { Property setters }
     procedure SetDataSet(const V: TDataSet);
@@ -299,6 +302,8 @@ type
       read FOnModified write FOnModified;
     property OnDataSetChanged: TNotifyEvent
       read FOnDataSetChanged write FOnDataSetChanged;
+    property OnViewChanged: TNotifyEvent
+      read FOnViewChanged write FOnViewChanged;
     property OnDragOver;
     property OnDragDrop;
   end;
@@ -701,6 +706,12 @@ begin
     FOnModified(Self);
 end;
 
+procedure TVittixReportDesigner.DoViewChanged;
+begin
+  if Assigned(FOnViewChanged) then
+    FOnViewChanged(Self);
+end;
+
 { -- Public interface ------------------------------------------------------- }
 
 procedure TVittixReportDesigner.LoadReport(AReport: TReportModel;
@@ -716,6 +727,7 @@ begin
   FBandLayouts := nil;
   FObjectBandMap.Clear;
   ComputeBandLayouts;
+  UpdateSurfaceExtent;
   Invalidate;
   // Notify the host (designer EXE field panel) that the dataset may have changed.
   // This causes the "Dataset Fields" panel to refresh from the newly loaded report.
@@ -1299,6 +1311,7 @@ end;
 procedure TVittixReportDesigner.RebuildLayout;
 begin
   ComputeBandLayouts;
+  UpdateSurfaceExtent;
   Invalidate;
 end;
 
@@ -1519,27 +1532,61 @@ begin
 end;
 
 procedure TVittixReportDesigner.SetZoom(const V: Integer);
+var
+  NewZoom: Integer;
 begin
-  FZoom := Max(25, Min(400, V));
+  NewZoom := Max(25, Min(400, V));
+  if FZoom = NewZoom then
+    Exit;
+  FZoom := NewZoom;
+  UpdateSurfaceExtent;
   Invalidate;
+  DoViewChanged;
 end;
 
 procedure TVittixReportDesigner.SetShowGrid(const V: Boolean);
 begin
+  if FShowGrid = V then
+    Exit;
   FShowGrid := V;
   Invalidate;
+  DoViewChanged;
 end;
 
 procedure TVittixReportDesigner.SetShowRulers(const V: Boolean);
 begin
+  if FShowRulers = V then
+    Exit;
   FShowRulers := V;
+  UpdateSurfaceExtent;
   Invalidate;
+  DoViewChanged;
 end;
 
 procedure TVittixReportDesigner.SetShowMargins(const V: Boolean);
 begin
+  if FShowMargins = V then
+    Exit;
   FShowMargins := V;
   Invalidate;
+  DoViewChanged;
+end;
+
+procedure TVittixReportDesigner.UpdateSurfaceExtent;
+var
+  ReqW, ReqH: Integer;
+begin
+  ReqW := PageLeft + PageWidth + PAGE_PAD;
+  ReqH := PageTop + PageHeight + PAGE_PAD;
+
+  if Assigned(Parent) then
+  begin
+    ReqW := Max(ReqW, Parent.ClientWidth);
+    ReqH := Max(ReqH, Parent.ClientHeight);
+  end;
+
+  if (Width <> ReqW) or (Height <> ReqH) then
+    SetBounds(Left, Top, ReqW, ReqH);
 end;
 
 
