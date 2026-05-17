@@ -186,3 +186,26 @@ Release build:
 - View toggles do not create undo entries.
 - View toggles do not mark report modified.
 - Preview/export output is unchanged by view toggle state.
+
+## 14) Designer UI / Property Panel checklist
+
+- Selecting an object loads its properties.
+- Header shows selected object/band type.
+- Header shows object Name when available.
+- Apply is disabled when no pending property edits.
+- Editing a real property enables Apply.
+- Clicking visual group rows does not mark panel dirty.
+- Applying property changes creates one undoable batch.
+- Apply disables again after successful Apply.
+- Changing selection clears/reloads dirty state safely.
+- Enter applies only when dirty and does not create noisy no-op undo.
+- Property hint/status text appears for common rows.
+- Property hint/status text covers DataField.
+- Property hint/status text covers Expression.
+- Property hint/status text covers PrintWhen.
+- Property hint/status text covers DisplayFormat.
+- Property hint/status text covers FontColor / BackgroundColor / BorderColor.
+- Expression Helper still works.
+- Font dialog still works.
+- Color picker still works.
+- DataField picklist still works.
