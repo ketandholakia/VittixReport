@@ -309,6 +309,10 @@ type
     FPnlStructure: TPanel;
     FLblStructure: TLabel;
     FTreeStructure: TTreeView;
+    FStructureTreePopup: TPopupMenu;
+    FStructureTreeDeleteItem: TMenuItem;
+    FStructureTreeExpandAllItem: TMenuItem;
+    FStructureTreeCollapseAllItem: TMenuItem;
     FUpdatingStructureSelection: Boolean;
     FReportSampleReportsMenu: TMenuItem;
     FReportDemoReportsMenu: TMenuItem;
@@ -407,6 +411,12 @@ type
     procedure SyncReportStructureSelection;
     procedure StructureTreeChange(Sender: TObject; Node: TTreeNode);
     procedure StructureTreeDblClick(Sender: TObject);
+    procedure StructureTreeMouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure StructureTreePopupPopup(Sender: TObject);
+    procedure StructureTreeDeleteClick(Sender: TObject);
+    procedure StructureTreeExpandAllClick(Sender: TObject);
+    procedure StructureTreeCollapseAllClick(Sender: TObject);
     function  FindStructureNodeByData(AData: Pointer): TTreeNode;
     function  StructureBandCaption(ABand: TReportBand): string;
     function  StructureObjectCaption(AObj: TReportObject): string;
@@ -731,6 +741,7 @@ procedure TfrmMain.FormCreate(Sender: TObject);
 var
   Splitter: TSplitter;
   MI: TMenuItem;
+  Sep: TMenuItem;
 begin
   // Defensive registration for command-line open mode.
   // Some environments can start with an incomplete registry; ensure bands
@@ -799,6 +810,31 @@ begin
   FTreeStructure.ShowHint := True;
   FTreeStructure.OnChange := StructureTreeChange;
   FTreeStructure.OnDblClick := StructureTreeDblClick;
+  FTreeStructure.OnMouseDown := StructureTreeMouseDown;
+
+  FStructureTreePopup := TPopupMenu.Create(Self);
+  FStructureTreePopup.OnPopup := StructureTreePopupPopup;
+
+  FStructureTreeDeleteItem := TMenuItem.Create(FStructureTreePopup);
+  FStructureTreeDeleteItem.Caption := 'Delete';
+  FStructureTreeDeleteItem.OnClick := StructureTreeDeleteClick;
+  FStructureTreePopup.Items.Add(FStructureTreeDeleteItem);
+
+  Sep := TMenuItem.Create(FStructureTreePopup);
+  Sep.Caption := '-';
+  FStructureTreePopup.Items.Add(Sep);
+
+  FStructureTreeExpandAllItem := TMenuItem.Create(FStructureTreePopup);
+  FStructureTreeExpandAllItem.Caption := 'Expand All';
+  FStructureTreeExpandAllItem.OnClick := StructureTreeExpandAllClick;
+  FStructureTreePopup.Items.Add(FStructureTreeExpandAllItem);
+
+  FStructureTreeCollapseAllItem := TMenuItem.Create(FStructureTreePopup);
+  FStructureTreeCollapseAllItem.Caption := 'Collapse All';
+  FStructureTreeCollapseAllItem.OnClick := StructureTreeCollapseAllClick;
+  FStructureTreePopup.Items.Add(FStructureTreeCollapseAllItem);
+
+  FTreeStructure.PopupMenu := FStructureTreePopup;
 
   // Splitters between toolbox/structure/fields panels
   Splitter           := TSplitter.Create(Self);
@@ -2980,6 +3016,56 @@ begin
     FDesigner.SetFocus;
 
   FDesigner.Invalidate;
+end;
+
+procedure TfrmMain.StructureTreeMouseDown(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+var
+  Node: TTreeNode;
+begin
+  if (Button <> mbRight) or not Assigned(FTreeStructure) then
+    Exit;
+
+  Node := FTreeStructure.GetNodeAt(X, Y);
+  if Assigned(Node) then
+    FTreeStructure.Selected := Node
+  else
+    FTreeStructure.Selected := nil;
+end;
+
+procedure TfrmMain.StructureTreePopupPopup(Sender: TObject);
+var
+  Node: TTreeNode;
+begin
+  if not Assigned(FTreeStructure) then
+    Exit;
+
+  Node := FTreeStructure.Selected;
+  FStructureTreeDeleteItem.Enabled := Assigned(Node) and Assigned(Node.Data);
+end;
+
+procedure TfrmMain.StructureTreeDeleteClick(Sender: TObject);
+begin
+  mnuDeleteClick(Sender);
+end;
+
+procedure TfrmMain.StructureTreeExpandAllClick(Sender: TObject);
+begin
+  if Assigned(FTreeStructure) then
+    FTreeStructure.FullExpand;
+end;
+
+procedure TfrmMain.StructureTreeCollapseAllClick(Sender: TObject);
+var
+  RootNode: TTreeNode;
+begin
+  if not Assigned(FTreeStructure) then
+    Exit;
+
+  FTreeStructure.FullCollapse;
+  RootNode := FTreeStructure.Items.GetFirstNode;
+  if Assigned(RootNode) then
+    RootNode.Expand(False);
 end;
 
 procedure TfrmMain.RefreshReportStructure;
