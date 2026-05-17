@@ -55,8 +55,10 @@ begin
   inherited;
 
   Style := lbOwnerDrawFixed;
-  ItemHeight := 24;
+  ItemHeight := 26;
   Sorted := False;
+  ShowHint := True;
+  Hint := 'Select a report object tool, then click the designer canvas to insert it.';
 end;
 
 { ================= Load Tools ================= }
@@ -155,8 +157,6 @@ var
   IconSize: Integer;
   TextRect: TRect;
 begin
-  Canvas.FillRect(Rect);
-
   if (Index < 0) or (Index >= Items.Count) then
     Exit;
 
@@ -164,14 +164,13 @@ begin
   begin
     Canvas.Brush.Color := clHighlight;
     Canvas.Font.Color := clHighlightText;
-    Canvas.FillRect(Rect);
   end
   else
   begin
     Canvas.Brush.Color := Color;
     Canvas.Font.Color := Font.Color;
-    Canvas.FillRect(Rect);
   end;
+  Canvas.FillRect(Rect);
 
   ToolClass := TReportObjectClass(Items.Objects[Index]);
   IconIndex := ToolImageIndexForClass(ToolClass);
