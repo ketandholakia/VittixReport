@@ -246,6 +246,7 @@ Release build:
 - OnBeforePrint has helper/ellipsis editor.
 - OnAfterPrint has helper/ellipsis editor.
 - Opening helper shows multiline editor.
+- Helper shows concise help text.
 - Helper shows line/char count.
 - Line/char count updates while typing.
 - Fixed-width editor font is used.
@@ -255,9 +256,11 @@ Release build:
 - Enter inside editor inserts newline.
 - Cancel leaves property value unchanged.
 - Dialog does not execute script.
+- Dialog does not validate script syntax.
 - Dialog does not auto-apply.
 - Applying creates one undoable property batch.
 - Undo/Redo restores event script text.
+- Apply/Undo/Redo behavior remains unchanged.
 - Save/Reopen preserves event script text.
 - Expression Helper still works for Expression / PrintWhen / condition fields.
 - Font / Color / DataField editors still work.
