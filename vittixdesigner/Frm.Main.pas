@@ -595,6 +595,8 @@ type
     SkippedBandCount: Integer;
     SkippedObjectCount: Integer;
     ScriptCanceledObjectCount: Integer;
+    ScriptTextSetCount: Integer;
+    ScriptUnsupportedCount: Integer;
 
     constructor Create;
     destructor Destroy; override;
@@ -675,6 +677,8 @@ begin
   SkippedBandCount := 0;
   SkippedObjectCount := 0;
   ScriptCanceledObjectCount := 0;
+  ScriptTextSetCount := 0;
+  ScriptUnsupportedCount := 0;
   FTrace.Clear;
   FSkipObjectClassName := '';
   FSkipMasterDataBand := False;
@@ -737,17 +741,57 @@ end;
 procedure TRuntimeEventDemoHarness.ScriptBeforeObject(AReport: TReportModel;
   AObject: TReportObject; const Script: string; var Context: TExpressionContext;
   var ACanPrint: Boolean);
+var
+  S: string;
+  P: Integer;
+  Rhs: string;
+  Lit: string;
 begin
   Inc(ScriptBeforeObjectCount);
   FTrace.Add(Format('ScriptBeforeObject: %s "%s" text="%s"',
     [AObject.ClassName, AObject.Name, Script]));
 
-  if SameText(Trim(Script), 'CanPrint := False') then
+  S := Trim(Script);
+
+  if SameText(S, 'CanPrint := False') then
   begin
     ACanPrint := False;
     Inc(ScriptCanceledObjectCount);
     FTrace.Add('ScriptCanceledObject: ' + AObject.ClassName);
+    Exit;
   end;
+
+  P := Pos(':=', S);
+  if (P > 0) and SameText(Trim(Copy(S, 1, P - 1)), 'Text') then
+  begin
+    Rhs := Trim(Copy(S, P + 2, MaxInt));
+    if (Length(Rhs) >= 2) and (Rhs[1] = '''') and (Rhs[Length(Rhs)] = '''') then
+    begin
+      Lit := Copy(Rhs, 2, Length(Rhs) - 2);
+      Lit := StringReplace(Lit, '''''', '''', [rfReplaceAll]);
+      if AObject is TReportTextObject then
+      begin
+        TReportTextObject(AObject).Text := Lit;
+        Inc(ScriptTextSetCount);
+        FTrace.Add(Format('ScriptSetText: %s "%s" -> "%s"',
+          [AObject.ClassName, AObject.Name, Lit]));
+      end
+      else
+      begin
+        Inc(ScriptUnsupportedCount);
+        FTrace.Add('ScriptUnsupportedForObjectType: ' + AObject.ClassName);
+      end;
+    end
+    else
+    begin
+      Inc(ScriptUnsupportedCount);
+      FTrace.Add('ScriptUnsupportedTextLiteral: ' + S);
+    end;
+    Exit;
+  end;
+
+  Inc(ScriptUnsupportedCount);
+  FTrace.Add('ScriptUnsupportedCommand: ' + S);
 end;
 
 procedure TRuntimeEventDemoHarness.ScriptAfterObject(AReport: TReportModel;
@@ -2135,6 +2179,42 @@ var
     end;
     Result := True;
   end;
+  function TraceWindowHasNoTargetObjectHooks(const ATrace: TStrings): Boolean;
+  var
+    I, StartIdx, EndIdx: Integer;
+    S: string;
+  begin
+    Result := False;
+    if not Assigned(ATrace) then
+      Exit;
+
+    StartIdx := -1;
+    EndIdx := -1;
+    for I := 0 to ATrace.Count - 1 do
+    begin
+      if (StartIdx < 0) and (Pos('ScriptCanceledObject: TReportTextObject', ATrace[I]) > 0) then
+        StartIdx := I;
+      if (StartIdx >= 0) and (Pos('AfterBand: Report Title', ATrace[I]) > 0) then
+      begin
+        EndIdx := I;
+        Break;
+      end;
+    end;
+
+    if (StartIdx < 0) or (EndIdx < 0) or (EndIdx <= StartIdx) then
+      Exit(False);
+
+    for I := StartIdx + 1 to EndIdx - 1 do
+    begin
+      S := ATrace[I];
+      if (Pos('BeforeObject: TReportTextObject', S) > 0) or
+         (Pos('ScriptAfterObject: TReportTextObject "txtTitle"', S) > 0) or
+         (Pos('AfterObject: TReportTextObject', S) > 0) then
+        Exit(False);
+    end;
+
+    Result := True;
+  end;
 begin
   UseSampleDataSet;
 
@@ -2183,7 +2263,7 @@ begin
     if Assigned(DemoScriptTarget) then
     begin
       if Trim(DemoScriptTarget.OnBeforePrint) = '' then
-        DemoScriptTarget.OnBeforePrint := 'DemoObjectBefore';
+        DemoScriptTarget.OnBeforePrint := 'Text := ''Demo Title''';
       if Trim(DemoScriptTarget.OnAfterPrint) = '' then
         DemoScriptTarget.OnAfterPrint := 'DemoObjectAfter';
     end;
@@ -2233,14 +2313,14 @@ begin
       'AfterObject: TReportTextObject'
     ]);
 
-    Lines.Add('Runtime Event Callback Demo');
     Lines.Add('');
     Lines.Add('Baseline summary:');
-    Lines.Add(Format('  BeforeReport=%d AfterReport=%d  BeforeBand=%d AfterBand=%d  BeforeObject=%d AfterObject=%d  ScriptBeforeObject=%d ScriptAfterObject=%d  SkippedObject=%d SkippedBand=%d ScriptCanceled=%d',
+    Lines.Add(Format('  BeforeReport=%d AfterReport=%d  BeforeBand=%d AfterBand=%d  BeforeObject=%d AfterObject=%d  ScriptBeforeObject=%d ScriptAfterObject=%d  ScriptSetText=%d ScriptUnsupported=%d  SkippedObject=%d SkippedBand=%d ScriptCanceled=%d',
       [Harness.BeforeReportCount, Harness.AfterReportCount,
        Harness.BeforeBandCount, Harness.AfterBandCount,
        Harness.BeforeObjectCount, Harness.AfterObjectCount,
        Harness.ScriptBeforeObjectCount, Harness.ScriptAfterObjectCount,
+       Harness.ScriptTextSetCount, Harness.ScriptUnsupportedCount,
        Harness.SkippedObjectCount, Harness.SkippedBandCount,
        Harness.ScriptCanceledObjectCount]));
     if BasePass then
@@ -2277,11 +2357,12 @@ begin
     ObjectSkipTrace.Assign(Harness.Trace);
     Lines.Add('');
     Lines.Add('Object-skip summary:');
-    Lines.Add(Format('  BeforeReport=%d AfterReport=%d  BeforeBand=%d AfterBand=%d  BeforeObject=%d AfterObject=%d  ScriptBeforeObject=%d ScriptAfterObject=%d  SkippedObject=%d SkippedBand=%d ScriptCanceled=%d',
+    Lines.Add(Format('  BeforeReport=%d AfterReport=%d  BeforeBand=%d AfterBand=%d  BeforeObject=%d AfterObject=%d  ScriptBeforeObject=%d ScriptAfterObject=%d  ScriptSetText=%d ScriptUnsupported=%d  SkippedObject=%d SkippedBand=%d ScriptCanceled=%d',
       [Harness.BeforeReportCount, Harness.AfterReportCount,
        Harness.BeforeBandCount, Harness.AfterBandCount,
        Harness.BeforeObjectCount, Harness.AfterObjectCount,
        Harness.ScriptBeforeObjectCount, Harness.ScriptAfterObjectCount,
+       Harness.ScriptTextSetCount, Harness.ScriptUnsupportedCount,
        Harness.SkippedObjectCount, Harness.SkippedBandCount,
        Harness.ScriptCanceledObjectCount]));
     if ObjectSkipPass then
@@ -2312,11 +2393,12 @@ begin
     BandSkipTrace.Assign(Harness.Trace);
     Lines.Add('');
     Lines.Add('Band-skip summary:');
-    Lines.Add(Format('  BeforeReport=%d AfterReport=%d  BeforeBand=%d AfterBand=%d  BeforeObject=%d AfterObject=%d  ScriptBeforeObject=%d ScriptAfterObject=%d  SkippedObject=%d SkippedBand=%d ScriptCanceled=%d',
+    Lines.Add(Format('  BeforeReport=%d AfterReport=%d  BeforeBand=%d AfterBand=%d  BeforeObject=%d AfterObject=%d  ScriptBeforeObject=%d ScriptAfterObject=%d  ScriptSetText=%d ScriptUnsupported=%d  SkippedObject=%d SkippedBand=%d ScriptCanceled=%d',
       [Harness.BeforeReportCount, Harness.AfterReportCount,
        Harness.BeforeBandCount, Harness.AfterBandCount,
        Harness.BeforeObjectCount, Harness.AfterObjectCount,
        Harness.ScriptBeforeObjectCount, Harness.ScriptAfterObjectCount,
+       Harness.ScriptTextSetCount, Harness.ScriptUnsupportedCount,
        Harness.SkippedObjectCount, Harness.SkippedBandCount,
        Harness.ScriptCanceledObjectCount]));
     if BandSkipPass then
@@ -2347,11 +2429,12 @@ begin
     ScriptCancelTrace.Assign(Harness.Trace);
     Lines.Add('');
     Lines.Add('Script-host cancel summary:');
-    Lines.Add(Format('  BeforeReport=%d AfterReport=%d  BeforeBand=%d AfterBand=%d  BeforeObject=%d AfterObject=%d  ScriptBeforeObject=%d ScriptAfterObject=%d  SkippedObject=%d SkippedBand=%d ScriptCanceled=%d',
+    Lines.Add(Format('  BeforeReport=%d AfterReport=%d  BeforeBand=%d AfterBand=%d  BeforeObject=%d AfterObject=%d  ScriptBeforeObject=%d ScriptAfterObject=%d  ScriptSetText=%d ScriptUnsupported=%d  SkippedObject=%d SkippedBand=%d ScriptCanceled=%d',
       [Harness.BeforeReportCount, Harness.AfterReportCount,
        Harness.BeforeBandCount, Harness.AfterBandCount,
        Harness.BeforeObjectCount, Harness.AfterObjectCount,
        Harness.ScriptBeforeObjectCount, Harness.ScriptAfterObjectCount,
+       Harness.ScriptTextSetCount, Harness.ScriptUnsupportedCount,
        Harness.SkippedObjectCount, Harness.SkippedBandCount,
        Harness.ScriptCanceledObjectCount]));
     if ScriptCancelPass then
@@ -2362,9 +2445,7 @@ begin
       'ScriptBeforeObject: TReportTextObject "txtTitle" text="CanPrint := False"',
       'ScriptCanceledObject: TReportTextObject'
     ]) and
-      (Pos('BeforeObject: TReportTextObject', ScriptCancelTrace.Text) = 0) and
-      (Pos('ScriptAfterObject: TReportTextObject "txtTitle"', ScriptCancelTrace.Text) = 0) and
-      (Pos('AfterObject: TReportTextObject', ScriptCancelTrace.Text) = 0);
+      TraceWindowHasNoTargetObjectHooks(ScriptCancelTrace);
     if TargetCancelOrderPass then
       Lines.Add('  Target object cancel-order check: PASS')
     else
@@ -2384,7 +2465,7 @@ begin
     else
       Lines.Insert(0, 'Overall: FAIL');
     Lines.Insert(1, 'Runtime Event Callback Demo');
-    if (Lines.Count > 2) and SameText(Lines[2], 'Runtime Event Callback Demo') then
+    while (Lines.Count > 2) and SameText(Lines[2], 'Runtime Event Callback Demo') do
       Lines.Delete(2);
 
     Lines.Add('');

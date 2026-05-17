@@ -133,6 +133,11 @@ Quick notes:
 - `OnObjectBeforePrint(AReport, AObject, Script, Context, var ACanPrint)`
 - `OnObjectAfterPrint(AReport, AObject, Script, Context)`
 - `OnObjectBeforePrint` can set `ACanPrint := False` to cancel printing that object.
+- A minimal demo-safe parser can be implemented by the host (not by the engine core).
+- Current demo host parser subset:
+- `CanPrint := False`
+- `Text := 'literal'` (for `TReportTextObject` only)
+- Unknown commands are treated as unsupported text (logged by host/demo), not executed by engine core.
 
 ## Execution Order
 
