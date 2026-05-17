@@ -2146,6 +2146,7 @@ var
   EscapedQuotePass: Boolean;
   WhitespacePass: Boolean;
   TrailingSemicolonPass: Boolean;
+  UnknownCommandPass: Boolean;
   OverallPass: Boolean;
   ScriptCancelTrace: TStringList;
   FieldBindTrace: TStringList;
@@ -2154,6 +2155,7 @@ var
   EscapedQuoteTrace: TStringList;
   WhitespaceTrace: TStringList;
   TrailingSemicolonTrace: TStringList;
+  UnknownCommandTrace: TStringList;
   Obj: TReportObject;
   Band: TReportBand;
   ChildObj: TReportObject;
@@ -2330,6 +2332,7 @@ begin
   EscapedQuoteTrace := TStringList.Create;
   WhitespaceTrace := TStringList.Create;
   TrailingSemicolonTrace := TStringList.Create;
+  UnknownCommandTrace := TStringList.Create;
   try
     FN := GetRegressionReportPath('01_simple_masterdata.vrt');
     if TFile.Exists(FN) then
@@ -2736,6 +2739,35 @@ begin
     else
       Lines.Add('Trailing semicolon subtest: FAIL');
 
+    Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'Foo := 1';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    UnknownCommandTrace.Assign(Harness.Trace);
+    UnknownCommandPass :=
+      (Harness.ScriptUnsupportedCount > 0) and
+      (Pos('ScriptUnsupported[UnknownCommand]: Foo := 1', UnknownCommandTrace.Text) > 0);
+    if UnknownCommandPass then
+      Lines.Add('Unknown command subtest: PASS')
+    else
+      Lines.Add('Unknown command subtest: FAIL');
+
     Lines.Add('');
     Lines.Add('Parser edge-case summary:');
     if EscapedQuotePass then
@@ -2764,7 +2796,8 @@ begin
       VisiblePass and
       EscapedQuotePass and
       WhitespacePass and
-      TrailingSemicolonPass;
+      TrailingSemicolonPass and
+      UnknownCommandPass;
     Lines.Insert(0, '');
     if OverallPass then
       Lines.Insert(0, 'Overall: PASS')
@@ -2795,9 +2828,11 @@ begin
     AppendUnsupportedSummary('Escaped quote', EscapedQuoteTrace, Lines);
     AppendUnsupportedSummary('Whitespace normalization', WhitespaceTrace, Lines);
     AppendUnsupportedSummary('Trailing semicolon', TrailingSemicolonTrace, Lines);
+    AppendUnsupportedSummary('Unknown command', UnknownCommandTrace, Lines);
     AppendUnsupportedReasonSummary(Lines,
       [BaselineTrace, ObjectSkipTrace, BandSkipTrace, ScriptCancelTrace, FieldBindTrace,
-       BackgroundTrace, VisibleTrace, EscapedQuoteTrace, WhitespaceTrace, TrailingSemicolonTrace]);
+       BackgroundTrace, VisibleTrace, EscapedQuoteTrace, WhitespaceTrace, TrailingSemicolonTrace,
+       UnknownCommandTrace]);
 
     Lines.Add('');
     Lines.Add('Baseline trace preview:');
@@ -2884,6 +2919,7 @@ begin
     BackgroundTrace.Free;
     FieldBindTrace.Free;
     TrailingSemicolonTrace.Free;
+    UnknownCommandTrace.Free;
     WhitespaceTrace.Free;
     EscapedQuoteTrace.Free;
     ScriptCancelTrace.Free;

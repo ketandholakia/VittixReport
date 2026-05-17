@@ -354,12 +354,14 @@ Release build:
 - Runtime Event Callback Demo subtest `Text := 'O''Reilly'` (escaped quote literal) reports PASS.
 - Runtime Event Callback Demo subtest whitespace-normalized sequence `Visible := True ; Text := 'WS'` reports PASS.
 - Runtime Event Callback Demo subtest trailing semicolon sequence `Text := 'Tail'; ; ;` reports PASS.
+- Runtime Event Callback Demo subtest invalid command `Foo := 1` reports PASS for unsupported handling.
 - Runtime Event Callback Demo supports bounded semicolon command sequences and reports PASS.
 - `CanPrint := False; ...` short-circuits remaining commands for that object.
 - Quote-aware semicolon split works: `Text := 'A;B'; Visible := True`.
 - Runtime Event Callback Demo shows compact parser edge-case summary (EscapedQuote/WhitespaceNormalization/TrailingSemicolon).
 - Runtime Event Callback Demo shows unsupported-command diagnostics grouped by subtest.
 - Runtime Event Callback Demo shows compact unsupported-reason summary with per-reason counts.
+- Runtime Event Callback Demo unsupported reason summary includes `UnknownCommand` when invalid command subtest runs.
 - Band script behavior remains unchanged.
 - Preview and export use consistent object event execution behavior.
 
