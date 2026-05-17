@@ -336,6 +336,16 @@ Release build:
 - Band script behavior remains unchanged.
 - Preview and export use consistent object event execution behavior.
 
+### Object event PrintWhen ordering
+- Object with `PrintWhen=False` must not execute persisted `OnBeforePrint` text.
+- Object with `PrintWhen=False` must not fire runtime `OnBeforeObject` callback.
+- Object with `PrintWhen=False` must not execute persisted `OnAfterPrint` text.
+- Object with `PrintWhen=False` must not fire runtime `OnAfterObject` callback.
+- Object with `PrintWhen=True` must execute in order:
+- `PrintWhen` -> persisted before text -> runtime `OnBeforeObject` -> draw -> persisted after text -> runtime `OnAfterObject`.
+- Runtime `OnBeforeObject` `CanPrint=False` must skip draw and all after-hooks.
+- Band event script behavior remains unchanged.
+
 ## 15) Designer UI / Variables checklist
 
 ### Variables panel
