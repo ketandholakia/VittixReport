@@ -193,6 +193,8 @@ object frmMain: TfrmMain
       Top = 0
       Hint = 'Center selected objects vertically'
       Caption = 'Center V'
+      ImageIndex = 19
+      ImageName = 'align_vertical_center'
       OnClick = mnuCenterVClick
     end
     object tbSep6: TToolButton
@@ -236,6 +238,8 @@ object frmMain: TfrmMain
       Top = 0
       Hint = 'Send selected objects to back'
       Caption = 'Back'
+      ImageIndex = 20
+      ImageName = 'flip_to_back'
       OnClick = mnuBackClick
     end
     object tbSep8: TToolButton
@@ -2156,6 +2160,15 @@ object frmMain: TfrmMain
           '20v-120h400v120H280Zm0 280v-120h400v120H280Z"/></svg>'
       end
       item
+        IconName = 'align_vertical_center'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" enable-background="new 0 0 24 24' +
+          '" height="24px" viewBox="0 0 24 24" width="24px" fill="#4A4A4A"><rect fi' +
+          'll="none" height="24" width="24"/><polygon points="22,11 17,11 17,6 14,6' +
+          ' 14,11 10,11 10,3 7,3 7,11 1.84,11 1.84,13 7,13 7,21 10,21 10,13 14,13 1' +
+          '4,18 17,18 17,13 22,13"/></svg>'
+      end
+      item
         IconName = 'flip_to_front'
         SVGText = 
           '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24' +
@@ -2163,6 +2176,15 @@ object frmMain: TfrmMain
           'th d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm12 12h2v-2h-2v2zm6-18H7' +
           'v14h14V3zm-2 12H9V5h10v10zm-8 6h2v-2h-2v2zm-4 0h2v-2H7v2zm-4 0h2v-2H3v2z' +
           '"/></svg>'
+      end
+      item
+        IconName = 'flip_to_back'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24' +
+          '" width="24px" fill="#4A4A4A"><path d="M0 0h24v24H0V0z" fill="none"/><pat' +
+          'h d="M9 7H7v2h2V7zm0 4H7v2h2v-2zm4 4h-2v2h2v-2zm0-12h-2v2h2V3zM9 3H7v2h2' +
+          'V3zm12 0h-2v2h2V3zm0 12h-2v2h2v-2zM9 15H7v2h2v-2zm10-2h2v-2h-2v2zm0-4h2V' +
+          '7h-2v2zM5 7H3v14h14v-2H5V7zm10-2h2V3h-2v2zm0 12h2v-2h-2v2z"/></svg>'
       end
       item
         IconName = 'zoom_in'
@@ -2273,16 +2295,26 @@ object frmMain: TfrmMain
       end
       item
         CollectionIndex = 16
+        CollectionName = 'align_vertical_center'
+        Name = 'align_vertical_center'
+      end
+      item
+        CollectionIndex = 17
         CollectionName = 'flip_to_front'
         Name = 'flip_to_front'
       end
       item
-        CollectionIndex = 17
+        CollectionIndex = 18
+        CollectionName = 'flip_to_back'
+        Name = 'flip_to_back'
+      end
+      item
+        CollectionIndex = 19
         CollectionName = 'zoom_in'
         Name = 'zoom_in'
       end
       item
-        CollectionIndex = 18
+        CollectionIndex = 20
         CollectionName = 'zoom_out'
         Name = 'zoom_out'
       end
