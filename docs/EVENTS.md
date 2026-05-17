@@ -69,12 +69,53 @@ Notes:
 - Callbacks are optional; unassigned handlers are nil-safe.
 - Keep handlers fast and deterministic for large reports.
 
+## Quick Start Callback Template
+
+Use this minimal wiring pattern in a host application:
+
+```pascal
+procedure TMyHost.AttachReportEvents(AEngine: TReportEngine);
+begin
+  if AEngine = nil then
+    Exit;
+
+  AEngine.OnBeforePrintReport := EngineBeforePrintReport;
+  AEngine.OnAfterPrintReport := EngineAfterPrintReport;
+  AEngine.OnBeforeBand := EngineBeforeBand;
+  AEngine.OnAfterBand := EngineAfterBand;
+  AEngine.OnBeforeObject := EngineBeforeObject;
+  AEngine.OnAfterObject := EngineAfterObject;
+end;
+
+procedure TMyHost.EngineBeforeBand(Sender: TObject; ABand: TReportBand; var ACanPrint: Boolean);
+begin
+  // Example: skip an optional debug band
+  if SameText(ABand.Name, 'DebugBand') then
+    ACanPrint := False;
+end;
+
+procedure TMyHost.EngineBeforeObject(Sender: TObject; AObject: TReportObject; var ACanPrint: Boolean);
+begin
+  // Example: skip one object by name
+  if SameText(AObject.Name, 'objInternalOnly') then
+    ACanPrint := False;
+end;
+```
+
+Quick notes:
+- Keep handlers side-effect-light.
+- `ACanPrint=False` skips printing for the current band/object.
+- Adjust signatures to match current event declarations in your runtime package version.
+
 ## Persisted Event Text vs Runtime Callbacks
 - Band `OnBeforePrint` / `OnAfterPrint` text is saved in `.vrt`.
 - Object `OnBeforePrint` / `OnAfterPrint` text is saved in `.vrt`.
+- Object event text fields are serialized only when non-empty.
+- Empty object event text fields are omitted from serialization.
 - Runtime callbacks are assigned in Delphi host code and are not serialized.
 - Persisted event text is passed to host script handling.
 - The designer does not guarantee a built-in script grammar.
+- The designer does not validate, compile, or execute persisted event text.
 
 ## Execution Order
 
@@ -85,6 +126,10 @@ Object-level execution order:
 4. Draw object
 5. Persisted object `OnAfterPrint` text (if non-empty)
 6. Runtime `OnAfterObject`
+
+`PrintWhen` gating rule:
+- If `PrintWhen=False`, the object is skipped.
+- When skipped by `PrintWhen`, persisted object event text and runtime object callbacks are not executed.
 
 Band/report order:
 - Report lifecycle callbacks wrap report execution (`OnBeforePrintReport` -> render -> `OnAfterPrintReport`).

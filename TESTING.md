@@ -244,7 +244,7 @@ Release build:
 - Object OnBeforePrint / OnAfterPrint appear once under/near [Events].
 - Object event helper opens as Object Event Script.
 - Object event text saves/reopens.
-- Preview output unchanged for object event text because runtime execution is not enabled yet.
+- Object event text helper remains editor-only (no designer-side validation or execution).
 - Band event helper still works.
 
 ### Band Event Script Helper
@@ -294,7 +294,10 @@ Release build:
 - Dialog does not auto-apply.
 - Apply / Undo / Redo behavior remains unchanged.
 
-## 17) Event / Script Policy
+## 15) Event / Script Policy
+
+- See host callback wiring and execution notes in `docs/EVENTS.md`.
+- Related runtime persistence/execution checks: `## 16) Object Event Fields Phase A (Persistence Only)` and `## 17) Object Event Fields Phase C (Runtime Execution)`.
 
 ### Current supported items
 - Runtime Delphi lifecycle callbacks:
@@ -312,22 +315,22 @@ Release build:
 - Runtime Delphi callbacks are not stored in `.vrt`.
 
 ### Object event fields
-- Persisted object `OnBeforePrint` / `OnAfterPrint` fields are intentionally deferred.
-- Reason:
-- would change `.vrt` object schema
-- would require clear execution order policy
-- could affect performance on large reports
-- could create user confusion because no built-in script grammar exists
-- Runtime object callbacks should be used for now.
+- Persisted object `OnBeforePrint` / `OnAfterPrint` fields are supported.
+- Object event text is stored in `.vrt` when non-empty and omitted when empty.
+- Runtime callback assignment remains host-side and is not stored in `.vrt`.
+- Designer editing remains text-only (no validation/compilation/execution).
 
-## 18) Object Event Fields Phase A (Persistence Only)
+## 16) Object Event Fields Phase A (Persistence Only)
 - Old `.vrt` files load unchanged.
 - Empty object `OnBeforePrint` / `OnAfterPrint` fields are omitted on save.
 - Non-empty object `OnBeforePrint` / `OnAfterPrint` values save and reload correctly.
-- Non-empty object event fields do not execute in Phase A.
-- Render output remains unchanged in Phase A.
+- Persistence-only baseline validated before runtime execution phase.
 
-## 19) Object Event Fields Phase C (Runtime Execution)
+## 17) Object Event Fields Phase C (Runtime Execution)
+- Object event fields appear under `[Events]` in property panel.
+- Object Event Script helper opens for object `OnBeforePrint` and `OnAfterPrint`.
+- Save/load preserves non-empty object event text.
+- Empty object event fields are omitted from `.vrt` serialization.
 - Empty object event fields keep output unchanged.
 - Non-empty object `OnBeforePrint` executes during final render pass.
 - Non-empty object `OnAfterPrint` executes during final render pass.
@@ -335,16 +338,6 @@ Release build:
 - Runtime `OnBeforeObject` CanPrint remains the skip authority.
 - Band script behavior remains unchanged.
 - Preview and export use consistent object event execution behavior.
-
-### Object event PrintWhen ordering
-- Object with `PrintWhen=False` must not execute persisted `OnBeforePrint` text.
-- Object with `PrintWhen=False` must not fire runtime `OnBeforeObject` callback.
-- Object with `PrintWhen=False` must not execute persisted `OnAfterPrint` text.
-- Object with `PrintWhen=False` must not fire runtime `OnAfterObject` callback.
-- Object with `PrintWhen=True` must execute in order:
-- `PrintWhen` -> persisted before text -> runtime `OnBeforeObject` -> draw -> persisted after text -> runtime `OnAfterObject`.
-- Runtime `OnBeforeObject` `CanPrint=False` must skip draw and all after-hooks.
-- Band event script behavior remains unchanged.
 
 ### Object Event / PrintWhen Ordering Regression
 1. Create or use a report object with:
@@ -373,8 +366,9 @@ Release build:
 Expected result:
 - Object persisted event text and runtime object callbacks are gated by `PrintWhen`.
 - Skipped objects must not execute before/after event logic.
+- Preview and export follow the same object event execution path and order.
 
-## 15) Designer UI / Variables checklist
+## 18) Designer UI / Variables checklist
 
 ### Variables panel
 - Variables panel appears in the designer left area.
@@ -411,7 +405,10 @@ Expected result:
 - Preview/export still works.
 - Regression Test Reports still run.
 
-## 16) Engine / Runtime Events checklist
+## 19) Engine / Runtime Events checklist
+
+- Host application callback wiring examples are documented in `docs/EVENTS.md`.
+- For object persisted event ordering checks, see `## 17) Object Event Fields Phase C (Runtime Execution)`.
 
 ### No-handler baseline
 - Existing reports render unchanged when no event callbacks are assigned.
