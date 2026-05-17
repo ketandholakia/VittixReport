@@ -385,6 +385,8 @@ Release build:
 
 ## 16) Engine / Runtime Events checklist
 
+- Host application callback wiring examples are documented in `docs/EVENTS.md`.
+
 ### No-handler baseline
 - Existing reports render unchanged when no event callbacks are assigned.
 - Preview output unchanged.
