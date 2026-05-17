@@ -50,11 +50,28 @@ type
 
   TReportObjectClass = class of TReportObject;
 
+  TReportObjectBeforePrintEvent = procedure(
+    AObject: TReportObject;
+    const Context: TExpressionContext;
+    var ACanPrint: Boolean) of object;
+
+  TReportObjectAfterPrintEvent = procedure(
+    AObject: TReportObject;
+    const Context: TExpressionContext) of object;
+
 { ================= Registry ================= }
 
 procedure RegisterReportObject(AClass: TReportObjectClass);
 function GetRegisteredReportObjects: TArray<TReportObjectClass>;
 procedure SetReportNamedDataSets(ANamedDataSets: TDictionary<string, TDataSet>);
+procedure SetReportObjectRenderHooks(
+  const ABeforePrint: TReportObjectBeforePrintEvent;
+  const AAfterPrint: TReportObjectAfterPrintEvent);
+procedure ClearReportObjectRenderHooks;
+procedure DrawReportObjectWithHooks(
+  AObject: TReportObject;
+  C: TCanvas;
+  const Context: TExpressionContext);
 
 { ================= Text Object ================= }
 
@@ -287,6 +304,8 @@ var
   GRegistry: TList<TReportObjectClass>;
   GRegistryCS: TCriticalSection;
   GNamedDataSets: TDictionary<string, TDataSet>;
+  GBeforeObjectPrint: TReportObjectBeforePrintEvent;
+  GAfterObjectPrint: TReportObjectAfterPrintEvent;
 {$IFDEF DEBUG}
 const
   CDataFieldDiagMaxMessages = 200;
@@ -340,6 +359,42 @@ begin
   OutputDebugString(PChar(Msg));
 end;
 {$ENDIF}
+
+procedure SetReportObjectRenderHooks(
+  const ABeforePrint: TReportObjectBeforePrintEvent;
+  const AAfterPrint: TReportObjectAfterPrintEvent);
+begin
+  GBeforeObjectPrint := ABeforePrint;
+  GAfterObjectPrint := AAfterPrint;
+end;
+
+procedure ClearReportObjectRenderHooks;
+begin
+  GBeforeObjectPrint := nil;
+  GAfterObjectPrint := nil;
+end;
+
+procedure DrawReportObjectWithHooks(
+  AObject: TReportObject;
+  C: TCanvas;
+  const Context: TExpressionContext);
+var
+  CanPrint: Boolean;
+begin
+  if not Assigned(AObject) then
+    Exit;
+
+  CanPrint := True;
+  if Assigned(GBeforeObjectPrint) then
+    GBeforeObjectPrint(AObject, Context, CanPrint);
+  if not CanPrint then
+    Exit;
+
+  AObject.Draw(C, Context);
+
+  if Assigned(GAfterObjectPrint) then
+    GAfterObjectPrint(AObject, Context);
+end;
 
 procedure EnsureRegistryInitialized;
 begin

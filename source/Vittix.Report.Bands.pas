@@ -121,7 +121,7 @@ begin
     OffsetViewportOrgEx(C.Handle, Bounds.Left, Bounds.Top, nil);
     for Obj in FChildren do
       if Obj.Visible then
-        Obj.Draw(C, Context);
+        DrawReportObjectWithHooks(Obj, C, Context);
   finally
     RestoreDC(C.Handle, -1);
   end;

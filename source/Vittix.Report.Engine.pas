@@ -35,11 +35,51 @@ uses
   Data.DB,
   Vittix.Report.Model,
   Vittix.Report.Bands,
+  Vittix.Report.Objects,
+  Vittix.Report.Context,
   Vittix.Report.Scripting,
   Vittix.Report.Interfaces;   // IReportProgress
 
 type
   EReportException = class(Exception);
+
+type
+  TReportBeforePrintReportEvent = procedure(
+    Sender: TObject;
+    AEngine: TObject;
+    AReport: TReportModel;
+    var ACancel: Boolean) of object;
+
+  TReportAfterPrintReportEvent = procedure(
+    Sender: TObject;
+    AEngine: TObject;
+    AReport: TReportModel) of object;
+
+  TReportBeforeBandEvent = procedure(
+    Sender: TObject;
+    AEngine: TObject;
+    ABand: TReportBand;
+    const Context: TExpressionContext;
+    var ACanPrint: Boolean) of object;
+
+  TReportAfterBandEvent = procedure(
+    Sender: TObject;
+    AEngine: TObject;
+    ABand: TReportBand;
+    const Context: TExpressionContext) of object;
+
+  TReportBeforeObjectEvent = procedure(
+    Sender: TObject;
+    AEngine: TObject;
+    AObject: TReportObject;
+    const Context: TExpressionContext;
+    var ACanPrint: Boolean) of object;
+
+  TReportAfterObjectEvent = procedure(
+    Sender: TObject;
+    AEngine: TObject;
+    AObject: TReportObject;
+    const Context: TExpressionContext) of object;
 
 type
   TReportEngine = class
@@ -77,6 +117,13 @@ type
     FGroupHeaders:    TObjectList<TReportBand>;
     FGroupFooters:    TObjectList<TReportBand>;
     FLastGroupValues: array of Variant;
+    FIsRenderingPass: Boolean;
+    FOnBeforePrintReport: TReportBeforePrintReportEvent;
+    FOnAfterPrintReport: TReportAfterPrintReportEvent;
+    FOnBeforeBand: TReportBeforeBandEvent;
+    FOnAfterBand: TReportAfterBandEvent;
+    FOnBeforeObject: TReportBeforeObjectEvent;
+    FOnAfterObject: TReportAfterObjectEvent;
 
     procedure Initialize(
       AReport:        TReportModel;
@@ -94,6 +141,13 @@ type
     procedure PrintDetailBands;
     function  ExecutePass(ATotalPages: Integer; AReportProgress: Boolean): Integer;
     function  CheckSpace(RequiredHeight: Integer): Boolean;
+    procedure HandleBeforeObjectPrint(
+      AObject: TReportObject;
+      const Context: TExpressionContext;
+      var ACanPrint: Boolean);
+    procedure HandleAfterObjectPrint(
+      AObject: TReportObject;
+      const Context: TExpressionContext);
 
   public
     /// <param name="AProgress">
@@ -119,14 +173,24 @@ type
     property GroupEndBookmark:   TBookmark      read FGroupEndBookmark;
     property NamedDataSets: TDictionary<string, TDataSet> read FNamedDataSets;
     property ScriptEngine: TReportScriptEngine read FScriptEngine;
+    property OnBeforePrintReport: TReportBeforePrintReportEvent
+      read FOnBeforePrintReport write FOnBeforePrintReport;
+    property OnAfterPrintReport: TReportAfterPrintReportEvent
+      read FOnAfterPrintReport write FOnAfterPrintReport;
+    property OnBeforeBand: TReportBeforeBandEvent
+      read FOnBeforeBand write FOnBeforeBand;
+    property OnAfterBand: TReportAfterBandEvent
+      read FOnAfterBand write FOnAfterBand;
+    property OnBeforeObject: TReportBeforeObjectEvent
+      read FOnBeforeObject write FOnBeforeObject;
+    property OnAfterObject: TReportAfterObjectEvent
+      read FOnAfterObject write FOnAfterObject;
   end;
 
 implementation
 
 uses
   Winapi.Windows,
-  Vittix.Report.Objects,
-  Vittix.Report.Context,
   Vittix.Report.Expressions,    // TReportExpression.Evaluate — for PrintWhen
   Vittix.Report.Utils,          // DataSetSupportsBookmarks, SafeRecordCount
   System.Types,
@@ -321,7 +385,15 @@ begin
           Ctx2.TotalPages := FTotalPagesForPass;
           Ctx2.ReportTitle := FReport.Title;
           Ctx2.ReportDate  := FReportDate;
-          FOverlayBand.Draw(FCanvas, Ctx2);
+          var CanPrintBand := True;
+          if FIsRenderingPass and Assigned(FOnBeforeBand) then
+            FOnBeforeBand(Self, Self, FOverlayBand, Ctx2, CanPrintBand);
+          if CanPrintBand then
+          begin
+            FOverlayBand.Draw(FCanvas, Ctx2);
+            if FIsRenderingPass and Assigned(FOnAfterBand) then
+              FOnAfterBand(Self, Self, FOverlayBand, Ctx2);
+          end;
         finally
           FOverlayBand.Bounds := OverlayOldBounds;
           RestoreDC(FCanvas.Handle, -1);
@@ -460,6 +532,11 @@ begin
   Ctx.TotalPages  := FTotalPagesForPass;
   Ctx.ReportTitle := FReport.Title;
   Ctx.ReportDate  := FReportDate;
+  var CanPrintBand := True;
+  if FIsRenderingPass and Assigned(FOnBeforeBand) then
+    FOnBeforeBand(Self, Self, ABand, Ctx, CanPrintBand);
+  if not CanPrintBand then
+    Exit;
 
   // CanGrow / CanShrink — compute effective height using MeasuredBottom
   // (TReportMemoObject overrides MeasuredBottom to compute dynamic text height)
@@ -517,6 +594,8 @@ begin
   try
     SetViewportOrgEx(FCanvas.Handle, 0, FCurrentY, nil);
     ABand.Draw(FCanvas, Ctx);
+    if FIsRenderingPass and Assigned(FOnAfterBand) then
+      FOnAfterBand(Self, Self, ABand, Ctx);
     if (ABand.OnAfterPrint <> '') and Assigned(FScriptEngine) then
       FScriptEngine.ExecuteAfterPrint(ABand.OnAfterPrint, Ctx);
   finally
@@ -661,7 +740,12 @@ var
         Exit(True);
   end;
 begin
+  FIsRenderingPass := AReportProgress;
   SetReportNamedDataSets(FNamedDataSets);
+  if FIsRenderingPass then
+    SetReportObjectRenderHooks(HandleBeforeObjectPrint, HandleAfterObjectPrint)
+  else
+    ClearReportObjectRenderHooks;
   try
     FPages.Clear;
     FPageNumber := 0;
@@ -882,6 +966,8 @@ begin
     EndCurrentPage;
     Result := FPageNumber;
   finally
+    ClearReportObjectRenderHooks;
+    FIsRenderingPass := False;
     SetReportNamedDataSets(nil);
   end;
 end;
@@ -889,6 +975,7 @@ end;
 procedure TReportEngine.Prepare;
 var
   CountedPages: Integer;
+  CancelPrint: Boolean;
 {$IFDEF DEBUG}
   StartMs: UInt64;
   ElapsedMs: UInt64;
@@ -915,12 +1002,24 @@ begin
         'DataSet must be active to generate the report.');
 
     FReportDate := Now;
+    CancelPrint := False;
+    if Assigned(FOnBeforePrintReport) then
+      FOnBeforePrintReport(Self, Self, FReport, CancelPrint);
+    if CancelPrint then
+    begin
+      FPages.Clear;
+      FPageNumber := 0;
+      Exit;
+    end;
 
     // Pass 1: count pages with TotalPages unresolved.
     CountedPages := ExecutePass(0, False);
 
     // Pass 2: final render with resolved TotalPages available to expressions.
     ExecutePass(CountedPages, True);
+
+    if Assigned(FOnAfterPrintReport) then
+      FOnAfterPrintReport(Self, Self, FReport);
 
 {$IFDEF DEBUG}
     ElapsedMs := GetTickCount64 - StartMs;
@@ -935,6 +1034,23 @@ begin
     on E: Exception do
       raise EReportException.CreateFmt('Error preparing report: %s', [E.Message]);
   end;
+end;
+
+procedure TReportEngine.HandleBeforeObjectPrint(
+  AObject: TReportObject;
+  const Context: TExpressionContext;
+  var ACanPrint: Boolean);
+begin
+  if Assigned(FOnBeforeObject) then
+    FOnBeforeObject(Self, Self, AObject, Context, ACanPrint);
+end;
+
+procedure TReportEngine.HandleAfterObjectPrint(
+  AObject: TReportObject;
+  const Context: TExpressionContext);
+begin
+  if Assigned(FOnAfterObject) then
+    FOnAfterObject(Self, Self, AObject, Context);
 end;
 
 end.
