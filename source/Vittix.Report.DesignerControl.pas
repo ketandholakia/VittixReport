@@ -850,6 +850,10 @@ begin
                        Obj.Bounds.Width, Obj.Bounds.Height);
   Band := FActiveBand;
   Cmd  := TInsertObjectCommand.Create(Band.Children, Obj);
+  if FSelected.Count <= 1 then
+    Cmd.ActionName := 'Paste Object'
+  else
+    Cmd.ActionName := 'Paste Objects';
   FCommands.DoCommand(Cmd);
   FObjectBandMap.AddOrSetValue(Obj, Band);
   ClearSelection;
@@ -884,6 +888,7 @@ begin
     FSelected[I].Bounds := NewBounds[I];
   end;
   Cmd := TMultiMoveCommand.Create(Objects, OldBounds, NewBounds);
+  Cmd.ActionName := 'Align Left';
   FCommands.DoCommand(Cmd);
   DoModified;
 end;
@@ -913,6 +918,7 @@ begin
     FSelected[I].Bounds := NewBounds[I];
   end;
   Cmd := TMultiMoveCommand.Create(Objects, OldBounds, NewBounds);
+  Cmd.ActionName := 'Align Right';
   FCommands.DoCommand(Cmd);
   DoModified;
 end;
@@ -942,6 +948,7 @@ begin
     FSelected[I].Bounds := NewBounds[I];
   end;
   Cmd := TMultiMoveCommand.Create(Objects, OldBounds, NewBounds);
+  Cmd.ActionName := 'Align Top';
   FCommands.DoCommand(Cmd);
   DoModified;
 end;
@@ -971,6 +978,7 @@ begin
     FSelected[I].Bounds := NewBounds[I];
   end;
   Cmd := TMultiMoveCommand.Create(Objects, OldBounds, NewBounds);
+  Cmd.ActionName := 'Align Bottom';
   FCommands.DoCommand(Cmd);
   DoModified;
 end;
@@ -998,6 +1006,7 @@ begin
     FSelected[I].Bounds := NewBounds[I];
   end;
   Cmd := TMultiMoveCommand.Create(Objects, OldBounds, NewBounds);
+  Cmd.ActionName := 'Same Width';
   FCommands.DoCommand(Cmd);
   DoModified;
 end;
@@ -1025,6 +1034,7 @@ begin
     FSelected[I].Bounds := NewBounds[I];
   end;
   Cmd := TMultiMoveCommand.Create(Objects, OldBounds, NewBounds);
+  Cmd.ActionName := 'Same Height';
   FCommands.DoCommand(Cmd);
   DoModified;
 end;
@@ -1052,6 +1062,7 @@ begin
     FSelected[I].Bounds := NewBounds[I];
   end;
   Cmd := TMultiMoveCommand.Create(Objects, OldBounds, NewBounds);
+  Cmd.ActionName := 'Center Horizontally';
   FCommands.DoCommand(Cmd);
   DoModified;
 end;
@@ -1087,6 +1098,7 @@ begin
     FSelected[I].Bounds := NewBounds[I];
   end;
   Cmd := TMultiMoveCommand.Create(Objects, OldBounds, NewBounds);
+  Cmd.ActionName := 'Center Vertically';
   FCommands.DoCommand(Cmd);
   DoModified;
 end;
@@ -1139,6 +1151,7 @@ begin
     Inc(CurX, R.Width + Gap);
   end;
   Cmd := TMultiMoveCommand.Create(Objects, OldBounds, NewBounds);
+  Cmd.ActionName := 'Distribute Horizontally';
   FCommands.DoCommand(Cmd);
   DoModified;
 end;
@@ -1191,6 +1204,7 @@ begin
     Inc(CurY, R.Height + Gap);
   end;
   Cmd := TMultiMoveCommand.Create(Objects, OldBounds, NewBounds);
+  Cmd.ActionName := 'Distribute Vertically';
   FCommands.DoCommand(Cmd);
   DoModified;
 end;
@@ -1211,6 +1225,7 @@ begin
   From := List.IndexOf(Obj);
   if From < 0 then Exit;
   Cmd := TZOrderCommand.Create(List, Obj, From, List.Count - 1);
+  Cmd.ActionName := 'Bring To Front';
   FCommands.DoCommand(Cmd);
   DoModified;
 end;
@@ -1229,6 +1244,7 @@ begin
   From := List.IndexOf(Obj);
   if From < 0 then Exit;
   Cmd := TZOrderCommand.Create(List, Obj, From, 0);
+  Cmd.ActionName := 'Send To Back';
   FCommands.DoCommand(Cmd);
   DoModified;
 end;
@@ -1490,6 +1506,7 @@ begin
   NewObj.Text      := '[' + AFieldName + ']';
 
   Cmd := TInsertObjectCommand.Create(TargetBand.Children, NewObj);
+  Cmd.ActionName := 'Insert Field';
   FCommands.DoCommand(Cmd);
   FObjectBandMap.AddOrSetValue(NewObj, TargetBand);
 
@@ -1996,6 +2013,7 @@ begin
             SnapV(PP.Y - BL.Y),
             80, 20);
           Cmd := TInsertObjectCommand.Create(TargetBand.Children, NewObj);
+          Cmd.ActionName := 'Insert Object';
           FCommands.DoCommand(Cmd);
           FObjectBandMap.AddOrSetValue(NewObj, TargetBand);
 
@@ -2205,6 +2223,10 @@ begin
           if FDragStartBounds.TryGetValue(Obj, OldBounds[J]) then ;
         end;
         Cmd := TMultiMoveCommand.Create(Objects, OldBounds, NewBounds);
+        if Length(Objects) <= 1 then
+          Cmd.ActionName := 'Move Object'
+        else
+          Cmd.ActionName := 'Move Objects';
         FCommands.DoCommand(Cmd);
         DoModified;
       end;
@@ -2316,6 +2338,10 @@ var
       Obj.Bounds   := NewBounds[I];
     end;
     Cmd := TMultiMoveCommand.Create(Objects, OldBounds, NewBounds);
+    if Length(Objects) <= 1 then
+      Cmd.ActionName := 'Move Object'
+    else
+      Cmd.ActionName := 'Move Objects';
     FCommands.DoCommand(Cmd);
     DoModified;
   end;
@@ -2361,6 +2387,10 @@ var
     SetLength(OldBounds, ChangedCount);
     SetLength(NewBounds, ChangedCount);
     Cmd := TMultiMoveCommand.Create(Objects, OldBounds, NewBounds);
+    if Length(Objects) <= 1 then
+      Cmd.ActionName := 'Resize Object'
+    else
+      Cmd.ActionName := 'Resize Objects';
     FCommands.DoCommand(Cmd);
     DoModified;
   end;
