@@ -756,7 +756,7 @@ begin
 
   S := Trim(Script);
 
-  CmdResult := FScriptAdapter.ExecuteBeforeObject(AObject, S, ACanPrint);
+  CmdResult := FScriptAdapter.ExecuteBeforeObject(AObject, S, Context, ACanPrint);
   if CmdResult.Handled then
   begin
     if CmdResult.TextSet then

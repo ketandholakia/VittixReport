@@ -137,6 +137,7 @@ Quick notes:
 - Current demo host parser subset:
 - `CanPrint := False`
 - `Text := 'literal'` (for `TReportTextObject` only)
+- `Text := Field('FieldName')` (for `TReportTextObject`, using current `Context.DataSet`)
 - `Visible := False|True`
 - `Background := clColorName` (for `TReportTextObject` only)
 - Unknown commands are treated as unsupported text (logged by host/demo), not executed by engine core.

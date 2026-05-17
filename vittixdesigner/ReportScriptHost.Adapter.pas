@@ -4,8 +4,11 @@ interface
 
 uses
   System.SysUtils,
+  Data.DB,
   Vcl.Graphics,
-  Vittix.Report.Objects;
+  Vittix.Report.Objects,
+  Vittix.Report.Context,
+  Vittix.Report.Utils;
 
 type
   TScriptHostCommandResult = record
@@ -21,7 +24,7 @@ type
     function ParseScriptAssignment(const AScript: string; out AKey, AValue: string): Boolean;
   public
     function ExecuteBeforeObject(AObject: TReportObject; const AScript: string;
-      var ACanPrint: Boolean): TScriptHostCommandResult;
+      var Context: TExpressionContext; var ACanPrint: Boolean): TScriptHostCommandResult;
   end;
 
 implementation
@@ -42,13 +45,15 @@ begin
 end;
 
 function TReportScriptHostAdapter.ExecuteBeforeObject(AObject: TReportObject;
-  const AScript: string; var ACanPrint: Boolean): TScriptHostCommandResult;
+  const AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean): TScriptHostCommandResult;
 var
   Key: string;
   Value: string;
   B: Boolean;
   C: TColor;
   Lit: string;
+  Arg: string;
+  F: TField;
 begin
   Result.Handled := False;
   Result.Unsupported := False;
@@ -122,6 +127,51 @@ begin
 
   if Key = 'text' then
   begin
+    if (Length(Value) >= 8) and SameText(Copy(Value, 1, 6), 'Field(') and
+       (Value[Length(Value)] = ')') then
+    begin
+      Arg := Trim(Copy(Value, 7, Length(Value) - 7));
+      if (Length(Arg) >= 2) and (Arg[1] = '''') and (Arg[Length(Arg)] = '''') then
+      begin
+        Arg := Copy(Arg, 2, Length(Arg) - 2);
+        Arg := StringReplace(Arg, '''''', '''', [rfReplaceAll]);
+        if Trim(Arg) = '' then
+        begin
+          Result.Unsupported := True;
+          Result.TraceMessage := 'ScriptUnsupportedFieldName: ' + AScript;
+          Exit;
+        end;
+        if not (AObject is TReportTextObject) then
+        begin
+          Result.Unsupported := True;
+          Result.TraceMessage := 'ScriptUnsupportedForObjectType: ' + AObject.ClassName;
+          Exit;
+        end;
+
+        F := nil;
+        if Assigned(Context.DataSet) and Context.DataSet.Active then
+          TryGetField(Context.DataSet, Arg, F);
+        if Assigned(F) then
+        begin
+          TReportTextObject(AObject).Text := F.AsString;
+          Result.TextSet := True;
+          Result.TraceMessage := Format('ScriptSetTextFromField: %s "%s" <- Field("%s")',
+            [AObject.ClassName, AObject.Name, Arg]);
+        end
+        else
+        begin
+          TReportTextObject(AObject).Text := '';
+          Result.TraceMessage := 'ScriptFieldResolveMiss: ' + Arg;
+        end;
+      end
+      else
+      begin
+        Result.Unsupported := True;
+        Result.TraceMessage := 'ScriptUnsupportedFieldSyntax: ' + AScript;
+      end;
+      Exit;
+    end;
+
     if (Length(Value) >= 2) and (Value[1] = '''') and (Value[Length(Value)] = '''') then
     begin
       Lit := Copy(Value, 2, Length(Value) - 2);
@@ -151,4 +201,3 @@ begin
 end;
 
 end.
-
