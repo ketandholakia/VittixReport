@@ -272,6 +272,7 @@ type
     procedure mnuOpenExpressionUsageDemoClick(Sender: TObject);
     procedure mnuOpenInvalidDataFieldDiagnosticsDemoClick(Sender: TObject);
     procedure mnuRunRegressionTestReportsClick(Sender: TObject);
+    procedure mnuRunRuntimeEventCallbackDemoClick(Sender: TObject);
     procedure mnuKeyboardShortcutsClick(Sender: TObject);
     procedure mnuExpressionHelpClick(Sender: TObject);
 
@@ -425,6 +426,7 @@ type
     procedure LoadDesignerReportFromFile(const AFileName: string;
       AUseSampleDataSet: Boolean = False);
     procedure RunRegressionTestReports;
+    procedure RunRuntimeEventCallbackDemo;
     procedure ConfirmSaveIfModified;
     procedure DynInsertMenuClick(Sender: TObject);
     procedure DynAddBandMenuClick(Sender: TObject);
@@ -571,6 +573,40 @@ type
     procedure Rollback; override;
   end;
 
+  TRuntimeEventDemoHarness = class
+  private
+    FTrace: TStringList;
+    FSkipObjectClassName: string;
+    FSkipMasterDataBand: Boolean;
+  public
+    BeforeReportCount: Integer;
+    AfterReportCount: Integer;
+    BeforeBandCount: Integer;
+    AfterBandCount: Integer;
+    BeforeObjectCount: Integer;
+    AfterObjectCount: Integer;
+    SkippedBandCount: Integer;
+    SkippedObjectCount: Integer;
+
+    constructor Create;
+    destructor Destroy; override;
+    procedure ResetCounts;
+    procedure BeforeReport(Sender, AEngine: TObject; AReport: TReportModel;
+      var ACancel: Boolean);
+    procedure AfterReport(Sender, AEngine: TObject; AReport: TReportModel);
+    procedure BeforeBand(Sender, AEngine: TObject; ABand: TReportBand;
+      const Context: TExpressionContext; var ACanPrint: Boolean);
+    procedure AfterBand(Sender, AEngine: TObject; ABand: TReportBand;
+      const Context: TExpressionContext);
+    procedure BeforeObject(Sender, AEngine: TObject; AObject: TReportObject;
+      const Context: TExpressionContext; var ACanPrint: Boolean);
+    procedure AfterObject(Sender, AEngine: TObject; AObject: TReportObject;
+      const Context: TExpressionContext);
+    property Trace: TStringList read FTrace;
+    property SkipObjectClassName: string read FSkipObjectClassName write FSkipObjectClassName;
+    property SkipMasterDataBand: Boolean read FSkipMasterDataBand write FSkipMasterDataBand;
+  end;
+
 function PageSettingsEqual(A, B: TReportPageSettings): Boolean;
 begin
   Result := Assigned(A) and Assigned(B) and
@@ -582,6 +618,90 @@ begin
             (A.Margins.Top = B.Margins.Top) and
             (A.Margins.Right = B.Margins.Right) and
             (A.Margins.Bottom = B.Margins.Bottom);
+end;
+
+{ TRuntimeEventDemoHarness }
+
+constructor TRuntimeEventDemoHarness.Create;
+begin
+  inherited Create;
+  FTrace := TStringList.Create;
+  ResetCounts;
+end;
+
+destructor TRuntimeEventDemoHarness.Destroy;
+begin
+  FTrace.Free;
+  inherited;
+end;
+
+procedure TRuntimeEventDemoHarness.ResetCounts;
+begin
+  BeforeReportCount := 0;
+  AfterReportCount := 0;
+  BeforeBandCount := 0;
+  AfterBandCount := 0;
+  BeforeObjectCount := 0;
+  AfterObjectCount := 0;
+  SkippedBandCount := 0;
+  SkippedObjectCount := 0;
+  FTrace.Clear;
+  FSkipObjectClassName := '';
+  FSkipMasterDataBand := False;
+end;
+
+procedure TRuntimeEventDemoHarness.BeforeReport(Sender, AEngine: TObject;
+  AReport: TReportModel; var ACancel: Boolean);
+begin
+  Inc(BeforeReportCount);
+  FTrace.Add('BeforeReport');
+end;
+
+procedure TRuntimeEventDemoHarness.AfterReport(Sender, AEngine: TObject;
+  AReport: TReportModel);
+begin
+  Inc(AfterReportCount);
+  FTrace.Add('AfterReport');
+end;
+
+procedure TRuntimeEventDemoHarness.BeforeBand(Sender, AEngine: TObject;
+  ABand: TReportBand; const Context: TExpressionContext; var ACanPrint: Boolean);
+begin
+  Inc(BeforeBandCount);
+  FTrace.Add('BeforeBand: ' + BandTypeName(ABand.BandType));
+  if FSkipMasterDataBand and (ABand.BandType = btMasterData) then
+  begin
+    ACanPrint := False;
+    Inc(SkippedBandCount);
+    FTrace.Add('SkipBand: Master Data');
+  end;
+end;
+
+procedure TRuntimeEventDemoHarness.AfterBand(Sender, AEngine: TObject;
+  ABand: TReportBand; const Context: TExpressionContext);
+begin
+  Inc(AfterBandCount);
+  FTrace.Add('AfterBand: ' + BandTypeName(ABand.BandType));
+end;
+
+procedure TRuntimeEventDemoHarness.BeforeObject(Sender, AEngine: TObject;
+  AObject: TReportObject; const Context: TExpressionContext; var ACanPrint: Boolean);
+begin
+  Inc(BeforeObjectCount);
+  FTrace.Add('BeforeObject: ' + AObject.ClassName);
+  if (FSkipObjectClassName <> '') and SameText(AObject.ClassName, FSkipObjectClassName) then
+  begin
+    ACanPrint := False;
+    Inc(SkippedObjectCount);
+    FTrace.Add('SkipObject: ' + AObject.ClassName);
+  end;
+end;
+
+procedure TRuntimeEventDemoHarness.AfterObject(Sender, AEngine: TObject;
+  AObject: TReportObject; const Context: TExpressionContext);
+begin
+  Inc(AfterObjectCount);
+  FTrace.Add('AfterObject: ' + AObject.ClassName);
 end;
 
 constructor TPropertyBatchChangeCommand.Create(AObj: TObject;
@@ -1116,6 +1236,15 @@ begin
   MI := TMenuItem.Create(Self);
   MI.Caption := 'Run Regression Test Reports';
   MI.OnClick := mnuRunRegressionTestReportsClick;
+  FReportRegressionTestsMenu.Add(MI);
+
+  MI := TMenuItem.Create(Self);
+  MI.Caption := '-';
+  FReportRegressionTestsMenu.Add(MI);
+
+  MI := TMenuItem.Create(Self);
+  MI.Caption := 'Run Runtime Event Callback Demo';
+  MI.OnClick := mnuRunRuntimeEventCallbackDemoClick;
   FReportRegressionTestsMenu.Add(MI);
 
   FReportMenuSeparator := TMenuItem.Create(Self);
@@ -1797,6 +1926,154 @@ begin
   end;
 end;
 
+procedure TfrmMain.RunRuntimeEventCallbackDemo;
+const
+  TracePreviewMax = 30;
+var
+  ReportModel: TReportModel;
+  Engine: TReportEngine;
+  Harness: TRuntimeEventDemoHarness;
+  Lines: TStringList;
+  FN: string;
+  I: Integer;
+  BasePass: Boolean;
+  ObjectSkipPass: Boolean;
+  BandSkipPass: Boolean;
+  BaseBeforeBand: Integer;
+  BaseAfterBand: Integer;
+  BaseBeforeObject: Integer;
+  BaseAfterObject: Integer;
+begin
+  UseSampleDataSet;
+
+  ReportModel := nil;
+  Engine := nil;
+  Harness := nil;
+  Lines := TStringList.Create;
+  try
+    FN := GetRegressionReportPath('01_simple_masterdata.vrt');
+    if TFile.Exists(FN) then
+      ReportModel := TReportSerializer.LoadFromFile(FN)
+    else if Assigned(FDesigner) and Assigned(FDesigner.Report) then
+      ReportModel := TReportSerializer.LoadFromJSON(
+        TReportSerializer.SaveToJSON(FDesigner.Report))
+    else
+      raise Exception.Create('Could not load a report for runtime event demo.');
+
+    Harness := TRuntimeEventDemoHarness.Create;
+
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+
+    BaseBeforeBand := Harness.BeforeBandCount;
+    BaseAfterBand := Harness.AfterBandCount;
+    BaseBeforeObject := Harness.BeforeObjectCount;
+    BaseAfterObject := Harness.AfterObjectCount;
+
+    BasePass :=
+      (Harness.BeforeReportCount = 1) and
+      (Harness.AfterReportCount = 1) and
+      (Harness.BeforeBandCount > 0) and
+      (Harness.AfterBandCount > 0) and
+      (Harness.BeforeObjectCount > 0) and
+      (Harness.AfterObjectCount > 0) and
+      (Harness.BeforeBandCount >= Harness.AfterBandCount) and
+      (Harness.BeforeObjectCount >= Harness.AfterObjectCount);
+
+    Lines.Add('Runtime Event Callback Demo');
+    Lines.Add('');
+    Lines.Add('Baseline counts:');
+    Lines.Add(Format('  BeforeReport=%d, AfterReport=%d',
+      [Harness.BeforeReportCount, Harness.AfterReportCount]));
+    Lines.Add(Format('  BeforeBand=%d, AfterBand=%d',
+      [Harness.BeforeBandCount, Harness.AfterBandCount]));
+    Lines.Add(Format('  BeforeObject=%d, AfterObject=%d',
+      [Harness.BeforeObjectCount, Harness.AfterObjectCount]));
+    if BasePass then
+      Lines.Add('  Baseline: PASS')
+    else
+      Lines.Add('  Baseline: FAIL');
+
+    Harness.ResetCounts;
+    Harness.SkipObjectClassName := 'TReportTextObject';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    ObjectSkipPass := Harness.SkippedObjectCount > 0;
+    Lines.Add('');
+    if ObjectSkipPass then
+      Lines.Add(Format('Object skip subtest (skip %s): PASS (SkippedObjectCount=%d)',
+        ['TReportTextObject', Harness.SkippedObjectCount]))
+    else
+      Lines.Add(Format('Object skip subtest (skip %s): FAIL (SkippedObjectCount=%d)',
+        ['TReportTextObject', Harness.SkippedObjectCount]));
+
+    Harness.ResetCounts;
+    Harness.SkipMasterDataBand := True;
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    BandSkipPass := Harness.SkippedBandCount > 0;
+    if BandSkipPass then
+      Lines.Add(Format('Band skip subtest (skip Master Data): PASS (SkippedBandCount=%d)',
+        [Harness.SkippedBandCount]))
+    else
+      Lines.Add(Format('Band skip subtest (skip Master Data): FAIL (SkippedBandCount=%d)',
+        [Harness.SkippedBandCount]));
+    Lines.Add('');
+    Lines.Add('Callback inflation guard:');
+    Lines.Add(Format('  Baseline BeforeBand=%d, AfterBand=%d',
+      [BaseBeforeBand, BaseAfterBand]));
+    Lines.Add(Format('  Baseline BeforeObject=%d, AfterObject=%d',
+      [BaseBeforeObject, BaseAfterObject]));
+
+    Lines.Add('');
+    Lines.Add('Trace preview (object skip subtest reset occurs before this list):');
+    for I := 0 to Min(TracePreviewMax - 1, Harness.Trace.Count - 1) do
+      Lines.Add('  ' + Harness.Trace[I]);
+    if Harness.Trace.Count > TracePreviewMax then
+      Lines.Add(Format('  ... (%d more lines)', [Harness.Trace.Count - TracePreviewMax]));
+
+    ShowMessage(Lines.Text);
+  finally
+    Lines.Free;
+    Harness.Free;
+    Engine.Free;
+    ReportModel.Free;
+  end;
+end;
+
 function BandTypeName(BT: TReportBandType): string;
 begin
   case BT of
@@ -2313,6 +2590,11 @@ end;
 procedure TfrmMain.mnuRunRegressionTestReportsClick(Sender: TObject);
 begin
   RunRegressionTestReports;
+end;
+
+procedure TfrmMain.mnuRunRuntimeEventCallbackDemoClick(Sender: TObject);
+begin
+  RunRuntimeEventCallbackDemo;
 end;
 
 procedure TfrmMain.mnuKeyboardShortcutsClick(Sender: TObject);

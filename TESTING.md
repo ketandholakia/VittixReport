@@ -259,3 +259,39 @@ Release build:
 - Property Apply undo still works.
 - Preview/export still works.
 - Regression Test Reports still run.
+
+## 16) Engine / Runtime Events checklist
+
+### No-handler baseline
+- Existing reports render unchanged when no event callbacks are assigned.
+- Preview output unchanged.
+- Export output unchanged.
+- Regression Test Reports still pass.
+
+### Report events
+- OnBeforePrintReport fires once per final render/export.
+- OnAfterPrintReport fires once after final render/export.
+- OnBeforePrintReport cancel behavior is safe if implemented.
+
+### Band events
+- OnBeforeBand fires before actual band print.
+- OnAfterBand fires after actual band print.
+- OnBeforeBand CanPrint=False skips band safely if implemented.
+- Existing band script-string OnBeforePrint/OnAfterPrint still executes.
+
+### Object events
+- OnBeforeObject fires before actual object print.
+- OnAfterObject fires after actual object print.
+- OnBeforeObject CanPrint=False skips object safely.
+- Existing PrintWhen behavior remains unchanged.
+
+### Pass behavior
+- Events do not fire during measurement/counting pass.
+- Events fire only during final render pass unless explicitly documented.
+- TotalPages output remains stable.
+
+### Safety
+- Nil/unassigned event handlers are safe.
+- Event exceptions behave consistently with engine policy.
+- Preview and export use the same event path.
+- No .vrt schema/serializer change is required for runtime callbacks.
