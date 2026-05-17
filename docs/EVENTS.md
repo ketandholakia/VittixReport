@@ -246,6 +246,12 @@ Log('AfterBand:' + ABand.Name);
 - `Background := clYellow`
 - `Visible := False`
 - `Foo := 1` (invalid command expected to be reported as `UnknownCommand`)
+- `Text := Field(CustomerName)` (invalid field syntax -> `FieldSyntax`)
+- `Text := Field('   ')` (blank field name -> `FieldName`)
+- `Background := clNotAColor` (invalid color token -> `ColorValue`)
+- `Visible := Maybe` (invalid boolean token -> `VisibleValue`)
+- `Text := Demo` (unquoted literal -> `TextLiteral`)
+- `CanPrint := Maybe` (invalid cancel token -> `CanPrintValue`)
 - Each subtest reports PASS/FAIL in the demo output summary.
 - Demo output also includes an unsupported-command diagnostics block grouped by subtest.
 - Demo output includes a compact unsupported-reason summary block with per-reason counts.

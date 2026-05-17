@@ -2147,6 +2147,12 @@ var
   WhitespacePass: Boolean;
   TrailingSemicolonPass: Boolean;
   UnknownCommandPass: Boolean;
+  FieldSyntaxPass: Boolean;
+  FieldNamePass: Boolean;
+  ColorValuePass: Boolean;
+  VisibleValuePass: Boolean;
+  TextLiteralPass: Boolean;
+  CanPrintValuePass: Boolean;
   OverallPass: Boolean;
   ScriptCancelTrace: TStringList;
   FieldBindTrace: TStringList;
@@ -2156,6 +2162,12 @@ var
   WhitespaceTrace: TStringList;
   TrailingSemicolonTrace: TStringList;
   UnknownCommandTrace: TStringList;
+  FieldSyntaxTrace: TStringList;
+  FieldNameTrace: TStringList;
+  ColorValueTrace: TStringList;
+  VisibleValueTrace: TStringList;
+  TextLiteralTrace: TStringList;
+  CanPrintValueTrace: TStringList;
   Obj: TReportObject;
   Band: TReportBand;
   ChildObj: TReportObject;
@@ -2333,6 +2345,12 @@ begin
   WhitespaceTrace := TStringList.Create;
   TrailingSemicolonTrace := TStringList.Create;
   UnknownCommandTrace := TStringList.Create;
+  FieldSyntaxTrace := TStringList.Create;
+  FieldNameTrace := TStringList.Create;
+  ColorValueTrace := TStringList.Create;
+  VisibleValueTrace := TStringList.Create;
+  TextLiteralTrace := TStringList.Create;
+  CanPrintValueTrace := TStringList.Create;
   try
     FN := GetRegressionReportPath('01_simple_masterdata.vrt');
     if TFile.Exists(FN) then
@@ -2768,6 +2786,180 @@ begin
     else
       Lines.Add('Unknown command subtest: FAIL');
 
+    Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'Text := Field(CustomerName)';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    FieldSyntaxTrace.Assign(Harness.Trace);
+    FieldSyntaxPass :=
+      (Harness.ScriptUnsupportedCount > 0) and
+      (Pos('ScriptUnsupported[FieldSyntax]: Text := Field(CustomerName)', FieldSyntaxTrace.Text) > 0);
+    if FieldSyntaxPass then
+      Lines.Add('Field syntax subtest: PASS')
+    else
+      Lines.Add('Field syntax subtest: FAIL');
+
+    Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'Text := Field(''   '')';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    FieldNameTrace.Assign(Harness.Trace);
+    FieldNamePass :=
+      (Harness.ScriptUnsupportedCount > 0) and
+      (Pos('ScriptUnsupported[FieldName]: Text := Field(''   '')', FieldNameTrace.Text) > 0);
+    if FieldNamePass then
+      Lines.Add('Field name subtest: PASS')
+    else
+      Lines.Add('Field name subtest: FAIL');
+
+    Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'Background := clNotAColor';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    ColorValueTrace.Assign(Harness.Trace);
+    ColorValuePass :=
+      (Harness.ScriptUnsupportedCount > 0) and
+      (Pos('ScriptUnsupported[ColorValue]: Background := clNotAColor', ColorValueTrace.Text) > 0);
+    if ColorValuePass then
+      Lines.Add('Color value subtest: PASS')
+    else
+      Lines.Add('Color value subtest: FAIL');
+
+    Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'Visible := Maybe';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    VisibleValueTrace.Assign(Harness.Trace);
+    VisibleValuePass :=
+      (Harness.ScriptUnsupportedCount > 0) and
+      (Pos('ScriptUnsupported[VisibleValue]: Visible := Maybe', VisibleValueTrace.Text) > 0);
+    if VisibleValuePass then
+      Lines.Add('Visible value subtest: PASS')
+    else
+      Lines.Add('Visible value subtest: FAIL');
+
+    Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'Text := Demo';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    TextLiteralTrace.Assign(Harness.Trace);
+    TextLiteralPass :=
+      (Harness.ScriptUnsupportedCount > 0) and
+      (Pos('ScriptUnsupported[TextLiteral]: Text := Demo', TextLiteralTrace.Text) > 0);
+    if TextLiteralPass then
+      Lines.Add('Text literal subtest: PASS')
+    else
+      Lines.Add('Text literal subtest: FAIL');
+
+    Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'CanPrint := Maybe';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    CanPrintValueTrace.Assign(Harness.Trace);
+    CanPrintValuePass :=
+      (Harness.ScriptUnsupportedCount > 0) and
+      (Pos('ScriptUnsupported[CanPrintValue]: CanPrint := Maybe', CanPrintValueTrace.Text) > 0);
+    if CanPrintValuePass then
+      Lines.Add('CanPrint value subtest: PASS')
+    else
+      Lines.Add('CanPrint value subtest: FAIL');
+
     Lines.Add('');
     Lines.Add('Parser edge-case summary:');
     if EscapedQuotePass then
@@ -2797,7 +2989,13 @@ begin
       EscapedQuotePass and
       WhitespacePass and
       TrailingSemicolonPass and
-      UnknownCommandPass;
+      UnknownCommandPass and
+      FieldSyntaxPass and
+      FieldNamePass and
+      ColorValuePass and
+      VisibleValuePass and
+      TextLiteralPass and
+      CanPrintValuePass;
     Lines.Insert(0, '');
     if OverallPass then
       Lines.Insert(0, 'Overall: PASS')
@@ -2829,10 +3027,17 @@ begin
     AppendUnsupportedSummary('Whitespace normalization', WhitespaceTrace, Lines);
     AppendUnsupportedSummary('Trailing semicolon', TrailingSemicolonTrace, Lines);
     AppendUnsupportedSummary('Unknown command', UnknownCommandTrace, Lines);
+    AppendUnsupportedSummary('Field syntax', FieldSyntaxTrace, Lines);
+    AppendUnsupportedSummary('Field name', FieldNameTrace, Lines);
+    AppendUnsupportedSummary('Color value', ColorValueTrace, Lines);
+    AppendUnsupportedSummary('Visible value', VisibleValueTrace, Lines);
+    AppendUnsupportedSummary('Text literal', TextLiteralTrace, Lines);
+    AppendUnsupportedSummary('CanPrint value', CanPrintValueTrace, Lines);
     AppendUnsupportedReasonSummary(Lines,
       [BaselineTrace, ObjectSkipTrace, BandSkipTrace, ScriptCancelTrace, FieldBindTrace,
        BackgroundTrace, VisibleTrace, EscapedQuoteTrace, WhitespaceTrace, TrailingSemicolonTrace,
-       UnknownCommandTrace]);
+       UnknownCommandTrace, FieldSyntaxTrace, FieldNameTrace, ColorValueTrace,
+       VisibleValueTrace, TextLiteralTrace, CanPrintValueTrace]);
 
     Lines.Add('');
     Lines.Add('Baseline trace preview:');
@@ -2918,6 +3123,12 @@ begin
     VisibleTrace.Free;
     BackgroundTrace.Free;
     FieldBindTrace.Free;
+    CanPrintValueTrace.Free;
+    TextLiteralTrace.Free;
+    VisibleValueTrace.Free;
+    ColorValueTrace.Free;
+    FieldNameTrace.Free;
+    FieldSyntaxTrace.Free;
     TrailingSemicolonTrace.Free;
     UnknownCommandTrace.Free;
     WhitespaceTrace.Free;

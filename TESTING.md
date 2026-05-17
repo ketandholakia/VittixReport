@@ -355,6 +355,12 @@ Release build:
 - Runtime Event Callback Demo subtest whitespace-normalized sequence `Visible := True ; Text := 'WS'` reports PASS.
 - Runtime Event Callback Demo subtest trailing semicolon sequence `Text := 'Tail'; ; ;` reports PASS.
 - Runtime Event Callback Demo subtest invalid command `Foo := 1` reports PASS for unsupported handling.
+- Runtime Event Callback Demo subtest `Text := Field(CustomerName)` reports `FieldSyntax` unsupported PASS.
+- Runtime Event Callback Demo subtest `Text := Field('   ')` reports `FieldName` unsupported PASS.
+- Runtime Event Callback Demo subtest `Background := clNotAColor` reports `ColorValue` unsupported PASS.
+- Runtime Event Callback Demo subtest `Visible := Maybe` reports `VisibleValue` unsupported PASS.
+- Runtime Event Callback Demo subtest `Text := Demo` reports `TextLiteral` unsupported PASS.
+- Runtime Event Callback Demo subtest `CanPrint := Maybe` reports `CanPrintValue` unsupported PASS.
 - Runtime Event Callback Demo supports bounded semicolon command sequences and reports PASS.
 - `CanPrint := False; ...` short-circuits remaining commands for that object.
 - Quote-aware semicolon split works: `Text := 'A;B'; Visible := True`.
@@ -362,6 +368,8 @@ Release build:
 - Runtime Event Callback Demo shows unsupported-command diagnostics grouped by subtest.
 - Runtime Event Callback Demo shows compact unsupported-reason summary with per-reason counts.
 - Runtime Event Callback Demo unsupported reason summary includes `UnknownCommand` when invalid command subtest runs.
+- Runtime Event Callback Demo unsupported reason summary includes:
+- `UnknownCommand`, `FieldSyntax`, `FieldName`, `ColorValue`, `VisibleValue`, `TextLiteral`, `CanPrintValue`.
 - Band script behavior remains unchanged.
 - Preview and export use consistent object event execution behavior.
 
