@@ -1,0 +1,120 @@
+# VittixReport Events
+
+## Event / Script Policy
+- Runtime Delphi lifecycle callbacks are assigned by the host application.
+- Runtime callbacks are not stored in `.vrt`.
+- Persisted event text is stored in `.vrt`.
+- Designer does not validate or execute persisted event text.
+- Persisted event text meaning is defined by the host application's callback/script layer.
+
+## Runtime Lifecycle Callback Wiring
+
+Illustrative Delphi example (adjust signatures to match current event declarations):
+
+```pascal
+procedure TMyHost.ConfigureEngineEvents(AEngine: TReportEngine);
+begin
+  if AEngine = nil then
+    Exit;
+
+  AEngine.OnBeforePrintReport := EngineBeforePrintReport;
+  AEngine.OnAfterPrintReport := EngineAfterPrintReport;
+  AEngine.OnBeforeBand := EngineBeforeBand;
+  AEngine.OnAfterBand := EngineAfterBand;
+  AEngine.OnBeforeObject := EngineBeforeObject;
+  AEngine.OnAfterObject := EngineAfterObject;
+end;
+
+procedure TMyHost.EngineBeforePrintReport(Sender: TObject; var ACancel: Boolean);
+begin
+  Log('BeforeReport');
+  // Optional: ACancel := True;
+end;
+
+procedure TMyHost.EngineAfterPrintReport(Sender: TObject);
+begin
+  Log('AfterReport');
+end;
+
+procedure TMyHost.EngineBeforeBand(Sender: TObject; ABand: TReportBand; var ACanPrint: Boolean);
+begin
+  Log('BeforeBand: ' + ABand.Name);
+
+  // Example skip by name/type
+  if SameText(ABand.Name, 'DebugBand') then
+    ACanPrint := False;
+end;
+
+procedure TMyHost.EngineAfterBand(Sender: TObject; ABand: TReportBand);
+begin
+  Log('AfterBand: ' + ABand.Name);
+end;
+
+procedure TMyHost.EngineBeforeObject(Sender: TObject; AObject: TReportObject; var ACanPrint: Boolean);
+begin
+  Log('BeforeObject: ' + AObject.Name);
+
+  // Example skip by class/name
+  if AObject is TReportImageObject then
+    ACanPrint := False;
+end;
+
+procedure TMyHost.EngineAfterObject(Sender: TObject; AObject: TReportObject);
+begin
+  Log('AfterObject: ' + AObject.Name);
+end;
+```
+
+Notes:
+- Callbacks are optional; unassigned handlers are nil-safe.
+- Keep handlers fast and deterministic for large reports.
+
+## Persisted Event Text vs Runtime Callbacks
+- Band `OnBeforePrint` / `OnAfterPrint` text is saved in `.vrt`.
+- Object `OnBeforePrint` / `OnAfterPrint` text is saved in `.vrt`.
+- Runtime callbacks are assigned in Delphi host code and are not serialized.
+- Persisted event text is passed to host script handling.
+- The designer does not guarantee a built-in script grammar.
+
+## Execution Order
+
+Object-level execution order:
+1. `PrintWhen`
+2. Persisted object `OnBeforePrint` text (if non-empty)
+3. Runtime `OnBeforeObject`
+4. Draw object
+5. Persisted object `OnAfterPrint` text (if non-empty)
+6. Runtime `OnAfterObject`
+
+Band/report order:
+- Report lifecycle callbacks wrap report execution (`OnBeforePrintReport` -> render -> `OnAfterPrintReport`).
+- Band persisted before/after text and band runtime before/after callbacks run around actual band printing as implemented by the engine.
+
+## Safe Skip Examples
+
+Skip a band:
+```pascal
+if SameText(ABand.Name, 'MasterData') then
+  ACanPrint := False;
+```
+
+Skip an object:
+```pascal
+if (AObject is TReportFieldObject) and SameText(AObject.Name, 'fldInternalOnly') then
+  ACanPrint := False;
+```
+
+Simple order logging:
+```pascal
+Log('BeforeBand:' + ABand.Name);
+Log('BeforeObject:' + AObject.Name);
+Log('AfterObject:' + AObject.Name);
+Log('AfterBand:' + ABand.Name);
+```
+
+## Notes and Limitations
+- Runtime callbacks fire in final render pass only.
+- Preview and export use the same engine event path.
+- VittixReport does not provide filesystem/network/shell scripting.
+- Host application owns script interpretation and safety policy.
+- Persisted object event fields can be performance-sensitive on large reports.
