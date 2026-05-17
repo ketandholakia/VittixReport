@@ -2702,12 +2702,12 @@ begin
     CheckListBox1.Items.Clear;
     CheckListBox1.Items.Add('Grid');
     CheckListBox1.Items.Add('Snap');
-    CheckListBox1.Items.Add('Rulers');
-    CheckListBox1.Items.Add('Margins');
+    CheckListBox1.Items.Add('Ruler');
+    CheckListBox1.Items.Add('Margin');
   finally
     CheckListBox1.Items.EndUpdate;
   end;
-  CheckListBox1.Hint := 'Quick view toggles: Grid, Snap, Rulers, Margins';
+  CheckListBox1.Hint := 'Quick view toggles: Grid, Snap, Ruler, Margin';
   CheckListBox1.ShowHint := True;
   CheckListBox1.OnClickCheck := CheckListBox1ClickCheck;
 end;
