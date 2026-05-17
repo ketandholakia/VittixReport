@@ -247,8 +247,12 @@ Release build:
 - OnAfterPrint has helper/ellipsis editor.
 - Opening helper shows multiline editor.
 - Helper shows concise help text.
+- Snippet combo/list is visible.
+- Insert button inserts selected snippet at caret.
+- Snippet text is clearly marked as host-script example/text only.
 - Helper shows line/char count.
 - Line/char count updates while typing.
+- Line/char count updates after snippet insertion.
 - Fixed-width editor font is used.
 - OK writes edited text back to property grid only.
 - OK enables Apply / dirty state.
@@ -257,6 +261,8 @@ Release build:
 - Cancel leaves property value unchanged.
 - Dialog does not execute script.
 - Dialog does not validate script syntax.
+- Snippet insertion does not execute or validate script.
+- Cancel discards inserted snippet text.
 - Dialog does not auto-apply.
 - Applying creates one undoable property batch.
 - Undo/Redo restores event script text.
