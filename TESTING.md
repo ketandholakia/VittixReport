@@ -240,6 +240,12 @@ Release build:
 - Save/Reopen persists event text.
 - Expression Helper still works for expression fields.
 - Runtime Event Callback Demo remains unaffected.
+- Select object -> [Events] group appears in property panel.
+- Object OnBeforePrint / OnAfterPrint appear once under/near [Events].
+- Object event helper opens as Object Event Script.
+- Object event text saves/reopens.
+- Preview output unchanged for object event text because runtime execution is not enabled yet.
+- Band event helper still works.
 
 ### Band Event Script Helper
 - Select a band and verify [Events] group appears.

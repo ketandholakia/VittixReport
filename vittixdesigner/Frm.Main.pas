@@ -3085,7 +3085,10 @@ begin
 end;
 
 function TfrmMain.PropertyHintText(const AKey: string): string;
+var
+  Target: TReportObject;
 begin
+  Target := CurrentPropertyTarget;
   if SameText(AKey, 'Name') then
     Exit('Object name used by expressions and references')
   else if SameText(AKey, 'Left') or SameText(AKey, 'Top') or
@@ -3112,9 +3115,17 @@ begin
   else if SameText(AKey, 'GroupField') then
     Exit('Field used for grouping band sections')
   else if SameText(AKey, 'OnBeforePrint') then
-    Exit('Persisted band script hook executed before the band prints. Different from runtime Delphi callbacks.')
+  begin
+    if Assigned(Target) and not (Target is TReportBand) then
+      Exit('Persisted object script text stored with this object. Runtime execution is not enabled yet.');
+    Exit('Persisted band script hook executed before the band prints. Different from runtime Delphi callbacks.');
+  end
   else if SameText(AKey, 'OnAfterPrint') then
+  begin
+    if Assigned(Target) and not (Target is TReportBand) then
+      Exit('Persisted object script text stored with this object. Runtime execution is not enabled yet.');
     Exit('Persisted band script hook executed after the band prints. Different from runtime Delphi callbacks.');
+  end;
 
   Result := '';
 end;
@@ -4481,6 +4492,10 @@ function TfrmMain.EditBandEventScriptRow(ARow: Integer): Boolean;
 var
   KeyName: string;
   CurrentValue: string;
+  Target: TReportObject;
+  IsBandTarget: Boolean;
+  DialogTitle: string;
+  StorageSubject: string;
   Dlg: TForm;
   PnlBottom: TPanel;
   LblHelp: TLabel;
@@ -4503,12 +4518,25 @@ begin
   if IsVisualGroupRow(KeyName) or not IsBandEventScriptRowKey(KeyName) then
     Exit;
 
+  Target := CurrentPropertyTarget;
+  IsBandTarget := Assigned(Target) and (Target is TReportBand);
+  if IsBandTarget then
+  begin
+    DialogTitle := 'Band Event Script';
+    StorageSubject := 'band';
+  end
+  else
+  begin
+    DialogTitle := 'Object Event Script';
+    StorageSubject := 'object';
+  end;
+
   CurrentValue := PropEditor.Values[KeyName];
 
   Dlg := TForm.Create(Self);
   Helper := nil;
   try
-    Dlg.Caption := 'Band Event Script';
+    Dlg.Caption := DialogTitle;
     Dlg.Position := poScreenCenter;
     Dlg.BorderStyle := bsDialog;
     Dlg.BorderIcons := [biSystemMenu];
@@ -4524,7 +4552,7 @@ begin
     LblHelp.Height := 34;
     LblHelp.WordWrap := True;
     LblHelp.Caption :=
-      'This text is stored with the band and passed to the host script callback.' + sLineBreak +
+      'This text is stored with the ' + StorageSubject + ' and passed to the host script callback.' + sLineBreak +
       'Runtime Delphi callbacks are separate and are not stored in the report.';
 
     LblTip := TLabel.Create(Dlg);
