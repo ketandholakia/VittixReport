@@ -26,13 +26,14 @@ object frmMain: TfrmMain
     ButtonHeight = 30
     ButtonWidth = 31
     EdgeBorders = [ebBottom]
-    Images = ImageList1
+    Images = SVGIconVirtualImageList1
     TabOrder = 0
     object btnNew: TToolButton
       Left = 0
       Top = 0
       Hint = 'New Report (Ctrl+N)'
       Caption = 'New'
+      ImageIndex = 2
       OnClick = mnuNewClick
     end
     object btnOpen: TToolButton
@@ -130,6 +131,7 @@ object frmMain: TfrmMain
       Top = 0
       Hint = 'Align selected objects to top edge'
       Caption = 'Top'
+      ImageIndex = 11
       OnClick = mnuAlignTopClick
     end
     object btnAlignBottom: TToolButton
@@ -137,6 +139,7 @@ object frmMain: TfrmMain
       Top = 0
       Hint = 'Align selected objects to bottom edge'
       Caption = 'Bottom'
+      ImageIndex = 12
       OnClick = mnuAlignBottomClick
     end
     object tbSep4: TToolButton
@@ -150,6 +153,7 @@ object frmMain: TfrmMain
       Top = 0
       Hint = 'Make selected objects same width'
       Caption = 'Width'
+      ImageIndex = 13
       OnClick = mnuSameWidthClick
     end
     object btnSameH: TToolButton
@@ -157,6 +161,7 @@ object frmMain: TfrmMain
       Top = 0
       Hint = 'Make selected objects same height'
       Caption = 'Height'
+      ImageIndex = 14
       OnClick = mnuSameHeightClick
     end
     object tbSep5: TToolButton
@@ -170,6 +175,7 @@ object frmMain: TfrmMain
       Top = 0
       Hint = 'Center selected objects horizontally'
       Caption = 'Center H'
+      ImageIndex = 15
       OnClick = mnuCenterHClick
     end
     object btnCenterV: TToolButton
@@ -190,6 +196,7 @@ object frmMain: TfrmMain
       Top = 0
       Hint = 'Distribute selected objects horizontally'
       Caption = 'Dist H'
+      ImageIndex = 13
       OnClick = mnuDistHClick
     end
     object btnDistV: TToolButton
@@ -197,6 +204,7 @@ object frmMain: TfrmMain
       Top = 0
       Hint = 'Distribute selected objects vertically'
       Caption = 'Dist V'
+      ImageIndex = 14
       OnClick = mnuDistVClick
     end
     object tbSep7: TToolButton
@@ -210,6 +218,7 @@ object frmMain: TfrmMain
       Top = 0
       Hint = 'Bring selected objects to front'
       Caption = 'Front'
+      ImageIndex = 16
       OnClick = mnuFrontClick
     end
     object btnBack: TToolButton
@@ -230,6 +239,7 @@ object frmMain: TfrmMain
       Top = 0
       Hint = 'Zoom In (Ctrl++)'
       Caption = 'Z+'
+      ImageIndex = 17
       OnClick = mnuZoomInClick
     end
     object btnZoomOut: TToolButton
@@ -237,6 +247,7 @@ object frmMain: TfrmMain
       Top = 0
       Hint = 'Zoom Out (Ctrl+-)'
       Caption = 'Z-'
+      ImageIndex = 18
       OnClick = mnuZoomOutClick
     end
     object tbSep9: TToolButton
@@ -250,6 +261,7 @@ object frmMain: TfrmMain
       Top = 0
       Hint = 'Preview Report (F5)'
       Caption = 'Preview'
+      ImageIndex = 7
       OnClick = mnuPreviewClick
     end
     object CheckListBox1: TCheckListBox
@@ -316,7 +328,7 @@ object frmMain: TfrmMain
       object lblToolbox: TLabel
         Left = 0
         Top = 0
-        Width = 48
+        Width = 140
         Height = 15
         Align = alTop
         Caption = '  Objects'
@@ -329,6 +341,7 @@ object frmMain: TfrmMain
         ParentColor = False
         ParentFont = False
         Transparent = False
+        ExplicitWidth = 48
       end
       object Toolbox: TVittixReportToolbox
         Left = 0
@@ -352,7 +365,7 @@ object frmMain: TfrmMain
       object lblProperties: TLabel
         Left = 0
         Top = 0
-        Width = 139
+        Width = 260
         Height = 15
         Align = alTop
         Caption = '  Selected Object Header'
@@ -365,17 +378,19 @@ object frmMain: TfrmMain
         ParentColor = False
         ParentFont = False
         Transparent = False
+        ExplicitWidth = 139
       end
       object lblSelectedProps: TLabel
         Left = 0
         Top = 159
-        Width = 144
+        Width = 260
         Height = 15
         Align = alTop
         Caption = '  Selected Object Properties'
         Color = 12105912
         ParentColor = False
         Transparent = False
+        ExplicitWidth = 144
       end
       object pnlReportInfo: TPanel
         Left = 0
@@ -1997,5 +2012,275 @@ object frmMain: TfrmMain
       F7F87F93FF33FFFFFFDF1FC7F7F8FF800003FFFFFFDF830FF001FF800003FFFF
       FFDFE01FFFFFFFFFFFFFFFFFFFFFFFFF00000000000000000000000000000000
       000000000000}
+  end
+  object SVGIconImageCollection1: TSVGIconImageCollection
+    SVGIconItems = <
+      item
+        IconName = 'file_open'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0' +
+          ' -960 960 960" width="24px" fill="#e3e3e3"><path d="M160-120q-33 0' +
+          ' -56.5-23.5T80-200v-560q0-33 23.5-56.5T160-840h240l80 80h320q33' +
+          ' 0 56.5 23.5T880-680v480q0 33-23.5 56.5T800-120H160Zm0-80h640v-48' +
+          '0H447l-80-80H160v560Zm0 0v-560 560Z"/></svg>'
+      end
+      item
+        IconName = 'save'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -9' +
+          '60 960 960" width="24px" fill="#e3e3e3"><path d="M160-200v-560 560Zm' +
+          '0 80q-33 0-56.5-23.5T80-200v-560q0-33 23.5-56.5T160-840h487q16 0 3' +
+          '0.5 6t25.5 17l91 91q11 11 17 25.5t6 30.5v470q0 33-23.5 56.5T800-12' +
+          '0H160Zm80-80h480v-447L687-760H240v560Zm240-80q50 0 85-35t35-85q0-5' +
+          '0-35-85t-85-35q-50 0-85 35t-35 85q0 50 35 85t85 35ZM320-560h280q17 ' +
+          '0 28.5-11.5T640-600v-120q0-17-11.5-28.5T600-760H320q-17 0-28.5 11.5T' +
+          '280-720v120q0 17 11.5 28.5T320-560Zm160 160Z"/></svg>'
+      end
+      item
+        IconName = 'new_file'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -96' +
+          '0 960 960" width="24px" fill="#e3e3e3"><path d="M440-240h80v-120h120v' +
+          '-80H520v-120h-80v120H320v80h120v120ZM160-80v-800h400l240 240v560H16' +
+          '0Zm360-520v-200H240v640h480v-440H520ZM240-800v200-200 640-640Z"/></s' +
+          'vg>'
+      end
+      item
+        IconName = 'undo'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -96' +
+          '0 960 960" width="24px" fill="#e3e3e3"><path d="M280-200v-80h247q73 0' +
+          ' 125-45.5T704-440q0-69-52-114.5T527-600H312l104 104-56 56-200-200 2' +
+          '00-200 56 56-104 104h215q106 0 181.5 69T784-440q0 100-76.5 170T527-2' +
+          '00H280Z"/></svg>'
+      end
+      item
+        IconName = 'redo'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -96' +
+          '0 960 960" width="24px" fill="#e3e3e3"><path d="M680-200H433q-106 0-18' +
+          '1.5-70T176-440q0-101 75.5-170.5T433-680h215L544-784l56-56 200 200-20' +
+          '0 200-56-56 104-104H433q-73 0-125 45.5T256-440q0 69 52 114.5T433-280' +
+          'h247v80Z"/></svg>'
+      end
+      item
+        IconName = 'align_horizontal_left'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960' +
+          ' 960 960" width="24px" fill="#e3e3e3"><path d="M120-120v-720h80v720h-8' +
+          '0Zm200-160v-80h520v80H320Zm0-320v-80h360v80H320Z"/></svg>'
+      end
+      item
+        IconName = 'align_horizontal_right'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960' +
+          ' 960 960" width="24px" fill="#e3e3e3"><path d="M760-120v-720h80v720h-8' +
+          '0ZM120-280v-80h520v80H120Zm160-320v-80h360v80H280Z"/></svg>'
+      end
+      item
+        IconName = 'preview'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960' +
+          ' 960 960" width="24px" fill="#e3e3e3"><path d="M480-320q75 0 127.5-52.' +
+          '5T660-500q0-75-52.5-127.5T480-680q-75 0-127.5 52.5T300-500q0 75 52.5 ' +
+          '127.5T480-320Zm0-80q-42 0-71-29t-29-71q0-42 29-71t71-29q42 0 71 29t2' +
+          '9 71q0 42-29 71t-71 29Zm0 240q-146 0-266-81.5T40-500q54-177 174-258.' +
+          '5T480-840q146 0 266 81.5T920-500q-54 177-174 258.5T480-160Z"/></svg>'
+      end
+      item
+        IconName = 'delete'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960' +
+          ' 960 960" width="24px" fill="#e3e3e3"><path d="M280-120q-33 0-56.5-23.' +
+          '5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T' +
+          '680-120H280Zm80-160h80v-360h-80v360Zm160 0h80v-360h-80v360Z"/></svg>'
+      end
+      item
+        IconName = 'copy'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960' +
+          ' 960 960" width="24px" fill="#e3e3e3"><path d="M360-240q-33 0-56.5-23.' +
+          '5T280-320v-440q0-33 23.5-56.5T360-840h440q33 0 56.5 23.5T880-760v440' +
+          'q0 33-23.5 56.5T800-240H360Zm-200 200q-33 0-56.5-23.5T80-120v-520h80v' +
+          '520h520v80H160Z"/></svg>'
+      end
+      item
+        IconName = 'paste'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960' +
+          ' 960 960" width="24px" fill="#e3e3e3"><path d="M320-80q-33 0-56.5-23.5' +
+          'T240-160v-560q0-33 23.5-56.5T320-800h120q0-33 23.5-56.5T520-880h120q3' +
+          '3 0 56.5 23.5T720-800h120q33 0 56.5 23.5T920-720v560q0 33-23.5 56.5T8' +
+          '40-80H320Zm0-80h520v-560H740v80H420v-80H320v560Zm180-640h160v-40H500v' +
+          '40Z"/></svg>'
+      end
+      item
+        IconName = 'align_vertical_top'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960' +
+          ' 960 960" width="24px" fill="#e3e3e3"><path d="M120-760v-80h720v80H120' +
+          'Zm160 520v-360h80v360h-80Zm320 0v-520h80v520h-80Z"/></svg>'
+      end
+      item
+        IconName = 'align_vertical_bottom'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960' +
+          ' 960 960" width="24px" fill="#e3e3e3"><path d="M120-120v-80h720v80H120' +
+          'Zm160-160v-520h80v520h-80Zm320 0v-360h80v360h-80Z"/></svg>'
+      end
+      item
+        IconName = 'width'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 ' +
+          '960 960" width="24px" fill="#e3e3e3"><path d="M240-240v-120H120v-80h12' +
+          '0v-120l160 160-160 160Zm480 0L560-400l160-160v120h120v80H720v120ZM40' +
+          '0-360v-80h160v80H400Z"/></svg>'
+      end
+      item
+        IconName = 'height'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 ' +
+          '960 960" width="24px" fill="#e3e3e3"><path d="M360-120v-120H240l160-16' +
+          '0 160 160H440v120h-80Zm0-480-160-160h120v-120h80v120h120L360-600Zm0 2' +
+          '00v-160h80v160h-80Z"/></svg>'
+      end
+      item
+        IconName = 'align_center'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 ' +
+          '960 960" width="24px" fill="#e3e3e3"><path d="M440-120v-720h80v720h-80' +
+          'ZM120-280v-80h720v80H120Zm160-320v-80h400v80H280Z"/></svg>'
+      end
+      item
+        IconName = 'flip_to_front'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 ' +
+          '960 960" width="24px" fill="#e3e3e3"><path d="M160-160v-560h80v480h480' +
+          'v80H160Zm160-160v-480h480v480H320Zm80-80h320v-320H400v320Z"/></svg>'
+      end
+      item
+        IconName = 'zoom_in'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 ' +
+          '960 960" width="24px" fill="#e3e3e3"><path d="M784-120 532-372q-30 24-' +
+          '69 38t-83 14q-125 0-212.5-87.5T149-620q0-125 87.5-212.5T449-920q125 ' +
+          '0 212.5 87.5T749-620q0 44-14 83t-38 69l252 252-56 56ZM449-400q91 0 1' +
+          '55.5-64.5T669-620q0-91-64.5-155.5T449-840q-91 0-155.5 64.5T229-620q0' +
+          ' 91 64.5 155.5T449-400Zm-40-80h80v-100h100v-80H489v-100h-80v100H309v' +
+          '80h100v100Z"/></svg>'
+      end
+      item
+        IconName = 'zoom_out'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 ' +
+          '960 960" width="24px" fill="#e3e3e3"><path d="M784-120 532-372q-30 24-' +
+          '69 38t-83 14q-125 0-212.5-87.5T149-620q0-125 87.5-212.5T449-920q125 0' +
+          ' 212.5 87.5T749-620q0 44-14 83t-38 69l252 252-56 56ZM449-400q91 0 15' +
+          '5.5-64.5T669-620q0-91-64.5-155.5T449-840q-91 0-155.5 64.5T229-620q0 9' +
+          '1 64.5 155.5T449-400Zm-140-180v-80h280v80H309Z"/></svg>'
+      end>
+    Left = 544
+    Top = 104
+  end
+  object SVGIconVirtualImageList1: TSVGIconVirtualImageList
+    ImageCollection = SVGIconImageCollection1
+    Images = <
+      item
+        CollectionIndex = 0
+        CollectionName = 'file_open'
+        Name = 'file_open'
+      end
+      item
+        CollectionIndex = 1
+        CollectionName = 'save'
+        Name = 'save'
+      end
+      item
+        CollectionIndex = 2
+        CollectionName = 'new_file'
+        Name = 'new_file'
+      end
+      item
+        CollectionIndex = 3
+        CollectionName = 'undo'
+        Name = 'undo'
+      end
+      item
+        CollectionIndex = 4
+        CollectionName = 'redo'
+        Name = 'redo'
+      end
+      item
+        CollectionIndex = 5
+        CollectionName = 'align_horizontal_left'
+        Name = 'align_horizontal_left'
+      end
+      item
+        CollectionIndex = 6
+        CollectionName = 'align_horizontal_right'
+        Name = 'align_horizontal_right'
+      end
+      item
+        CollectionIndex = 7
+        CollectionName = 'preview'
+        Name = 'preview'
+      end
+      item
+        CollectionIndex = 8
+        CollectionName = 'delete'
+        Name = 'delete'
+      end
+      item
+        CollectionIndex = 9
+        CollectionName = 'copy'
+        Name = 'copy'
+      end
+      item
+        CollectionIndex = 10
+        CollectionName = 'paste'
+        Name = 'paste'
+      end
+      item
+        CollectionIndex = 11
+        CollectionName = 'align_vertical_top'
+        Name = 'align_vertical_top'
+      end
+      item
+        CollectionIndex = 12
+        CollectionName = 'align_vertical_bottom'
+        Name = 'align_vertical_bottom'
+      end
+      item
+        CollectionIndex = 13
+        CollectionName = 'width'
+        Name = 'width'
+      end
+      item
+        CollectionIndex = 14
+        CollectionName = 'height'
+        Name = 'height'
+      end
+      item
+        CollectionIndex = 15
+        CollectionName = 'align_center'
+        Name = 'align_center'
+      end
+      item
+        CollectionIndex = 16
+        CollectionName = 'flip_to_front'
+        Name = 'flip_to_front'
+      end
+      item
+        CollectionIndex = 17
+        CollectionName = 'zoom_in'
+        Name = 'zoom_in'
+      end
+      item
+        CollectionIndex = 18
+        CollectionName = 'zoom_out'
+        Name = 'zoom_out'
+      end>
+    Left = 752
+    Top = 120
   end
 end

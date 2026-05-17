@@ -167,3 +167,54 @@ Only add these if needed by the final toolbar/tree/menu design.
 - Keep tree icons around 16x16.
 - Do not rely on raw ImageIndex numbers without documenting the mapping.
 - If using ImageList indexes, add an "ImageList index map" section later.
+
+## ImageList1 index map
+This is the current stable toolbar mapping used by `ToolBar1.Images = ImageList1`.
+
+| Index | Icon file | Usage |
+|---|---|---|
+| 0 | `file_open.svg` | Open Report (`btnOpen`) |
+| 1 | `save.svg` | Save (`btnSave`) |
+| 2 | `new_file.svg` | New Report (`btnNew`) |
+| 3 | `undo.svg` | Undo (`btnUndo`) |
+| 4 | `redo.svg` | Redo (`btnRedo`) |
+| 5 | `align_horizontal_left.svg` | Align Left (`btnAlignLeft`) |
+| 6 | `align_horizontal_right.svg` | Align Right (`btnAlignRight`) |
+| 7 | `preview.svg` | Preview (`btnPreview`) |
+| 8 | `delete.svg` | Delete (`btnDelete`) |
+| 9 | `copy.svg` | Copy (`btnCopy`) |
+| 10 | `paste.svg` | Paste (`btnPaste`) |
+
+Notes:
+- This phase wires a small, stable subset on the main toolbar only.
+- `Save As`, `Export PDF`, `Cut`, `Select All`, `Page Setup`, and `Report Properties` are mapped in this document but not yet shown as toolbar buttons in the current DFM toolbar layout.
+
+## SVG toolbar image mapping
+Main toolbar now uses `SVGIconVirtualImageList1` backed by `SVGIconImageCollection1`.
+Mapping uses `ImageIndex` (stable via `SVGIconVirtualImageList1.Images` order).
+
+| Button | Action | SVG file | Image name / Index | Notes |
+|---|---|---|---|---|
+| `btnNew` | New Report | `new_file.svg` | `new_file` / `2` | wired |
+| `btnOpen` | Open Report | `file_open.svg` | `file_open` / `0` | wired |
+| `btnSave` | Save | `save.svg` | `save` / `1` | wired |
+| `btnUndo` | Undo | `undo.svg` | `undo` / `3` | wired |
+| `btnRedo` | Redo | `redo.svg` | `redo` / `4` | wired |
+| `btnDelete` | Delete | `delete.svg` | `delete` / `8` | wired |
+| `btnCopy` | Copy | `copy.svg` | `copy` / `9` | wired |
+| `btnPaste` | Paste | `paste.svg` | `paste` / `10` | wired |
+| `btnAlignLeft` | Align Left | `align_horizontal_left.svg` | `align_horizontal_left` / `5` | wired |
+| `btnAlignRight` | Align Right | `align_horizontal_right.svg` | `align_horizontal_right` / `6` | wired |
+| `btnAlignTop` | Align Top | `align_vertical_top.svg` | `align_vertical_top` / `11` | wired |
+| `btnAlignBottom` | Align Bottom | `align_vertical_bottom.svg` | `align_vertical_bottom` / `12` | wired |
+| `btnSameW` | Same Width | `width.svg` | `width` / `13` | wired |
+| `btnSameH` | Same Height | `height.svg` | `height` / `14` | wired |
+| `btnCenterH` | Center Horizontally | `align_center.svg` | `align_center` / `15` | wired |
+| `btnCenterV` | Center Vertically | — | — | unchanged: `align_vertical_center.svg` missing |
+| `btnDistH` | Distribute Horizontally | `width.svg` | `width` / `13` | wired (fallback icon) |
+| `btnDistV` | Distribute Vertically | `height.svg` | `height` / `14` | wired (fallback icon) |
+| `btnFront` | Bring To Front | `flip_to_front.svg` | `flip_to_front` / `16` | wired |
+| `btnBack` | Send To Back | — | — | unchanged: `flip_to_back.svg` missing |
+| `btnZoomIn` | Zoom In | `zoom_in.svg` | `zoom_in` / `17` | wired |
+| `btnZoomOut` | Zoom Out | `zoom_out.svg` | `zoom_out` / `18` | wired |
+| `btnPreview` | Preview | `preview.svg` | `preview` / `7` | wired |

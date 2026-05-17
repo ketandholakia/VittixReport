@@ -51,7 +51,8 @@ uses
   Vittix.Report.Export.PDF,
   Vittix.Report.Objects.Barcode,
   Vittix.Report.Objects.Table, Vcl.Grids,  Vcl.CheckLst,
-  System.ImageList;
+  System.ImageList, Vcl.VirtualImageList, SVGIconVirtualImageList,
+  Vcl.BaseImageCollection, SVGIconImageCollection;
 
 type
   TfrmMain = class(TForm)
@@ -199,6 +200,8 @@ type
     btnZoomApply : TButton;
     CheckListBox1: TCheckListBox;
     ImageList1: TImageList;
+    SVGIconImageCollection1: TSVGIconImageCollection;
+    SVGIconVirtualImageList1: TSVGIconVirtualImageList;
 
     { ---- Event handlers ---- }
 
