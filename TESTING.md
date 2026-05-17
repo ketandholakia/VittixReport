@@ -241,6 +241,22 @@ Release build:
 - Expression Helper still works for expression fields.
 - Runtime Event Callback Demo remains unaffected.
 
+### Band Event Script Helper
+- Select a band and verify [Events] group appears.
+- OnBeforePrint has helper/ellipsis editor.
+- OnAfterPrint has helper/ellipsis editor.
+- Opening helper shows multiline editor.
+- OK writes edited text back to property grid only.
+- OK enables Apply / dirty state.
+- Cancel leaves property value unchanged.
+- Dialog does not execute script.
+- Dialog does not auto-apply.
+- Applying creates one undoable property batch.
+- Undo/Redo restores event script text.
+- Save/Reopen preserves event script text.
+- Expression Helper still works for Expression / PrintWhen / condition fields.
+- Font / Color / DataField editors still work.
+
 ## 15) Designer UI / Variables checklist
 
 ### Variables panel
