@@ -365,7 +365,9 @@ type
     function  IsFontDialogRowKey(const AKey: string): Boolean;
     function  IsColorPropertyKey(const AKey: string): Boolean;
     function  IsExpressionPropertyKey(const AKey: string): Boolean;
+    function  IsBandEventScriptRowKey(const AKey: string): Boolean;
     function  EditExpressionPropertyRow(ARow: Integer): Boolean;
+    function  EditBandEventScriptRow(ARow: Integer): Boolean;
     function  PromptExpressionHelper(const AInitialValue: string;
       const AFields: TArray<string>; const APropertyKey: string;
       out AEditedValue: string): Boolean;
@@ -2836,6 +2838,10 @@ begin
           PropEditor.ItemProps[KeyName].PickList.EndUpdate;
         end;
       end
+      else if IsBandEventScriptRowKey(KeyName) then
+      begin
+        PropEditor.ItemProps[KeyName].EditStyle := esEllipsis;
+      end
       else if IsExpressionPropertyKey(KeyName) then
       begin
         PropEditor.ItemProps[KeyName].EditStyle := esEllipsis;
@@ -3360,6 +3366,8 @@ end;
 
 procedure TfrmMain.PropEditorEditButtonClick(Sender: TObject);
 begin
+  if EditBandEventScriptRow(PropEditor.Row) then
+    Exit;
   if EditExpressionPropertyRow(PropEditor.Row) then
     Exit;
   EditColorPropertyRow(PropEditor.Row);
@@ -4108,6 +4116,13 @@ begin
     SameText(AKey, 'BorderColorCondition');
 end;
 
+function TfrmMain.IsBandEventScriptRowKey(const AKey: string): Boolean;
+begin
+  Result :=
+    SameText(AKey, 'OnBeforePrint') or
+    SameText(AKey, 'OnAfterPrint');
+end;
+
 function TfrmMain.PromptExpressionHelper(const AInitialValue: string;
   const AFields: TArray<string>; const APropertyKey: string;
   out AEditedValue: string): Boolean;
@@ -4355,6 +4370,98 @@ begin
   SetPropertyPanelDirty(True);
   ApplyPropertyPanel;
   Result := True;
+end;
+
+function TfrmMain.EditBandEventScriptRow(ARow: Integer): Boolean;
+var
+  KeyName: string;
+  CurrentValue: string;
+  Dlg: TForm;
+  PnlBottom: TPanel;
+  LblHelp: TLabel;
+  MemoScript: TMemo;
+  BtnOK: TButton;
+  BtnCancel: TButton;
+begin
+  Result := False;
+  if (ARow <= 0) or (ARow >= PropEditor.RowCount) then
+    Exit;
+
+  KeyName := Trim(PropEditor.Keys[ARow]);
+  if IsVisualGroupRow(KeyName) or not IsBandEventScriptRowKey(KeyName) then
+    Exit;
+
+  CurrentValue := PropEditor.Values[KeyName];
+
+  Dlg := TForm.Create(Self);
+  try
+    Dlg.Caption := 'Band Event Script';
+    Dlg.Position := poScreenCenter;
+    Dlg.BorderStyle := bsDialog;
+    Dlg.BorderIcons := [biSystemMenu];
+    Dlg.ClientWidth := 760;
+    Dlg.ClientHeight := 460;
+
+    LblHelp := TLabel.Create(Dlg);
+    LblHelp.Parent := Dlg;
+    LblHelp.Left := 12;
+    LblHelp.Top := 10;
+    LblHelp.Width := Dlg.ClientWidth - 24;
+    LblHelp.Height := 34;
+    LblHelp.WordWrap := True;
+    LblHelp.Caption :=
+      'This text is passed to the host script callback for the selected band. ' +
+      'Runtime Delphi callbacks are separate and are not stored in the report.';
+
+    MemoScript := TMemo.Create(Dlg);
+    MemoScript.Parent := Dlg;
+    MemoScript.Left := 12;
+    MemoScript.Top := 50;
+    MemoScript.Width := Dlg.ClientWidth - 24;
+    MemoScript.Height := Dlg.ClientHeight - 102;
+    MemoScript.Anchors := [akLeft, akTop, akRight, akBottom];
+    MemoScript.ScrollBars := ssBoth;
+    MemoScript.WordWrap := False;
+    MemoScript.Lines.Text := CurrentValue;
+
+    PnlBottom := TPanel.Create(Dlg);
+    PnlBottom.Parent := Dlg;
+    PnlBottom.Align := alBottom;
+    PnlBottom.Height := 44;
+    PnlBottom.BevelOuter := bvNone;
+
+    BtnOK := TButton.Create(Dlg);
+    BtnOK.Parent := PnlBottom;
+    BtnOK.Caption := 'OK';
+    BtnOK.ModalResult := mrOk;
+    BtnOK.Left := Dlg.ClientWidth - 180;
+    BtnOK.Top := 8;
+    BtnOK.Width := 80;
+    BtnOK.Anchors := [akRight, akBottom];
+
+    BtnCancel := TButton.Create(Dlg);
+    BtnCancel.Parent := PnlBottom;
+    BtnCancel.Caption := 'Cancel';
+    BtnCancel.ModalResult := mrCancel;
+    BtnCancel.Left := Dlg.ClientWidth - 92;
+    BtnCancel.Top := 8;
+    BtnCancel.Width := 80;
+    BtnCancel.Anchors := [akRight, akBottom];
+
+    Dlg.ActiveControl := MemoScript;
+    if Dlg.ShowModal <> mrOk then
+      Exit;
+
+    if PropEditor.Values[KeyName] <> MemoScript.Lines.Text then
+    begin
+      PropEditor.Values[KeyName] := MemoScript.Lines.Text;
+      SetPropertyPanelDirty(True);
+      UpdatePropertyPanelHintForRow(ARow);
+    end;
+    Result := True;
+  finally
+    Dlg.Free;
+  end;
 end;
 
 procedure TfrmMain.ExpressionHelperInsertField(Sender: TObject);
