@@ -1,4 +1,4 @@
-unit ReportScriptHost.Adapter;
+unit Vittix.Report.ScriptHost.Adapter;
 
 interface
 
@@ -25,6 +25,7 @@ type
   TReportScriptHostAdapter = class
   private
     function ParseScriptAssignment(const AScript: string; out AKey, AValue: string): Boolean;
+    function SplitStatements(const AScript: string): TArray<string>;
     function ExecuteSingleBeforeObject(AObject: TReportObject; const AScript: string;
       var Context: TExpressionContext; var ACanPrint: Boolean): TScriptHostCommandResult;
   public
@@ -47,6 +48,50 @@ begin
     Exit;
   AKey := LowerCase(Trim(Copy(AScript, 1, P - 1)));
   AValue := Trim(Copy(AScript, P + 2, MaxInt));
+end;
+
+function TReportScriptHostAdapter.SplitStatements(const AScript: string): TArray<string>;
+var
+  I: Integer;
+  Ch: Char;
+  InQuote: Boolean;
+  Current: string;
+  Parts: TStringList;
+begin
+  Parts := TStringList.Create;
+  try
+    InQuote := False;
+    Current := '';
+    I := 1;
+    while I <= Length(AScript) do
+    begin
+      Ch := AScript[I];
+      if Ch = '''' then
+      begin
+        Current := Current + Ch;
+        // Handle escaped single quote inside quoted text: ''
+        if InQuote and (I < Length(AScript)) and (AScript[I + 1] = '''') then
+        begin
+          Inc(I);
+          Current := Current + AScript[I];
+        end
+        else
+          InQuote := not InQuote;
+      end
+      else if (Ch = ';') and not InQuote then
+      begin
+        Parts.Add(Current);
+        Current := '';
+      end
+      else
+        Current := Current + Ch;
+      Inc(I);
+    end;
+    Parts.Add(Current);
+    Result := Parts.ToStringArray;
+  finally
+    Parts.Free;
+  end;
 end;
 
 function TReportScriptHostAdapter.ExecuteSingleBeforeObject(AObject: TReportObject;
@@ -87,6 +132,7 @@ begin
     else
     begin
       Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
       Result.TraceMessage := 'ScriptUnsupportedCommand: ' + AScript;
     end;
     Exit;
@@ -101,6 +147,7 @@ begin
     else
     begin
       Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
       Result.TraceMessage := 'ScriptUnsupportedVisibleValue: ' + AScript;
       Exit;
     end;
@@ -116,6 +163,7 @@ begin
     if not (AObject is TReportTextObject) then
     begin
       Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
       Result.TraceMessage := 'ScriptUnsupportedForObjectType: ' + AObject.ClassName;
       Exit;
     end;
@@ -127,6 +175,7 @@ begin
         [AObject.ClassName, AObject.Name, Value]);
     except
       Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
       Result.TraceMessage := 'ScriptUnsupportedColor: ' + AScript;
     end;
     Exit;
@@ -211,7 +260,6 @@ begin
     Exit;
   end;
 
-  // Parsed assignment but unsupported key.
   Result.Handled := True;
   Result.Unsupported := True;
   Result.UnsupportedCount := 1;
@@ -235,7 +283,7 @@ begin
   Result.TextSetCount := 0;
   Result.TraceMessage := '';
 
-  Parts := AScript.Split([';']);
+  Parts := SplitStatements(AScript);
   TraceLines := TStringList.Create;
   try
     for Part in Parts do
@@ -257,7 +305,6 @@ begin
       if Single.TraceMessage <> '' then
         TraceLines.Add(Single.TraceMessage);
 
-      // CanPrint short-circuits remaining commands for this object.
       if Single.Canceled then
         Break;
     end;
@@ -269,3 +316,4 @@ begin
 end;
 
 end.
+

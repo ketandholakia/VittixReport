@@ -143,8 +143,10 @@ Quick notes:
 - Bounded multi-command form is supported with semicolon separators, executed left-to-right:
 - `Visible := True; Text := Field('CustomerName')`
 - `CanPrint := False` short-circuits remaining commands for that object.
+- Statement splitting is quote-aware for single-quoted literals:
+- `Text := 'A;B'; Visible := True` keeps `A;B` as one text literal.
 - Unknown commands are treated as unsupported text (logged by host/demo), not executed by engine core.
-- In the designer demo, this parser is implemented via a reusable host-side adapter unit (`ReportScriptHost.Adapter.pas`), not engine scripting logic.
+- In the designer demo, this parser is implemented via reusable shared adapter unit (`source/Vittix.Report.ScriptHost.Adapter.pas`), not engine scripting logic.
 
 ## Execution Order
 
@@ -230,3 +232,4 @@ Log('AfterBand:' + ABand.Name);
 - `Background := clYellow`
 - `Visible := False`
 - Each subtest reports PASS/FAIL in the demo output summary.
+- Demo output also includes an unsupported-command diagnostics block grouped by subtest.

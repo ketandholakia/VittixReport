@@ -32,6 +32,7 @@ uses
   Vittix.Report.Utils in '..\Vittix.Report.Utils.pas',
   Vittix.Report.Objects.Barcode in '..\Vittix.Report.Objects.Barcode.pas',
   Vittix.Report.Objects.Table in '..\Vittix.Report.Objects.Table.pas',
+  Vittix.Report.ScriptHost.Adapter in '..\Vittix.Report.ScriptHost.Adapter.pas',
   Vittix.Report.Export.PDF in '..\Vittix.Report.Export.PDF.pas';
 
 {$R *.res}

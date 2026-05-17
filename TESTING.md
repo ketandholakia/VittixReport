@@ -351,6 +351,8 @@ Release build:
 - Runtime Event Callback Demo subtest `Visible := False` reports PASS.
 - Runtime Event Callback Demo supports bounded semicolon command sequences and reports PASS.
 - `CanPrint := False; ...` short-circuits remaining commands for that object.
+- Quote-aware semicolon split works: `Text := 'A;B'; Visible := True`.
+- Runtime Event Callback Demo shows unsupported-command diagnostics grouped by subtest.
 - Band script behavior remains unchanged.
 - Preview and export use consistent object event execution behavior.
 

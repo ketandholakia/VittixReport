@@ -53,7 +53,7 @@ uses
   Vittix.Report.Export.PDF,
   Vittix.Report.Objects.Barcode,
   Vittix.Report.Objects.Table, Vcl.Grids,  Vcl.CheckLst,
-  ReportScriptHost.Adapter,
+  Vittix.Report.ScriptHost.Adapter,
   System.ImageList, Vcl.VirtualImageList, SVGIconVirtualImageList,
   Vcl.BaseImageCollection, SVGIconImageCollection;
 
@@ -2216,6 +2216,32 @@ var
 
     Result := True;
   end;
+  procedure AppendUnsupportedSummary(const ATitle: string; const ATrace: TStrings; ALines: TStrings);
+  var
+    U: TStringList;
+    L: string;
+    I: Integer;
+  begin
+    if not Assigned(ATrace) or not Assigned(ALines) then
+      Exit;
+
+    U := TStringList.Create;
+    try
+      U.Sorted := True;
+      U.Duplicates := dupIgnore;
+      for L in ATrace do
+        if Pos('ScriptUnsupported', L) > 0 then
+          U.Add(L);
+
+      ALines.Add(Format('  %s unsupported count: %d', [ATitle, U.Count]));
+      for I := 0 to Min(4, U.Count - 1) do
+        ALines.Add('    ' + U[I]);
+      if U.Count > 5 then
+        ALines.Add(Format('    ... (%d more unsupported lines)', [U.Count - 5]));
+    finally
+      U.Free;
+    end;
+  end;
 begin
   UseSampleDataSet;
 
@@ -2569,6 +2595,16 @@ begin
       [BaseBeforeObject, BaseAfterObject]));
     Lines.Add(Format('  Baseline ScriptBeforeObject=%d, ScriptAfterObject=%d',
       [BaseScriptBeforeObject, BaseScriptAfterObject]));
+
+    Lines.Add('');
+    Lines.Add('Unsupported command diagnostics:');
+    AppendUnsupportedSummary('Baseline', BaselineTrace, Lines);
+    AppendUnsupportedSummary('Object-skip', ObjectSkipTrace, Lines);
+    AppendUnsupportedSummary('Band-skip', BandSkipTrace, Lines);
+    AppendUnsupportedSummary('Script-host cancel', ScriptCancelTrace, Lines);
+    AppendUnsupportedSummary('Field() binding', FieldBindTrace, Lines);
+    AppendUnsupportedSummary('Background', BackgroundTrace, Lines);
+    AppendUnsupportedSummary('Visible', VisibleTrace, Lines);
 
     Lines.Add('');
     Lines.Add('Baseline trace preview:');
