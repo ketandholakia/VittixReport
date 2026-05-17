@@ -156,6 +156,7 @@ type
     tbSep8    : TToolButton;
     btnZoomIn : TToolButton;
     btnZoomOut: TToolButton;
+    cboZoomToolbar: TComboBox;
     tbSep9    : TToolButton;
     btnPreview: TToolButton;
 
@@ -276,6 +277,7 @@ type
     { Designer events }
     procedure DesignerSelectionChanged(Sender: TObject);
     procedure DesignerModified(Sender: TObject);
+    procedure DesignerViewChanged(Sender: TObject);
 
     { Toolbox }
     procedure ToolboxToolSelected(Sender: TObject);
@@ -307,6 +309,7 @@ type
     FReportMetadataDirty: Boolean;
     FPropertyPanelDirty: Boolean;
     FLoadingPropertyPanel: Boolean;
+    FUpdatingZoomControls: Boolean;
     // Created dynamically in FormCreate (not streamed from DFM)
     FDesigner   : TVittixReportDesigner;
     FDataSource1: TDataSource;
@@ -393,6 +396,11 @@ type
     function  EditColorPropertyRow(ARow: Integer): Boolean;
     function  EditFontPropertyRow(ARow: Integer): Boolean;
     procedure ApplyZoom;
+    procedure InitializeToolbarZoomCombo;
+    procedure UpdateZoomControls;
+    procedure ApplyToolbarZoomSelection;
+    function  FitPageWidthZoom: Integer;
+    function  FitWholePageZoom: Integer;
     procedure CommitReportMetadataValues(const ANewTitle, ANewAuthor,
       ANewDescription: string; AUndoable: Boolean = True);
     procedure CommitReportMetadataChanges(AUndoable: Boolean = True);
@@ -443,6 +451,8 @@ type
     procedure UseSampleDataSet;
 
     function  ZoomFromEdit: Integer;
+    function  ZoomPercentFromText(const AText: string): Integer;
+    procedure cboZoomToolbarChange(Sender: TObject);
 
   public
     property CurrentFile: string  read FCurrentFile;
@@ -898,6 +908,7 @@ begin
   // Wire designer events
   FDesigner.OnSelectionChanged := DesignerSelectionChanged;
   FDesigner.OnModified         := DesignerModified;
+  FDesigner.OnViewChanged      := DesignerViewChanged;
   FDesigner.OnDataSetChanged   := DesignerDataSetChanged;
   FDesigner.OnDragOver         := DesignerDragOver;
   FDesigner.OnDragDrop         := DesignerDragDrop;
@@ -907,6 +918,7 @@ begin
   PropEditor.OnEditButtonClick := PropEditorEditButtonClick;
   PropEditor.OnSelectCell      := PropEditorSelectCell;
   PropEditor.OnSetEditText     := PropEditorSetEditText;
+  cboZoomToolbar.OnChange      := cboZoomToolbarChange;
 
   // Connect the shared DataSource so the designer sees whatever dataset
   // is assigned at runtime.
@@ -927,6 +939,7 @@ begin
   FReportMetadataDirty := False;
   FPropertyPanelDirty := False;
   FLoadingPropertyPanel := False;
+  FUpdatingZoomControls := False;
 
   // Command-line mode: VittixDesigner.exe "<input>" "<output>"
   // When launched by the component editor, load the input file and
@@ -966,6 +979,8 @@ begin
 
   RefreshReportStructure;
   RefreshFieldList;
+  InitializeToolbarZoomCombo;
+  UpdateZoomControls;
   UpdateTitleBar;
   UpdateStatusBar;
   UpdateMenuState;
@@ -1795,21 +1810,21 @@ procedure TfrmMain.mnuBackClick(Sender: TObject);        begin FDesigner.SendToB
 procedure TfrmMain.mnuZoomInClick(Sender: TObject);
 begin
   FDesigner.ZoomIn;
-  edtZoom.Text := IntToStr(FDesigner.Zoom);
+  UpdateZoomControls;
   UpdateStatusBar;
 end;
 
 procedure TfrmMain.mnuZoomOutClick(Sender: TObject);
 begin
   FDesigner.ZoomOut;
-  edtZoom.Text := IntToStr(FDesigner.Zoom);
+  UpdateZoomControls;
   UpdateStatusBar;
 end;
 
 procedure TfrmMain.mnuZoomResetClick(Sender: TObject);
 begin
   FDesigner.ZoomReset;
-  edtZoom.Text := '100';
+  UpdateZoomControls;
   UpdateStatusBar;
 end;
 
@@ -1848,7 +1863,7 @@ begin
   if Z > 0 then
   begin
     FDesigner.Zoom := Z;
-    edtZoom.Text  := IntToStr(FDesigner.Zoom);
+    UpdateZoomControls;
     UpdateStatusBar;
   end;
 end;
@@ -1858,8 +1873,172 @@ begin
   Result := StrToIntDef(Trim(edtZoom.Text), 0);
 end;
 
+function TfrmMain.ZoomPercentFromText(const AText: string): Integer;
+var
+  S: string;
+begin
+  S := Trim(AText);
+  if (Length(S) > 0) and (S[Length(S)] = '%') then
+    S := Trim(Copy(S, 1, Length(S) - 1));
+  Result := StrToIntDef(S, 0);
+end;
+
 procedure TfrmMain.btnZoomApplyClick(Sender: TObject);
 begin ApplyZoom; end;
+
+procedure TfrmMain.InitializeToolbarZoomCombo;
+begin
+  if not Assigned(cboZoomToolbar) then
+    Exit;
+
+  FUpdatingZoomControls := True;
+  try
+    cboZoomToolbar.Items.BeginUpdate;
+    try
+      cboZoomToolbar.Items.Clear;
+      cboZoomToolbar.Items.Add('25%');
+      cboZoomToolbar.Items.Add('50%');
+      cboZoomToolbar.Items.Add('75%');
+      cboZoomToolbar.Items.Add('100%');
+      cboZoomToolbar.Items.Add('150%');
+      cboZoomToolbar.Items.Add('200%');
+      cboZoomToolbar.Items.Add('Page width');
+      cboZoomToolbar.Items.Add('Whole page');
+    finally
+      cboZoomToolbar.Items.EndUpdate;
+    end;
+    cboZoomToolbar.Hint := 'Zoom presets and fit modes';
+    cboZoomToolbar.ShowHint := True;
+  finally
+    FUpdatingZoomControls := False;
+  end;
+end;
+
+function TfrmMain.FitPageWidthZoom: Integer;
+var
+  AvailW, LogicalW, LeftPad: Integer;
+begin
+  Result := FDesigner.Zoom;
+  if not Assigned(FDesigner) or not Assigned(FDesigner.Report) then
+    Exit;
+
+  LogicalW := FDesigner.Report.PageSettings.PageWidth;
+  if LogicalW <= 0 then
+    Exit;
+
+  if FDesigner.ShowRulers then
+    LeftPad := RULER_W + PAGE_PAD
+  else
+    LeftPad := PAGE_PAD;
+
+  AvailW := ScrollBox1.ClientWidth - LeftPad - PAGE_PAD - 8;
+  if AvailW <= 0 then
+    Exit;
+
+  Result := MulDiv(AvailW, 100, LogicalW);
+end;
+
+function TfrmMain.FitWholePageZoom: Integer;
+var
+  AvailW, AvailH, LogicalW, LogicalH, LeftPad, TopPad: Integer;
+  ZW, ZH: Integer;
+begin
+  Result := FDesigner.Zoom;
+  if not Assigned(FDesigner) or not Assigned(FDesigner.Report) then
+    Exit;
+
+  LogicalW := FDesigner.Report.PageSettings.PageWidth;
+  LogicalH := FDesigner.Report.PageSettings.PageHeight;
+  if (LogicalW <= 0) or (LogicalH <= 0) then
+    Exit;
+
+  if FDesigner.ShowRulers then
+  begin
+    LeftPad := RULER_W + PAGE_PAD;
+    TopPad := RULER_W + PAGE_PAD;
+  end
+  else
+  begin
+    LeftPad := PAGE_PAD;
+    TopPad := PAGE_PAD;
+  end;
+
+  AvailW := ScrollBox1.ClientWidth - LeftPad - PAGE_PAD - 8;
+  AvailH := ScrollBox1.ClientHeight - TopPad - PAGE_PAD - 8;
+  if (AvailW <= 0) or (AvailH <= 0) then
+    Exit;
+
+  ZW := MulDiv(AvailW, 100, LogicalW);
+  ZH := MulDiv(AvailH, 100, LogicalH);
+  Result := Min(ZW, ZH);
+end;
+
+procedure TfrmMain.ApplyToolbarZoomSelection;
+var
+  S: string;
+  Z: Integer;
+begin
+  if not Assigned(FDesigner) or not Assigned(cboZoomToolbar) then
+    Exit;
+
+  S := Trim(cboZoomToolbar.Text);
+  if S = '' then
+    Exit;
+
+  if SameText(S, 'Page width') then
+    Z := FitPageWidthZoom
+  else if SameText(S, 'Whole page') then
+    Z := FitWholePageZoom
+  else if (Length(S) = 0) or (S[Length(S)] <> '%') then
+    Exit
+  else
+    Z := ZoomPercentFromText(S);
+
+  if Z > 0 then
+    FDesigner.Zoom := Z;
+end;
+
+procedure TfrmMain.UpdateZoomControls;
+var
+  ZoomText: string;
+  I: Integer;
+  Found: Boolean;
+begin
+  if not Assigned(FDesigner) then
+    Exit;
+
+  ZoomText := IntToStr(FDesigner.Zoom) + '%';
+  edtZoom.Text := IntToStr(FDesigner.Zoom);
+
+  if not Assigned(cboZoomToolbar) then
+    Exit;
+
+  FUpdatingZoomControls := True;
+  try
+    Found := False;
+    for I := 0 to cboZoomToolbar.Items.Count - 1 do
+      if SameText(cboZoomToolbar.Items[I], ZoomText) then
+      begin
+        cboZoomToolbar.ItemIndex := I;
+        Found := True;
+        Break;
+      end;
+    if not Found then
+    begin
+      cboZoomToolbar.ItemIndex := -1;
+      cboZoomToolbar.Text := ZoomText;
+    end;
+  finally
+    FUpdatingZoomControls := False;
+  end;
+end;
+
+procedure TfrmMain.cboZoomToolbarChange(Sender: TObject);
+begin
+  if FUpdatingZoomControls then
+    Exit;
+  ApplyToolbarZoomSelection;
+end;
 
 procedure TfrmMain.CheckListBox1ClickCheck(Sender: TObject);
 begin
@@ -2153,6 +2332,13 @@ begin
   UpdateMenuState;
   UpdateStatusBar;
   SyncReportStructureSelection;
+end;
+
+procedure TfrmMain.DesignerViewChanged(Sender: TObject);
+begin
+  UpdateZoomControls;
+  UpdateMenuState;
+  UpdateStatusBar;
 end;
 
 { =========================================================================== }

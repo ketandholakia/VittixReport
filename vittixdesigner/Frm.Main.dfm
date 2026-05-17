@@ -274,14 +274,23 @@ object frmMain: TfrmMain
       ImageName = 'zoom_out'
       OnClick = mnuZoomOutClick
     end
-    object tbSep9: TToolButton
+    object cboZoomToolbar: TComboBox
       Left = 906
+      Top = 2
+      Width = 102
+      Height = 23
+      Style = csDropDown
+      TabOrder = 1
+      Text = '100%'
+    end
+    object tbSep9: TToolButton
+      Left = 1008
       Top = 0
       Width = 28
       Style = tbsSeparator
     end
     object btnPreview: TToolButton
-      Left = 934
+      Left = 1036
       Top = 0
       Hint = 'Preview Report (F5)'
       Caption = 'Preview'
@@ -290,7 +299,7 @@ object frmMain: TfrmMain
       OnClick = mnuPreviewClick
     end
     object CheckListBox1: TCheckListBox
-      Left = 965
+      Left = 1067
       Top = 0
       Width = 320
       Height = 30
