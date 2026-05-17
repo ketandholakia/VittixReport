@@ -1,5 +1,15 @@
 # VittixReport Events
 
+## Table of Contents
+- [Event / Script Policy](#event--script-policy)
+- [Runtime Lifecycle Callback Wiring](#runtime-lifecycle-callback-wiring)
+- [Quick Start Callback Template](#quick-start-callback-template)
+- [Persisted Event Text vs Runtime Callbacks](#persisted-event-text-vs-runtime-callbacks)
+- [Execution Order](#execution-order)
+- [Expected Callback Trace Sample](#expected-callback-trace-sample)
+- [Safe Skip Examples](#safe-skip-examples)
+- [Notes and Limitations](#notes-and-limitations)
+
 ## Event / Script Policy
 - Runtime Delphi lifecycle callbacks are assigned by the host application.
 - Runtime callbacks are not stored in `.vrt`.
@@ -134,6 +144,30 @@ Object-level execution order:
 Band/report order:
 - Report lifecycle callbacks wrap report execution (`OnBeforePrintReport` -> render -> `OnAfterPrintReport`).
 - Band persisted before/after text and band runtime before/after callbacks run around actual band printing as implemented by the engine.
+
+## Expected Callback Trace Sample
+
+Illustrative final-render trace for one printable object:
+
+```text
+BeforeReport
+BeforeBand: MasterData
+PrintWhen=True: objCustomerName
+PersistedBeforeText: objCustomerName
+BeforeObject: objCustomerName
+DrawObject: objCustomerName
+PersistedAfterText: objCustomerName
+AfterObject: objCustomerName
+AfterBand: MasterData
+AfterReport
+```
+
+When `PrintWhen=False`, the object-level lines above are skipped for that object:
+- No persisted object `OnBeforePrint` text execution
+- No runtime `OnBeforeObject`
+- No draw
+- No persisted object `OnAfterPrint` text execution
+- No runtime `OnAfterObject`
 
 ## Safe Skip Examples
 
