@@ -378,6 +378,8 @@ type
     function  EditColorPropertyRow(ARow: Integer): Boolean;
     function  EditFontPropertyRow(ARow: Integer): Boolean;
     procedure ApplyZoom;
+    procedure CommitReportMetadataValues(const ANewTitle, ANewAuthor,
+      ANewDescription: string; AUndoable: Boolean = True);
     procedure CommitReportMetadataChanges(AUndoable: Boolean = True);
     procedure ReportMetadataEditChange(Sender: TObject);
 
@@ -436,6 +438,7 @@ uses
   Winapi.Messages,
   Frm.BandManager,
   Frm.PageSettings,
+  Frm.ReportProperties,
   Frm.Preview;
 
 function BandTypeName(BT: TReportBandType): string; forward;
@@ -500,12 +503,15 @@ type
     FReport: TReportModel;
     FOldTitle: string;
     FOldAuthor: string;
+    FOldDescription: string;
     FNewTitle: string;
     FNewAuthor: string;
-    procedure ApplyValues(const ATitle, AAuthor: string);
+    FNewDescription: string;
+    procedure ApplyValues(const ATitle, AAuthor, ADescription: string);
   public
     constructor Create(AForm: TfrmMain; AReport: TReportModel;
-      const AOldTitle, AOldAuthor, ANewTitle, ANewAuthor: string);
+      const AOldTitle, AOldAuthor, AOldDescription, ANewTitle, ANewAuthor,
+      ANewDescription: string);
     procedure Execute; override;
     procedure Rollback; override;
   end;
@@ -672,8 +678,8 @@ begin
 end;
 
 constructor TReportMetadataChangeCommand.Create(AForm: TfrmMain;
-  AReport: TReportModel; const AOldTitle, AOldAuthor, ANewTitle,
-  ANewAuthor: string);
+  AReport: TReportModel; const AOldTitle, AOldAuthor, AOldDescription,
+  ANewTitle, ANewAuthor, ANewDescription: string);
 begin
   inherited Create;
   ActionName := 'Report Properties Change';
@@ -681,16 +687,20 @@ begin
   FReport := AReport;
   FOldTitle := AOldTitle;
   FOldAuthor := AOldAuthor;
+  FOldDescription := AOldDescription;
   FNewTitle := ANewTitle;
   FNewAuthor := ANewAuthor;
+  FNewDescription := ANewDescription;
 end;
 
-procedure TReportMetadataChangeCommand.ApplyValues(const ATitle, AAuthor: string);
+procedure TReportMetadataChangeCommand.ApplyValues(const ATitle, AAuthor,
+  ADescription: string);
 begin
   if Assigned(FReport) then
   begin
     FReport.Title := ATitle;
     FReport.Author := AAuthor;
+    FReport.Description := ADescription;
   end;
 
   if Assigned(FForm) then
@@ -704,12 +714,12 @@ end;
 
 procedure TReportMetadataChangeCommand.Execute;
 begin
-  ApplyValues(FNewTitle, FNewAuthor);
+  ApplyValues(FNewTitle, FNewAuthor, FNewDescription);
 end;
 
 procedure TReportMetadataChangeCommand.Rollback;
 begin
-  ApplyValues(FOldTitle, FOldAuthor);
+  ApplyValues(FOldTitle, FOldAuthor, FOldDescription);
 end;
 
 { =========================================================================== }
@@ -996,12 +1006,12 @@ begin
     ConfirmSaveIfModified;
 end;
 
-procedure TfrmMain.CommitReportMetadataChanges(AUndoable: Boolean = True);
+procedure TfrmMain.CommitReportMetadataValues(const ANewTitle, ANewAuthor,
+  ANewDescription: string; AUndoable: Boolean = True);
 var
   OldTitle: string;
   OldAuthor: string;
-  NewTitle: string;
-  NewAuthor: string;
+  OldDescription: string;
   Cmd: TReportMetadataChangeCommand;
 begin
   if not Assigned(FDesigner) or not Assigned(FDesigner.Report) then
@@ -1009,10 +1019,10 @@ begin
 
   OldTitle := FDesigner.Report.Title;
   OldAuthor := FDesigner.Report.Author;
-  NewTitle := edtReportTitle.Text;
-  NewAuthor := edtReportAuthor.Text;
+  OldDescription := FDesigner.Report.Description;
 
-  if (OldTitle = NewTitle) and (OldAuthor = NewAuthor) then
+  if (OldTitle = ANewTitle) and (OldAuthor = ANewAuthor) and
+     (OldDescription = ANewDescription) then
   begin
     FReportMetadataDirty := False;
     UpdateTitleBar;
@@ -1022,18 +1032,30 @@ begin
   if AUndoable then
   begin
     Cmd := TReportMetadataChangeCommand.Create(Self, FDesigner.Report,
-      OldTitle, OldAuthor, NewTitle, NewAuthor);
+      OldTitle, OldAuthor, OldDescription,
+      ANewTitle, ANewAuthor, ANewDescription);
     FDesigner.ExecuteUndoCommand(Cmd);
   end
   else
   begin
-    FDesigner.Report.Title := NewTitle;
-    FDesigner.Report.Author := NewAuthor;
+    FDesigner.Report.Title := ANewTitle;
+    FDesigner.Report.Author := ANewAuthor;
+    FDesigner.Report.Description := ANewDescription;
   end;
 
   FReportMetadataDirty := False;
   UpdateTitleBar;
   UpdateMenuState;
+end;
+
+procedure TfrmMain.CommitReportMetadataChanges(AUndoable: Boolean = True);
+begin
+  CommitReportMetadataValues(
+    edtReportTitle.Text,
+    edtReportAuthor.Text,
+    FDesigner.Report.Description,
+    AUndoable
+  );
 end;
 
 procedure TfrmMain.ReportMetadataEditChange(Sender: TObject);
@@ -1876,9 +1898,34 @@ begin
 end;
 
 procedure TfrmMain.mnuReportPropsClick(Sender: TObject);
+var
+  Frm: TfrmReportProperties;
+  InitialTitle: string;
+  InitialAuthor: string;
 begin
-  // Focus the report-info strip in the right panel
-  edtReportTitle.SetFocus;
+  Frm := TfrmReportProperties.Create(Application);
+  try
+    InitialTitle := FDesigner.Report.Title;
+    InitialAuthor := FDesigner.Report.Author;
+    if FReportMetadataDirty then
+    begin
+      InitialTitle := edtReportTitle.Text;
+      InitialAuthor := edtReportAuthor.Text;
+    end;
+
+    Frm.LoadValues(InitialTitle, InitialAuthor, FDesigner.Report.Description);
+    if Frm.ShowModal = mrOk then
+    begin
+      CommitReportMetadataValues(
+        Frm.ReportTitle,
+        Frm.ReportAuthor,
+        Frm.ReportDescription,
+        True
+      );
+    end;
+  finally
+    Frm.Free;
+  end;
 end;
 
 procedure TfrmMain.mnuCreateSimpleSampleReportClick(Sender: TObject);
