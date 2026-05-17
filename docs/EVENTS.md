@@ -220,3 +220,10 @@ Log('AfterBand:' + ABand.Name);
 - VittixReport does not provide filesystem/network/shell scripting.
 - Host application owns script interpretation and safety policy.
 - Persisted object event fields can be performance-sensitive on large reports.
+
+## Runtime Demo Subtests
+- Runtime Event Callback Demo includes explicit host-script command subtests:
+- `Text := Field('CustomerName')`
+- `Background := clYellow`
+- `Visible := False`
+- Each subtest reports PASS/FAIL in the demo output summary.

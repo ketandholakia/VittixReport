@@ -346,6 +346,9 @@ Release build:
 - Demo host parser supports `Background := clColorName` for `TReportTextObject`.
 - Unsupported script commands are logged by host/demo and do not crash.
 - Demo parser command handling is routed through reusable host-side adapter logic (behavior unchanged).
+- Runtime Event Callback Demo subtest `Text := Field('CustomerName')` reports PASS.
+- Runtime Event Callback Demo subtest `Background := clYellow` reports PASS.
+- Runtime Event Callback Demo subtest `Visible := False` reports PASS.
 - Band script behavior remains unchanged.
 - Preview and export use consistent object event execution behavior.
 
