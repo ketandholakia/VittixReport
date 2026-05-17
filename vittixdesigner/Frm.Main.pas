@@ -583,6 +583,12 @@ type
     FTrace: TStringList;
     FSkipObjectClassName: string;
     FSkipMasterDataBand: Boolean;
+    procedure LogScriptUnsupported(const AReason: string);
+    function TryApplyCanPrintCommand(AObject: TReportObject; const AScript: string;
+      var ACanPrint: Boolean): Boolean;
+    function TryApplyVisibleCommand(AObject: TReportObject; const AScript: string): Boolean;
+    function TryApplyBackgroundCommand(AObject: TReportObject; const AScript: string): Boolean;
+    function TryApplyTextCommand(AObject: TReportObject; const AScript: string): Boolean;
   public
     BeforeReportCount: Integer;
     AfterReportCount: Integer;
@@ -743,11 +749,6 @@ procedure TRuntimeEventDemoHarness.ScriptBeforeObject(AReport: TReportModel;
   var ACanPrint: Boolean);
 var
   S: string;
-  P: Integer;
-  Rhs: string;
-  Lit: string;
-  B: Boolean;
-  C: TColor;
 begin
   Inc(ScriptBeforeObjectCount);
   FTrace.Add(Format('ScriptBeforeObject: %s "%s" text="%s"',
@@ -755,88 +756,16 @@ begin
 
   S := Trim(Script);
 
-  if SameText(S, 'CanPrint := False') then
-  begin
-    ACanPrint := False;
-    Inc(ScriptCanceledObjectCount);
-    FTrace.Add('ScriptCanceledObject: ' + AObject.ClassName);
+  if TryApplyCanPrintCommand(AObject, S, ACanPrint) then
     Exit;
-  end;
-
-  P := Pos(':=', S);
-  if (P > 0) and SameText(Trim(Copy(S, 1, P - 1)), 'Visible') then
-  begin
-    Rhs := Trim(Copy(S, P + 2, MaxInt));
-    if SameText(Rhs, 'True') then
-      B := True
-    else if SameText(Rhs, 'False') then
-      B := False
-    else
-    begin
-      Inc(ScriptUnsupportedCount);
-      FTrace.Add('ScriptUnsupportedVisibleValue: ' + S);
-      Exit;
-    end;
-
-    AObject.Visible := B;
-    FTrace.Add(Format('ScriptSetVisible: %s "%s" -> %s',
-      [AObject.ClassName, AObject.Name, BoolToStr(B, True)]));
+  if TryApplyVisibleCommand(AObject, S) then
     Exit;
-  end;
-
-  if (P > 0) and SameText(Trim(Copy(S, 1, P - 1)), 'Background') then
-  begin
-    Rhs := Trim(Copy(S, P + 2, MaxInt));
-    if not (AObject is TReportTextObject) then
-    begin
-      Inc(ScriptUnsupportedCount);
-      FTrace.Add('ScriptUnsupportedForObjectType: ' + AObject.ClassName);
-      Exit;
-    end;
-
-    try
-      C := StringToColor(Rhs);
-      TReportTextObject(AObject).Background := C;
-      TReportTextObject(AObject).Transparent := False;
-      FTrace.Add(Format('ScriptSetBackground: %s "%s" -> %s',
-        [AObject.ClassName, AObject.Name, Rhs]));
-    except
-      Inc(ScriptUnsupportedCount);
-      FTrace.Add('ScriptUnsupportedColor: ' + S);
-    end;
+  if TryApplyBackgroundCommand(AObject, S) then
     Exit;
-  end;
-
-  if (P > 0) and SameText(Trim(Copy(S, 1, P - 1)), 'Text') then
-  begin
-    Rhs := Trim(Copy(S, P + 2, MaxInt));
-    if (Length(Rhs) >= 2) and (Rhs[1] = '''') and (Rhs[Length(Rhs)] = '''') then
-    begin
-      Lit := Copy(Rhs, 2, Length(Rhs) - 2);
-      Lit := StringReplace(Lit, '''''', '''', [rfReplaceAll]);
-      if AObject is TReportTextObject then
-      begin
-        TReportTextObject(AObject).Text := Lit;
-        Inc(ScriptTextSetCount);
-        FTrace.Add(Format('ScriptSetText: %s "%s" -> "%s"',
-          [AObject.ClassName, AObject.Name, Lit]));
-      end
-      else
-      begin
-        Inc(ScriptUnsupportedCount);
-        FTrace.Add('ScriptUnsupportedForObjectType: ' + AObject.ClassName);
-      end;
-    end
-    else
-    begin
-      Inc(ScriptUnsupportedCount);
-      FTrace.Add('ScriptUnsupportedTextLiteral: ' + S);
-    end;
+  if TryApplyTextCommand(AObject, S) then
     Exit;
-  end;
 
-  Inc(ScriptUnsupportedCount);
-  FTrace.Add('ScriptUnsupportedCommand: ' + S);
+  LogScriptUnsupported('ScriptUnsupportedCommand: ' + S);
 end;
 
 procedure TRuntimeEventDemoHarness.ScriptAfterObject(AReport: TReportModel;
@@ -845,6 +774,119 @@ begin
   Inc(ScriptAfterObjectCount);
   FTrace.Add(Format('ScriptAfterObject: %s "%s" text="%s"',
     [AObject.ClassName, AObject.Name, Script]));
+end;
+
+procedure TRuntimeEventDemoHarness.LogScriptUnsupported(const AReason: string);
+begin
+  Inc(ScriptUnsupportedCount);
+  FTrace.Add(AReason);
+end;
+
+function TRuntimeEventDemoHarness.TryApplyCanPrintCommand(AObject: TReportObject;
+  const AScript: string; var ACanPrint: Boolean): Boolean;
+begin
+  Result := SameText(AScript, 'CanPrint := False');
+  if not Result then
+    Exit;
+
+  ACanPrint := False;
+  Inc(ScriptCanceledObjectCount);
+  if Assigned(AObject) then
+    FTrace.Add('ScriptCanceledObject: ' + AObject.ClassName)
+  else
+    FTrace.Add('ScriptCanceledObject: <nil>');
+end;
+
+function TRuntimeEventDemoHarness.TryApplyVisibleCommand(AObject: TReportObject;
+  const AScript: string): Boolean;
+var
+  P: Integer;
+  Rhs: string;
+  B: Boolean;
+begin
+  Result := False;
+  P := Pos(':=', AScript);
+  if (P <= 0) or not SameText(Trim(Copy(AScript, 1, P - 1)), 'Visible') then
+    Exit;
+  Result := True;
+
+  Rhs := Trim(Copy(AScript, P + 2, MaxInt));
+  if SameText(Rhs, 'True') then
+    B := True
+  else if SameText(Rhs, 'False') then
+    B := False
+  else
+  begin
+    LogScriptUnsupported('ScriptUnsupportedVisibleValue: ' + AScript);
+    Exit;
+  end;
+
+  AObject.Visible := B;
+  FTrace.Add(Format('ScriptSetVisible: %s "%s" -> %s',
+    [AObject.ClassName, AObject.Name, BoolToStr(B, True)]));
+end;
+
+function TRuntimeEventDemoHarness.TryApplyBackgroundCommand(AObject: TReportObject;
+  const AScript: string): Boolean;
+var
+  P: Integer;
+  Rhs: string;
+  C: TColor;
+begin
+  Result := False;
+  P := Pos(':=', AScript);
+  if (P <= 0) or not SameText(Trim(Copy(AScript, 1, P - 1)), 'Background') then
+    Exit;
+  Result := True;
+
+  Rhs := Trim(Copy(AScript, P + 2, MaxInt));
+  if not (AObject is TReportTextObject) then
+  begin
+    LogScriptUnsupported('ScriptUnsupportedForObjectType: ' + AObject.ClassName);
+    Exit;
+  end;
+
+  try
+    C := StringToColor(Rhs);
+    TReportTextObject(AObject).Background := C;
+    TReportTextObject(AObject).Transparent := False;
+    FTrace.Add(Format('ScriptSetBackground: %s "%s" -> %s',
+      [AObject.ClassName, AObject.Name, Rhs]));
+  except
+    LogScriptUnsupported('ScriptUnsupportedColor: ' + AScript);
+  end;
+end;
+
+function TRuntimeEventDemoHarness.TryApplyTextCommand(AObject: TReportObject;
+  const AScript: string): Boolean;
+var
+  P: Integer;
+  Rhs: string;
+  Lit: string;
+begin
+  Result := False;
+  P := Pos(':=', AScript);
+  if (P <= 0) or not SameText(Trim(Copy(AScript, 1, P - 1)), 'Text') then
+    Exit;
+  Result := True;
+
+  Rhs := Trim(Copy(AScript, P + 2, MaxInt));
+  if (Length(Rhs) >= 2) and (Rhs[1] = '''') and (Rhs[Length(Rhs)] = '''') then
+  begin
+    Lit := Copy(Rhs, 2, Length(Rhs) - 2);
+    Lit := StringReplace(Lit, '''''', '''', [rfReplaceAll]);
+    if AObject is TReportTextObject then
+    begin
+      TReportTextObject(AObject).Text := Lit;
+      Inc(ScriptTextSetCount);
+      FTrace.Add(Format('ScriptSetText: %s "%s" -> "%s"',
+        [AObject.ClassName, AObject.Name, Lit]));
+    end
+    else
+      LogScriptUnsupported('ScriptUnsupportedForObjectType: ' + AObject.ClassName);
+  end
+  else
+    LogScriptUnsupported('ScriptUnsupportedTextLiteral: ' + AScript);
 end;
 
 { TBandEventScriptDialogHelper }

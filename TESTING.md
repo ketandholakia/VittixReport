@@ -344,6 +344,7 @@ Release build:
 - Demo host parser supports `Visible := False|True`.
 - Demo host parser supports `Background := clColorName` for `TReportTextObject`.
 - Unsupported script commands are logged by host/demo and do not crash.
+- Demo parser command handling is routed through reusable host-side helper methods (behavior unchanged).
 - Band script behavior remains unchanged.
 - Preview and export use consistent object event execution behavior.
 
