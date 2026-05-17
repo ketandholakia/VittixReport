@@ -187,6 +187,19 @@ Release build:
 - View toggles do not mark report modified.
 - Preview/export output is unchanged by view toggle state.
 
+### Toolbar zoom selector
+- Toolbar zoom dropdown appears near Zoom In / Zoom Out.
+- Dropdown includes 25%, 50%, 75%, 100%, 150%, 200%, Page width, Whole page.
+- Selecting each percentage changes canvas zoom correctly.
+- Page width fits visible page width.
+- Whole page fits full page in visible area.
+- Zoom In / Zoom Out update the dropdown text.
+- Mouse-wheel zoom updates the dropdown text.
+- Right-panel zoom Apply still syncs with toolbar dropdown if right-panel zoom remains.
+- Zoom changes do not create undo entries.
+- Zoom changes do not mark report modified.
+- Preview/export output is unchanged by zoom state.
+
 ## 14) Designer UI / Property Panel checklist
 
 - Selecting an object loads its properties.
