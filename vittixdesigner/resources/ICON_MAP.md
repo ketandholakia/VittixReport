@@ -218,4 +218,23 @@ Mapping uses `ImageName` on buttons, with matching stable `ImageIndex` via `SVGI
 | `btnPreview` | Preview | `preview.svg` | `preview` / `7` | wired |
 
 
+## Structure tree image mapping
+Structure tree uses `FTreeStructure.Images = SVGIconVirtualImageList1` and node `ImageIndex`/`SelectedIndex`.
+
+| Node type | Icon file | Image index/name | Notes |
+|---|---|---|---|
+| Report root | `description.svg` | `21` / `description` | fallback/default icon |
+| Band node | `table_rows.svg` | `22` / `table_rows` | all `TReportBand` types |
+| Text object | `text_object.svg` | `23` / `text_object` | `TReportTextObject` |
+| Data field object | `datafield_object.svg` | `24` / `datafield_object` | `TReportFieldObject` |
+| Memo object | `memo_object.svg` | `25` / `memo_object` | `TReportMemoObject` |
+| Image object | `image_object.svg` | `26` / `image_object` | `TReportImageObject` |
+| Barcode object | `barcode_object.svg` | `27` / `barcode_object` | `TReportBarcodeObject` |
+| Shape object | `shapes_object.svg` | `28` / `shapes_object` | `TReportShapeObject` |
+| Line object | `line_object.svg` | `29` / `line_object` | `TReportLineObject` |
+| SubReport object | `subreport_object.svg` | `30` / `subreport_object` | `TReportSubReportObject` |
+| Table object | `table_object.svg` | `31` / `table_object` | `TReportTableObject` |
+| Unknown/fallback object | `description.svg` | `21` / `description` | fallback mapping |
+
+
 

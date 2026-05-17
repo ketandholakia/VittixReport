@@ -423,6 +423,7 @@ type
     function  FindStructureNodeByData(AData: Pointer): TTreeNode;
     function  StructureBandCaption(ABand: TReportBand): string;
     function  StructureObjectCaption(AObj: TReportObject): string;
+    function  StructureObjectIconIndex(AObj: TReportObject): Integer;
     function  ShortNodePreview(const S: string; AMaxLen: Integer = 28): string;
     procedure FieldListDblClick(Sender: TObject);
     procedure DesignerDragOver(Sender, Source: TObject; X, Y: Integer;
@@ -454,6 +455,19 @@ uses
   Frm.PageSettings,
   Frm.ReportProperties,
   Frm.Preview;
+
+const
+  TREE_ICON_REPORT    = 21;
+  TREE_ICON_BAND      = 22;
+  TREE_ICON_TEXT      = 23;
+  TREE_ICON_FIELD     = 24;
+  TREE_ICON_MEMO      = 25;
+  TREE_ICON_IMAGE     = 26;
+  TREE_ICON_BARCODE   = 27;
+  TREE_ICON_SHAPE     = 28;
+  TREE_ICON_LINE      = 29;
+  TREE_ICON_SUBREPORT = 30;
+  TREE_ICON_TABLE     = 31;
 
 function BandTypeName(BT: TReportBandType): string; forward;
 
@@ -809,6 +823,7 @@ begin
   FTreeStructure.HideSelection := False;
   FTreeStructure.RowSelect := True;
   FTreeStructure.Indent := 18;
+  FTreeStructure.Images := SVGIconVirtualImageList1;
   FTreeStructure.Hint := 'Read-only outline of report bands and objects';
   FTreeStructure.ShowHint := True;
   FTreeStructure.OnChange := StructureTreeChange;
@@ -2946,6 +2961,33 @@ begin
     Result := NamedValue(TReportObjectClass(AObj.ClassType).DisplayName, ObjName, '', '', '');
 end;
 
+function TfrmMain.StructureObjectIconIndex(AObj: TReportObject): Integer;
+begin
+  if AObj is TReportBand then
+    Exit(TREE_ICON_BAND);
+
+  if AObj is TReportFieldObject then
+    Exit(TREE_ICON_FIELD);
+  if AObj is TReportMemoObject then
+    Exit(TREE_ICON_MEMO);
+  if AObj is TReportImageObject then
+    Exit(TREE_ICON_IMAGE);
+  if AObj is TReportBarcodeObject then
+    Exit(TREE_ICON_BARCODE);
+  if AObj is TReportShapeObject then
+    Exit(TREE_ICON_SHAPE);
+  if AObj is TReportLineObject then
+    Exit(TREE_ICON_LINE);
+  if AObj is TReportSubReportObject then
+    Exit(TREE_ICON_SUBREPORT);
+  if AObj is TReportTableObject then
+    Exit(TREE_ICON_TABLE);
+  if AObj is TReportTextObject then
+    Exit(TREE_ICON_TEXT);
+
+  Result := TREE_ICON_REPORT;
+end;
+
 function TfrmMain.FindStructureNodeByData(AData: Pointer): TTreeNode;
 begin
   Result := nil;
@@ -3075,6 +3117,7 @@ procedure TfrmMain.RefreshReportStructure;
 var
   RootNode, BandNode: TTreeNode;
   TopObj, ChildObj: TReportObject;
+  IconIndex: Integer;
 begin
   if not Assigned(FTreeStructure) or not Assigned(FDesigner) or not Assigned(FDesigner.Report) then
     Exit;
@@ -3084,19 +3127,37 @@ begin
   try
     FTreeStructure.Items.Clear;
     RootNode := FTreeStructure.Items.AddChildObject(nil, 'Report', nil);
+    RootNode.ImageIndex := TREE_ICON_REPORT;
+    RootNode.SelectedIndex := TREE_ICON_REPORT;
     for TopObj in FDesigner.Report.Objects do
     begin
       if TopObj is TReportBand then
       begin
         BandNode := FTreeStructure.Items.AddChildObject(RootNode,
           StructureBandCaption(TReportBand(TopObj)), TopObj);
+        BandNode.ImageIndex := TREE_ICON_BAND;
+        BandNode.SelectedIndex := TREE_ICON_BAND;
         for ChildObj in TReportBand(TopObj).Children do
-          FTreeStructure.Items.AddChildObject(BandNode,
-            StructureObjectCaption(ChildObj), ChildObj);
+        begin
+          IconIndex := StructureObjectIconIndex(ChildObj);
+          with FTreeStructure.Items.AddChildObject(BandNode,
+            StructureObjectCaption(ChildObj), ChildObj) do
+          begin
+            ImageIndex := IconIndex;
+            SelectedIndex := IconIndex;
+          end;
+        end;
       end
       else
-        FTreeStructure.Items.AddChildObject(RootNode,
-          StructureObjectCaption(TopObj), TopObj);
+      begin
+        IconIndex := StructureObjectIconIndex(TopObj);
+        with FTreeStructure.Items.AddChildObject(RootNode,
+          StructureObjectCaption(TopObj), TopObj) do
+        begin
+          ImageIndex := IconIndex;
+          SelectedIndex := IconIndex;
+        end;
+      end;
     end;
     RootNode.Expand(True);
   finally

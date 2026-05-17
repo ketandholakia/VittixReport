@@ -2206,6 +2206,97 @@ object frmMain: TfrmMain
           '0-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T3' +
           '80-400ZM280-540v-80h200v80H280Z"/></svg>'
       end
+      item
+        IconName = 'description'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24"' +
+          ' width="24px" fill="#1f1f1f"><path d="M0 0h24v24H0V0z" fill="none"/><path' +
+          ' d="M15.73 3H8.27L3 8.27v7.46L8.27 21h7.46L21 15.73V8.27L15.73 3zM12 17.3' +
+          'c-.72 0-1.3-.58-1.3-1.3s.58-1.3 1.3-1.3 1.3.58 1.3 1.3-.58 1.3-1.3 1.3zm' +
+          '1-4.3h-2V7h2v6z"/></svg>'
+      end
+      item
+        IconName = 'table_rows'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" enable-background="new 0 0 24 24"' +
+          ' height="24px" viewBox="0 0 24 24" width="24px" fill="#1f1f1f"><rect fill' +
+          '="none" height="24" width="24"/><path d="M21,8H3V4h18V8z M21,10H3v4h18V10' +
+          'z M21,16H3v4h18V16z"/></svg>'
+      end
+      item
+        IconName = 'text_object'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960' +
+          ' 960" width="24px" fill="#e3e3e3"><path d="M200-200v-80h560v80H200Zm76-16' +
+          '0 164-440h80l164 440h-76l-38-112H392l-40 112h-76Zm138-176h132l-64-182h-' +
+          '4l-64 182Z"/></svg>'
+      end
+      item
+        IconName = 'datafield_object'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960' +
+          ' 960" width="24px" fill="#e3e3e3"><path d="M560-160v-80h160v-227h80v-26h-' +
+          '80v-227H560v-80h240v234h80v172h-80v234H560Zm-400 0v-234H80v-172h80v-234h' +
+          '240v80H240v227h-80v26h80v227h160v80H160Z"/></svg>'
+      end
+      item
+        IconName = 'memo_object'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960' +
+          ' 960" width="24px" fill="#e3e3e3"><path d="M280-280h280v-80H280v80Zm0-160' +
+          'h400v-80H280v80Zm0-160h400v-80H280v80ZM120-120v-720h720v720H120Zm80-80h5' +
+          '60v-560H200v560Zm0 0v-560 560Z"/></svg>'
+      end
+      item
+        IconName = 'image_object'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960' +
+          ' 960" width="24px" fill="#e3e3e3"><path d="M240-280h480L570-480 450-320l-' +
+          '90-120-120 160ZM120-120v-720h720v720H120Zm80-80h560v-560H200v560Zm0 0v-5' +
+          '60 560Z"/></svg>'
+      end
+      item
+        IconName = 'barcode_object'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960' +
+          ' 960" width="24px" fill="#e3e3e3"><path d="M40-200v-560h80v560H40Zm120 0v' +
+          '-560h80v560h-80Zm120 0v-560h40v560h-40Zm120 0v-560h80v560h-80Zm120 0v-56' +
+          '0h120v560H520Zm160 0v-560h40v560h-40Zm120 0v-560h120v560H800Z"/></svg>'
+      end
+      item
+        IconName = 'shapes_object'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960' +
+          ' 960" width="24px" fill="#e3e3e3"><path d="M600-360ZM320-242q10 1 19.5 1.' +
+          '5t20.5.5q11 0 20.5-.5T400-242v82h400v-400h-82q1-10 1.5-19.5t.5-20.5q0-11' +
+          '-.5-20.5T718-640h162v560H320v-162ZM161.5-401.5Q80-483 80-600t81.5-198.5Q' +
+          '243-880 360-880t198.5 81.5Q640-717 640-600t-81.5 198.5Q477-320 360-320t-1' +
+          '98.5-81.5Zm340-57Q560-517 560-600t-58.5-141.5Q443-800 360-800t-141.5 58.5' +
+          'Q160-683 160-600t58.5 141.5Q277-400 360-400t141.5-58.5ZM360-600Z"/></svg>'
+      end
+      item
+        IconName = 'line_object'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960' +
+          ' 960" width="24px" fill="#e3e3e3"><path d="M201-240q0-17 11-28l480-480q11' +
+          '-12 27.5-12t28.5 12q11 11 11 28t-11 28L268-212q-11 11-28 11t-28-11q-11-1' +
+          '1-11-28Z"/></svg>'
+      end
+      item
+        IconName = 'subreport_object'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960' +
+          ' 960" width="24px" fill="#e3e3e3"><path d="M80-160v-640h800v640H80Zm80-80' +
+          'h640v-480H160v480Zm0 0v-480 480Zm160-120h320v-240H320v240Z"/></svg>'
+      end
+      item
+        IconName = 'table_object'
+        SVGText = 
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960' +
+          ' 960" width="24px" fill="#e3e3e3"><path d="M120-120v-720h720v720H120Zm320' +
+          '-240H200v160h240v-160Zm80 0v160h240v-160H520Zm-80-80v-160H200v160h240Zm8' +
+          '0 0h240v-160H520v160ZM200-680h560v-80H200v80Z"/></svg>'
+      end
     >
     Left = 544
     Top = 104
@@ -2317,6 +2408,61 @@ object frmMain: TfrmMain
         CollectionIndex = 20
         CollectionName = 'zoom_out'
         Name = 'zoom_out'
+      end
+      item
+        CollectionIndex = 21
+        CollectionName = 'description'
+        Name = 'description'
+      end
+      item
+        CollectionIndex = 22
+        CollectionName = 'table_rows'
+        Name = 'table_rows'
+      end
+      item
+        CollectionIndex = 23
+        CollectionName = 'text_object'
+        Name = 'text_object'
+      end
+      item
+        CollectionIndex = 24
+        CollectionName = 'datafield_object'
+        Name = 'datafield_object'
+      end
+      item
+        CollectionIndex = 25
+        CollectionName = 'memo_object'
+        Name = 'memo_object'
+      end
+      item
+        CollectionIndex = 26
+        CollectionName = 'image_object'
+        Name = 'image_object'
+      end
+      item
+        CollectionIndex = 27
+        CollectionName = 'barcode_object'
+        Name = 'barcode_object'
+      end
+      item
+        CollectionIndex = 28
+        CollectionName = 'shapes_object'
+        Name = 'shapes_object'
+      end
+      item
+        CollectionIndex = 29
+        CollectionName = 'line_object'
+        Name = 'line_object'
+      end
+      item
+        CollectionIndex = 30
+        CollectionName = 'subreport_object'
+        Name = 'subreport_object'
+      end
+      item
+        CollectionIndex = 31
+        CollectionName = 'table_object'
+        Name = 'table_object'
       end
     >
     Left = 752
