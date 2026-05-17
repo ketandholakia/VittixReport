@@ -98,7 +98,14 @@ Release build:
 ### Band actions
 - Add Band -> Undo/Redo.
 - Delete selected band -> Undo/Redo.
-- Band with children delete -> Undo/Redo restores children.
+- Delete child object inside band -> band remains.
+- Delete band with children -> Undo/Redo restores children.
+
+### Page Setup
+- Page Setup OK with changes -> one Undo/Redo step.
+- Page Setup OK with no changes -> no undo entry.
+- Page Setup Cancel -> no undo entry.
+- Page Setup Undo/Redo preserves earlier undo history.
 
 ### Band Manager
 - Band Manager Cancel after edits -> no report change and no undo entry.
@@ -115,3 +122,11 @@ Release build:
 - Structure tree refreshes after Undo/Redo.
 - Property panel does not point to stale/deleted object.
 - Preview works after deep Undo/Redo sequence.
+
+### Undo history policy
+- New/Open/Load report clears undo history.
+- Regression/demo/sample report loading clears undo history.
+- Band Manager OK preserves prior undo history and adds one command when changed.
+- Band Manager Cancel creates no undo entry.
+- Page Setup and Report Metadata commits are undoable.
+- Sample dataset / Reload Sample Dataset / Live Database Connection are not document undo actions.
