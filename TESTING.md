@@ -346,6 +346,34 @@ Release build:
 - Runtime `OnBeforeObject` `CanPrint=False` must skip draw and all after-hooks.
 - Band event script behavior remains unchanged.
 
+### Object Event / PrintWhen Ordering Regression
+1. Create or use a report object with:
+- `PrintWhen` expression that evaluates to `False`.
+- Persisted `OnBeforePrint` text.
+- Persisted `OnAfterPrint` text.
+- Runtime `OnBeforeObject` callback.
+- Runtime `OnAfterObject` callback.
+2. Preview or export the report.
+3. Confirm:
+- Object is not drawn.
+- Persisted `OnBeforePrint` text is not executed.
+- Persisted `OnAfterPrint` text is not executed.
+- Runtime `OnBeforeObject` callback is not called.
+- Runtime `OnAfterObject` callback is not called.
+4. Change `PrintWhen` so it evaluates to `True`.
+5. Preview or export again.
+6. Confirm execution order:
+- `PrintWhen`.
+- Persisted object `OnBeforePrint`.
+- Runtime `OnBeforeObject`.
+- Object draw.
+- Persisted object `OnAfterPrint`.
+- Runtime `OnAfterObject`.
+
+Expected result:
+- Object persisted event text and runtime object callbacks are gated by `PrintWhen`.
+- Skipped objects must not execute before/after event logic.
+
 ## 15) Designer UI / Variables checklist
 
 ### Variables panel
