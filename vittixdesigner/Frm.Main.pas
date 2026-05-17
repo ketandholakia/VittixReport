@@ -2130,8 +2130,14 @@ var
   ScriptCancelPass: Boolean;
   TargetOrderPass: Boolean;
   TargetCancelOrderPass: Boolean;
+  FieldBindPass: Boolean;
+  BackgroundPass: Boolean;
+  VisiblePass: Boolean;
   OverallPass: Boolean;
   ScriptCancelTrace: TStringList;
+  FieldBindTrace: TStringList;
+  BackgroundTrace: TStringList;
+  VisibleTrace: TStringList;
   Obj: TReportObject;
   Band: TReportBand;
   ChildObj: TReportObject;
@@ -2211,6 +2217,9 @@ begin
   ObjectSkipTrace := TStringList.Create;
   BandSkipTrace := TStringList.Create;
   ScriptCancelTrace := TStringList.Create;
+  FieldBindTrace := TStringList.Create;
+  BackgroundTrace := TStringList.Create;
+  VisibleTrace := TStringList.Create;
   try
     FN := GetRegressionReportPath('01_simple_masterdata.vrt');
     if TFile.Exists(FN) then
@@ -2436,6 +2445,92 @@ begin
     else
       Lines.Add('  Target object cancel-order check: FAIL');
 
+    Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+    begin
+      DemoScriptTarget.OnBeforePrint := 'Text := Field(''CustomerName'')';
+      DemoScriptTarget.OnAfterPrint := 'DemoObjectAfter';
+    end;
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    FieldBindTrace.Assign(Harness.Trace);
+    FieldBindPass :=
+      (Pos('ScriptSetTextFromField: TReportTextObject "txtTitle" <- Field("CustomerName")',
+        FieldBindTrace.Text) > 0) and
+      (Harness.ScriptUnsupportedCount = 0);
+    Lines.Add('');
+    if FieldBindPass then
+      Lines.Add('Field() text-binding subtest: PASS')
+    else
+      Lines.Add('Field() text-binding subtest: FAIL');
+
+    Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'Background := clYellow';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    BackgroundTrace.Assign(Harness.Trace);
+    BackgroundPass :=
+      (Pos('ScriptSetBackground: TReportTextObject "txtTitle" -> clYellow', BackgroundTrace.Text) > 0) and
+      (Harness.ScriptUnsupportedCount = 0);
+    if BackgroundPass then
+      Lines.Add('Background command subtest: PASS')
+    else
+      Lines.Add('Background command subtest: FAIL');
+
+    Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'Visible := False';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    VisibleTrace.Assign(Harness.Trace);
+    VisiblePass :=
+      (Pos('ScriptSetVisible: TReportTextObject "txtTitle" -> False', VisibleTrace.Text) > 0) and
+      (Harness.ScriptUnsupportedCount = 0);
+    if VisiblePass then
+      Lines.Add('Visible command subtest: PASS')
+    else
+      Lines.Add('Visible command subtest: FAIL');
+
     OverallPass :=
       BasePass and
       CountingInflationPass and
@@ -2443,7 +2538,10 @@ begin
       ObjectSkipPass and
       BandSkipPass and
       ScriptCancelPass and
-      TargetCancelOrderPass;
+      TargetCancelOrderPass and
+      FieldBindPass and
+      BackgroundPass and
+      VisiblePass;
     Lines.Insert(0, '');
     if OverallPass then
       Lines.Insert(0, 'Overall: PASS')
@@ -2543,6 +2641,9 @@ begin
       ResultDlg.Free;
     end;
   finally
+    VisibleTrace.Free;
+    BackgroundTrace.Free;
+    FieldBindTrace.Free;
     ScriptCancelTrace.Free;
     BandSkipTrace.Free;
     ObjectSkipTrace.Free;
