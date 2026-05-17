@@ -14,6 +14,15 @@ This document maps designer actions, tools, panels, and report objects to SVG fi
 - Do not rename icons after they are wired into the designer unless code/DFM references are updated.
 - Object icons should end with `_object.svg` where appropriate.
 
+## SVG color standard
+- Toolbar and designer SVG icons should use `#4A4A4A` for normal enabled icon color.
+
+Runtime rendering note:
+- The designer currently keeps runtime SVG rendering settings normalized for the shared SVG virtual image list.
+- This is intentional during stabilization so toolbar, structure tree, and toolbox icons remain dark/readable across environments.
+- Source SVG files and embedded DFM SVGText should still use `#4A4A4A`.
+- A future cleanup may test removing runtime color overrides once rendering is verified across target Delphi versions/themes.
+
 ## File / report actions
 | Action | Icon file | Notes |
 |---|---|---|

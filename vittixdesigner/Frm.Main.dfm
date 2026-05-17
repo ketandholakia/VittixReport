@@ -141,6 +141,7 @@ object frmMain: TfrmMain
       Top = 0
       Hint = 'Align selected objects to top edge'
       Caption = 'Top'
+      ImageIndex = 11
       ImageName = 'align_vertical_top'
       OnClick = mnuAlignTopClick
     end
@@ -149,6 +150,7 @@ object frmMain: TfrmMain
       Top = 0
       Hint = 'Align selected objects to bottom edge'
       Caption = 'Bottom'
+      ImageIndex = 12
       ImageName = 'align_vertical_bottom'
       OnClick = mnuAlignBottomClick
     end
@@ -163,6 +165,7 @@ object frmMain: TfrmMain
       Top = 0
       Hint = 'Make selected objects same width'
       Caption = 'Width'
+      ImageIndex = 13
       ImageName = 'width'
       OnClick = mnuSameWidthClick
     end
@@ -171,6 +174,7 @@ object frmMain: TfrmMain
       Top = 0
       Hint = 'Make selected objects same height'
       Caption = 'Height'
+      ImageIndex = 14
       ImageName = 'height'
       OnClick = mnuSameHeightClick
     end
@@ -185,6 +189,7 @@ object frmMain: TfrmMain
       Top = 0
       Hint = 'Center selected objects horizontally'
       Caption = 'Center H'
+      ImageIndex = 15
       ImageName = 'align_center'
       OnClick = mnuCenterHClick
     end
@@ -208,6 +213,7 @@ object frmMain: TfrmMain
       Top = 0
       Hint = 'Distribute selected objects horizontally'
       Caption = 'Dist H'
+      ImageIndex = 13
       ImageName = 'width'
       OnClick = mnuDistHClick
     end
@@ -216,6 +222,7 @@ object frmMain: TfrmMain
       Top = 0
       Hint = 'Distribute selected objects vertically'
       Caption = 'Dist V'
+      ImageIndex = 14
       ImageName = 'height'
       OnClick = mnuDistVClick
     end
@@ -230,6 +237,7 @@ object frmMain: TfrmMain
       Top = 0
       Hint = 'Bring selected objects to front'
       Caption = 'Front'
+      ImageIndex = 17
       ImageName = 'flip_to_front'
       OnClick = mnuFrontClick
     end
@@ -253,6 +261,7 @@ object frmMain: TfrmMain
       Top = 0
       Hint = 'Zoom In (Ctrl++)'
       Caption = 'Z+'
+      ImageIndex = 19
       ImageName = 'zoom_in'
       OnClick = mnuZoomInClick
     end
@@ -261,6 +270,7 @@ object frmMain: TfrmMain
       Top = 0
       Hint = 'Zoom Out (Ctrl+-)'
       Caption = 'Z-'
+      ImageIndex = 20
       ImageName = 'zoom_out'
       OnClick = mnuZoomOutClick
     end
@@ -2031,278 +2041,296 @@ object frmMain: TfrmMain
       item
         IconName = 'file_open'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 96' +
-          '0 960" width="24px" fill="#4A4A4A"><path d="M160-80v-800h400l240 240v240' +
-          'h-80v-200H520v-200H240v640h360v80H160Zm718 15L760-183v89h-80v-226h226v80' +
-          'h-90l118 118-56 57Zm-638-95v-640 640Z"/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0' +
+          ' -960 960 960" width="24px" fill="#4A4A4A"><path d="M160-80v-800' +
+          'h400l240 240v240h-80v-200H520v-200H240v640h360v80H160Zm718 15L76' +
+          '0-183v89h-80v-226h226v80h-90l118 118-56 57Zm-638-95v-640 640Z"/>' +
+          '</svg>'
       end
       item
         IconName = 'save'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 96' +
-          '0 960" width="24px" fill="#4A4A4A"><path d="M840-680v560H120v-720h560l16' +
-          '0 160Zm-80 34L646-760H200v560h560v-446ZM565-275q35-35 35-85t-35-85q-35-3' +
-          '5-85-35t-85 35q-35 35-35 85t35 85q35 35 85 35t85-35ZM240-560h360v-160H24' +
-          '0v160Zm-40-86v446-560 114Z"/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0' +
+          ' -960 960 960" width="24px" fill="#4A4A4A"><path d="M840-680v560' +
+          'H120v-720h560l160 160Zm-80 34L646-760H200v560h560v-446ZM565-275q' +
+          '35-35 35-85t-35-85q-35-35-85-35t-85 35q-35 35-35 85t35 85q35 35 ' +
+          '85 35t85-35ZM240-560h360v-160H240v160Zm-40-86v446-560 114Z"/></s' +
+          'vg>'
       end
       item
         IconName = 'new_file'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 96' +
-          '0 960" width="24px" fill="#4A4A4A"><path d="M440-240h80v-120h120v-80H520' +
-          'v-120h-80v120H320v80h120v120ZM160-80v-800h400l240 240v560H160Zm360-520v-' +
-          '200H240v640h480v-440H520ZM240-800v200-200 640-640Z"/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0' +
+          ' -960 960 960" width="24px" fill="#4A4A4A"><path d="M440-240h80v' +
+          '-120h120v-80H520v-120h-80v120H320v80h120v120ZM160-80v-800h400l24' +
+          '0 240v560H160Zm360-520v-200H240v640h480v-440H520ZM240-800v200-20' +
+          '0 640-640Z"/></svg>'
       end
       item
         IconName = 'undo'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 96' +
-          '0 960" width="24px" fill="#4A4A4A"><path d="M280-200v-80h284q63 0 109.5-' +
-          '40T720-420q0-60-46.5-100T564-560H312l104 104-56 56-200-200 200-200 56 56' +
-          '-104 104h252q97 0 166.5 63T800-420q0 94-69.5 157T564-200H280Z"/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0' +
+          ' -960 960 960" width="24px" fill="#4A4A4A"><path d="M280-200v-80' +
+          'h284q63 0 109.5-40T720-420q0-60-46.5-100T564-560H312l104 104-56 ' +
+          '56-200-200 200-200 56 56-104 104h252q97 0 166.5 63T800-420q0 94-' +
+          '69.5 157T564-200H280Z"/></svg>'
       end
       item
         IconName = 'redo'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 96' +
-          '0 960" width="24px" fill="#4A4A4A"><path d="M396-200q-97 0-166.5-63T160-' +
-          '420q0-94 69.5-157T396-640h252L544-744l56-56 200 200-200 200-56-56 104-10' +
-          '4H396q-63 0-109.5 40T240-420q0 60 46.5 100T396-280h284v80H396Z"/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0' +
+          ' -960 960 960" width="24px" fill="#4A4A4A"><path d="M396-200q-97' +
+          ' 0-166.5-63T160-420q0-94 69.5-157T396-640h252L544-744l56-56 200 ' +
+          '200-200 200-56-56 104-104H396q-63 0-109.5 40T240-420q0 60 46.5 1' +
+          '00T396-280h284v80H396Z"/></svg>'
       end
       item
         IconName = 'align_horizontal_left'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 96' +
-          '0 960" width="24px" fill="#4A4A4A"><path d="M80-80v-800h80v800H80Zm160-2' +
-          '00v-120h400v120H240Zm0-280v-120h640v120H240Z"/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0' +
+          ' -960 960 960" width="24px" fill="#4A4A4A"><path d="M80-80v-800h' +
+          '80v800H80Zm160-200v-120h400v120H240Zm0-280v-120h640v120H240Z"/><' +
+          '/svg>'
       end
       item
         IconName = 'align_horizontal_right'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 96' +
-          '0 960" width="24px" fill="#4A4A4A"><path d="M800-80v-800h80v800h-80ZM320' +
-          '-280v-120h400v120H320ZM80-560v-120h640v120H80Z"/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0' +
+          ' -960 960 960" width="24px" fill="#4A4A4A"><path d="M800-80v-800' +
+          'h80v800h-80ZM320-280v-120h400v120H320ZM80-560v-120h640v120H80Z"/' +
+          '></svg>'
       end
       item
         IconName = 'preview'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" enable-background="new 0 0 24 24' +
-          '" height="24px" viewBox="0 0 24 24" width="24px" fill="#4A4A4A"><g><rect' +
-          ' fill="none" height="24" width="24"/><path d="M3,3v18h18V3H3z M19,19H5V7' +
-          'h14V19z M13.5,13c0,0.83-0.67,1.5-1.5,1.5s-1.5-0.67-1.5-1.5c0-0.83,0.67-1' +
-          '.5,1.5-1.5 S13.5,12.17,13.5,13z M12,9c-2.73,0-5.06,1.66-6,4c0.94,2.34,3.' +
-          '27,4,6,4s5.06-1.66,6-4C17.06,10.66,14.73,9,12,9z M12,15.5 c-1.38,0-2.5-1' +
-          '.12-2.5-2.5c0-1.38,1.12-2.5,2.5-2.5c1.38,0,2.5,1.12,2.5,2.5C14.5,14.38,1' +
-          '3.38,15.5,12,15.5z"/></g></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" enable-background="new 0' +
+          ' 0 24 24" height="24px" viewBox="0 0 24 24" width="24px" fill="#' +
+          '4A4A4A"><g><rect fill="none" height="24" width="24"/><path d="M3' +
+          ',3v18h18V3H3z M19,19H5V7h14V19z M13.5,13c0,0.83-0.67,1.5-1.5,1.5' +
+          's-1.5-0.67-1.5-1.5c0-0.83,0.67-1.5,1.5-1.5 S13.5,12.17,13.5,13z ' +
+          'M12,9c-2.73,0-5.06,1.66-6,4c0.94,2.34,3.27,4,6,4s5.06-1.66,6-4C1' +
+          '7.06,10.66,14.73,9,12,9z M12,15.5 c-1.38,0-2.5-1.12-2.5-2.5c0-1.' +
+          '38,1.12-2.5,2.5-2.5c1.38,0,2.5,1.12,2.5,2.5C14.5,14.38,13.38,15.' +
+          '5,12,15.5z"/></g></svg>'
       end
       item
         IconName = 'delete'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 96' +
-          '0 960" width="24px" fill="#4A4A4A"><path d="m376-300 104-104 104 104 56-' +
-          '56-104-104 104-104-56-56-104 104-104-104-56 56 104 104-104 104 56 56ZM20' +
-          '0-120v-600h-40v-80h200v-40h240v40h200v80h-40v600H200Zm80-80h400v-520H280' +
-          'v520Zm0-520v520-520Z"/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0' +
+          ' -960 960 960" width="24px" fill="#4A4A4A"><path d="m376-300 104' +
+          '-104 104 104 56-56-104-104 104-104-56-56-104 104-104-104-56 56 1' +
+          '04 104-104 104 56 56ZM200-120v-600h-40v-80h200v-40h240v40h200v80' +
+          'h-40v600H200Zm80-80h400v-520H280v520Zm0-520v520-520Z"/></svg>'
       end
       item
         IconName = 'copy'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 96' +
-          '0 960" width="24px" fill="#4A4A4A"><path d="M280-240v-640h520v640H280Zm8' +
-          '0-80h360v-480H360v480ZM120-80v-640h80v560h440v80H120Zm240-240v-480 480Z"' +
-          '/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0' +
+          ' -960 960 960" width="24px" fill="#4A4A4A"><path d="M280-240v-64' +
+          '0h520v640H280Zm80-80h360v-480H360v480ZM120-80v-640h80v560h440v80' +
+          'H120Zm240-240v-480 480Z"/></svg>'
       end
       item
         IconName = 'paste'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 96' +
-          '0 960" width="24px" fill="#4A4A4A"><path d="M120-120v-720h247q11-35 43-5' +
-          '7.5t70-22.5q40 0 71.5 22.5T594-840h246v720H120Zm80-80h560v-560h-80v120H2' +
-          '80v-120h-80v560Zm308.5-571.5Q520-783 520-800t-11.5-28.5Q497-840 480-840t' +
-          '-28.5 11.5Q440-817 440-800t11.5 28.5Q463-760 480-760t28.5-11.5Z"/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0' +
+          ' -960 960 960" width="24px" fill="#4A4A4A"><path d="M120-120v-72' +
+          '0h247q11-35 43-57.5t70-22.5q40 0 71.5 22.5T594-840h246v720H120Zm' +
+          '80-80h560v-560h-80v120H280v-120h-80v560Zm308.5-571.5Q520-783 520' +
+          '-800t-11.5-28.5Q497-840 480-840t-28.5 11.5Q440-817 440-800t11.5 ' +
+          '28.5Q463-760 480-760t28.5-11.5Z"/></svg>'
       end
       item
         IconName = 'align_vertical_top'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 96' +
-          '0 960" width="24px" fill="#4A4A4A"><path d="M280-80v-640h120v640H280Zm28' +
-          '0-240v-400h120v400H560ZM80-800v-80h800v80H80Z"/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0' +
+          ' -960 960 960" width="24px" fill="#4A4A4A"><path d="M280-80v-640' +
+          'h120v640H280Zm280-240v-400h120v400H560ZM80-800v-80h800v80H80Z"/>' +
+          '</svg>'
       end
       item
         IconName = 'align_vertical_bottom'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" enable-background="new 0 0 24 24' +
-          '" height="24px" viewBox="0 0 24 24" width="24px" fill="#4A4A4A"><rect fi' +
-          'll="none" height="24" width="24"/><path d="M22,22H2v-2h20V22z M10,2H7v16' +
-          'h3V2z M17,8h-3v10h3V8z"/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" enable-background="new 0' +
+          ' 0 24 24" height="24px" viewBox="0 0 24 24" width="24px" fill="#' +
+          '4A4A4A"><rect fill="none" height="24" width="24"/><path d="M22,2' +
+          '2H2v-2h20V22z M10,2H7v16h3V2z M17,8h-3v10h3V8z"/></svg>'
       end
       item
         IconName = 'width'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 96' +
-          '0 960" width="24px" fill="#4A4A4A"><path d="M280-280 80-480l200-200 56 5' +
-          '6-103 104h494L624-624l56-56 200 200-200 200-56-56 103-104H233l103 104-56' +
-          ' 56Z"/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0' +
+          ' -960 960 960" width="24px" fill="#4A4A4A"><path d="M280-280 80-' +
+          '480l200-200 56 56-103 104h494L624-624l56-56 200 200-200 200-56-5' +
+          '6 103-104H233l103 104-56 56Z"/></svg>'
       end
       item
         IconName = 'height'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 96' +
-          '0 960" width="24px" fill="#4A4A4A"><path d="M480-120 320-280l56-56 64 63' +
-          'v-414l-64 63-56-56 160-160 160 160-56 57-64-64v414l64-63 56 56-160 160Z"' +
-          '/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0' +
+          ' -960 960 960" width="24px" fill="#4A4A4A"><path d="M480-120 320' +
+          '-280l56-56 64 63v-414l-64 63-56-56 160-160 160 160-56 57-64-64v4' +
+          '14l64-63 56 56-160 160Z"/></svg>'
       end
       item
         IconName = 'align_center'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 96' +
-          '0 960" width="24px" fill="#4A4A4A"><path d="M80-440v-80h800v80H80Zm200-1' +
-          '20v-120h400v120H280Zm0 280v-120h400v120H280Z"/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0' +
+          ' -960 960 960" width="24px" fill="#4A4A4A"><path d="M80-440v-80h' +
+          '800v80H80Zm200-120v-120h400v120H280Zm0 280v-120h400v120H280Z"/><' +
+          '/svg>'
       end
       item
         IconName = 'align_vertical_center'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" enable-background="new 0 0 24 24' +
-          '" height="24px" viewBox="0 0 24 24" width="24px" fill="#4A4A4A"><rect fi' +
-          'll="none" height="24" width="24"/><polygon points="22,11 17,11 17,6 14,6' +
-          ' 14,11 10,11 10,3 7,3 7,11 1.84,11 1.84,13 7,13 7,21 10,21 10,13 14,13 1' +
-          '4,18 17,18 17,13 22,13"/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" enable-background="new 0' +
+          ' 0 24 24" height="24px" viewBox="0 0 24 24" width="24px" fill="#' +
+          '4A4A4A"><rect fill="none" height="24" width="24"/><polygon point' +
+          's="22,11 17,11 17,6 14,6 14,11 10,11 10,3 7,3 7,11 1.84,11 1.84,' +
+          '13 7,13 7,21 10,21 10,13 14,13 14,18 17,18 17,13 22,13"/></svg>'
       end
       item
         IconName = 'flip_to_front'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24' +
-          '" width="24px" fill="#4A4A4A"><path d="M0 0h24v24H0V0z" fill="none"/><pa' +
-          'th d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm12 12h2v-2h-2v2zm6-18H7' +
-          'v14h14V3zm-2 12H9V5h10v10zm-8 6h2v-2h-2v2zm-4 0h2v-2H7v2zm-4 0h2v-2H3v2z' +
-          '"/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0' +
+          ' 0 24 24" width="24px" fill="#4A4A4A"><path d="M0 0h24v24H0V0z" ' +
+          'fill="none"/><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2z' +
+          'm12 12h2v-2h-2v2zm6-18H7v14h14V3zm-2 12H9V5h10v10zm-8 6h2v-2h-2v' +
+          '2zm-4 0h2v-2H7v2zm-4 0h2v-2H3v2z"/></svg>'
       end
       item
         IconName = 'flip_to_back'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24' +
-          '" width="24px" fill="#4A4A4A"><path d="M0 0h24v24H0V0z" fill="none"/><pat' +
-          'h d="M9 7H7v2h2V7zm0 4H7v2h2v-2zm4 4h-2v2h2v-2zm0-12h-2v2h2V3zM9 3H7v2h2' +
-          'V3zm12 0h-2v2h2V3zm0 12h-2v2h2v-2zM9 15H7v2h2v-2zm10-2h2v-2h-2v2zm0-4h2V' +
-          '7h-2v2zM5 7H3v14h14v-2H5V7zm10-2h2V3h-2v2zm0 12h2v-2h-2v2z"/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0' +
+          ' 0 24 24" width="24px" fill="#4A4A4A"><path d="M0 0h24v24H0V0z" ' +
+          'fill="none"/><path d="M9 7H7v2h2V7zm0 4H7v2h2v-2zm4 4h-2v2h2v-2z' +
+          'm0-12h-2v2h2V3zM9 3H7v2h2V3zm12 0h-2v2h2V3zm0 12h-2v2h2v-2zM9 15' +
+          'H7v2h2v-2zm10-2h2v-2h-2v2zm0-4h2V7h-2v2zM5 7H3v14h14v-2H5V7zm10-' +
+          '2h2V3h-2v2zm0 12h2v-2h-2v2z"/></svg>'
       end
       item
         IconName = 'zoom_in'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 96' +
-          '0 960" width="24px" fill="#4A4A4A"><path d="M784-120 532-372q-30 24-69 3' +
-          '8t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 ' +
-          '75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T56' +
-          '0-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T3' +
-          '80-400Zm-40-60v-80h-80v-80h80v-80h80v80h80v80h-80v80h-80Z"/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0' +
+          ' -960 960 960" width="24px" fill="#4A4A4A"><path d="M784-120 532' +
+          '-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-18' +
+          '4.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-5' +
+          '6 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-7' +
+          '5 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Zm-40-60v-80h-80v-' +
+          '80h80v-80h80v80h80v80h-80v80h-80Z"/></svg>'
       end
       item
         IconName = 'zoom_out'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 96' +
-          '0 960" width="24px" fill="#4A4A4A"><path d="M784-120 532-372q-30 24-69 3' +
-          '8t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 ' +
-          '75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T56' +
-          '0-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T3' +
-          '80-400ZM280-540v-80h200v80H280Z"/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0' +
+          ' -960 960 960" width="24px" fill="#4A4A4A"><path d="M784-120 532' +
+          '-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-18' +
+          '4.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-5' +
+          '6 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-7' +
+          '5 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400ZM280-540v-80h200v' +
+          '80H280Z"/></svg>'
       end
       item
         IconName = 'description'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24"' +
-          ' width="24px" fill="#1f1f1f"><path d="M0 0h24v24H0V0z" fill="none"/><path' +
-          ' d="M15.73 3H8.27L3 8.27v7.46L8.27 21h7.46L21 15.73V8.27L15.73 3zM12 17.3' +
-          'c-.72 0-1.3-.58-1.3-1.3s.58-1.3 1.3-1.3 1.3.58 1.3 1.3-.58 1.3-1.3 1.3zm' +
-          '1-4.3h-2V7h2v6z"/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0' +
+          ' 0 24 24" width="24px" fill="#1f1f1f"><path d="M0 0h24v24H0V0z" ' +
+          'fill="none"/><path d="M15.73 3H8.27L3 8.27v7.46L8.27 21h7.46L21 ' +
+          '15.73V8.27L15.73 3zM12 17.3c-.72 0-1.3-.58-1.3-1.3s.58-1.3 1.3-1' +
+          '.3 1.3.58 1.3 1.3-.58 1.3-1.3 1.3zm1-4.3h-2V7h2v6z"/></svg>'
       end
       item
         IconName = 'table_rows'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" enable-background="new 0 0 24 24"' +
-          ' height="24px" viewBox="0 0 24 24" width="24px" fill="#1f1f1f"><rect fill' +
-          '="none" height="24" width="24"/><path d="M21,8H3V4h18V8z M21,10H3v4h18V10' +
-          'z M21,16H3v4h18V16z"/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" enable-background="new 0' +
+          ' 0 24 24" height="24px" viewBox="0 0 24 24" width="24px" fill="#' +
+          '1f1f1f"><rect fill="none" height="24" width="24"/><path d="M21,8' +
+          'H3V4h18V8z M21,10H3v4h18V10z M21,16H3v4h18V16z"/></svg>'
       end
       item
         IconName = 'text_object'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960' +
-          ' 960" width="24px" fill="#4A4A4A"><path d="M200-200v-80h560v80H200Zm76-16' +
-          '0 164-440h80l164 440h-76l-38-112H392l-40 112h-76Zm138-176h132l-64-182h-' +
-          '4l-64 182Z"/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0' +
+          ' -960 960 960" width="24px" fill="#4A4A4A"><path d="M200-200v-80' +
+          'h560v80H200Zm76-160 164-440h80l164 440h-76l-38-112H392l-40 112h-' +
+          '76Zm138-176h132l-64-182h-4l-64 182Z"/></svg>'
       end
       item
         IconName = 'datafield_object'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960' +
-          ' 960" width="24px" fill="#4A4A4A"><path d="M560-160v-80h160v-227h80v-26h-' +
-          '80v-227H560v-80h240v234h80v172h-80v234H560Zm-400 0v-234H80v-172h80v-234h' +
-          '240v80H240v227h-80v26h80v227h160v80H160Z"/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0' +
+          ' -960 960 960" width="24px" fill="#4A4A4A"><path d="M560-160v-80' +
+          'h160v-227h80v-26h-80v-227H560v-80h240v234h80v172h-80v234H560Zm-4' +
+          '00 0v-234H80v-172h80v-234h240v80H240v227h-80v26h80v227h160v80H16' +
+          '0Z"/></svg>'
       end
       item
         IconName = 'memo_object'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960' +
-          ' 960" width="24px" fill="#4A4A4A"><path d="M280-280h280v-80H280v80Zm0-160' +
-          'h400v-80H280v80Zm0-160h400v-80H280v80ZM120-120v-720h720v720H120Zm80-80h5' +
-          '60v-560H200v560Zm0 0v-560 560Z"/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0' +
+          ' -960 960 960" width="24px" fill="#4A4A4A"><path d="M280-280h280' +
+          'v-80H280v80Zm0-160h400v-80H280v80Zm0-160h400v-80H280v80ZM120-120' +
+          'v-720h720v720H120Zm80-80h560v-560H200v560Zm0 0v-560 560Z"/></svg' +
+          '>'
       end
       item
         IconName = 'image_object'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960' +
-          ' 960" width="24px" fill="#4A4A4A"><path d="M240-280h480L570-480 450-320l-' +
-          '90-120-120 160ZM120-120v-720h720v720H120Zm80-80h560v-560H200v560Zm0 0v-5' +
-          '60 560Z"/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0' +
+          ' -960 960 960" width="24px" fill="#4A4A4A"><path d="M240-280h480' +
+          'L570-480 450-320l-90-120-120 160ZM120-120v-720h720v720H120Zm80-8' +
+          '0h560v-560H200v560Zm0 0v-560 560Z"/></svg>'
       end
       item
         IconName = 'barcode_object'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960' +
-          ' 960" width="24px" fill="#4A4A4A"><path d="M40-200v-560h80v560H40Zm120 0v' +
-          '-560h80v560h-80Zm120 0v-560h40v560h-40Zm120 0v-560h80v560h-80Zm120 0v-56' +
-          '0h120v560H520Zm160 0v-560h40v560h-40Zm120 0v-560h120v560H800Z"/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0' +
+          ' -960 960 960" width="24px" fill="#4A4A4A"><path d="M40-200v-560' +
+          'h80v560H40Zm120 0v-560h80v560h-80Zm120 0v-560h40v560h-40Zm120 0v' +
+          '-560h80v560h-80Zm120 0v-560h120v560H520Zm160 0v-560h40v560h-40Zm' +
+          '120 0v-560h120v560H800Z"/></svg>'
       end
       item
         IconName = 'shapes_object'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960' +
-          ' 960" width="24px" fill="#4A4A4A"><path d="M600-360ZM320-242q10 1 19.5 1.' +
-          '5t20.5.5q11 0 20.5-.5T400-242v82h400v-400h-82q1-10 1.5-19.5t.5-20.5q0-11' +
-          '-.5-20.5T718-640h162v560H320v-162ZM161.5-401.5Q80-483 80-600t81.5-198.5Q' +
-          '243-880 360-880t198.5 81.5Q640-717 640-600t-81.5 198.5Q477-320 360-320t-1' +
-          '98.5-81.5Zm340-57Q560-517 560-600t-58.5-141.5Q443-800 360-800t-141.5 58.5' +
-          'Q160-683 160-600t58.5 141.5Q277-400 360-400t141.5-58.5ZM360-600Z"/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0' +
+          ' -960 960 960" width="24px" fill="#4A4A4A"><path d="M600-360ZM32' +
+          '0-242q10 1 19.5 1.5t20.5.5q11 0 20.5-.5T400-242v82h400v-400h-82q' +
+          '1-10 1.5-19.5t.5-20.5q0-11-.5-20.5T718-640h162v560H320v-162ZM161' +
+          '.5-401.5Q80-483 80-600t81.5-198.5Q243-880 360-880t198.5 81.5Q640' +
+          '-717 640-600t-81.5 198.5Q477-320 360-320t-198.5-81.5Zm340-57Q560' +
+          '-517 560-600t-58.5-141.5Q443-800 360-800t-141.5 58.5Q160-683 160' +
+          '-600t58.5 141.5Q277-400 360-400t141.5-58.5ZM360-600Z"/></svg>'
       end
       item
         IconName = 'line_object'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960' +
-          ' 960" width="24px" fill="#4A4A4A"><path d="M201-240q0-17 11-28l480-480q11' +
-          '-12 27.5-12t28.5 12q11 11 11 28t-11 28L268-212q-11 11-28 11t-28-11q-11-1' +
-          '1-11-28Z"/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0' +
+          ' -960 960 960" width="24px" fill="#4A4A4A"><path d="M201-240q0-1' +
+          '7 11-28l480-480q11-12 27.5-12t28.5 12q11 11 11 28t-11 28L268-212' +
+          'q-11 11-28 11t-28-11q-11-11-11-28Z"/></svg>'
       end
       item
         IconName = 'subreport_object'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960' +
-          ' 960" width="24px" fill="#4A4A4A"><path d="M80-160v-640h800v640H80Zm80-80' +
-          'h640v-480H160v480Zm0 0v-480 480Zm160-120h320v-240H320v240Z"/></svg>'
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0' +
+          ' -960 960 960" width="24px" fill="#4A4A4A"><path d="M80-160v-640' +
+          'h800v640H80Zm80-80h640v-480H160v480Zm0 0v-480 480Zm160-120h320v-' +
+          '240H320v240Z"/></svg>'
       end
       item
         IconName = 'table_object'
         SVGText = 
-          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960' +
-          ' 960" width="24px" fill="#4A4A4A"><path d="M120-120v-720h720v720H120Zm320' +
-          '-240H200v160h240v-160Zm80 0v160h240v-160H520Zm-80-80v-160H200v160h240Zm8' +
-          '0 0h240v-160H520v160ZM200-680h560v-80H200v80Z"/></svg>'
-      end
-    >
+          '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0' +
+          ' -960 960 960" width="24px" fill="#4A4A4A"><path d="M120-120v-72' +
+          '0h720v720H120Zm320-240H200v160h240v-160Zm80 0v160h240v-160H520Zm' +
+          '-80-80v-160H200v160h240Zm80 0h240v-160H520v160ZM200-680h560v-80H' +
+          '200v80Z"/></svg>'
+      end>
     Left = 544
     Top = 104
   end
   object SVGIconVirtualImageList1: TSVGIconVirtualImageList
-    ImageCollection = SVGIconImageCollection1
     Images = <
       item
         CollectionIndex = 0
@@ -2463,10 +2491,9 @@ object frmMain: TfrmMain
         CollectionIndex = 31
         CollectionName = 'table_object'
         Name = 'table_object'
-      end
-    >
+      end>
+    ImageCollection = SVGIconImageCollection1
     Left = 752
     Top = 120
   end
 end
-

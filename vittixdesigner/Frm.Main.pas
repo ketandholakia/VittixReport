@@ -287,7 +287,8 @@ type
     procedure PropEditorEditButtonClick(Sender: TObject);
     procedure PropEditorSelectCell(Sender: TObject; ACol, ARow: Integer;
       var CanSelect: Boolean);
-    procedure PropEditorStringsChange(Sender: TObject);
+    procedure PropEditorSetEditText(Sender: TObject; ACol, ARow: Integer;
+      const Value: string);
     procedure btnFontQuickClick(Sender: TObject);
 
     { Zoom edit }
@@ -905,7 +906,7 @@ begin
   PropEditor.OnDblClick        := PropEditorDblClick;
   PropEditor.OnEditButtonClick := PropEditorEditButtonClick;
   PropEditor.OnSelectCell      := PropEditorSelectCell;
-  PropEditor.Strings.OnChange  := PropEditorStringsChange;
+  PropEditor.OnSetEditText     := PropEditorSetEditText;
 
   // Connect the shared DataSource so the designer sees whatever dataset
   // is assigned at runtime.
@@ -2390,7 +2391,7 @@ end;
 
 procedure TfrmMain.SetPropertyPanelDirty(AValue: Boolean);
 begin
-  FPropertyPanelDirty := AValue and Assigned(CurrentPropertyTarget);
+  FPropertyPanelDirty := AValue and (CurrentPropertyTarget <> nil);
   btnApplyProps.Enabled := FPropertyPanelDirty;
   if FPropertyPanelDirty then
   begin
@@ -2758,24 +2759,23 @@ begin
   UpdatePropertyPanelHintForRow(ARow);
 end;
 
-procedure TfrmMain.PropEditorStringsChange(Sender: TObject);
+procedure TfrmMain.PropEditorSetEditText(Sender: TObject; ACol, ARow: Integer;
+  const Value: string);
 var
-  Row: Integer;
   KeyName: string;
 begin
   if FLoadingPropertyPanel then
     Exit;
 
-  Row := PropEditor.Row;
-  if (Row <= 0) or (Row >= PropEditor.RowCount) then
+  if (ARow <= 0) or (ARow >= PropEditor.RowCount) then
     Exit;
 
-  KeyName := Trim(PropEditor.Keys[Row]);
+  KeyName := Trim(PropEditor.Keys[ARow]);
   if IsVisualGroupRow(KeyName) then
     Exit;
 
   SetPropertyPanelDirty(True);
-  UpdatePropertyPanelHintForRow(Row);
+  UpdatePropertyPanelHintForRow(ARow);
 end;
 
 procedure TfrmMain.PropEditorDblClick(Sender: TObject);
