@@ -369,6 +369,7 @@ constructor TVittixReportDesigner.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
   ControlStyle := ControlStyle + [csOpaque];
+  DoubleBuffered := True;
   TabStop      := True;
   Width        := 640;
   Height       := 480;
