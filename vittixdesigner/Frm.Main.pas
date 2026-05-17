@@ -287,6 +287,7 @@ type
     procedure PropEditorEditButtonClick(Sender: TObject);
     procedure PropEditorSelectCell(Sender: TObject; ACol, ARow: Integer;
       var CanSelect: Boolean);
+    procedure PropEditorStringsChange(Sender: TObject);
     procedure btnFontQuickClick(Sender: TObject);
 
     { Zoom edit }
@@ -303,6 +304,8 @@ type
     FCurrentFile: string;
     FModified   : Boolean;
     FReportMetadataDirty: Boolean;
+    FPropertyPanelDirty: Boolean;
+    FLoadingPropertyPanel: Boolean;
     // Created dynamically in FormCreate (not streamed from DFM)
     FDesigner   : TVittixReportDesigner;
     FDataSource1: TDataSource;
@@ -342,6 +345,10 @@ type
     procedure ConfigureViewToggleStrip;
     procedure UpdatePropertyPanel;
     procedure ApplyPropertyPanel;
+    procedure SetPropertyPanelDirty(AValue: Boolean);
+    procedure UpdatePropertyPanelHeader(AObj: TReportObject);
+    procedure UpdatePropertyPanelHintForRow(ARow: Integer);
+    function  PropertyHintText(const AKey: string): string;
     procedure ConfigurePropertyEditors;
     procedure PromoteImportantProperties(AObj: TReportObject);
     procedure InsertVisualGroupRows(AObj: TReportObject);
@@ -898,6 +905,7 @@ begin
   PropEditor.OnDblClick        := PropEditorDblClick;
   PropEditor.OnEditButtonClick := PropEditorEditButtonClick;
   PropEditor.OnSelectCell      := PropEditorSelectCell;
+  PropEditor.Strings.OnChange  := PropEditorStringsChange;
 
   // Connect the shared DataSource so the designer sees whatever dataset
   // is assigned at runtime.
@@ -916,6 +924,8 @@ begin
   FCurrentFile := '';
   FModified    := False;
   FReportMetadataDirty := False;
+  FPropertyPanelDirty := False;
+  FLoadingPropertyPanel := False;
 
   // Command-line mode: VittixDesigner.exe "<input>" "<output>"
   // When launched by the component editor, load the input file and
@@ -2168,38 +2178,51 @@ end;
 procedure TfrmMain.UpdatePropertyPanel;
 var
   Obj: TReportObject;
+begin
+  FLoadingPropertyPanel := True;
+  try
+    Obj := CurrentPropertyTarget;
+    TReportPropertyBridge.LoadObjectToGrid(Obj, PropEditor);
+    PromoteImportantProperties(Obj);
+    InsertVisualGroupRows(Obj);
+    ConfigurePropertyEditors;
+  finally
+    FLoadingPropertyPanel := False;
+  end;
+
+  UpdatePropertyPanelHeader(Obj);
+  UpdatePropertyPanelHintForRow(PropEditor.Row);
+  SetPropertyPanelDirty(False);
+end;
+
+procedure TfrmMain.UpdatePropertyPanelHeader(AObj: TReportObject);
+var
   SelCount: Integer;
   Band: TReportBand;
   ObjName: string;
 begin
-  Obj := CurrentPropertyTarget;
-  TReportPropertyBridge.LoadObjectToGrid(Obj, PropEditor);
-  PromoteImportantProperties(Obj);
-  InsertVisualGroupRows(Obj);
-  ConfigurePropertyEditors;
-
   SelCount := FDesigner.SelectedCount;
   if SelCount > 1 then
-    lblProperties.Caption := Format('Selected: %d Objects', [SelCount])
-  else if Assigned(Obj) and (Obj is TReportBand) then
+    lblSelectedProps.Caption := Format('Selected: %d Objects', [SelCount])
+  else if Assigned(AObj) and (AObj is TReportBand) then
   begin
-    Band := TReportBand(Obj);
+    Band := TReportBand(AObj);
     if Trim(Band.Name) <> '' then
-      lblProperties.Caption := 'Selected: ' + BandTypeName(Band.BandType) +
+      lblSelectedProps.Caption := 'Selected: ' + BandTypeName(Band.BandType) +
         ' Band (' + Band.Name + ')'
     else
-      lblProperties.Caption := 'Selected: ' + BandTypeName(Band.BandType) + ' Band';
+      lblSelectedProps.Caption := 'Selected: ' + BandTypeName(Band.BandType) + ' Band';
   end
-  else if Assigned(Obj) then
+  else if Assigned(AObj) then
   begin
-    ObjName := Trim(Obj.Name);
+    ObjName := Trim(AObj.Name);
     if ObjName <> '' then
-      lblProperties.Caption := 'Selected: ' + Obj.ClassName + ' (' + ObjName + ')'
+      lblSelectedProps.Caption := 'Selected: ' + AObj.ClassName + ' (' + ObjName + ')'
     else
-      lblProperties.Caption := 'Selected: ' + Obj.ClassName;
+      lblSelectedProps.Caption := 'Selected: ' + AObj.ClassName;
   end
   else
-    lblProperties.Caption := 'Selected: None';
+    lblSelectedProps.Caption := 'Selected: None';
 end;
 
 procedure TfrmMain.ConfigurePropertyEditors;
@@ -2305,6 +2328,9 @@ var
   OldByProp: TDictionary<string, TValue>;
   PropIndex: Integer;
 begin
+  if not FPropertyPanelDirty then
+    Exit;
+
   Obj := CurrentPropertyTarget;
   if not Assigned(Obj) then Exit;
 
@@ -2356,9 +2382,82 @@ begin
     UpdateTitleBar;
     // Keep the property list stable after Apply (same selected object, same rows).
     UpdatePropertyPanel;
+    SetPropertyPanelDirty(False);
   finally
     OldByProp.Free;
   end;
+end;
+
+procedure TfrmMain.SetPropertyPanelDirty(AValue: Boolean);
+begin
+  FPropertyPanelDirty := AValue and Assigned(CurrentPropertyTarget);
+  btnApplyProps.Enabled := FPropertyPanelDirty;
+  if FPropertyPanelDirty then
+  begin
+    btnApplyProps.Caption := 'Apply *';
+    btnApplyProps.Hint := 'Apply pending changes';
+  end
+  else
+  begin
+    btnApplyProps.Caption := 'Apply';
+    btnApplyProps.Hint := 'Apply property changes';
+  end;
+end;
+
+function TfrmMain.PropertyHintText(const AKey: string): string;
+begin
+  if SameText(AKey, 'Name') then
+    Exit('Object name used by expressions and references')
+  else if SameText(AKey, 'Left') or SameText(AKey, 'Top') or
+          SameText(AKey, 'Width') or SameText(AKey, 'Height') then
+    Exit('Object bounds in pixels on the designer')
+  else if SameText(AKey, 'DataField') then
+    Exit('Dataset field to bind this object to')
+  else if SameText(AKey, 'Expression') then
+    Exit('Expression evaluated at runtime for value/output')
+  else if SameText(AKey, 'PrintWhen') then
+    Exit('Condition that controls whether object/band prints')
+  else if SameText(AKey, 'FontColor') then
+    Exit('Text color')
+  else if SameText(AKey, 'BackgroundColor') then
+    Exit('Background fill color')
+  else if SameText(AKey, 'BorderColor') then
+    Exit('Border line color')
+  else if SameText(AKey, 'DisplayFormat') then
+    Exit('Formatting mask for numbers/dates/text')
+  else if SameText(AKey, 'CanGrow') then
+    Exit('Allow control height to increase for long content')
+  else if SameText(AKey, 'CanShrink') then
+    Exit('Allow control height to shrink when content is empty')
+  else if SameText(AKey, 'GroupField') then
+    Exit('Field used for grouping band sections');
+
+  Result := '';
+end;
+
+procedure TfrmMain.UpdatePropertyPanelHintForRow(ARow: Integer);
+var
+  KeyName: string;
+  HintText: string;
+begin
+  if (ARow <= 0) or (ARow >= PropEditor.RowCount) then
+  begin
+    if StatusBar1.Panels.Count > 1 then
+      StatusBar1.Panels[1].Text := '';
+    Exit;
+  end;
+
+  KeyName := Trim(PropEditor.Keys[ARow]);
+  if IsVisualGroupRow(KeyName) then
+    HintText := ''
+  else
+    HintText := PropertyHintText(KeyName);
+
+  if (HintText = '') and (KeyName <> '') and not IsVisualGroupRow(KeyName) then
+    HintText := KeyName;
+
+  if StatusBar1.Panels.Count > 1 then
+    StatusBar1.Panels[1].Text := HintText;
 end;
 
 function TfrmMain.SamePropertyValue(const AOld, ANew: TValue): Boolean;
@@ -2645,7 +2744,8 @@ begin
 
   if Key = VK_RETURN then
   begin
-    ApplyPropertyPanel;
+    if FPropertyPanelDirty then
+      ApplyPropertyPanel;
     Key := 0;
   end;
 end;
@@ -2655,6 +2755,27 @@ procedure TfrmMain.PropEditorSelectCell(Sender: TObject; ACol, ARow: Integer;
 begin
   if (ARow > 0) and IsVisualGroupRow(PropEditor.Keys[ARow]) and (ACol > 0) then
     CanSelect := False;
+  UpdatePropertyPanelHintForRow(ARow);
+end;
+
+procedure TfrmMain.PropEditorStringsChange(Sender: TObject);
+var
+  Row: Integer;
+  KeyName: string;
+begin
+  if FLoadingPropertyPanel then
+    Exit;
+
+  Row := PropEditor.Row;
+  if (Row <= 0) or (Row >= PropEditor.RowCount) then
+    Exit;
+
+  KeyName := Trim(PropEditor.Keys[Row]);
+  if IsVisualGroupRow(KeyName) then
+    Exit;
+
+  SetPropertyPanelDirty(True);
+  UpdatePropertyPanelHintForRow(Row);
 end;
 
 procedure TfrmMain.PropEditorDblClick(Sender: TObject);
@@ -3559,6 +3680,7 @@ begin
     Exit;
 
   PropEditor.Values[KeyName] := EditedValue;
+  SetPropertyPanelDirty(True);
   ApplyPropertyPanel;
   Result := True;
 end;
@@ -3827,6 +3949,7 @@ begin
       Exit;
 
     PropEditor.Values[KeyName] := IntToStr(Dlg.Color);
+    SetPropertyPanelDirty(True);
     Result := True;
   finally
     Dlg.Free;
