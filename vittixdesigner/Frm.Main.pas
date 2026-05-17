@@ -776,6 +776,7 @@ begin
 
   // Ensure the Toolbox knows all registered types (including Barcode + Table
   // which self-register in their unit initialization sections)
+  Toolbox.ToolImages := SVGIconVirtualImageList1;
   Toolbox.RefreshToolList;
   BuildInsertMenu;
 

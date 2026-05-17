@@ -236,5 +236,22 @@ Structure tree uses `FTreeStructure.Images = SVGIconVirtualImageList1` and node 
 | Table object | `table_object.svg` | `31` / `table_object` | `TReportTableObject` |
 | Unknown/fallback object | `description.svg` | `21` / `description` | fallback mapping |
 
+## Object toolbox image mapping
+Object toolbox (`TVittixReportToolbox`) uses owner-draw rows and resolves icon indexes from `ToolImages` by image name.
+
+| Object tool | Icon file | Image index/name | Notes |
+|---|---|---|---|
+| Text | `text_object.svg` | `text_object` | `TReportTextObject` |
+| Label | `label_object.svg` | `label_object` | `TReportLabelObject` |
+| Data Field | `datafield_object.svg` | `datafield_object` | `TReportFieldObject` |
+| Memo | `memo_object.svg` | `memo_object` | `TReportMemoObject` |
+| Image | `image_object.svg` | `image_object` | `TReportImageObject` |
+| Barcode | `barcode_object.svg` | `barcode_object` | `TReportBarcodeObject` |
+| Shape | `shapes_object.svg` | `shapes_object` | `TReportShapeObject` |
+| Line | `line_object.svg` | `line_object` | `TReportLineObject` |
+| SubReport | `subreport_object.svg` | `subreport_object` | `TReportSubReportObject` |
+| Table | `table_object.svg` | `table_object` | `TReportTableObject` |
+| Fallback | `description.svg` | `description` | text-only fallback if image name not found |
+
 
 
