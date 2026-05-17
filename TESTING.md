@@ -246,8 +246,13 @@ Release build:
 - OnBeforePrint has helper/ellipsis editor.
 - OnAfterPrint has helper/ellipsis editor.
 - Opening helper shows multiline editor.
+- Helper shows line/char count.
+- Line/char count updates while typing.
+- Fixed-width editor font is used.
 - OK writes edited text back to property grid only.
 - OK enables Apply / dirty state.
+- Ctrl+Enter closes helper with OK.
+- Enter inside editor inserts newline.
 - Cancel leaves property value unchanged.
 - Dialog does not execute script.
 - Dialog does not auto-apply.
