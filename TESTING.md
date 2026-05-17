@@ -222,3 +222,40 @@ Release build:
 - Font dialog still works.
 - Color picker still works.
 - DataField picklist still works.
+
+## 15) Designer UI / Variables checklist
+
+### Variables panel
+- Variables panel appears in the designer left area.
+- System variables group appears.
+- Variables list includes Date, Time, Page, Page#, TotalPages, TotalPages#, Line, Line#.
+- Deferred variables CopyName#, TableRow, TableColumn are safely handled or marked unsupported.
+
+### Insertion
+- Double-click Date inserts supported token into Text/Expression row.
+- Double-click Page inserts supported page token.
+- Double-click TotalPages inserts supported total-pages token.
+- Double-click Line inserts supported line/record token.
+- Unsupported variable double-click shows safe message and does not insert misleading token.
+- No compatible property row selected -> safe fallback/no crash.
+
+### Runtime
+- [Date] renders safely.
+- [Time] renders safely.
+- [Page] / [Page#] render page number.
+- [TotalPages] / [TotalPages#] render total pages.
+- [Line] / [Line#] render record/line value where dataset context exists.
+- Existing legacy tokens still work:
+- [PageNo]
+- [TotalPages]
+- [ReportTitle]
+- [ReportDate]
+- [DateTime]
+- [RecNo]
+
+### Regression
+- Dataset Fields panel still works.
+- Expression Helper still works.
+- Property Apply undo still works.
+- Preview/export still works.
+- Regression Test Reports still run.
