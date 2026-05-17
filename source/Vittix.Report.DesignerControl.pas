@@ -2061,10 +2061,13 @@ begin
       end
       else
       begin
-        if not FSelected.Contains(HitObj) then
+        // Single-click selection should emit one selection-changed notification.
+        // Avoid ClearSelection/AddToSelection because each helper notifies.
+        if (FSelected.Count <> 1) or (not FSelected.Contains(HitObj)) then
         begin
-          ClearSelection;
-          AddToSelection(HitObj);
+          FSelected.Clear;
+          FSelected.Add(HitObj);
+          DoSelectionChanged;
         end;
       end;
 
@@ -2082,7 +2085,6 @@ begin
     { ---- EMPTY SPACE = rubber band or band activate ---- }
     if not (ssCtrl in Shift) then
     begin
-      var HadSelection := FSelected.Count > 0;
       { Update active band }
       PP := ScreenToPage(Point(X, Y));
       for I := 0 to High(FBandLayouts) do
@@ -2096,8 +2098,6 @@ begin
       end;
 
       ClearSelection;
-      if not HadSelection then
-        DoSelectionChanged;
     end;
 
     FRubbering  := True;
