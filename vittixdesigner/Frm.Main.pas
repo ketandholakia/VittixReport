@@ -749,6 +749,8 @@ procedure TRuntimeEventDemoHarness.ScriptBeforeObject(AReport: TReportModel;
 var
   S: string;
   CmdResult: TScriptHostCommandResult;
+  TraceLines: TStringList;
+  Line: string;
 begin
   Inc(ScriptBeforeObjectCount);
   FTrace.Add(Format('ScriptBeforeObject: %s "%s" text="%s"',
@@ -759,14 +761,22 @@ begin
   CmdResult := FScriptAdapter.ExecuteBeforeObject(AObject, S, Context, ACanPrint);
   if CmdResult.Handled then
   begin
-    if CmdResult.TextSet then
-      Inc(ScriptTextSetCount);
+    Inc(ScriptTextSetCount, CmdResult.TextSetCount);
     if CmdResult.Canceled then
       Inc(ScriptCanceledObjectCount);
-    if CmdResult.Unsupported then
-      Inc(ScriptUnsupportedCount);
+    Inc(ScriptUnsupportedCount, CmdResult.UnsupportedCount);
     if CmdResult.TraceMessage <> '' then
-      FTrace.Add(CmdResult.TraceMessage);
+    begin
+      TraceLines := TStringList.Create;
+      try
+        TraceLines.Text := CmdResult.TraceMessage;
+        for Line in TraceLines do
+          if Trim(Line) <> '' then
+            FTrace.Add(Line);
+      finally
+        TraceLines.Free;
+      end;
+    end;
     Exit;
   end;
 

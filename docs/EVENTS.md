@@ -140,6 +140,9 @@ Quick notes:
 - `Text := Field('FieldName')` (for `TReportTextObject`, using current `Context.DataSet`)
 - `Visible := False|True`
 - `Background := clColorName` (for `TReportTextObject` only)
+- Bounded multi-command form is supported with semicolon separators, executed left-to-right:
+- `Visible := True; Text := Field('CustomerName')`
+- `CanPrint := False` short-circuits remaining commands for that object.
 - Unknown commands are treated as unsupported text (logged by host/demo), not executed by engine core.
 - In the designer demo, this parser is implemented via a reusable host-side adapter unit (`ReportScriptHost.Adapter.pas`), not engine scripting logic.
 

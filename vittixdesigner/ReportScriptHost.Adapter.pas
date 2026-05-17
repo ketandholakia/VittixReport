@@ -3,6 +3,7 @@ unit ReportScriptHost.Adapter;
 interface
 
 uses
+  System.Classes,
   System.SysUtils,
   Data.DB,
   Vcl.Graphics,
@@ -16,12 +17,16 @@ type
     Unsupported: Boolean;
     Canceled: Boolean;
     TextSet: Boolean;
+    UnsupportedCount: Integer;
+    TextSetCount: Integer;
     TraceMessage: string;
   end;
 
   TReportScriptHostAdapter = class
   private
     function ParseScriptAssignment(const AScript: string; out AKey, AValue: string): Boolean;
+    function ExecuteSingleBeforeObject(AObject: TReportObject; const AScript: string;
+      var Context: TExpressionContext; var ACanPrint: Boolean): TScriptHostCommandResult;
   public
     function ExecuteBeforeObject(AObject: TReportObject; const AScript: string;
       var Context: TExpressionContext; var ACanPrint: Boolean): TScriptHostCommandResult;
@@ -44,7 +49,7 @@ begin
   AValue := Trim(Copy(AScript, P + 2, MaxInt));
 end;
 
-function TReportScriptHostAdapter.ExecuteBeforeObject(AObject: TReportObject;
+function TReportScriptHostAdapter.ExecuteSingleBeforeObject(AObject: TReportObject;
   const AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean): TScriptHostCommandResult;
 var
   Key: string;
@@ -59,6 +64,8 @@ begin
   Result.Unsupported := False;
   Result.Canceled := False;
   Result.TextSet := False;
+  Result.UnsupportedCount := 0;
+  Result.TextSetCount := 0;
   Result.TraceMessage := '';
 
   if not ParseScriptAssignment(AScript, Key, Value) then
@@ -138,12 +145,14 @@ begin
         if Trim(Arg) = '' then
         begin
           Result.Unsupported := True;
+          Result.UnsupportedCount := 1;
           Result.TraceMessage := 'ScriptUnsupportedFieldName: ' + AScript;
           Exit;
         end;
         if not (AObject is TReportTextObject) then
         begin
           Result.Unsupported := True;
+          Result.UnsupportedCount := 1;
           Result.TraceMessage := 'ScriptUnsupportedForObjectType: ' + AObject.ClassName;
           Exit;
         end;
@@ -155,6 +164,7 @@ begin
         begin
           TReportTextObject(AObject).Text := F.AsString;
           Result.TextSet := True;
+          Result.TextSetCount := 1;
           Result.TraceMessage := Format('ScriptSetTextFromField: %s "%s" <- Field("%s")',
             [AObject.ClassName, AObject.Name, Arg]);
         end
@@ -167,6 +177,7 @@ begin
       else
       begin
         Result.Unsupported := True;
+        Result.UnsupportedCount := 1;
         Result.TraceMessage := 'ScriptUnsupportedFieldSyntax: ' + AScript;
       end;
       Exit;
@@ -180,24 +191,81 @@ begin
       begin
         TReportTextObject(AObject).Text := Lit;
         Result.TextSet := True;
+        Result.TextSetCount := 1;
         Result.TraceMessage := Format('ScriptSetText: %s "%s" -> "%s"',
           [AObject.ClassName, AObject.Name, Lit]);
       end
       else
       begin
         Result.Unsupported := True;
+        Result.UnsupportedCount := 1;
         Result.TraceMessage := 'ScriptUnsupportedForObjectType: ' + AObject.ClassName;
       end;
     end
     else
     begin
       Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
       Result.TraceMessage := 'ScriptUnsupportedTextLiteral: ' + AScript;
     end;
     Exit;
   end;
 
+  // Parsed assignment but unsupported key.
+  Result.Handled := True;
+  Result.Unsupported := True;
+  Result.UnsupportedCount := 1;
+  Result.TraceMessage := 'ScriptUnsupportedCommand: ' + AScript;
+end;
+
+function TReportScriptHostAdapter.ExecuteBeforeObject(AObject: TReportObject;
+  const AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean): TScriptHostCommandResult;
+var
+  Parts: TArray<string>;
+  Part: string;
+  PartTrimmed: string;
+  Single: TScriptHostCommandResult;
+  TraceLines: TStringList;
+begin
   Result.Handled := False;
+  Result.Unsupported := False;
+  Result.Canceled := False;
+  Result.TextSet := False;
+  Result.UnsupportedCount := 0;
+  Result.TextSetCount := 0;
+  Result.TraceMessage := '';
+
+  Parts := AScript.Split([';']);
+  TraceLines := TStringList.Create;
+  try
+    for Part in Parts do
+    begin
+      PartTrimmed := Trim(Part);
+      if PartTrimmed = '' then
+        Continue;
+
+      Single := ExecuteSingleBeforeObject(AObject, PartTrimmed, Context, ACanPrint);
+      if not Single.Handled then
+        Continue;
+
+      Result.Handled := True;
+      Result.Unsupported := Result.Unsupported or Single.Unsupported;
+      Result.TextSet := Result.TextSet or Single.TextSet;
+      Result.Canceled := Result.Canceled or Single.Canceled;
+      Inc(Result.UnsupportedCount, Single.UnsupportedCount);
+      Inc(Result.TextSetCount, Single.TextSetCount);
+      if Single.TraceMessage <> '' then
+        TraceLines.Add(Single.TraceMessage);
+
+      // CanPrint short-circuits remaining commands for this object.
+      if Single.Canceled then
+        Break;
+    end;
+
+    Result.TraceMessage := TraceLines.Text.TrimRight;
+  finally
+    TraceLines.Free;
+  end;
 end;
 
 end.

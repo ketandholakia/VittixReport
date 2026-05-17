@@ -349,6 +349,8 @@ Release build:
 - Runtime Event Callback Demo subtest `Text := Field('CustomerName')` reports PASS.
 - Runtime Event Callback Demo subtest `Background := clYellow` reports PASS.
 - Runtime Event Callback Demo subtest `Visible := False` reports PASS.
+- Runtime Event Callback Demo supports bounded semicolon command sequences and reports PASS.
+- `CanPrint := False; ...` short-circuits remaining commands for that object.
 - Band script behavior remains unchanged.
 - Preview and export use consistent object event execution behavior.
 
