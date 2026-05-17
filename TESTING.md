@@ -345,6 +345,8 @@ Release build:
 - Demo host parser supports `Visible := False|True`.
 - Demo host parser supports `Background := clColorName` for `TReportTextObject`.
 - Unsupported script commands are logged by host/demo and do not crash.
+- Unsupported script diagnostics include reason tags (for example:
+- `ScriptUnsupported[UnknownCommand]`, `ScriptUnsupported[FieldSyntax]`, `ScriptUnsupported[ColorValue]`).
 - Demo parser command handling is routed through reusable host-side adapter logic (behavior unchanged).
 - Runtime Event Callback Demo subtest `Text := Field('CustomerName')` reports PASS.
 - Runtime Event Callback Demo subtest `Background := clYellow` reports PASS.
@@ -357,6 +359,7 @@ Release build:
 - Quote-aware semicolon split works: `Text := 'A;B'; Visible := True`.
 - Runtime Event Callback Demo shows compact parser edge-case summary (EscapedQuote/WhitespaceNormalization/TrailingSemicolon).
 - Runtime Event Callback Demo shows unsupported-command diagnostics grouped by subtest.
+- Runtime Event Callback Demo shows compact unsupported-reason summary with per-reason counts.
 - Band script behavior remains unchanged.
 - Preview and export use consistent object event execution behavior.
 

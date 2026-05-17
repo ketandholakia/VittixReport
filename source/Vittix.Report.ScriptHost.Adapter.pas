@@ -133,7 +133,7 @@ begin
     begin
       Result.Unsupported := True;
       Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupportedCommand: ' + AScript;
+      Result.TraceMessage := 'ScriptUnsupported[CanPrintValue]: ' + AScript;
     end;
     Exit;
   end;
@@ -148,7 +148,7 @@ begin
     begin
       Result.Unsupported := True;
       Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupportedVisibleValue: ' + AScript;
+      Result.TraceMessage := 'ScriptUnsupported[VisibleValue]: ' + AScript;
       Exit;
     end;
 
@@ -164,7 +164,7 @@ begin
     begin
       Result.Unsupported := True;
       Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupportedForObjectType: ' + AObject.ClassName;
+      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     try
@@ -176,7 +176,7 @@ begin
     except
       Result.Unsupported := True;
       Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupportedColor: ' + AScript;
+      Result.TraceMessage := 'ScriptUnsupported[ColorValue]: ' + AScript;
     end;
     Exit;
   end;
@@ -195,14 +195,14 @@ begin
         begin
           Result.Unsupported := True;
           Result.UnsupportedCount := 1;
-          Result.TraceMessage := 'ScriptUnsupportedFieldName: ' + AScript;
+          Result.TraceMessage := 'ScriptUnsupported[FieldName]: ' + AScript;
           Exit;
         end;
         if not (AObject is TReportTextObject) then
         begin
           Result.Unsupported := True;
           Result.UnsupportedCount := 1;
-          Result.TraceMessage := 'ScriptUnsupportedForObjectType: ' + AObject.ClassName;
+          Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
           Exit;
         end;
 
@@ -227,7 +227,7 @@ begin
       begin
         Result.Unsupported := True;
         Result.UnsupportedCount := 1;
-        Result.TraceMessage := 'ScriptUnsupportedFieldSyntax: ' + AScript;
+        Result.TraceMessage := 'ScriptUnsupported[FieldSyntax]: ' + AScript;
       end;
       Exit;
     end;
@@ -248,14 +248,14 @@ begin
       begin
         Result.Unsupported := True;
         Result.UnsupportedCount := 1;
-        Result.TraceMessage := 'ScriptUnsupportedForObjectType: ' + AObject.ClassName;
+        Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       end;
     end
     else
     begin
       Result.Unsupported := True;
       Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupportedTextLiteral: ' + AScript;
+      Result.TraceMessage := 'ScriptUnsupported[TextLiteral]: ' + AScript;
     end;
     Exit;
   end;
@@ -263,7 +263,7 @@ begin
   Result.Handled := True;
   Result.Unsupported := True;
   Result.UnsupportedCount := 1;
-  Result.TraceMessage := 'ScriptUnsupportedCommand: ' + AScript;
+  Result.TraceMessage := 'ScriptUnsupported[UnknownCommand]: ' + AScript;
 end;
 
 function TReportScriptHostAdapter.ExecuteBeforeObject(AObject: TReportObject;
@@ -316,4 +316,3 @@ begin
 end;
 
 end.
-

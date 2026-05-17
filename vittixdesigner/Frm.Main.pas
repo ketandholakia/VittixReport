@@ -780,7 +780,7 @@ begin
     Exit;
   end;
 
-  LogScriptUnsupported('ScriptUnsupportedCommand: ' + S);
+  LogScriptUnsupported('ScriptUnsupported[UnknownCommand]: ' + S);
 end;
 
 procedure TRuntimeEventDemoHarness.ScriptAfterObject(AReport: TReportModel;
@@ -2248,6 +2248,71 @@ var
       U.Free;
     end;
   end;
+  procedure AddUnsupportedReasonCounts(const ATrace: TStrings;
+    ACounts: TDictionary<string, Integer>);
+  var
+    L: string;
+    P1: Integer;
+    P2: Integer;
+    Reason: string;
+    C: Integer;
+  begin
+    if not Assigned(ATrace) or not Assigned(ACounts) then
+      Exit;
+
+    for L in ATrace do
+    begin
+      P1 := Pos('ScriptUnsupported[', L);
+      if P1 <= 0 then
+        Continue;
+      P1 := P1 + Length('ScriptUnsupported[');
+      P2 := Pos(']:', L);
+      if (P2 <= P1) then
+        Continue;
+      Reason := Trim(Copy(L, P1, P2 - P1));
+      if Reason = '' then
+        Reason := 'Unknown';
+      if ACounts.TryGetValue(Reason, C) then
+        ACounts.AddOrSetValue(Reason, C + 1)
+      else
+        ACounts.Add(Reason, 1);
+    end;
+  end;
+  procedure AppendUnsupportedReasonSummary(ALines: TStrings;
+    const ATraces: array of TStrings);
+  var
+    Counts: TDictionary<string, Integer>;
+    Pair: TPair<string, Integer>;
+    OutLines: TStringList;
+    I: Integer;
+  begin
+    if not Assigned(ALines) then
+      Exit;
+
+    Counts := TDictionary<string, Integer>.Create;
+    OutLines := TStringList.Create;
+    try
+      for I := Low(ATraces) to High(ATraces) do
+        AddUnsupportedReasonCounts(ATraces[I], Counts);
+
+      ALines.Add('');
+      ALines.Add('Unsupported reason summary:');
+      if Counts.Count = 0 then
+      begin
+        ALines.Add('  none');
+        Exit;
+      end;
+
+      for Pair in Counts do
+        OutLines.Add(Format('  %s: %d', [Pair.Key, Pair.Value]));
+      OutLines.Sort;
+      for I := 0 to OutLines.Count - 1 do
+        ALines.Add(OutLines[I]);
+    finally
+      OutLines.Free;
+      Counts.Free;
+    end;
+  end;
 begin
   UseSampleDataSet;
 
@@ -2730,6 +2795,9 @@ begin
     AppendUnsupportedSummary('Escaped quote', EscapedQuoteTrace, Lines);
     AppendUnsupportedSummary('Whitespace normalization', WhitespaceTrace, Lines);
     AppendUnsupportedSummary('Trailing semicolon', TrailingSemicolonTrace, Lines);
+    AppendUnsupportedReasonSummary(Lines,
+      [BaselineTrace, ObjectSkipTrace, BandSkipTrace, ScriptCancelTrace, FieldBindTrace,
+       BackgroundTrace, VisibleTrace, EscapedQuoteTrace, WhitespaceTrace, TrailingSemicolonTrace]);
 
     Lines.Add('');
     Lines.Add('Baseline trace preview:');

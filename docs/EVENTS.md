@@ -152,6 +152,14 @@ Quick notes:
 - Trailing empty semicolon segments are ignored safely:
 - `Text := 'Tail'; ; ;`
 - Unknown commands are treated as unsupported text (logged by host/demo), not executed by engine core.
+- Unsupported command diagnostics include explicit reason tags:
+- `ScriptUnsupported[UnknownCommand]`
+- `ScriptUnsupported[FieldSyntax]`
+- `ScriptUnsupported[FieldName]`
+- `ScriptUnsupported[ColorValue]`
+- `ScriptUnsupported[VisibleValue]`
+- `ScriptUnsupported[ObjectType]`
+- `ScriptUnsupported[TextLiteral]`
 - In the designer demo, this parser is implemented via reusable shared adapter unit (`source/Vittix.Report.ScriptHost.Adapter.pas`), not engine scripting logic.
 
 ## Execution Order
@@ -239,3 +247,4 @@ Log('AfterBand:' + ABand.Name);
 - `Visible := False`
 - Each subtest reports PASS/FAIL in the demo output summary.
 - Demo output also includes an unsupported-command diagnostics block grouped by subtest.
+- Demo output includes a compact unsupported-reason summary block with per-reason counts.
