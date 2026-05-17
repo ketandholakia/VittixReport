@@ -759,6 +759,16 @@ var
   Splitter: TSplitter;
   MI: TMenuItem;
   Sep: TMenuItem;
+  procedure TrySetOrdinalProp(AObj: TObject; const APropName: string; AValue: NativeInt);
+  var
+    PI: PPropInfo;
+  begin
+    if not Assigned(AObj) then
+      Exit;
+    PI := GetPropInfo(AObj, APropName);
+    if Assigned(PI) then
+      SetOrdProp(AObj, PI, AValue);
+  end;
 begin
   // Defensive registration for command-line open mode.
   // Some environments can start with an incomplete registry; ensure bands
@@ -854,6 +864,17 @@ begin
   FStructureTreePopup.Items.Add(FStructureTreeCollapseAllItem);
 
   FTreeStructure.PopupMenu := FStructureTreePopup;
+
+  // Ensure toolbar SVG icons render at full-strength normal color.
+  // These properties are applied only when available in the installed
+  // SVG icon component version.
+  TrySetOrdinalProp(SVGIconImageCollection1, 'GrayScale', 0);
+  TrySetOrdinalProp(SVGIconImageCollection1, 'Opacity', 255);
+  TrySetOrdinalProp(SVGIconVirtualImageList1, 'GrayScale', 0);
+  TrySetOrdinalProp(SVGIconVirtualImageList1, 'Opacity', 255);
+  TrySetOrdinalProp(SVGIconVirtualImageList1, 'FixedColor', clWindowText);
+  TrySetOrdinalProp(SVGIconVirtualImageList1, 'DisabledGrayScale', 1);
+  TrySetOrdinalProp(SVGIconVirtualImageList1, 'DisabledOpacity', 125);
 
   // Splitters between toolbox/structure/fields panels
   Splitter           := TSplitter.Create(Self);

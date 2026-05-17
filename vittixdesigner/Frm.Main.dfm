@@ -2087,7 +2087,7 @@ object frmMain: TfrmMain
         IconName = 'preview'
         SVGText = 
           '<svg xmlns="http://www.w3.org/2000/svg" enable-background="new 0 0 24 24' +
-          '" height="24px" viewBox="0 0 24 24" width="24px" fill="#1f1f1f"><g><rect' +
+          '" height="24px" viewBox="0 0 24 24" width="24px" fill="#4A4A4A"><g><rect' +
           ' fill="none" height="24" width="24"/><path d="M3,3v18h18V3H3z M19,19H5V7' +
           'h14V19z M13.5,13c0,0.83-0.67,1.5-1.5,1.5s-1.5-0.67-1.5-1.5c0-0.83,0.67-1' +
           '.5,1.5-1.5 S13.5,12.17,13.5,13z M12,9c-2.73,0-5.06,1.66-6,4c0.94,2.34,3.' +
@@ -2132,7 +2132,7 @@ object frmMain: TfrmMain
         IconName = 'align_vertical_bottom'
         SVGText = 
           '<svg xmlns="http://www.w3.org/2000/svg" enable-background="new 0 0 24 24' +
-          '" height="24px" viewBox="0 0 24 24" width="24px" fill="#1f1f1f"><rect fi' +
+          '" height="24px" viewBox="0 0 24 24" width="24px" fill="#4A4A4A"><rect fi' +
           'll="none" height="24" width="24"/><path d="M22,22H2v-2h20V22z M10,2H7v16' +
           'h3V2z M17,8h-3v10h3V8z"/></svg>'
       end
@@ -2172,7 +2172,7 @@ object frmMain: TfrmMain
         IconName = 'flip_to_front'
         SVGText = 
           '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24' +
-          '" width="24px" fill="#1f1f1f"><path d="M0 0h24v24H0V0z" fill="none"/><pa' +
+          '" width="24px" fill="#4A4A4A"><path d="M0 0h24v24H0V0z" fill="none"/><pa' +
           'th d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm12 12h2v-2h-2v2zm6-18H7' +
           'v14h14V3zm-2 12H9V5h10v10zm-8 6h2v-2h-2v2zm-4 0h2v-2H7v2zm-4 0h2v-2H3v2z' +
           '"/></svg>'
