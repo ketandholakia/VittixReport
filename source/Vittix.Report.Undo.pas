@@ -26,6 +26,7 @@ interface
 
 uses
   System.Classes,
+  System.SysUtils,
   System.Generics.Collections,
   System.Types,
   System.Rtti,
@@ -38,9 +39,13 @@ type
   // Base command
   // ---------------------------------------------------------------------------
   TUndoableAction = class
+  private
+    FActionName: string;
   public
+    constructor Create; virtual;
     procedure Execute;  virtual; abstract;
     procedure Rollback; virtual; abstract;
+    property ActionName: string read FActionName write FActionName;
   end;
 
   // ---------------------------------------------------------------------------
@@ -59,6 +64,8 @@ type
     procedure Clear;
     function  CanUndo: Boolean;
     function  CanRedo: Boolean;
+    function  NextUndoName: string;
+    function  NextRedoName: string;
   end;
 
   // ---------------------------------------------------------------------------
@@ -186,6 +193,16 @@ type
 implementation
 
 // ===========================================================================
+// TUndoableAction
+// ===========================================================================
+
+constructor TUndoableAction.Create;
+begin
+  inherited Create;
+  FActionName := '';
+end;
+
+// ===========================================================================
 // TCommandManager
 // ===========================================================================
 
@@ -226,6 +243,20 @@ end;
 procedure TCommandManager.Clear; begin FUndo.Clear; FRedo.Clear; end;
 function  TCommandManager.CanUndo: Boolean; begin Result := FUndo.Count > 0; end;
 function  TCommandManager.CanRedo: Boolean; begin Result := FRedo.Count > 0; end;
+function  TCommandManager.NextUndoName: string;
+begin
+  Result := '';
+  if FUndo.Count = 0 then
+    Exit;
+  Result := Trim(FUndo.Last.ActionName);
+end;
+function  TCommandManager.NextRedoName: string;
+begin
+  Result := '';
+  if FRedo.Count = 0 then
+    Exit;
+  Result := Trim(FRedo.Last.ActionName);
+end;
 
 // ===========================================================================
 // TMoveObjectCommand
@@ -233,7 +264,11 @@ function  TCommandManager.CanRedo: Boolean; begin Result := FRedo.Count > 0; end
 
 constructor TMoveObjectCommand.Create(AObj: TReportObject;
   const OldB, NewB: TRect);
-begin FObj := AObj; FOldBounds := OldB; FNewBounds := NewB; end;
+begin
+  inherited Create;
+  FObj := AObj; FOldBounds := OldB; FNewBounds := NewB;
+  ActionName := 'Move Object';
+end;
 
 procedure TMoveObjectCommand.Execute;  begin FObj.Bounds := FNewBounds; end;
 procedure TMoveObjectCommand.Rollback; begin FObj.Bounds := FOldBounds; end;
@@ -249,6 +284,10 @@ begin
   FItems := Items;
   FOld   := OldB;
   FNew   := NewB;
+  if Length(Items) <= 1 then
+    ActionName := 'Move Object'
+  else
+    ActionName := 'Move Objects';
 end;
 
 procedure TMultiMoveCommand.Execute;
@@ -265,7 +304,11 @@ begin for i := 0 to High(FItems) do FItems[i].Bounds := FOld[i]; end;
 
 constructor TInsertObjectCommand.Create(
   AList: TObjectList<TReportObject>; AObj: TReportObject);
-begin FList := AList; FObj := AObj; FOwned := True; end;
+begin
+  inherited Create;
+  FList := AList; FObj := AObj; FOwned := True;
+  ActionName := 'Add Object';
+end;
 
 destructor TInsertObjectCommand.Destroy;
 begin if FOwned then FObj.Free; inherited; end;
@@ -286,6 +329,7 @@ constructor TDeleteObjectsCommand.Create(
   const AIndices   : TArray<Integer>);
 var i: Integer;
 begin
+  inherited Create;
   SetLength(FEntries, Length(AObjects));
   for i := 0 to High(AObjects) do
   begin
@@ -293,6 +337,10 @@ begin
     FEntries[i].OrigIndex := AIndices[i];
   end;
   FBuffer := TObjectList<TReportObject>.Create(True);
+  if Length(AObjects) <= 1 then
+    ActionName := 'Delete Object'
+  else
+    ActionName := 'Delete Objects';
 end;
 
 destructor TDeleteObjectsCommand.Destroy;
@@ -334,7 +382,11 @@ end;
 // ===========================================================================
 
 constructor TBandResizeCommand.Create(ABand: TReportBand; OldH, NewH: Integer);
-begin FBand := ABand; FOldH := OldH; FNewH := NewH; end;
+begin
+  inherited Create;
+  FBand := ABand; FOldH := OldH; FNewH := NewH;
+  ActionName := 'Resize Band';
+end;
 
 procedure TBandResizeCommand.Execute;  begin FBand.Height := FNewH; end;
 procedure TBandResizeCommand.Rollback; begin FBand.Height := FOldH; end;
@@ -351,6 +403,7 @@ begin
   FBand := ABand;
   FOrigIndex := AOrigIndex;
   FOwned := False;
+  ActionName := 'Delete Band';
 end;
 
 destructor TDeleteBandCommand.Destroy;
@@ -399,7 +452,11 @@ end;
 
 constructor TZOrderCommand.Create(AList: TObjectList<TReportObject>;
   AObj: TReportObject; OldIdx, NewIdx: Integer);
-begin FList := AList; FObj := AObj; FOldIdx := OldIdx; FNewIdx := NewIdx; end;
+begin
+  inherited Create;
+  FList := AList; FObj := AObj; FOldIdx := OldIdx; FNewIdx := NewIdx;
+  ActionName := 'Z Order';
+end;
 
 procedure TZOrderCommand.MoveItem(FromIdx, ToIdx: Integer);
 var
@@ -422,7 +479,11 @@ procedure TZOrderCommand.Rollback; begin MoveItem(FNewIdx, FOldIdx); end;
 
 constructor TPropertyChangeCommand.Create(AObj: TObject; const Prop: string;
   const OldV, NewV: TValue);
-begin FObj := AObj; FPropName := Prop; FOldValue := OldV; FNewValue := NewV; end;
+begin
+  inherited Create;
+  FObj := AObj; FPropName := Prop; FOldValue := OldV; FNewValue := NewV;
+  ActionName := 'Property Change';
+end;
 
 procedure TPropertyChangeCommand.Execute;
 var ctx: TRttiContext; p: TRttiProperty;

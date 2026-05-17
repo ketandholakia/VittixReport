@@ -175,6 +175,8 @@ type
     function  GetSelectedCount: Integer;
     function  GetCanUndo: Boolean;
     function  GetCanRedo: Boolean;
+    function  GetNextUndoName: string;
+    function  GetNextRedoName: string;
 
     { Cursor }
     procedure UpdateCursor(X, Y: Integer);
@@ -269,6 +271,8 @@ type
     property SelectedCount   : Integer       read GetSelectedCount;
     property CanUndo         : Boolean       read GetCanUndo;
     property CanRedo         : Boolean       read GetCanRedo;
+    property NextUndoName    : string        read GetNextUndoName;
+    property NextRedoName    : string        read GetNextRedoName;
 
   published
     property Align;
@@ -1308,6 +1312,16 @@ begin
   Result := FCommands.CanRedo;
 end;
 
+function TVittixReportDesigner.GetNextUndoName: string;
+begin
+  Result := FCommands.NextUndoName;
+end;
+
+function TVittixReportDesigner.GetNextRedoName: string;
+begin
+  Result := FCommands.NextRedoName;
+end;
+
 procedure TVittixReportDesigner.SetDataSet(const V: TDataSet);
 begin
   FDataSet := V;
@@ -2205,6 +2219,7 @@ begin
         if FDragStartBounds.TryGetValue(Obj, OldR) then
         begin
           var ResizeCmd := TMoveObjectCommand.Create(Obj, OldR, Obj.Bounds);
+          ResizeCmd.ActionName := 'Resize Object';
           FCommands.DoCommand(ResizeCmd);
           DoModified;
         end;

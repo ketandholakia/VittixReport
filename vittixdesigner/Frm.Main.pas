@@ -481,6 +481,7 @@ constructor TPropertyBatchChangeCommand.Create(AObj: TObject;
   const APropNames: TArray<string>; const AOldValues, ANewValues: TArray<TValue>);
 begin
   inherited Create;
+  ActionName := 'Property Change';
   FObj := AObj;
   FPropNames := APropNames;
   FOldValues := AOldValues;
@@ -528,6 +529,7 @@ constructor TTextFontChangeCommand.Create(AObj: TReportTextObject;
   const AOldFont, ANewFont: TFont);
 begin
   inherited Create;
+  ActionName := 'Font Change';
   FObj := AObj;
   FOldFont := TFont.Create;
   FNewFont := TFont.Create;
@@ -558,6 +560,7 @@ constructor TReportSnapshotCommand.Create(ADesigner: TVittixReportDesigner;
   const ABeforeJSON, AAfterJSON: string);
 begin
   inherited Create;
+  ActionName := 'Band Manager Changes';
   FDesigner := ADesigner;
   FBeforeJSON := ABeforeJSON;
   FAfterJSON := AAfterJSON;
@@ -1083,12 +1086,14 @@ end;
 procedure TfrmMain.AddBand(ABandType: TReportBandType);
 var
   Band: TReportBand;
+  Cmd: TInsertObjectCommand;
 begin
   Band := TReportBand.Create;
   Band.BandType := ABandType;
   Band.Height   := 40;
-  FDesigner.ExecuteUndoCommand(
-    TInsertObjectCommand.Create(FDesigner.Report.Objects, Band));
+  Cmd := TInsertObjectCommand.Create(FDesigner.Report.Objects, Band);
+  Cmd.ActionName := 'Add Band';
+  FDesigner.ExecuteUndoCommand(Cmd);
   StatusBar1.Panels[1].Text := 'Band added: ' + BandTypeName(ABandType);
 end;
 
@@ -2455,6 +2460,8 @@ procedure TfrmMain.UpdateMenuState;
 var
   HasSel: Boolean;
   Multi : Boolean;
+  UndoName: string;
+  RedoName: string;
 begin
   HasSel := FDesigner.SelectedCount > 0;
   Multi  := FDesigner.SelectedCount >= 2;
@@ -2463,6 +2470,31 @@ begin
   mnuRedo.Enabled    := FDesigner.CanRedo;
   btnUndo.Enabled    := FDesigner.CanUndo;
   btnRedo.Enabled    := FDesigner.CanRedo;
+
+  UndoName := Trim(FDesigner.NextUndoName);
+  RedoName := Trim(FDesigner.NextRedoName);
+  if FDesigner.CanUndo and (UndoName <> '') then
+  begin
+    mnuUndo.Caption := '&Undo ' + UndoName;
+    btnUndo.Hint := 'Undo ' + UndoName;
+  end
+  else
+  begin
+    mnuUndo.Caption := '&Undo';
+    btnUndo.Hint := 'Undo';
+  end;
+  if FDesigner.CanRedo and (RedoName <> '') then
+  begin
+    mnuRedo.Caption := '&Redo ' + RedoName;
+    btnRedo.Hint := 'Redo ' + RedoName;
+  end
+  else
+  begin
+    mnuRedo.Caption := '&Redo';
+    btnRedo.Hint := 'Redo';
+  end;
+  btnUndo.ShowHint := True;
+  btnRedo.ShowHint := True;
 
   mnuCut.Enabled    := HasSel;
   mnuCopy.Enabled   := HasSel;
