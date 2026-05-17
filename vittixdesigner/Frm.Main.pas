@@ -477,6 +477,33 @@ type
     procedure Rollback; override;
   end;
 
+  TPageSettingsChangeCommand = class(TUndoableAction)
+  private
+    FDesigner: TVittixReportDesigner;
+    FOldSettings: TReportPageSettings;
+    FNewSettings: TReportPageSettings;
+    procedure ApplySettings(ASource: TReportPageSettings);
+  public
+    constructor Create(ADesigner: TVittixReportDesigner;
+      AOldSettings, ANewSettings: TReportPageSettings);
+    destructor Destroy; override;
+    procedure Execute; override;
+    procedure Rollback; override;
+  end;
+
+function PageSettingsEqual(A, B: TReportPageSettings): Boolean;
+begin
+  Result := Assigned(A) and Assigned(B) and
+            (A.PaperSize = B.PaperSize) and
+            (A.Orientation = B.Orientation) and
+            (A.CustomWidth = B.CustomWidth) and
+            (A.CustomHeight = B.CustomHeight) and
+            (A.Margins.Left = B.Margins.Left) and
+            (A.Margins.Top = B.Margins.Top) and
+            (A.Margins.Right = B.Margins.Right) and
+            (A.Margins.Bottom = B.Margins.Bottom);
+end;
+
 constructor TPropertyBatchChangeCommand.Create(AObj: TObject;
   const APropNames: TArray<string>; const AOldValues, ANewValues: TArray<TValue>);
 begin
@@ -584,6 +611,45 @@ end;
 procedure TReportSnapshotCommand.Rollback;
 begin
   ApplyJSON(FBeforeJSON);
+end;
+
+constructor TPageSettingsChangeCommand.Create(ADesigner: TVittixReportDesigner;
+  AOldSettings, ANewSettings: TReportPageSettings);
+begin
+  inherited Create;
+  ActionName := 'Page Setup Change';
+  FDesigner := ADesigner;
+  FOldSettings := TReportPageSettings.Create;
+  FNewSettings := TReportPageSettings.Create;
+  if Assigned(AOldSettings) then
+    AOldSettings.AssignTo(FOldSettings);
+  if Assigned(ANewSettings) then
+    ANewSettings.AssignTo(FNewSettings);
+end;
+
+destructor TPageSettingsChangeCommand.Destroy;
+begin
+  FOldSettings.Free;
+  FNewSettings.Free;
+  inherited;
+end;
+
+procedure TPageSettingsChangeCommand.ApplySettings(ASource: TReportPageSettings);
+begin
+  if not Assigned(FDesigner) or not Assigned(FDesigner.Report) or
+     not Assigned(FDesigner.Report.PageSettings) or not Assigned(ASource) then
+    Exit;
+  ASource.AssignTo(FDesigner.Report.PageSettings);
+end;
+
+procedure TPageSettingsChangeCommand.Execute;
+begin
+  ApplySettings(FNewSettings);
+end;
+
+procedure TPageSettingsChangeCommand.Rollback;
+begin
+  ApplySettings(FOldSettings);
 end;
 
 { =========================================================================== }
@@ -1625,19 +1691,32 @@ end;
 procedure TfrmMain.mnuPageSetupClick(Sender: TObject);
 var
   Frm: TfrmPageSettings;
+  OldSettings: TReportPageSettings;
+  NewSettings: TReportPageSettings;
+  Cmd: TPageSettingsChangeCommand;
 begin
+  OldSettings := TReportPageSettings.Create;
+  NewSettings := TReportPageSettings.Create;
   Frm := TfrmPageSettings.Create(Application);
   try
+    FDesigner.Report.PageSettings.AssignTo(OldSettings);
     Frm.LoadSettings(FDesigner.Report.PageSettings);
     if Frm.ShowModal = mrOk then
     begin
-      Frm.SaveSettings(FDesigner.Report.PageSettings);
-      FDesigner.RebuildLayout;
-      FModified := True;
-      UpdateTitleBar;
+      // Apply into a temporary settings object first, so no-op OK does not
+      // mutate the live report or create undo history noise.
+      OldSettings.AssignTo(NewSettings);
+      Frm.SaveSettings(NewSettings);
+      if not PageSettingsEqual(OldSettings, NewSettings) then
+      begin
+        Cmd := TPageSettingsChangeCommand.Create(FDesigner, OldSettings, NewSettings);
+        FDesigner.ExecuteUndoCommand(Cmd);
+      end;
     end;
   finally
     Frm.Free;
+    NewSettings.Free;
+    OldSettings.Free;
   end;
 end;
 
