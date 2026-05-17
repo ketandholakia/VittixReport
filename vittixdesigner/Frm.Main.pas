@@ -2143,11 +2143,17 @@ var
   FieldBindPass: Boolean;
   BackgroundPass: Boolean;
   VisiblePass: Boolean;
+  EscapedQuotePass: Boolean;
+  WhitespacePass: Boolean;
+  TrailingSemicolonPass: Boolean;
   OverallPass: Boolean;
   ScriptCancelTrace: TStringList;
   FieldBindTrace: TStringList;
   BackgroundTrace: TStringList;
   VisibleTrace: TStringList;
+  EscapedQuoteTrace: TStringList;
+  WhitespaceTrace: TStringList;
+  TrailingSemicolonTrace: TStringList;
   Obj: TReportObject;
   Band: TReportBand;
   ChildObj: TReportObject;
@@ -2256,6 +2262,9 @@ begin
   FieldBindTrace := TStringList.Create;
   BackgroundTrace := TStringList.Create;
   VisibleTrace := TStringList.Create;
+  EscapedQuoteTrace := TStringList.Create;
+  WhitespaceTrace := TStringList.Create;
+  TrailingSemicolonTrace := TStringList.Create;
   try
     FN := GetRegressionReportPath('01_simple_masterdata.vrt');
     if TFile.Exists(FN) then
@@ -2567,6 +2576,101 @@ begin
     else
       Lines.Add('Visible command subtest: FAIL');
 
+    Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'Text := ''O''''Reilly''';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    EscapedQuoteTrace.Assign(Harness.Trace);
+    EscapedQuotePass :=
+      (Harness.ScriptTextSetCount > 0) and
+      (Harness.ScriptUnsupportedCount = 0) and
+      (Pos('ScriptSetText: TReportTextObject', EscapedQuoteTrace.Text) > 0) and
+      (Pos('Reilly', EscapedQuoteTrace.Text) > 0);
+    if EscapedQuotePass then
+      Lines.Add('Escaped quote literal subtest: PASS')
+    else
+      Lines.Add('Escaped quote literal subtest: FAIL');
+
+    Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := '  Visible   :=   True ;   Text := ''WS''   ';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    WhitespaceTrace.Assign(Harness.Trace);
+    WhitespacePass :=
+      (Harness.ScriptTextSetCount > 0) and
+      (Harness.ScriptUnsupportedCount = 0) and
+      (Pos('ScriptSetVisible: TReportTextObject', WhitespaceTrace.Text) > 0) and
+      (Pos('-> True', WhitespaceTrace.Text) > 0) and
+      (Pos('ScriptSetText: TReportTextObject', WhitespaceTrace.Text) > 0) and
+      (Pos('WS', WhitespaceTrace.Text) > 0);
+    if WhitespacePass then
+      Lines.Add('Whitespace normalization subtest: PASS')
+    else
+      Lines.Add('Whitespace normalization subtest: FAIL');
+
+    Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'Text := ''Tail''; ; ;';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    TrailingSemicolonTrace.Assign(Harness.Trace);
+    TrailingSemicolonPass :=
+      (Harness.ScriptTextSetCount > 0) and
+      (Harness.ScriptUnsupportedCount = 0) and
+      (Pos('ScriptSetText: TReportTextObject', TrailingSemicolonTrace.Text) > 0) and
+      (Pos('Tail', TrailingSemicolonTrace.Text) > 0);
+    if TrailingSemicolonPass then
+      Lines.Add('Trailing semicolon subtest: PASS')
+    else
+      Lines.Add('Trailing semicolon subtest: FAIL');
+
     OverallPass :=
       BasePass and
       CountingInflationPass and
@@ -2577,7 +2681,10 @@ begin
       TargetCancelOrderPass and
       FieldBindPass and
       BackgroundPass and
-      VisiblePass;
+      VisiblePass and
+      EscapedQuotePass and
+      WhitespacePass and
+      TrailingSemicolonPass;
     Lines.Insert(0, '');
     if OverallPass then
       Lines.Insert(0, 'Overall: PASS')
@@ -2605,6 +2712,9 @@ begin
     AppendUnsupportedSummary('Field() binding', FieldBindTrace, Lines);
     AppendUnsupportedSummary('Background', BackgroundTrace, Lines);
     AppendUnsupportedSummary('Visible', VisibleTrace, Lines);
+    AppendUnsupportedSummary('Escaped quote', EscapedQuoteTrace, Lines);
+    AppendUnsupportedSummary('Whitespace normalization', WhitespaceTrace, Lines);
+    AppendUnsupportedSummary('Trailing semicolon', TrailingSemicolonTrace, Lines);
 
     Lines.Add('');
     Lines.Add('Baseline trace preview:');
@@ -2690,6 +2800,9 @@ begin
     VisibleTrace.Free;
     BackgroundTrace.Free;
     FieldBindTrace.Free;
+    TrailingSemicolonTrace.Free;
+    WhitespaceTrace.Free;
+    EscapedQuoteTrace.Free;
     ScriptCancelTrace.Free;
     BandSkipTrace.Free;
     ObjectSkipTrace.Free;
