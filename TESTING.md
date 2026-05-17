@@ -166,3 +166,23 @@ Release build:
 - Tree rename is not implemented.
 - Tree drag/drop reorder is not implemented.
 - Tree Add Band/Add Object context actions are not implemented.
+
+## 13) UI/Toolbar checklist
+
+### Toolbar SVG icons
+- Main toolbar loads without SVG/ImageList errors.
+- Toolbar SVG icons are visible and readable.
+- Toolbar SVG icons use dark neutral color, not pale/low-contrast color.
+- Existing toolbar buttons still call the same actions.
+- Undo/Redo buttons still enable/disable correctly.
+
+### View toggles
+- Grid / Snap / Ruler / Margin toggles appear horizontally in one row.
+- Grid / Snap / Ruler / Margin toggles are not clipped at normal window size.
+- Grid toggle shows/hides grid immediately.
+- Snap toggle changes snap behavior.
+- Ruler toggle shows/hides ruler immediately.
+- Margin toggle shows/hides margin guides immediately.
+- View toggles do not create undo entries.
+- View toggles do not mark report modified.
+- Preview/export output is unchanged by view toggle state.
