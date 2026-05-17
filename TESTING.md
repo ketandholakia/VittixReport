@@ -1,4 +1,4 @@
-﻿# VittixReport Manual Testing Checklist
+﻿    # VittixReport Manual Testing Checklist
 
 Use this checklist before releases or major engine changes.
 
@@ -72,3 +72,41 @@ Release build:
 - `git status` clean.
 - `reports/README.md` aligned with runner list.
 - `TESTING.md` updated if reports/features change.
+
+## 11) Undo/Redo stabilization checklist
+
+### Basic object actions
+- Add object -> Undo/Redo.
+- Delete object -> Undo/Redo.
+- Mouse move -> Undo/Redo.
+- Mouse resize -> Undo/Redo.
+- Keyboard `Ctrl+Arrow` move -> Undo/Redo.
+- Keyboard `Shift+Arrow` resize -> Undo/Redo.
+
+### Property actions
+- Property panel Apply -> Undo/Redo.
+- Expression Helper OK -> Undo/Redo.
+- Font dialog OK -> Undo/Redo.
+- Font dialog Cancel -> no undo entry.
+- Apply with no change -> no undo entry.
+
+### Band actions
+- Add Band -> Undo/Redo.
+- Delete selected band -> Undo/Redo.
+- Band with children delete -> Undo/Redo restores children.
+
+### Band Manager
+- Band Manager Cancel after edits -> no report change and no undo entry.
+- Band Manager OK with no changes -> no undo entry.
+- Band Manager OK with mixed changes -> one Undo/Redo.
+- Previous undo history remains reachable after Band Manager OK.
+
+### Undo/Redo UX
+- Edit menu captions show next action name.
+- Toolbar hints show next action name.
+- Empty stack shows plain disabled Undo/Redo.
+
+### Safety
+- Structure tree refreshes after Undo/Redo.
+- Property panel does not point to stale/deleted object.
+- Preview works after deep Undo/Redo sequence.
