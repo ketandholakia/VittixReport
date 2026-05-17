@@ -288,6 +288,32 @@ Release build:
 - Dialog does not auto-apply.
 - Apply / Undo / Redo behavior remains unchanged.
 
+## 17) Event / Script Policy
+
+### Current supported items
+- Runtime Delphi lifecycle callbacks:
+- OnBeforePrintReport
+- OnAfterPrintReport
+- OnBeforeBand
+- OnAfterBand
+- OnBeforeObject
+- OnAfterObject
+- Persisted band event text:
+- TReportBand.OnBeforePrint
+- TReportBand.OnAfterPrint
+- Band event text is stored in `.vrt` and interpreted by the host application callback/script layer.
+- Designer does not validate or execute script text.
+- Runtime Delphi callbacks are not stored in `.vrt`.
+
+### Object event fields
+- Persisted object `OnBeforePrint` / `OnAfterPrint` fields are intentionally deferred.
+- Reason:
+- would change `.vrt` object schema
+- would require clear execution order policy
+- could affect performance on large reports
+- could create user confusion because no built-in script grammar exists
+- Runtime object callbacks should be used for now.
+
 ## 15) Designer UI / Variables checklist
 
 ### Variables panel
