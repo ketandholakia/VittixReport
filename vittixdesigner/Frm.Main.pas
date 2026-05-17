@@ -53,6 +53,7 @@ uses
   Vittix.Report.Export.PDF,
   Vittix.Report.Objects.Barcode,
   Vittix.Report.Objects.Table, Vcl.Grids,  Vcl.CheckLst,
+  ReportScriptHost.Adapter,
   System.ImageList, Vcl.VirtualImageList, SVGIconVirtualImageList,
   Vcl.BaseImageCollection, SVGIconImageCollection;
 
@@ -583,15 +584,8 @@ type
     FTrace: TStringList;
     FSkipObjectClassName: string;
     FSkipMasterDataBand: Boolean;
-    function ParseScriptAssignment(const AScript: string; out AKey, AValue: string): Boolean;
-    function DispatchScriptCommand(AObject: TReportObject; const AKey, AValue, AFullScript: string;
-      var ACanPrint: Boolean): Boolean;
+    FScriptAdapter: TReportScriptHostAdapter;
     procedure LogScriptUnsupported(const AReason: string);
-    function TryApplyCanPrintCommand(AObject: TReportObject; const AValue: string;
-      var ACanPrint: Boolean): Boolean;
-    function TryApplyVisibleCommand(AObject: TReportObject; const AValue, AFullScript: string): Boolean;
-    function TryApplyBackgroundCommand(AObject: TReportObject; const AValue, AFullScript: string): Boolean;
-    function TryApplyTextCommand(AObject: TReportObject; const AValue, AFullScript: string): Boolean;
   public
     BeforeReportCount: Integer;
     AfterReportCount: Integer;
@@ -664,11 +658,13 @@ constructor TRuntimeEventDemoHarness.Create;
 begin
   inherited Create;
   FTrace := TStringList.Create;
+  FScriptAdapter := TReportScriptHostAdapter.Create;
   ResetCounts;
 end;
 
 destructor TRuntimeEventDemoHarness.Destroy;
 begin
+  FScriptAdapter.Free;
   FTrace.Free;
   inherited;
 end;
@@ -752,8 +748,7 @@ procedure TRuntimeEventDemoHarness.ScriptBeforeObject(AReport: TReportModel;
   var ACanPrint: Boolean);
 var
   S: string;
-  K: string;
-  V: string;
+  CmdResult: TScriptHostCommandResult;
 begin
   Inc(ScriptBeforeObjectCount);
   FTrace.Add(Format('ScriptBeforeObject: %s "%s" text="%s"',
@@ -761,14 +756,19 @@ begin
 
   S := Trim(Script);
 
-  if not ParseScriptAssignment(S, K, V) then
+  CmdResult := FScriptAdapter.ExecuteBeforeObject(AObject, S, ACanPrint);
+  if CmdResult.Handled then
   begin
-    LogScriptUnsupported('ScriptUnsupportedCommand: ' + S);
+    if CmdResult.TextSet then
+      Inc(ScriptTextSetCount);
+    if CmdResult.Canceled then
+      Inc(ScriptCanceledObjectCount);
+    if CmdResult.Unsupported then
+      Inc(ScriptUnsupportedCount);
+    if CmdResult.TraceMessage <> '' then
+      FTrace.Add(CmdResult.TraceMessage);
     Exit;
   end;
-
-  if DispatchScriptCommand(AObject, K, V, S, ACanPrint) then
-    Exit;
 
   LogScriptUnsupported('ScriptUnsupportedCommand: ' + S);
 end;
@@ -785,123 +785,6 @@ procedure TRuntimeEventDemoHarness.LogScriptUnsupported(const AReason: string);
 begin
   Inc(ScriptUnsupportedCount);
   FTrace.Add(AReason);
-end;
-
-function TRuntimeEventDemoHarness.ParseScriptAssignment(const AScript: string; out AKey,
-  AValue: string): Boolean;
-var
-  P: Integer;
-begin
-  AKey := '';
-  AValue := '';
-  P := Pos(':=', AScript);
-  Result := P > 0;
-  if not Result then
-    Exit;
-  AKey := LowerCase(Trim(Copy(AScript, 1, P - 1)));
-  AValue := Trim(Copy(AScript, P + 2, MaxInt));
-end;
-
-function TRuntimeEventDemoHarness.DispatchScriptCommand(AObject: TReportObject; const AKey,
-  AValue, AFullScript: string; var ACanPrint: Boolean): Boolean;
-begin
-  Result := True;
-  if AKey = 'canprint' then
-    Result := TryApplyCanPrintCommand(AObject, AValue, ACanPrint)
-  else if AKey = 'visible' then
-    Result := TryApplyVisibleCommand(AObject, AValue, AFullScript)
-  else if AKey = 'background' then
-    Result := TryApplyBackgroundCommand(AObject, AValue, AFullScript)
-  else if AKey = 'text' then
-    Result := TryApplyTextCommand(AObject, AValue, AFullScript)
-  else
-    Result := False;
-end;
-
-function TRuntimeEventDemoHarness.TryApplyCanPrintCommand(AObject: TReportObject;
-  const AValue: string; var ACanPrint: Boolean): Boolean;
-begin
-  Result := SameText(AValue, 'False');
-  if not Result then
-    Exit;
-
-  ACanPrint := False;
-  Inc(ScriptCanceledObjectCount);
-  if Assigned(AObject) then
-    FTrace.Add('ScriptCanceledObject: ' + AObject.ClassName)
-  else
-    FTrace.Add('ScriptCanceledObject: <nil>');
-end;
-
-function TRuntimeEventDemoHarness.TryApplyVisibleCommand(AObject: TReportObject;
-  const AValue, AFullScript: string): Boolean;
-var
-  B: Boolean;
-begin
-  Result := True;
-
-  if SameText(AValue, 'True') then
-    B := True
-  else if SameText(AValue, 'False') then
-    B := False
-  else
-  begin
-    LogScriptUnsupported('ScriptUnsupportedVisibleValue: ' + AFullScript);
-    Exit;
-  end;
-
-  AObject.Visible := B;
-  FTrace.Add(Format('ScriptSetVisible: %s "%s" -> %s',
-    [AObject.ClassName, AObject.Name, BoolToStr(B, True)]));
-end;
-
-function TRuntimeEventDemoHarness.TryApplyBackgroundCommand(AObject: TReportObject;
-  const AValue, AFullScript: string): Boolean;
-var
-  C: TColor;
-begin
-  Result := True;
-
-  if not (AObject is TReportTextObject) then
-  begin
-    LogScriptUnsupported('ScriptUnsupportedForObjectType: ' + AObject.ClassName);
-    Exit;
-  end;
-
-  try
-    C := StringToColor(AValue);
-    TReportTextObject(AObject).Background := C;
-    TReportTextObject(AObject).Transparent := False;
-    FTrace.Add(Format('ScriptSetBackground: %s "%s" -> %s',
-      [AObject.ClassName, AObject.Name, AValue]));
-  except
-    LogScriptUnsupported('ScriptUnsupportedColor: ' + AFullScript);
-  end;
-end;
-
-function TRuntimeEventDemoHarness.TryApplyTextCommand(AObject: TReportObject;
-  const AValue, AFullScript: string): Boolean;
-var
-  Lit: string;
-begin
-  Result := True;
-
-  if (Length(AValue) >= 2) and (AValue[1] = '''') and (AValue[Length(AValue)] = '''') then
-  begin
-    Lit := Copy(AValue, 2, Length(AValue) - 2);
-    Lit := StringReplace(Lit, '''''', '''', [rfReplaceAll]);
-    if AObject is TReportTextObject then
-    begin
-      TReportTextObject(AObject).Text := Lit;
-      Inc(ScriptTextSetCount);
-      FTrace.Add(Format('ScriptSetText: %s "%s" -> "%s"',
-        [AObject.ClassName, AObject.Name, Lit]));
-    end
-    else
-      LogScriptUnsupported('ScriptUnsupportedForObjectType: ' + AObject.ClassName);
-  end
-  else
-    LogScriptUnsupported('ScriptUnsupportedTextLiteral: ' + AFullScript);
 end;
 
 { TBandEventScriptDialogHelper }

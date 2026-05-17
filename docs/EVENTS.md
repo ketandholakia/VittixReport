@@ -140,7 +140,7 @@ Quick notes:
 - `Visible := False|True`
 - `Background := clColorName` (for `TReportTextObject` only)
 - Unknown commands are treated as unsupported text (logged by host/demo), not executed by engine core.
-- In the designer demo, this parser is implemented as reusable host-side helper methods (adapter-style), not engine scripting logic.
+- In the designer demo, this parser is implemented via a reusable host-side adapter unit (`ReportScriptHost.Adapter.pas`), not engine scripting logic.
 
 ## Execution Order
 
