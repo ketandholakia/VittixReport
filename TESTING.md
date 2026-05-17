@@ -230,10 +230,15 @@ Release build:
 - OnBeforePrint hint explains persisted band script hook.
 - OnAfterPrint hint explains persisted band script hook.
 - Hints clarify these fields are different from runtime Delphi callbacks.
+- Open OnBeforePrint helper from property ellipsis button.
+- Open OnAfterPrint helper from property ellipsis button.
+- Band Event Script dialog shows multiline editor.
 - Editing OnBeforePrint / OnAfterPrint enables Apply.
+- Cancel in Band Event Script dialog keeps property value unchanged.
 - Applying event text creates one undoable property batch.
 - Undo/Redo restores event text.
 - Save/Reopen persists event text.
+- Expression Helper still works for expression fields.
 - Runtime Event Callback Demo remains unaffected.
 
 ## 15) Designer UI / Variables checklist
