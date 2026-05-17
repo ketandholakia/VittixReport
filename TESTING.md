@@ -327,6 +327,15 @@ Release build:
 - Non-empty object event fields do not execute in Phase A.
 - Render output remains unchanged in Phase A.
 
+## 19) Object Event Fields Phase C (Runtime Execution)
+- Empty object event fields keep output unchanged.
+- Non-empty object `OnBeforePrint` executes during final render pass.
+- Non-empty object `OnAfterPrint` executes during final render pass.
+- Object event text does not execute during counting pass.
+- Runtime `OnBeforeObject` CanPrint remains the skip authority.
+- Band script behavior remains unchanged.
+- Preview and export use consistent object event execution behavior.
+
 ## 15) Designer UI / Variables checklist
 
 ### Variables panel

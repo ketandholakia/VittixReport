@@ -1041,6 +1041,13 @@ procedure TReportEngine.HandleBeforeObjectPrint(
   const Context: TExpressionContext;
   var ACanPrint: Boolean);
 begin
+  if FIsRenderingPass and Assigned(AObject) and Assigned(FScriptEngine) and
+     (AObject.OnBeforePrint <> '') then
+  begin
+    var ScriptCtx := Context;
+    FScriptEngine.ExecuteBeforePrint(AObject.OnBeforePrint, ScriptCtx);
+  end;
+
   if Assigned(FOnBeforeObject) then
     FOnBeforeObject(Self, Self, AObject, Context, ACanPrint);
 end;
@@ -1049,6 +1056,13 @@ procedure TReportEngine.HandleAfterObjectPrint(
   AObject: TReportObject;
   const Context: TExpressionContext);
 begin
+  if FIsRenderingPass and Assigned(AObject) and Assigned(FScriptEngine) and
+     (AObject.OnAfterPrint <> '') then
+  begin
+    var ScriptCtx := Context;
+    FScriptEngine.ExecuteAfterPrint(AObject.OnAfterPrint, ScriptCtx);
+  end;
+
   if Assigned(FOnAfterObject) then
     FOnAfterObject(Self, Self, AObject, Context);
 end;

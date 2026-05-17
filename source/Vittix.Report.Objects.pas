@@ -310,6 +310,7 @@ var
   GNamedDataSets: TDictionary<string, TDataSet>;
   GBeforeObjectPrint: TReportObjectBeforePrintEvent;
   GAfterObjectPrint: TReportObjectAfterPrintEvent;
+  GPrecheckedObjectForPrintWhen: TReportObject;
 {$IFDEF DEBUG}
 const
   CDataFieldDiagMaxMessages = 200;
@@ -364,6 +365,9 @@ begin
 end;
 {$ENDIF}
 
+function ShouldPrintObject(AObj: TReportObject;
+  const Context: TExpressionContext): Boolean; forward;
+
 procedure SetReportObjectRenderHooks(
   const ABeforePrint: TReportObjectBeforePrintEvent;
   const AAfterPrint: TReportObjectAfterPrintEvent);
@@ -388,13 +392,24 @@ begin
   if not Assigned(AObject) then
     Exit;
 
+  // Required execution order:
+  // PrintWhen -> persisted/runtime before-hooks -> draw -> persisted/runtime after-hooks.
+  // Evaluate PrintWhen first so object hooks are skipped when the object will not print.
+  if not ShouldPrintObject(AObject, Context) then
+    Exit;
+
   CanPrint := True;
   if Assigned(GBeforeObjectPrint) then
     GBeforeObjectPrint(AObject, Context, CanPrint);
   if not CanPrint then
     Exit;
 
-  AObject.Draw(C, Context);
+  GPrecheckedObjectForPrintWhen := AObject;
+  try
+    AObject.Draw(C, Context);
+  finally
+    GPrecheckedObjectForPrintWhen := nil;
+  end;
 
   if Assigned(GAfterObjectPrint) then
     GAfterObjectPrint(AObject, Context);
@@ -559,6 +574,9 @@ begin
   Result := False;
   if not Assigned(AObj) then
     Exit;
+
+  if AObj = GPrecheckedObjectForPrintWhen then
+    Exit(True);
 
   if not AObj.Visible then
     Exit;
