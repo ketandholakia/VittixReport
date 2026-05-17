@@ -314,6 +314,13 @@ Release build:
 - could create user confusion because no built-in script grammar exists
 - Runtime object callbacks should be used for now.
 
+## 18) Object Event Fields Phase A (Persistence Only)
+- Old `.vrt` files load unchanged.
+- Empty object `OnBeforePrint` / `OnAfterPrint` fields are omitted on save.
+- Non-empty object `OnBeforePrint` / `OnAfterPrint` values save and reload correctly.
+- Non-empty object event fields do not execute in Phase A.
+- Render output remains unchanged in Phase A.
+
 ## 15) Designer UI / Variables checklist
 
 ### Variables panel

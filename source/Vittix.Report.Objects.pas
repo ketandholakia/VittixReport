@@ -23,6 +23,8 @@ type
     FName:        string;
     FVisible:     Boolean;
     FPrintWhen:   string;
+    FOnBeforePrint: string;
+    FOnAfterPrint:  string;
     FAnchorRight: Boolean;
     FAnchorBottom:Boolean;
   protected
@@ -44,6 +46,8 @@ type
     property Name:         string  read FName         write FName;
     property Visible:      Boolean read FVisible      write FVisible      default True;
     property PrintWhen:    string  read FPrintWhen    write FPrintWhen;
+    property OnBeforePrint: string read FOnBeforePrint write FOnBeforePrint;
+    property OnAfterPrint:  string read FOnAfterPrint  write FOnAfterPrint;
     property AnchorRight:  Boolean read FAnchorRight  write FAnchorRight  default False;
     property AnchorBottom: Boolean read FAnchorBottom write FAnchorBottom default False;
   end;
@@ -436,6 +440,8 @@ begin
   inherited;
   FBounds       := Rect(10, 10, 110, 40);
   FVisible      := True;
+  FOnBeforePrint := '';
+  FOnAfterPrint := '';
   FAnchorRight  := False;
   FAnchorBottom := False;
 end;

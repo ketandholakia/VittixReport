@@ -130,6 +130,13 @@ begin
   Result.AddPair('PrintWhen',    Obj.PrintWhen);
   Result.AddPair('AnchorRight',  TJSONBool.Create(Obj.AnchorRight));
   Result.AddPair('AnchorBottom', TJSONBool.Create(Obj.AnchorBottom));
+  if not (Obj is TReportBand) then
+  begin
+    if Trim(Obj.OnBeforePrint) <> '' then
+      Result.AddPair('OnBeforePrint', Obj.OnBeforePrint);
+    if Trim(Obj.OnAfterPrint) <> '' then
+      Result.AddPair('OnAfterPrint', Obj.OnAfterPrint);
+  end;
 
   if Obj is TReportTextObject then
   begin
@@ -297,6 +304,8 @@ begin
     Obj.Bounds       := JSONToRect(O.GetValue<TJSONObject>('Bounds'));
     Obj.Visible      := O.GetValue<Boolean>('Visible',      True);
     Obj.PrintWhen    := O.GetValue<string>('PrintWhen',     '');
+    Obj.OnBeforePrint:= O.GetValue<string>('OnBeforePrint', '');
+    Obj.OnAfterPrint := O.GetValue<string>('OnAfterPrint',  '');
     Obj.AnchorRight  := O.GetValue<Boolean>('AnchorRight',  False);
     Obj.AnchorBottom := O.GetValue<Boolean>('AnchorBottom', False);
 
