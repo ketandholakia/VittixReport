@@ -4485,6 +4485,7 @@ var
   PnlBottom: TPanel;
   LblHelp: TLabel;
   LblTip: TLabel;
+  LblNoValidation: TLabel;
   LblStats: TLabel;
   LblSnippets: TLabel;
   CboSnippets: TComboBox;
@@ -4533,16 +4534,25 @@ begin
     LblTip.Width := Dlg.ClientWidth - 24;
     LblTip.Caption := 'Tip: Ctrl+Enter to save';
 
+    LblNoValidation := TLabel.Create(Dlg);
+    LblNoValidation.Parent := Dlg;
+    LblNoValidation.Left := 12;
+    LblNoValidation.Top := 62;
+    LblNoValidation.Width := Dlg.ClientWidth - 24;
+    LblNoValidation.Caption :=
+      'No syntax validation is performed in the designer. ' +
+      'Script meaning is defined by your host callback implementation.';
+
     LblSnippets := TLabel.Create(Dlg);
     LblSnippets.Parent := Dlg;
     LblSnippets.Left := 12;
-    LblSnippets.Top := 86;
+    LblSnippets.Top := 84;
     LblSnippets.Caption := 'Host-script example snippets (text only):';
 
     CboSnippets := TComboBox.Create(Dlg);
     CboSnippets.Parent := Dlg;
     CboSnippets.Left := 12;
-    CboSnippets.Top := 104;
+    CboSnippets.Top := 102;
     CboSnippets.Width := Dlg.ClientWidth - 118;
     CboSnippets.Style := csDropDownList;
     CboSnippets.Anchors := [akLeft, akTop, akRight];
@@ -4556,8 +4566,10 @@ begin
     BtnInsertSnippet := TButton.Create(Dlg);
     BtnInsertSnippet.Parent := Dlg;
     BtnInsertSnippet.Caption := 'Insert';
+    BtnInsertSnippet.Hint := 'Inserts selected example text at the caret. This does not validate or run the script.';
+    BtnInsertSnippet.ShowHint := True;
     BtnInsertSnippet.Left := Dlg.ClientWidth - 98;
-    BtnInsertSnippet.Top := 102;
+    BtnInsertSnippet.Top := 100;
     BtnInsertSnippet.Width := 86;
     BtnInsertSnippet.Height := 25;
     BtnInsertSnippet.Anchors := [akTop, akRight];
@@ -4565,7 +4577,7 @@ begin
     MemoScript := TMemo.Create(Dlg);
     MemoScript.Parent := Dlg;
     MemoScript.Left := 12;
-    MemoScript.Top := 136;
+    MemoScript.Top := 132;
     MemoScript.Width := Dlg.ClientWidth - 24;
     MemoScript.Height := Dlg.ClientHeight - 172;
     MemoScript.Anchors := [akLeft, akTop, akRight, akBottom];
