@@ -341,6 +341,8 @@ Release build:
 - script-host cancel runs first and skips runtime `OnBeforeObject`.
 - Demo host parser supports `CanPrint := False`.
 - Demo host parser supports `Text := 'literal'` for `TReportTextObject`.
+- Demo host parser supports `Visible := False|True`.
+- Demo host parser supports `Background := clColorName` for `TReportTextObject`.
 - Unsupported script commands are logged by host/demo and do not crash.
 - Band script behavior remains unchanged.
 - Preview and export use consistent object event execution behavior.

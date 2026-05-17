@@ -746,6 +746,8 @@ var
   P: Integer;
   Rhs: string;
   Lit: string;
+  B: Boolean;
+  C: TColor;
 begin
   Inc(ScriptBeforeObjectCount);
   FTrace.Add(Format('ScriptBeforeObject: %s "%s" text="%s"',
@@ -762,6 +764,49 @@ begin
   end;
 
   P := Pos(':=', S);
+  if (P > 0) and SameText(Trim(Copy(S, 1, P - 1)), 'Visible') then
+  begin
+    Rhs := Trim(Copy(S, P + 2, MaxInt));
+    if SameText(Rhs, 'True') then
+      B := True
+    else if SameText(Rhs, 'False') then
+      B := False
+    else
+    begin
+      Inc(ScriptUnsupportedCount);
+      FTrace.Add('ScriptUnsupportedVisibleValue: ' + S);
+      Exit;
+    end;
+
+    AObject.Visible := B;
+    FTrace.Add(Format('ScriptSetVisible: %s "%s" -> %s',
+      [AObject.ClassName, AObject.Name, BoolToStr(B, True)]));
+    Exit;
+  end;
+
+  if (P > 0) and SameText(Trim(Copy(S, 1, P - 1)), 'Background') then
+  begin
+    Rhs := Trim(Copy(S, P + 2, MaxInt));
+    if not (AObject is TReportTextObject) then
+    begin
+      Inc(ScriptUnsupportedCount);
+      FTrace.Add('ScriptUnsupportedForObjectType: ' + AObject.ClassName);
+      Exit;
+    end;
+
+    try
+      C := StringToColor(Rhs);
+      TReportTextObject(AObject).Background := C;
+      TReportTextObject(AObject).Transparent := False;
+      FTrace.Add(Format('ScriptSetBackground: %s "%s" -> %s',
+        [AObject.ClassName, AObject.Name, Rhs]));
+    except
+      Inc(ScriptUnsupportedCount);
+      FTrace.Add('ScriptUnsupportedColor: ' + S);
+    end;
+    Exit;
+  end;
+
   if (P > 0) and SameText(Trim(Copy(S, 1, P - 1)), 'Text') then
   begin
     Rhs := Trim(Copy(S, P + 2, MaxInt));

@@ -137,6 +137,8 @@ Quick notes:
 - Current demo host parser subset:
 - `CanPrint := False`
 - `Text := 'literal'` (for `TReportTextObject` only)
+- `Visible := False|True`
+- `Background := clColorName` (for `TReportTextObject` only)
 - Unknown commands are treated as unsupported text (logged by host/demo), not executed by engine core.
 
 ## Execution Order
