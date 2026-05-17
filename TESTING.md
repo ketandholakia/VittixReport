@@ -223,6 +223,19 @@ Release build:
 - Color picker still works.
 - DataField picklist still works.
 
+### Designer Event Fields
+- Select a band -> [Events] group appears in property panel.
+- OnBeforePrint appears once under/near [Events].
+- OnAfterPrint appears once under/near [Events].
+- OnBeforePrint hint explains persisted band script hook.
+- OnAfterPrint hint explains persisted band script hook.
+- Hints clarify these fields are different from runtime Delphi callbacks.
+- Editing OnBeforePrint / OnAfterPrint enables Apply.
+- Applying event text creates one undoable property batch.
+- Undo/Redo restores event text.
+- Save/Reopen persists event text.
+- Runtime Event Callback Demo remains unaffected.
+
 ## 15) Designer UI / Variables checklist
 
 ### Variables panel
