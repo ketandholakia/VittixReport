@@ -91,9 +91,13 @@ Release build:
 - Apply with no change -> no undo entry.
 - Edit Report Title -> commit boundary -> Undo/Redo.
 - Edit Report Author -> commit boundary -> Undo/Redo.
+- Edit Report Description -> Undo/Redo.
 - Edit Title + Author before same commit boundary -> one Undo/Redo step.
+- Edit Title + Author + Description before same commit boundary -> one Undo/Redo step.
 - Tabbing out of Title/Author does not create separate undo entries.
 - Save after metadata already committed does not create duplicate undo entry.
+- Report Properties Cancel with Description change -> no report change.
+- Save/Reopen preserves Title, Author, and Description.
 
 ### Band actions
 - Add Band -> Undo/Redo.
