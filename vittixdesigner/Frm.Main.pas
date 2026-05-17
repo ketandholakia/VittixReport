@@ -46,6 +46,7 @@ uses
   Vittix.Report.PropertyBridge,
   Vittix.Report.Context,
   Vittix.Report.Expressions,
+  Vittix.Report.Scripting,
   Vittix.Report.Undo,
   Vittix.Report.Engine,
   Vittix.Report.Renderer,
@@ -338,6 +339,7 @@ type
     FExprHelperFields: TListBox;
     FExprHelperExamples: TListBox;
     FExprHelperRecent: TListBox;
+    FRuntimeEventDemoOutput: string;
     // Session-only in-memory expression recents; cleared when designer closes.
     FExprRecentsByKey: TObjectDictionary<string, TStringList>;
 
@@ -429,6 +431,7 @@ type
       AUseSampleDataSet: Boolean = False);
     procedure RunRegressionTestReports;
     procedure RunRuntimeEventCallbackDemo;
+    procedure RuntimeEventDemoCopyClick(Sender: TObject);
     procedure ConfirmSaveIfModified;
     procedure DynInsertMenuClick(Sender: TObject);
     procedure DynAddBandMenuClick(Sender: TObject);
@@ -587,8 +590,11 @@ type
     AfterBandCount: Integer;
     BeforeObjectCount: Integer;
     AfterObjectCount: Integer;
+    ScriptBeforeObjectCount: Integer;
+    ScriptAfterObjectCount: Integer;
     SkippedBandCount: Integer;
     SkippedObjectCount: Integer;
+    ScriptCanceledObjectCount: Integer;
 
     constructor Create;
     destructor Destroy; override;
@@ -604,6 +610,10 @@ type
       const Context: TExpressionContext; var ACanPrint: Boolean);
     procedure AfterObject(Sender, AEngine: TObject; AObject: TReportObject;
       const Context: TExpressionContext);
+    procedure ScriptBeforeObject(AReport: TReportModel; AObject: TReportObject;
+      const Script: string; var Context: TExpressionContext; var ACanPrint: Boolean);
+    procedure ScriptAfterObject(AReport: TReportModel; AObject: TReportObject;
+      const Script: string; var Context: TExpressionContext);
     property Trace: TStringList read FTrace;
     property SkipObjectClassName: string read FSkipObjectClassName write FSkipObjectClassName;
     property SkipMasterDataBand: Boolean read FSkipMasterDataBand write FSkipMasterDataBand;
@@ -660,8 +670,11 @@ begin
   AfterBandCount := 0;
   BeforeObjectCount := 0;
   AfterObjectCount := 0;
+  ScriptBeforeObjectCount := 0;
+  ScriptAfterObjectCount := 0;
   SkippedBandCount := 0;
   SkippedObjectCount := 0;
+  ScriptCanceledObjectCount := 0;
   FTrace.Clear;
   FSkipObjectClassName := '';
   FSkipMasterDataBand := False;
@@ -719,6 +732,30 @@ procedure TRuntimeEventDemoHarness.AfterObject(Sender, AEngine: TObject;
 begin
   Inc(AfterObjectCount);
   FTrace.Add('AfterObject: ' + AObject.ClassName);
+end;
+
+procedure TRuntimeEventDemoHarness.ScriptBeforeObject(AReport: TReportModel;
+  AObject: TReportObject; const Script: string; var Context: TExpressionContext;
+  var ACanPrint: Boolean);
+begin
+  Inc(ScriptBeforeObjectCount);
+  FTrace.Add(Format('ScriptBeforeObject: %s "%s" text="%s"',
+    [AObject.ClassName, AObject.Name, Script]));
+
+  if SameText(Trim(Script), 'CanPrint := False') then
+  begin
+    ACanPrint := False;
+    Inc(ScriptCanceledObjectCount);
+    FTrace.Add('ScriptCanceledObject: ' + AObject.ClassName);
+  end;
+end;
+
+procedure TRuntimeEventDemoHarness.ScriptAfterObject(AReport: TReportModel;
+  AObject: TReportObject; const Script: string; var Context: TExpressionContext);
+begin
+  Inc(ScriptAfterObjectCount);
+  FTrace.Add(Format('ScriptAfterObject: %s "%s" text="%s"',
+    [AObject.ClassName, AObject.Name, Script]));
 end;
 
 { TBandEventScriptDialogHelper }
@@ -1652,6 +1689,11 @@ begin
   FDesigner.CopySelection;
 end;
 
+procedure TfrmMain.RuntimeEventDemoCopyClick(Sender: TObject);
+begin
+  Clipboard.AsText := FRuntimeEventDemoOutput;
+end;
+
 procedure TfrmMain.mnuPasteClick(Sender: TObject);
 begin
   if IsTextEditingControlFocused then
@@ -2054,6 +2096,45 @@ var
   BaseAfterBand: Integer;
   BaseBeforeObject: Integer;
   BaseAfterObject: Integer;
+  BaseScriptBeforeObject: Integer;
+  BaseScriptAfterObject: Integer;
+  ScriptCancelPass: Boolean;
+  TargetOrderPass: Boolean;
+  TargetCancelOrderPass: Boolean;
+  OverallPass: Boolean;
+  ScriptCancelTrace: TStringList;
+  Obj: TReportObject;
+  Band: TReportBand;
+  ChildObj: TReportObject;
+  DemoScriptTarget: TReportObject;
+  ResultDlg: TForm;
+  ResultMemo: TMemo;
+  BtnCopy: TButton;
+  BtnClose: TButton;
+  function TraceHasOrdered(const ATrace: TStrings; const AParts: array of string): Boolean;
+  var
+    StartAt, I, J: Integer;
+  begin
+    Result := False;
+    if not Assigned(ATrace) then
+      Exit;
+
+    StartAt := 0;
+    for I := 0 to High(AParts) do
+    begin
+      J := StartAt;
+      while J < ATrace.Count do
+      begin
+        if Pos(AParts[I], ATrace[J]) > 0 then
+          Break;
+        Inc(J);
+      end;
+      if J >= ATrace.Count then
+        Exit(False);
+      StartAt := J + 1;
+    end;
+    Result := True;
+  end;
 begin
   UseSampleDataSet;
 
@@ -2064,6 +2145,7 @@ begin
   BaselineTrace := TStringList.Create;
   ObjectSkipTrace := TStringList.Create;
   BandSkipTrace := TStringList.Create;
+  ScriptCancelTrace := TStringList.Create;
   try
     FN := GetRegressionReportPath('01_simple_masterdata.vrt');
     if TFile.Exists(FN) then
@@ -2075,6 +2157,36 @@ begin
       raise Exception.Create('Could not load a report for runtime event demo.');
 
     Harness := TRuntimeEventDemoHarness.Create;
+    DemoScriptTarget := nil;
+    for Obj in ReportModel.Objects do
+    begin
+      if Obj is TReportTextObject then
+      begin
+        DemoScriptTarget := Obj;
+        Break;
+      end;
+
+      if Obj is TReportBand then
+      begin
+        Band := TReportBand(Obj);
+        for ChildObj in Band.Children do
+          if ChildObj is TReportTextObject then
+          begin
+            DemoScriptTarget := ChildObj;
+            Break;
+          end;
+        if Assigned(DemoScriptTarget) then
+          Break;
+      end;
+    end;
+
+    if Assigned(DemoScriptTarget) then
+    begin
+      if Trim(DemoScriptTarget.OnBeforePrint) = '' then
+        DemoScriptTarget.OnBeforePrint := 'DemoObjectBefore';
+      if Trim(DemoScriptTarget.OnAfterPrint) = '' then
+        DemoScriptTarget.OnAfterPrint := 'DemoObjectAfter';
+    end;
 
     Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
     try
@@ -2084,6 +2196,8 @@ begin
       Engine.OnAfterBand := Harness.AfterBand;
       Engine.OnBeforeObject := Harness.BeforeObject;
       Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
       Engine.Prepare;
     finally
       Engine.Free;
@@ -2094,6 +2208,8 @@ begin
     BaseAfterBand := Harness.AfterBandCount;
     BaseBeforeObject := Harness.BeforeObjectCount;
     BaseAfterObject := Harness.AfterObjectCount;
+    BaseScriptBeforeObject := Harness.ScriptBeforeObjectCount;
+    BaseScriptAfterObject := Harness.ScriptAfterObjectCount;
     BaselineTrace.Assign(Harness.Trace);
 
     BasePass :=
@@ -2104,19 +2220,29 @@ begin
       (Harness.BeforeObjectCount > 0) and
       (Harness.AfterObjectCount > 0) and
       (Harness.BeforeBandCount >= Harness.AfterBandCount) and
-      (Harness.BeforeObjectCount >= Harness.AfterObjectCount);
+      (Harness.BeforeObjectCount >= Harness.AfterObjectCount) and
+      (Harness.ScriptBeforeObjectCount > 0) and
+      (Harness.ScriptAfterObjectCount > 0);
     CountingInflationPass :=
       (Harness.BeforeReportCount = 1) and
       (Harness.AfterReportCount = 1);
+    TargetOrderPass := TraceHasOrdered(BaselineTrace, [
+      'ScriptBeforeObject: TReportTextObject "txtTitle"',
+      'BeforeObject: TReportTextObject',
+      'ScriptAfterObject: TReportTextObject "txtTitle"',
+      'AfterObject: TReportTextObject'
+    ]);
 
     Lines.Add('Runtime Event Callback Demo');
     Lines.Add('');
     Lines.Add('Baseline summary:');
-    Lines.Add(Format('  BeforeReport=%d AfterReport=%d  BeforeBand=%d AfterBand=%d  BeforeObject=%d AfterObject=%d  SkippedObject=%d SkippedBand=%d',
+    Lines.Add(Format('  BeforeReport=%d AfterReport=%d  BeforeBand=%d AfterBand=%d  BeforeObject=%d AfterObject=%d  ScriptBeforeObject=%d ScriptAfterObject=%d  SkippedObject=%d SkippedBand=%d ScriptCanceled=%d',
       [Harness.BeforeReportCount, Harness.AfterReportCount,
        Harness.BeforeBandCount, Harness.AfterBandCount,
        Harness.BeforeObjectCount, Harness.AfterObjectCount,
-       Harness.SkippedObjectCount, Harness.SkippedBandCount]));
+       Harness.ScriptBeforeObjectCount, Harness.ScriptAfterObjectCount,
+       Harness.SkippedObjectCount, Harness.SkippedBandCount,
+       Harness.ScriptCanceledObjectCount]));
     if BasePass then
       Lines.Add('  Baseline: PASS')
     else
@@ -2125,6 +2251,10 @@ begin
       Lines.Add('  Counting-pass inflation check: PASS')
     else
       Lines.Add('  Counting-pass inflation check: FAIL');
+    if TargetOrderPass then
+      Lines.Add('  Target object order check: PASS')
+    else
+      Lines.Add('  Target object order check: FAIL');
 
     Harness.ResetCounts;
     Harness.SkipObjectClassName := 'TReportTextObject';
@@ -2136,6 +2266,8 @@ begin
       Engine.OnAfterBand := Harness.AfterBand;
       Engine.OnBeforeObject := Harness.BeforeObject;
       Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
       Engine.Prepare;
     finally
       Engine.Free;
@@ -2145,11 +2277,13 @@ begin
     ObjectSkipTrace.Assign(Harness.Trace);
     Lines.Add('');
     Lines.Add('Object-skip summary:');
-    Lines.Add(Format('  BeforeReport=%d AfterReport=%d  BeforeBand=%d AfterBand=%d  BeforeObject=%d AfterObject=%d  SkippedObject=%d SkippedBand=%d',
+    Lines.Add(Format('  BeforeReport=%d AfterReport=%d  BeforeBand=%d AfterBand=%d  BeforeObject=%d AfterObject=%d  ScriptBeforeObject=%d ScriptAfterObject=%d  SkippedObject=%d SkippedBand=%d ScriptCanceled=%d',
       [Harness.BeforeReportCount, Harness.AfterReportCount,
        Harness.BeforeBandCount, Harness.AfterBandCount,
        Harness.BeforeObjectCount, Harness.AfterObjectCount,
-       Harness.SkippedObjectCount, Harness.SkippedBandCount]));
+       Harness.ScriptBeforeObjectCount, Harness.ScriptAfterObjectCount,
+       Harness.SkippedObjectCount, Harness.SkippedBandCount,
+       Harness.ScriptCanceledObjectCount]));
     if ObjectSkipPass then
       Lines.Add(Format('Object skip subtest (skip %s): PASS (SkippedObjectCount=%d)',
         ['TReportTextObject', Harness.SkippedObjectCount]))
@@ -2167,6 +2301,8 @@ begin
       Engine.OnAfterBand := Harness.AfterBand;
       Engine.OnBeforeObject := Harness.BeforeObject;
       Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
       Engine.Prepare;
     finally
       Engine.Free;
@@ -2176,23 +2312,89 @@ begin
     BandSkipTrace.Assign(Harness.Trace);
     Lines.Add('');
     Lines.Add('Band-skip summary:');
-    Lines.Add(Format('  BeforeReport=%d AfterReport=%d  BeforeBand=%d AfterBand=%d  BeforeObject=%d AfterObject=%d  SkippedObject=%d SkippedBand=%d',
+    Lines.Add(Format('  BeforeReport=%d AfterReport=%d  BeforeBand=%d AfterBand=%d  BeforeObject=%d AfterObject=%d  ScriptBeforeObject=%d ScriptAfterObject=%d  SkippedObject=%d SkippedBand=%d ScriptCanceled=%d',
       [Harness.BeforeReportCount, Harness.AfterReportCount,
        Harness.BeforeBandCount, Harness.AfterBandCount,
        Harness.BeforeObjectCount, Harness.AfterObjectCount,
-       Harness.SkippedObjectCount, Harness.SkippedBandCount]));
+       Harness.ScriptBeforeObjectCount, Harness.ScriptAfterObjectCount,
+       Harness.SkippedObjectCount, Harness.SkippedBandCount,
+       Harness.ScriptCanceledObjectCount]));
     if BandSkipPass then
       Lines.Add(Format('Band skip subtest (skip Master Data): PASS (SkippedBandCount=%d)',
         [Harness.SkippedBandCount]))
     else
       Lines.Add(Format('Band skip subtest (skip Master Data): FAIL (SkippedBandCount=%d)',
         [Harness.SkippedBandCount]));
+    Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'CanPrint := False';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    ScriptCancelPass := Harness.ScriptCanceledObjectCount > 0;
+    ScriptCancelTrace.Assign(Harness.Trace);
+    Lines.Add('');
+    Lines.Add('Script-host cancel summary:');
+    Lines.Add(Format('  BeforeReport=%d AfterReport=%d  BeforeBand=%d AfterBand=%d  BeforeObject=%d AfterObject=%d  ScriptBeforeObject=%d ScriptAfterObject=%d  SkippedObject=%d SkippedBand=%d ScriptCanceled=%d',
+      [Harness.BeforeReportCount, Harness.AfterReportCount,
+       Harness.BeforeBandCount, Harness.AfterBandCount,
+       Harness.BeforeObjectCount, Harness.AfterObjectCount,
+       Harness.ScriptBeforeObjectCount, Harness.ScriptAfterObjectCount,
+       Harness.SkippedObjectCount, Harness.SkippedBandCount,
+       Harness.ScriptCanceledObjectCount]));
+    if ScriptCancelPass then
+      Lines.Add('Script-host CanPrint=False subtest: PASS')
+    else
+      Lines.Add('Script-host CanPrint=False subtest: FAIL');
+    TargetCancelOrderPass := TraceHasOrdered(ScriptCancelTrace, [
+      'ScriptBeforeObject: TReportTextObject "txtTitle" text="CanPrint := False"',
+      'ScriptCanceledObject: TReportTextObject'
+    ]) and
+      (Pos('BeforeObject: TReportTextObject', ScriptCancelTrace.Text) = 0) and
+      (Pos('ScriptAfterObject: TReportTextObject "txtTitle"', ScriptCancelTrace.Text) = 0) and
+      (Pos('AfterObject: TReportTextObject', ScriptCancelTrace.Text) = 0);
+    if TargetCancelOrderPass then
+      Lines.Add('  Target object cancel-order check: PASS')
+    else
+      Lines.Add('  Target object cancel-order check: FAIL');
+
+    OverallPass :=
+      BasePass and
+      CountingInflationPass and
+      TargetOrderPass and
+      ObjectSkipPass and
+      BandSkipPass and
+      ScriptCancelPass and
+      TargetCancelOrderPass;
+    Lines.Insert(0, '');
+    if OverallPass then
+      Lines.Insert(0, 'Overall: PASS')
+    else
+      Lines.Insert(0, 'Overall: FAIL');
+    Lines.Insert(1, 'Runtime Event Callback Demo');
+    if (Lines.Count > 2) and SameText(Lines[2], 'Runtime Event Callback Demo') then
+      Lines.Delete(2);
+
     Lines.Add('');
     Lines.Add('Callback inflation guard:');
     Lines.Add(Format('  Baseline BeforeBand=%d, AfterBand=%d',
       [BaseBeforeBand, BaseAfterBand]));
     Lines.Add(Format('  Baseline BeforeObject=%d, AfterObject=%d',
       [BaseBeforeObject, BaseAfterObject]));
+    Lines.Add(Format('  Baseline ScriptBeforeObject=%d, ScriptAfterObject=%d',
+      [BaseScriptBeforeObject, BaseScriptAfterObject]));
 
     Lines.Add('');
     Lines.Add('Baseline trace preview:');
@@ -2215,8 +2417,67 @@ begin
     if BandSkipTrace.Count > TracePreviewMax then
       Lines.Add(Format('  ... (%d more lines)', [BandSkipTrace.Count - TracePreviewMax]));
 
-    ShowMessage(Lines.Text);
+    Lines.Add('');
+    Lines.Add('Script-host cancel trace preview:');
+    for I := 0 to Min(TracePreviewMax - 1, ScriptCancelTrace.Count - 1) do
+      Lines.Add('  ' + ScriptCancelTrace[I]);
+    if ScriptCancelTrace.Count > TracePreviewMax then
+      Lines.Add(Format('  ... (%d more lines)', [ScriptCancelTrace.Count - TracePreviewMax]));
+
+    ResultDlg := TForm.Create(Self);
+    try
+      ResultDlg.Caption := 'Runtime Event Callback Demo Result';
+      ResultDlg.Position := poScreenCenter;
+      ResultDlg.Width := 900;
+      ResultDlg.Height := 700;
+      ResultDlg.BorderStyle := bsSizeable;
+
+      ResultMemo := TMemo.Create(ResultDlg);
+      ResultMemo.Parent := ResultDlg;
+      ResultMemo.Align := alClient;
+      ResultMemo.ReadOnly := True;
+      ResultMemo.ScrollBars := ssBoth;
+      ResultMemo.WordWrap := False;
+      ResultMemo.Font.Name := 'Consolas';
+      ResultMemo.Font.Size := 10;
+      ResultMemo.Lines.Text := Lines.Text;
+
+      BtnClose := TButton.Create(ResultDlg);
+      BtnClose.Parent := ResultDlg;
+      BtnClose.Caption := 'Close';
+      BtnClose.ModalResult := mrOK;
+      BtnClose.Anchors := [akRight, akBottom];
+      BtnClose.Width := 90;
+      BtnClose.Height := 28;
+      BtnClose.Left := ResultDlg.ClientWidth - BtnClose.Width - 12;
+      BtnClose.Top := ResultDlg.ClientHeight - BtnClose.Height - 8;
+
+      BtnCopy := TButton.Create(ResultDlg);
+      BtnCopy.Parent := ResultDlg;
+      BtnCopy.Caption := 'Copy';
+      BtnCopy.Hint := 'Copy full demo output to clipboard';
+      BtnCopy.ShowHint := True;
+      BtnCopy.Anchors := [akRight, akBottom];
+      BtnCopy.Width := 90;
+      BtnCopy.Height := 28;
+      BtnCopy.Left := BtnClose.Left - BtnCopy.Width - 8;
+      BtnCopy.Top := BtnClose.Top;
+      FRuntimeEventDemoOutput := ResultMemo.Lines.Text;
+      BtnCopy.OnClick := RuntimeEventDemoCopyClick;
+
+      ResultMemo.AlignWithMargins := True;
+      ResultMemo.Margins.Left := 8;
+      ResultMemo.Margins.Top := 8;
+      ResultMemo.Margins.Right := 8;
+      ResultMemo.Margins.Bottom := BtnClose.Height + 16;
+
+      ResultDlg.ActiveControl := BtnClose;
+      ResultDlg.ShowModal;
+    finally
+      ResultDlg.Free;
+    end;
   finally
+    ScriptCancelTrace.Free;
     BandSkipTrace.Free;
     ObjectSkipTrace.Free;
     BaselineTrace.Free;

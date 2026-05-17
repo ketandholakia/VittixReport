@@ -1045,7 +1045,11 @@ begin
      (AObject.OnBeforePrint <> '') then
   begin
     var ScriptCtx := Context;
-    FScriptEngine.ExecuteBeforePrint(AObject.OnBeforePrint, ScriptCtx);
+    // Object persisted script host runs before runtime OnBeforeObject callback.
+    // If the host sets ACanPrint=False, skip runtime callback and drawing/after-hooks.
+    FScriptEngine.ExecuteObjectBeforePrint(FReport, AObject, AObject.OnBeforePrint, ScriptCtx, ACanPrint);
+    if not ACanPrint then
+      Exit;
   end;
 
   if Assigned(FOnBeforeObject) then
@@ -1060,7 +1064,7 @@ begin
      (AObject.OnAfterPrint <> '') then
   begin
     var ScriptCtx := Context;
-    FScriptEngine.ExecuteAfterPrint(AObject.OnAfterPrint, ScriptCtx);
+    FScriptEngine.ExecuteObjectAfterPrint(FReport, AObject, AObject.OnAfterPrint, ScriptCtx);
   end;
 
   if Assigned(FOnAfterObject) then

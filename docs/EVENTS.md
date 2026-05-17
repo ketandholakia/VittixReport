@@ -127,6 +127,13 @@ Quick notes:
 - The designer does not guarantee a built-in script grammar.
 - The designer does not validate, compile, or execute persisted event text.
 
+### Object script-host contract
+- The engine does not interpret object event text directly.
+- The host can assign script-host callbacks through `TReportScriptEngine`:
+- `OnObjectBeforePrint(AReport, AObject, Script, Context, var ACanPrint)`
+- `OnObjectAfterPrint(AReport, AObject, Script, Context)`
+- `OnObjectBeforePrint` can set `ACanPrint := False` to cancel printing that object.
+
 ## Execution Order
 
 Object-level execution order:
@@ -140,6 +147,13 @@ Object-level execution order:
 `PrintWhen` gating rule:
 - If `PrintWhen=False`, the object is skipped.
 - When skipped by `PrintWhen`, persisted object event text and runtime object callbacks are not executed.
+
+`CanPrint` rule:
+- If script-host `OnObjectBeforePrint` sets `ACanPrint=False`, the engine skips:
+- Runtime `OnBeforeObject`
+- Object draw
+- Persisted object `OnAfterPrint` text
+- Runtime `OnAfterObject`
 
 Band/report order:
 - Report lifecycle callbacks wrap report execution (`OnBeforePrintReport` -> render -> `OnAfterPrintReport`).

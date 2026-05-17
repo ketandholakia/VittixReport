@@ -335,7 +335,10 @@ Release build:
 - Non-empty object `OnBeforePrint` executes during final render pass.
 - Non-empty object `OnAfterPrint` executes during final render pass.
 - Object event text does not execute during counting pass.
-- Runtime `OnBeforeObject` CanPrint remains the skip authority.
+- Script host receives object `OnBeforePrint` text and object context during final render.
+- Script host receives object `OnAfterPrint` text only when object draw completes.
+- Script-host `OnObjectBeforePrint` and runtime `OnBeforeObject` can both cancel print;
+- script-host cancel runs first and skips runtime `OnBeforeObject`.
 - Band script behavior remains unchanged.
 - Preview and export use consistent object event execution behavior.
 
@@ -367,6 +370,7 @@ Expected result:
 - Object persisted event text and runtime object callbacks are gated by `PrintWhen`.
 - Skipped objects must not execute before/after event logic.
 - Preview and export follow the same object event execution path and order.
+- If object script-host `OnBeforePrint` sets `CanPrint=False`, runtime `OnBeforeObject`, draw, persisted `OnAfterPrint`, and runtime `OnAfterObject` are skipped.
 
 ## 18) Designer UI / Variables checklist
 
