@@ -2671,6 +2671,21 @@ begin
     else
       Lines.Add('Trailing semicolon subtest: FAIL');
 
+    Lines.Add('');
+    Lines.Add('Parser edge-case summary:');
+    if EscapedQuotePass then
+      Lines.Add('  EscapedQuote: PASS')
+    else
+      Lines.Add('  EscapedQuote: FAIL');
+    if WhitespacePass then
+      Lines.Add('  WhitespaceNormalization: PASS')
+    else
+      Lines.Add('  WhitespaceNormalization: FAIL');
+    if TrailingSemicolonPass then
+      Lines.Add('  TrailingSemicolon: PASS')
+    else
+      Lines.Add('  TrailingSemicolon: FAIL');
+
     OverallPass :=
       BasePass and
       CountingInflationPass and

@@ -145,6 +145,12 @@ Quick notes:
 - `CanPrint := False` short-circuits remaining commands for that object.
 - Statement splitting is quote-aware for single-quoted literals:
 - `Text := 'A;B'; Visible := True` keeps `A;B` as one text literal.
+- Escaped single quotes in literals are preserved:
+- `Text := 'O''Reilly'`
+- Whitespace around assignments/separators is normalized by adapter parsing:
+- `  Visible   :=   True ;   Text := 'WS'   `
+- Trailing empty semicolon segments are ignored safely:
+- `Text := 'Tail'; ; ;`
 - Unknown commands are treated as unsupported text (logged by host/demo), not executed by engine core.
 - In the designer demo, this parser is implemented via reusable shared adapter unit (`source/Vittix.Report.ScriptHost.Adapter.pas`), not engine scripting logic.
 
