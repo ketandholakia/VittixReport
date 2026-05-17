@@ -299,6 +299,7 @@ type
   private
     FCurrentFile: string;
     FModified   : Boolean;
+    FReportMetadataDirty: Boolean;
     // Created dynamically in FormCreate (not streamed from DFM)
     FDesigner   : TVittixReportDesigner;
     FDataSource1: TDataSource;
@@ -377,6 +378,8 @@ type
     function  EditColorPropertyRow(ARow: Integer): Boolean;
     function  EditFontPropertyRow(ARow: Integer): Boolean;
     procedure ApplyZoom;
+    procedure CommitReportMetadataChanges(AUndoable: Boolean = True);
+    procedure ReportMetadataEditChange(Sender: TObject);
 
     procedure AddBand(ABandType: TReportBandType);
     function  AddTextObject(ABand: TReportBand; const AText: string; X, Y, W, H: Integer): TReportTextObject;
@@ -487,6 +490,22 @@ type
     constructor Create(ADesigner: TVittixReportDesigner;
       AOldSettings, ANewSettings: TReportPageSettings);
     destructor Destroy; override;
+    procedure Execute; override;
+    procedure Rollback; override;
+  end;
+
+  TReportMetadataChangeCommand = class(TUndoableAction)
+  private
+    FForm: TfrmMain;
+    FReport: TReportModel;
+    FOldTitle: string;
+    FOldAuthor: string;
+    FNewTitle: string;
+    FNewAuthor: string;
+    procedure ApplyValues(const ATitle, AAuthor: string);
+  public
+    constructor Create(AForm: TfrmMain; AReport: TReportModel;
+      const AOldTitle, AOldAuthor, ANewTitle, ANewAuthor: string);
     procedure Execute; override;
     procedure Rollback; override;
   end;
@@ -652,6 +671,47 @@ begin
   ApplySettings(FOldSettings);
 end;
 
+constructor TReportMetadataChangeCommand.Create(AForm: TfrmMain;
+  AReport: TReportModel; const AOldTitle, AOldAuthor, ANewTitle,
+  ANewAuthor: string);
+begin
+  inherited Create;
+  ActionName := 'Report Properties Change';
+  FForm := AForm;
+  FReport := AReport;
+  FOldTitle := AOldTitle;
+  FOldAuthor := AOldAuthor;
+  FNewTitle := ANewTitle;
+  FNewAuthor := ANewAuthor;
+end;
+
+procedure TReportMetadataChangeCommand.ApplyValues(const ATitle, AAuthor: string);
+begin
+  if Assigned(FReport) then
+  begin
+    FReport.Title := ATitle;
+    FReport.Author := AAuthor;
+  end;
+
+  if Assigned(FForm) then
+  begin
+    if Assigned(FForm.edtReportTitle) then
+      FForm.edtReportTitle.Text := ATitle;
+    if Assigned(FForm.edtReportAuthor) then
+      FForm.edtReportAuthor.Text := AAuthor;
+  end;
+end;
+
+procedure TReportMetadataChangeCommand.Execute;
+begin
+  ApplyValues(FNewTitle, FNewAuthor);
+end;
+
+procedure TReportMetadataChangeCommand.Rollback;
+begin
+  ApplyValues(FOldTitle, FOldAuthor);
+end;
+
 { =========================================================================== }
 {  Form lifecycle                                                              }
 { =========================================================================== }
@@ -745,6 +805,8 @@ begin
   FDesigner.OnDataSetChanged   := DesignerDataSetChanged;
   FDesigner.OnDragOver         := DesignerDragOver;
   FDesigner.OnDragDrop         := DesignerDragDrop;
+  edtReportTitle.OnChange      := ReportMetadataEditChange;
+  edtReportAuthor.OnChange     := ReportMetadataEditChange;
   PropEditor.OnDblClick        := PropEditorDblClick;
   PropEditor.OnEditButtonClick := PropEditorEditButtonClick;
   PropEditor.OnSelectCell      := PropEditorSelectCell;
@@ -765,6 +827,7 @@ begin
 
   FCurrentFile := '';
   FModified    := False;
+  FReportMetadataDirty := False;
 
   // Command-line mode: VittixDesigner.exe "<input>" "<output>"
   // When launched by the component editor, load the input file and
@@ -916,8 +979,7 @@ begin
   if FCmdLineOutputFile <> '' then
   begin
     try
-      FDesigner.Report.Title  := edtReportTitle.Text;
-      FDesigner.Report.Author := edtReportAuthor.Text;
+      CommitReportMetadataChanges(False);
       // Write JSON (not .vrt format) so the component editor can read it
       // back directly into TVittixReport.ReportJSON
       TFile.WriteAllText(FCmdLineOutputFile,
@@ -930,8 +992,58 @@ begin
     Exit; // skip the normal "save changes?" prompt
   end;
 
-  if FModified then
+  if FModified or FReportMetadataDirty then
     ConfirmSaveIfModified;
+end;
+
+procedure TfrmMain.CommitReportMetadataChanges(AUndoable: Boolean = True);
+var
+  OldTitle: string;
+  OldAuthor: string;
+  NewTitle: string;
+  NewAuthor: string;
+  Cmd: TReportMetadataChangeCommand;
+begin
+  if not Assigned(FDesigner) or not Assigned(FDesigner.Report) then
+    Exit;
+
+  OldTitle := FDesigner.Report.Title;
+  OldAuthor := FDesigner.Report.Author;
+  NewTitle := edtReportTitle.Text;
+  NewAuthor := edtReportAuthor.Text;
+
+  if (OldTitle = NewTitle) and (OldAuthor = NewAuthor) then
+  begin
+    FReportMetadataDirty := False;
+    UpdateTitleBar;
+    Exit;
+  end;
+
+  if AUndoable then
+  begin
+    Cmd := TReportMetadataChangeCommand.Create(Self, FDesigner.Report,
+      OldTitle, OldAuthor, NewTitle, NewAuthor);
+    FDesigner.ExecuteUndoCommand(Cmd);
+  end
+  else
+  begin
+    FDesigner.Report.Title := NewTitle;
+    FDesigner.Report.Author := NewAuthor;
+  end;
+
+  FReportMetadataDirty := False;
+  UpdateTitleBar;
+  UpdateMenuState;
+end;
+
+procedure TfrmMain.ReportMetadataEditChange(Sender: TObject);
+begin
+  if not Assigned(FDesigner) or not Assigned(FDesigner.Report) then
+    Exit;
+  FReportMetadataDirty :=
+    (FDesigner.Report.Title <> edtReportTitle.Text) or
+    (FDesigner.Report.Author <> edtReportAuthor.Text);
+  UpdateTitleBar;
 end;
 
 { =========================================================================== }
@@ -944,6 +1056,7 @@ begin
   FDesigner.NewReport;
   FCurrentFile := '';
   FModified    := False;
+  FReportMetadataDirty := False;
   edtReportTitle.Text  := FDesigner.Report.Title;
   edtReportAuthor.Text := FDesigner.Report.Author;
   RefreshReportStructure;
@@ -964,6 +1077,7 @@ begin
   FDesigner.RebuildLayout;
   FCurrentFile := AFileName;
   FModified := False;
+  FReportMetadataDirty := False;
   edtReportTitle.Text := FDesigner.Report.Title;
   edtReportAuthor.Text := FDesigner.Report.Author;
   RefreshFieldList;
@@ -994,12 +1108,12 @@ begin
     mnuSaveAsClick(Sender)
   else
   begin
-    // Commit report-info edits
-    FDesigner.Report.Title  := edtReportTitle.Text;
-    FDesigner.Report.Author := edtReportAuthor.Text;
+    // Commit pending report-info edits as a single undoable metadata change.
+    CommitReportMetadataChanges(True);
     try
       TReportSerializer.SaveToFile(FDesigner.Report, FCurrentFile);
       FModified := False;
+      FReportMetadataDirty := False;
       UpdateTitleBar;
       StatusBar1.Panels[1].Text := 'Saved: ' + ExtractFileName(FCurrentFile);
     except
@@ -1024,6 +1138,8 @@ var
   Eng   : TReportEngine;
   DS    : TDataSet;
 begin
+  CommitReportMetadataChanges(True);
+
   dlgPDF := TSaveDialog.Create(nil);
   try
     dlgPDF.Filter     := 'PDF Files (*.pdf)|*.pdf|All Files (*.*)|*.*';
@@ -1662,6 +1778,8 @@ var
   Frm: TfrmPreview;
   DS: TDataSet;
 begin
+  CommitReportMetadataChanges(True);
+
   DS := nil;
   if Assigned(FDataSource1) then
     DS := FDataSource1.DataSet;
@@ -2440,7 +2558,7 @@ begin
   Title := 'Vittix Report Designer';
   if FCurrentFile <> '' then
     Title := Title + '  —  ' + ExtractFileName(FCurrentFile);
-  if FModified then
+  if FModified or FReportMetadataDirty then
     Title := Title + ' *';
   Caption := Title;
 end;
@@ -2626,7 +2744,7 @@ end;
 
 procedure TfrmMain.ConfirmSaveIfModified;
 begin
-  if not FModified then Exit;
+  if not (FModified or FReportMetadataDirty) then Exit;
   case MessageDlg('The report has unsaved changes. Save now?',
                   mtConfirmation, [mbYes, mbNo, mbCancel], 0) of
     mrYes:    mnuSaveClick(nil);
