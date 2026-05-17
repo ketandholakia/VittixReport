@@ -271,6 +271,23 @@ Release build:
 - Expression Helper still works for Expression / PrintWhen / condition fields.
 - Font / Color / DataField editors still work.
 
+### Band Event Script Snippets
+- Snippet combo/list is visible.
+- Snippet label clearly says host-script example / text only.
+- Insert button is visible.
+- Header / note snippet inserts plain text at caret.
+- Visibility placeholder snippet inserts plain text at caret.
+- Variable placeholder snippet inserts plain text at caret.
+- If / then template inserts plain text at caret.
+- Host callback note inserts plain text at caret.
+- Snippet insertion updates Lines / Chars count.
+- Cancel after snippet insertion leaves property value unchanged.
+- OK after snippet insertion writes text back to property grid only.
+- Dialog does not validate snippets.
+- Dialog does not execute snippets.
+- Dialog does not auto-apply.
+- Apply / Undo / Redo behavior remains unchanged.
+
 ## 15) Designer UI / Variables checklist
 
 ### Variables panel
