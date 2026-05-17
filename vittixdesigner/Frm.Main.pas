@@ -406,6 +406,7 @@ type
     procedure RefreshReportStructure;
     procedure SyncReportStructureSelection;
     procedure StructureTreeChange(Sender: TObject; Node: TTreeNode);
+    procedure StructureTreeDblClick(Sender: TObject);
     function  FindStructureNodeByData(AData: Pointer): TTreeNode;
     function  StructureBandCaption(ABand: TReportBand): string;
     function  StructureObjectCaption(AObj: TReportObject): string;
@@ -797,6 +798,7 @@ begin
   FTreeStructure.Hint := 'Read-only outline of report bands and objects';
   FTreeStructure.ShowHint := True;
   FTreeStructure.OnChange := StructureTreeChange;
+  FTreeStructure.OnDblClick := StructureTreeDblClick;
 
   // Splitters between toolbox/structure/fields panels
   Splitter           := TSplitter.Create(Self);
@@ -2955,6 +2957,29 @@ begin
     FDesigner.SelectObject(nil)
   else
     FDesigner.SelectObject(TReportObject(Node.Data));
+end;
+
+procedure TfrmMain.StructureTreeDblClick(Sender: TObject);
+var
+  Node: TTreeNode;
+begin
+  if not Assigned(FTreeStructure) or not Assigned(FDesigner) then
+    Exit;
+
+  Node := FTreeStructure.Selected;
+  if not Assigned(Node) then
+    Exit;
+
+  // Reinforce existing selection path without mutating report state.
+  if Assigned(Node.Data) then
+    FDesigner.SelectObject(TReportObject(Node.Data));
+
+  if Assigned(FDesigner.Parent) and FDesigner.Parent.CanFocus then
+    FDesigner.Parent.SetFocus
+  else if FDesigner.CanFocus then
+    FDesigner.SetFocus;
+
+  FDesigner.Invalidate;
 end;
 
 procedure TfrmMain.RefreshReportStructure;
