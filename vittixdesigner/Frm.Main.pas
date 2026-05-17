@@ -614,11 +614,14 @@ type
     FDialog: TForm;
     FMemo: TMemo;
     FStatsLabel: TLabel;
+    FSnippetCombo: TComboBox;
   public
-    constructor Create(ADialog: TForm; AMemo: TMemo; AStatsLabel: TLabel);
+    constructor Create(ADialog: TForm; AMemo: TMemo; AStatsLabel: TLabel;
+      ASnippetCombo: TComboBox);
     procedure UpdateStats;
     procedure MemoChange(Sender: TObject);
     procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure InsertSnippetClick(Sender: TObject);
   end;
 
 function PageSettingsEqual(A, B: TReportPageSettings): Boolean;
@@ -721,12 +724,13 @@ end;
 { TBandEventScriptDialogHelper }
 
 constructor TBandEventScriptDialogHelper.Create(ADialog: TForm; AMemo: TMemo;
-  AStatsLabel: TLabel);
+  AStatsLabel: TLabel; ASnippetCombo: TComboBox);
 begin
   inherited Create;
   FDialog := ADialog;
   FMemo := AMemo;
   FStatsLabel := AStatsLabel;
+  FSnippetCombo := ASnippetCombo;
 end;
 
 procedure TBandEventScriptDialogHelper.UpdateStats;
@@ -760,6 +764,51 @@ begin
     if Assigned(FDialog) then
       FDialog.ModalResult := mrOk;
   end;
+end;
+
+procedure TBandEventScriptDialogHelper.InsertSnippetClick(Sender: TObject);
+var
+  S: string;
+begin
+  if not Assigned(FMemo) or not Assigned(FSnippetCombo) then
+    Exit;
+  if FSnippetCombo.ItemIndex < 0 then
+    Exit;
+
+  case FSnippetCombo.ItemIndex of
+    0:
+      S :=
+        '// Host callback script example' + sLineBreak +
+        '// Purpose: describe what this hook should do';
+    1:
+      S :=
+        '// Example: set visibility in host callback' + sLineBreak +
+        'Visible := False;';
+    2:
+      S :=
+        '// Example: set variable in host callback' + sLineBreak +
+        'Vars[''MyVar''] := ''value'';';
+    3:
+      S :=
+        'if <condition> then' + sLineBreak +
+        'begin' + sLineBreak +
+        '  // ...' + sLineBreak +
+        'end;';
+    4:
+      S :=
+        '// This script is passed as text to the host callback implementation.' + sLineBreak +
+        '// VittixReport does not execute this text by itself.';
+  else
+    Exit;
+  end;
+
+  if (FMemo.Text <> '') and (FMemo.SelStart > 0) and
+     (FMemo.Text[FMemo.SelStart] <> #10) and (FMemo.Text[FMemo.SelStart] <> #13) then
+    FMemo.SelText := sLineBreak + S
+  else
+    FMemo.SelText := S;
+  FMemo.SetFocus;
+  UpdateStats;
 end;
 
 constructor TPropertyBatchChangeCommand.Create(AObj: TObject;
@@ -4437,6 +4486,9 @@ var
   LblHelp: TLabel;
   LblTip: TLabel;
   LblStats: TLabel;
+  LblSnippets: TLabel;
+  CboSnippets: TComboBox;
+  BtnInsertSnippet: TButton;
   MemoScript: TMemo;
   BtnOK: TButton;
   BtnCancel: TButton;
@@ -4481,12 +4533,41 @@ begin
     LblTip.Width := Dlg.ClientWidth - 24;
     LblTip.Caption := 'Tip: Ctrl+Enter to save';
 
+    LblSnippets := TLabel.Create(Dlg);
+    LblSnippets.Parent := Dlg;
+    LblSnippets.Left := 12;
+    LblSnippets.Top := 86;
+    LblSnippets.Caption := 'Host-script example snippets (text only):';
+
+    CboSnippets := TComboBox.Create(Dlg);
+    CboSnippets.Parent := Dlg;
+    CboSnippets.Left := 12;
+    CboSnippets.Top := 104;
+    CboSnippets.Width := Dlg.ClientWidth - 118;
+    CboSnippets.Style := csDropDownList;
+    CboSnippets.Anchors := [akLeft, akTop, akRight];
+    CboSnippets.Items.Add('Comment/Header block');
+    CboSnippets.Items.Add('Set visibility placeholder');
+    CboSnippets.Items.Add('Set variable placeholder');
+    CboSnippets.Items.Add('If/Then pseudo-template');
+    CboSnippets.Items.Add('Host callback note');
+    CboSnippets.ItemIndex := 0;
+
+    BtnInsertSnippet := TButton.Create(Dlg);
+    BtnInsertSnippet.Parent := Dlg;
+    BtnInsertSnippet.Caption := 'Insert';
+    BtnInsertSnippet.Left := Dlg.ClientWidth - 98;
+    BtnInsertSnippet.Top := 102;
+    BtnInsertSnippet.Width := 86;
+    BtnInsertSnippet.Height := 25;
+    BtnInsertSnippet.Anchors := [akTop, akRight];
+
     MemoScript := TMemo.Create(Dlg);
     MemoScript.Parent := Dlg;
     MemoScript.Left := 12;
-    MemoScript.Top := 66;
+    MemoScript.Top := 136;
     MemoScript.Width := Dlg.ClientWidth - 24;
-    MemoScript.Height := Dlg.ClientHeight - 102;
+    MemoScript.Height := Dlg.ClientHeight - 172;
     MemoScript.Anchors := [akLeft, akTop, akRight, akBottom];
     MemoScript.ScrollBars := ssBoth;
     MemoScript.WordWrap := False;
@@ -4524,9 +4605,10 @@ begin
     BtnCancel.Width := 80;
     BtnCancel.Anchors := [akRight, akBottom];
 
-    Helper := TBandEventScriptDialogHelper.Create(Dlg, MemoScript, LblStats);
+    Helper := TBandEventScriptDialogHelper.Create(Dlg, MemoScript, LblStats, CboSnippets);
     MemoScript.OnChange := Helper.MemoChange;
     Dlg.OnKeyDown := Helper.FormKeyDown;
+    BtnInsertSnippet.OnClick := Helper.InsertSnippetClick;
     Helper.UpdateStats;
 
     Dlg.ActiveControl := MemoScript;
