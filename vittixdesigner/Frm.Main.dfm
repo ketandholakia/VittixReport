@@ -2227,7 +2227,7 @@ object frmMain: TfrmMain
         IconName = 'text_object'
         SVGText = 
           '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960' +
-          ' 960" width="24px" fill="#e3e3e3"><path d="M200-200v-80h560v80H200Zm76-16' +
+          ' 960" width="24px" fill="#4A4A4A"><path d="M200-200v-80h560v80H200Zm76-16' +
           '0 164-440h80l164 440h-76l-38-112H392l-40 112h-76Zm138-176h132l-64-182h-' +
           '4l-64 182Z"/></svg>'
       end
@@ -2235,7 +2235,7 @@ object frmMain: TfrmMain
         IconName = 'datafield_object'
         SVGText = 
           '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960' +
-          ' 960" width="24px" fill="#e3e3e3"><path d="M560-160v-80h160v-227h80v-26h-' +
+          ' 960" width="24px" fill="#4A4A4A"><path d="M560-160v-80h160v-227h80v-26h-' +
           '80v-227H560v-80h240v234h80v172h-80v234H560Zm-400 0v-234H80v-172h80v-234h' +
           '240v80H240v227h-80v26h80v227h160v80H160Z"/></svg>'
       end
@@ -2243,7 +2243,7 @@ object frmMain: TfrmMain
         IconName = 'memo_object'
         SVGText = 
           '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960' +
-          ' 960" width="24px" fill="#e3e3e3"><path d="M280-280h280v-80H280v80Zm0-160' +
+          ' 960" width="24px" fill="#4A4A4A"><path d="M280-280h280v-80H280v80Zm0-160' +
           'h400v-80H280v80Zm0-160h400v-80H280v80ZM120-120v-720h720v720H120Zm80-80h5' +
           '60v-560H200v560Zm0 0v-560 560Z"/></svg>'
       end
@@ -2251,7 +2251,7 @@ object frmMain: TfrmMain
         IconName = 'image_object'
         SVGText = 
           '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960' +
-          ' 960" width="24px" fill="#e3e3e3"><path d="M240-280h480L570-480 450-320l-' +
+          ' 960" width="24px" fill="#4A4A4A"><path d="M240-280h480L570-480 450-320l-' +
           '90-120-120 160ZM120-120v-720h720v720H120Zm80-80h560v-560H200v560Zm0 0v-5' +
           '60 560Z"/></svg>'
       end
@@ -2259,7 +2259,7 @@ object frmMain: TfrmMain
         IconName = 'barcode_object'
         SVGText = 
           '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960' +
-          ' 960" width="24px" fill="#e3e3e3"><path d="M40-200v-560h80v560H40Zm120 0v' +
+          ' 960" width="24px" fill="#4A4A4A"><path d="M40-200v-560h80v560H40Zm120 0v' +
           '-560h80v560h-80Zm120 0v-560h40v560h-40Zm120 0v-560h80v560h-80Zm120 0v-56' +
           '0h120v560H520Zm160 0v-560h40v560h-40Zm120 0v-560h120v560H800Z"/></svg>'
       end
@@ -2267,7 +2267,7 @@ object frmMain: TfrmMain
         IconName = 'shapes_object'
         SVGText = 
           '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960' +
-          ' 960" width="24px" fill="#e3e3e3"><path d="M600-360ZM320-242q10 1 19.5 1.' +
+          ' 960" width="24px" fill="#4A4A4A"><path d="M600-360ZM320-242q10 1 19.5 1.' +
           '5t20.5.5q11 0 20.5-.5T400-242v82h400v-400h-82q1-10 1.5-19.5t.5-20.5q0-11' +
           '-.5-20.5T718-640h162v560H320v-162ZM161.5-401.5Q80-483 80-600t81.5-198.5Q' +
           '243-880 360-880t198.5 81.5Q640-717 640-600t-81.5 198.5Q477-320 360-320t-1' +
@@ -2278,7 +2278,7 @@ object frmMain: TfrmMain
         IconName = 'line_object'
         SVGText = 
           '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960' +
-          ' 960" width="24px" fill="#e3e3e3"><path d="M201-240q0-17 11-28l480-480q11' +
+          ' 960" width="24px" fill="#4A4A4A"><path d="M201-240q0-17 11-28l480-480q11' +
           '-12 27.5-12t28.5 12q11 11 11 28t-11 28L268-212q-11 11-28 11t-28-11q-11-1' +
           '1-11-28Z"/></svg>'
       end
@@ -2286,14 +2286,14 @@ object frmMain: TfrmMain
         IconName = 'subreport_object'
         SVGText = 
           '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960' +
-          ' 960" width="24px" fill="#e3e3e3"><path d="M80-160v-640h800v640H80Zm80-80' +
+          ' 960" width="24px" fill="#4A4A4A"><path d="M80-160v-640h800v640H80Zm80-80' +
           'h640v-480H160v480Zm0 0v-480 480Zm160-120h320v-240H320v240Z"/></svg>'
       end
       item
         IconName = 'table_object'
         SVGText = 
           '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960' +
-          ' 960" width="24px" fill="#e3e3e3"><path d="M120-120v-720h720v720H120Zm320' +
+          ' 960" width="24px" fill="#4A4A4A"><path d="M120-120v-720h720v720H120Zm320' +
           '-240H200v160h240v-160Zm80 0v160h240v-160H520Zm-80-80v-160H200v160h240Zm8' +
           '0 0h240v-160H520v160ZM200-680h560v-80H200v80Z"/></svg>'
       end
