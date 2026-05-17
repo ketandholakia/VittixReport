@@ -209,7 +209,8 @@ type
     destructor  Destroy; override;
 
     { Report management }
-    procedure LoadReport(AReport: TReportModel; TakeOwnership: Boolean = False);
+    procedure LoadReport(AReport: TReportModel; TakeOwnership: Boolean = False;
+      ClearUndoHistory: Boolean = True);
     procedure NewReport;
 
     { Insert }
@@ -698,14 +699,15 @@ end;
 { -- Public interface ------------------------------------------------------- }
 
 procedure TVittixReportDesigner.LoadReport(AReport: TReportModel;
-  TakeOwnership: Boolean);
+  TakeOwnership: Boolean; ClearUndoHistory: Boolean);
 begin
   if FOwnsReport then FReport.Free;
   FReport      := AReport;
   FOwnsReport  := TakeOwnership;
   FSelected.Clear;
   FActiveBand  := nil;
-  FCommands.Clear;
+  if ClearUndoHistory then
+    FCommands.Clear;
   FBandLayouts := nil;
   FObjectBandMap.Clear;
   ComputeBandLayouts;

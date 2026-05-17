@@ -464,6 +464,19 @@ type
     procedure Rollback; override;
   end;
 
+  TReportSnapshotCommand = class(TUndoableAction)
+  private
+    FDesigner: TVittixReportDesigner;
+    FBeforeJSON: string;
+    FAfterJSON: string;
+    procedure ApplyJSON(const AJSON: string);
+  public
+    constructor Create(ADesigner: TVittixReportDesigner;
+      const ABeforeJSON, AAfterJSON: string);
+    procedure Execute; override;
+    procedure Rollback; override;
+  end;
+
 constructor TPropertyBatchChangeCommand.Create(AObj: TObject;
   const APropNames: TArray<string>; const AOldValues, ANewValues: TArray<TValue>);
 begin
@@ -539,6 +552,35 @@ procedure TTextFontChangeCommand.Rollback;
 begin
   if Assigned(FObj) then
     FObj.Font.Assign(FOldFont);
+end;
+
+constructor TReportSnapshotCommand.Create(ADesigner: TVittixReportDesigner;
+  const ABeforeJSON, AAfterJSON: string);
+begin
+  inherited Create;
+  FDesigner := ADesigner;
+  FBeforeJSON := ABeforeJSON;
+  FAfterJSON := AAfterJSON;
+end;
+
+procedure TReportSnapshotCommand.ApplyJSON(const AJSON: string);
+var
+  Model: TReportModel;
+begin
+  if not Assigned(FDesigner) then
+    Exit;
+  Model := TReportSerializer.LoadFromJSON(AJSON);
+  FDesigner.LoadReport(Model, True, False);
+end;
+
+procedure TReportSnapshotCommand.Execute;
+begin
+  ApplyJSON(FAfterJSON);
+end;
+
+procedure TReportSnapshotCommand.Rollback;
+begin
+  ApplyJSON(FBeforeJSON);
 end;
 
 { =========================================================================== }
@@ -1598,7 +1640,11 @@ procedure TfrmMain.mnuBandMgrClick(Sender: TObject);
 var
   Frm: TfrmBandManager;
   StagedReport: TReportModel;
+  BeforeJSON: string;
+  AfterJSON: string;
+  Cmd: TReportSnapshotCommand;
 begin
+  BeforeJSON := TReportSerializer.SaveToJSON(FDesigner.Report);
   StagedReport := nil;
   Frm := TfrmBandManager.Create(Application);
   try
@@ -1607,14 +1653,20 @@ begin
     begin
       StagedReport := Frm.TakeStagedReport;
       if Assigned(StagedReport) then
-        FDesigner.LoadReport(StagedReport, True);
-      FModified := True;
-      RefreshReportStructure;
-      UpdatePropertyPanel;
-      UpdateTitleBar;
-      UpdateStatusBar;
-      UpdateMenuState;
-      SyncReportStructureSelection;
+      begin
+        try
+          AfterJSON := TReportSerializer.SaveToJSON(StagedReport);
+        finally
+          StagedReport.Free;
+          StagedReport := nil;
+        end;
+
+        if BeforeJSON <> AfterJSON then
+        begin
+          Cmd := TReportSnapshotCommand.Create(FDesigner, BeforeJSON, AfterJSON);
+          FDesigner.ExecuteUndoCommand(Cmd);
+        end;
+      end;
     end;
   finally
     Frm.Free;
