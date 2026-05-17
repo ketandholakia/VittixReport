@@ -134,3 +134,35 @@ Release build:
 - Band Manager Cancel creates no undo entry.
 - Page Setup and Report Metadata commits are undoable.
 - Sample dataset / Reload Sample Dataset / Live Database Connection are not document undo actions.
+
+## 12) Structure Tree checklist
+
+### Selection sync
+- Select object on canvas -> matching tree node highlights.
+- Select band on canvas -> matching tree node highlights.
+- Click object node -> designer selects object.
+- Click band node -> designer selects band.
+- Double-click object/band node -> designer keeps focus/selection.
+
+### Refresh safety
+- Add object -> tree updates.
+- Delete object -> tree updates.
+- Undo/Redo object delete -> tree updates.
+- Add band -> tree updates.
+- Delete selected band -> tree updates.
+- Undo/Redo band delete -> tree updates.
+- New/Open/Load report -> tree resets cleanly.
+
+### Context menu
+- Right-click object node -> node selected, Delete enabled.
+- Right-click band node -> node selected, Delete enabled.
+- Right-click Report root -> Delete disabled.
+- Right-click empty area -> Delete disabled/no crash.
+- Context Delete object -> Undo/Redo works.
+- Context Delete band -> Undo/Redo works.
+- Expand All / Collapse All -> no undo entry.
+
+### Deferred/not implemented
+- Tree rename is not implemented.
+- Tree drag/drop reorder is not implemented.
+- Tree Add Band/Add Object context actions are not implemented.
