@@ -1934,11 +1934,15 @@ var
   Engine: TReportEngine;
   Harness: TRuntimeEventDemoHarness;
   Lines: TStringList;
+  BaselineTrace: TStringList;
+  ObjectSkipTrace: TStringList;
+  BandSkipTrace: TStringList;
   FN: string;
   I: Integer;
   BasePass: Boolean;
   ObjectSkipPass: Boolean;
   BandSkipPass: Boolean;
+  CountingInflationPass: Boolean;
   BaseBeforeBand: Integer;
   BaseAfterBand: Integer;
   BaseBeforeObject: Integer;
@@ -1950,6 +1954,9 @@ begin
   Engine := nil;
   Harness := nil;
   Lines := TStringList.Create;
+  BaselineTrace := TStringList.Create;
+  ObjectSkipTrace := TStringList.Create;
+  BandSkipTrace := TStringList.Create;
   try
     FN := GetRegressionReportPath('01_simple_masterdata.vrt');
     if TFile.Exists(FN) then
@@ -1980,6 +1987,7 @@ begin
     BaseAfterBand := Harness.AfterBandCount;
     BaseBeforeObject := Harness.BeforeObjectCount;
     BaseAfterObject := Harness.AfterObjectCount;
+    BaselineTrace.Assign(Harness.Trace);
 
     BasePass :=
       (Harness.BeforeReportCount = 1) and
@@ -1990,20 +1998,26 @@ begin
       (Harness.AfterObjectCount > 0) and
       (Harness.BeforeBandCount >= Harness.AfterBandCount) and
       (Harness.BeforeObjectCount >= Harness.AfterObjectCount);
+    CountingInflationPass :=
+      (Harness.BeforeReportCount = 1) and
+      (Harness.AfterReportCount = 1);
 
     Lines.Add('Runtime Event Callback Demo');
     Lines.Add('');
-    Lines.Add('Baseline counts:');
-    Lines.Add(Format('  BeforeReport=%d, AfterReport=%d',
-      [Harness.BeforeReportCount, Harness.AfterReportCount]));
-    Lines.Add(Format('  BeforeBand=%d, AfterBand=%d',
-      [Harness.BeforeBandCount, Harness.AfterBandCount]));
-    Lines.Add(Format('  BeforeObject=%d, AfterObject=%d',
-      [Harness.BeforeObjectCount, Harness.AfterObjectCount]));
+    Lines.Add('Baseline summary:');
+    Lines.Add(Format('  BeforeReport=%d AfterReport=%d  BeforeBand=%d AfterBand=%d  BeforeObject=%d AfterObject=%d  SkippedObject=%d SkippedBand=%d',
+      [Harness.BeforeReportCount, Harness.AfterReportCount,
+       Harness.BeforeBandCount, Harness.AfterBandCount,
+       Harness.BeforeObjectCount, Harness.AfterObjectCount,
+       Harness.SkippedObjectCount, Harness.SkippedBandCount]));
     if BasePass then
       Lines.Add('  Baseline: PASS')
     else
       Lines.Add('  Baseline: FAIL');
+    if CountingInflationPass then
+      Lines.Add('  Counting-pass inflation check: PASS')
+    else
+      Lines.Add('  Counting-pass inflation check: FAIL');
 
     Harness.ResetCounts;
     Harness.SkipObjectClassName := 'TReportTextObject';
@@ -2021,7 +2035,14 @@ begin
       Engine := nil;
     end;
     ObjectSkipPass := Harness.SkippedObjectCount > 0;
+    ObjectSkipTrace.Assign(Harness.Trace);
     Lines.Add('');
+    Lines.Add('Object-skip summary:');
+    Lines.Add(Format('  BeforeReport=%d AfterReport=%d  BeforeBand=%d AfterBand=%d  BeforeObject=%d AfterObject=%d  SkippedObject=%d SkippedBand=%d',
+      [Harness.BeforeReportCount, Harness.AfterReportCount,
+       Harness.BeforeBandCount, Harness.AfterBandCount,
+       Harness.BeforeObjectCount, Harness.AfterObjectCount,
+       Harness.SkippedObjectCount, Harness.SkippedBandCount]));
     if ObjectSkipPass then
       Lines.Add(Format('Object skip subtest (skip %s): PASS (SkippedObjectCount=%d)',
         ['TReportTextObject', Harness.SkippedObjectCount]))
@@ -2045,6 +2066,14 @@ begin
       Engine := nil;
     end;
     BandSkipPass := Harness.SkippedBandCount > 0;
+    BandSkipTrace.Assign(Harness.Trace);
+    Lines.Add('');
+    Lines.Add('Band-skip summary:');
+    Lines.Add(Format('  BeforeReport=%d AfterReport=%d  BeforeBand=%d AfterBand=%d  BeforeObject=%d AfterObject=%d  SkippedObject=%d SkippedBand=%d',
+      [Harness.BeforeReportCount, Harness.AfterReportCount,
+       Harness.BeforeBandCount, Harness.AfterBandCount,
+       Harness.BeforeObjectCount, Harness.AfterObjectCount,
+       Harness.SkippedObjectCount, Harness.SkippedBandCount]));
     if BandSkipPass then
       Lines.Add(Format('Band skip subtest (skip Master Data): PASS (SkippedBandCount=%d)',
         [Harness.SkippedBandCount]))
@@ -2059,14 +2088,31 @@ begin
       [BaseBeforeObject, BaseAfterObject]));
 
     Lines.Add('');
-    Lines.Add('Trace preview (object skip subtest reset occurs before this list):');
-    for I := 0 to Min(TracePreviewMax - 1, Harness.Trace.Count - 1) do
-      Lines.Add('  ' + Harness.Trace[I]);
-    if Harness.Trace.Count > TracePreviewMax then
-      Lines.Add(Format('  ... (%d more lines)', [Harness.Trace.Count - TracePreviewMax]));
+    Lines.Add('Baseline trace preview:');
+    for I := 0 to Min(TracePreviewMax - 1, BaselineTrace.Count - 1) do
+      Lines.Add('  ' + BaselineTrace[I]);
+    if BaselineTrace.Count > TracePreviewMax then
+      Lines.Add(Format('  ... (%d more lines)', [BaselineTrace.Count - TracePreviewMax]));
+
+    Lines.Add('');
+    Lines.Add('Object-skip trace preview:');
+    for I := 0 to Min(TracePreviewMax - 1, ObjectSkipTrace.Count - 1) do
+      Lines.Add('  ' + ObjectSkipTrace[I]);
+    if ObjectSkipTrace.Count > TracePreviewMax then
+      Lines.Add(Format('  ... (%d more lines)', [ObjectSkipTrace.Count - TracePreviewMax]));
+
+    Lines.Add('');
+    Lines.Add('Band-skip trace preview:');
+    for I := 0 to Min(TracePreviewMax - 1, BandSkipTrace.Count - 1) do
+      Lines.Add('  ' + BandSkipTrace[I]);
+    if BandSkipTrace.Count > TracePreviewMax then
+      Lines.Add(Format('  ... (%d more lines)', [BandSkipTrace.Count - TracePreviewMax]));
 
     ShowMessage(Lines.Text);
   finally
+    BandSkipTrace.Free;
+    ObjectSkipTrace.Free;
+    BaselineTrace.Free;
     Lines.Free;
     Harness.Free;
     Engine.Free;
@@ -2953,7 +2999,11 @@ begin
   else if SameText(AKey, 'CanShrink') then
     Exit('Allow control height to shrink when content is empty')
   else if SameText(AKey, 'GroupField') then
-    Exit('Field used for grouping band sections');
+    Exit('Field used for grouping band sections')
+  else if SameText(AKey, 'OnBeforePrint') then
+    Exit('Persisted band script hook executed before the band prints. Different from runtime Delphi callbacks.')
+  else if SameText(AKey, 'OnAfterPrint') then
+    Exit('Persisted band script hook executed after the band prints. Different from runtime Delphi callbacks.');
 
   Result := '';
 end;
@@ -4639,10 +4689,11 @@ end;
 
 procedure TfrmMain.PromoteImportantProperties(AObj: TReportObject);
 const
-  BandKeys: array[0..11] of string = (
+  BandKeys: array[0..13] of string = (
     'BandType', 'Height', 'DataSetName', 'GroupField', 'GroupLevel',
     'CanGrow', 'CanShrink', 'StartNewPage', 'Visible', 'PrintWhen',
-    'BackColor', 'BackColorTransparent'
+    'BackColor', 'BackColorTransparent',
+    'OnBeforePrint', 'OnAfterPrint'
   );
   TextKeys: array[0..21] of string = (
     'Text', 'DataField', 'Expression', 'DisplayFormat',
@@ -4747,6 +4798,8 @@ begin
   InsertGroupAt('Font', FindFirstExistingIndex(['FontName', 'FontSize', 'FontBold', 'Font']));
   InsertGroupAt('Border', FindFirstExistingIndex(['BorderVisible', 'BorderColor', 'BorderWidth', 'PenColor']));
   InsertGroupAt('Behavior', FindFirstExistingIndex(['PrintWhen', 'CanGrow', 'CanShrink', 'StartNewPage']));
+  if FindFirstExistingIndex(['OnBeforePrint', 'OnAfterPrint']) > 0 then
+    InsertGroupAt('Events', FindFirstExistingIndex(['OnBeforePrint', 'OnAfterPrint']));
 
   if AObj is TReportBand then
   begin
