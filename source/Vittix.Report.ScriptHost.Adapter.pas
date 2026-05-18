@@ -276,6 +276,31 @@ begin
     Exit;
   end;
 
+  if Key = 'wordwrap' then
+  begin
+    if not (AObject is TReportTextObject) then
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      Exit;
+    end;
+    if SameText(Value, 'True') then
+      TReportTextObject(AObject).WordWrap := True
+    else if SameText(Value, 'False') then
+      TReportTextObject(AObject).WordWrap := False
+    else
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[WordWrapValue]: ' + AScript;
+      Exit;
+    end;
+    Result.TraceMessage := Format('ScriptSetWordWrap: %s "%s" -> %s',
+      [AObject.ClassName, AObject.Name, Value]);
+    Exit;
+  end;
+
   if Key = 'text' then
   begin
     if (Length(Value) >= 8) and SameText(Copy(Value, 1, 6), 'Field(') and
