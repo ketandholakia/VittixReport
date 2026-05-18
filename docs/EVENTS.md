@@ -244,6 +244,7 @@ Log('AfterBand:' + ABand.Name);
 - Runtime Event Callback Demo includes explicit host-script command subtests:
 - `Text := Field('CustomerName')`
 - `Text := Field('NoSuchField')` (logs `ScriptFieldResolveMiss: NoSuchField`; does not count as unsupported)
+- `Text := Field('NoSuchField'); Foo := 1` (resolve-miss and unsupported can coexist; unsupported count increments only for `Foo := 1`)
 - `Background := clYellow`
 - `Visible := False`
 - `Foo := 1` (invalid command expected to be reported as `UnknownCommand`)
