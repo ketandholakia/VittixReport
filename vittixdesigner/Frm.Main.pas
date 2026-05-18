@@ -2155,6 +2155,7 @@ var
   CanPrintValuePass: Boolean;
   MultiInvalidPass: Boolean;
   MixedValidInvalidPass: Boolean;
+  CancelShortCircuitPass: Boolean;
   OverallPass: Boolean;
   ScriptCancelTrace: TStringList;
   FieldBindTrace: TStringList;
@@ -2172,6 +2173,7 @@ var
   CanPrintValueTrace: TStringList;
   MultiInvalidTrace: TStringList;
   MixedValidInvalidTrace: TStringList;
+  CancelShortCircuitTrace: TStringList;
   Obj: TReportObject;
   Band: TReportBand;
   ChildObj: TReportObject;
@@ -2357,6 +2359,7 @@ begin
   CanPrintValueTrace := TStringList.Create;
   MultiInvalidTrace := TStringList.Create;
   MixedValidInvalidTrace := TStringList.Create;
+  CancelShortCircuitTrace := TStringList.Create;
   try
     FN := GetRegressionReportPath('01_simple_masterdata.vrt');
     if TFile.Exists(FN) then
@@ -3030,6 +3033,39 @@ begin
     else
       Lines.Add('Mixed valid+invalid sequence subtest: FAIL');
 
+    Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'CanPrint := False; Foo := 1; Text := Demo';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    CancelShortCircuitTrace.Assign(Harness.Trace);
+    CancelShortCircuitPass :=
+      (Harness.ScriptCanceledObjectCount > 0) and
+      (Harness.ScriptUnsupportedCount = 0) and
+      (Pos('ScriptCanceledObject: TReportTextObject', CancelShortCircuitTrace.Text) > 0) and
+      (Pos('ScriptUnsupported[UnknownCommand]: Foo := 1', CancelShortCircuitTrace.Text) = 0) and
+      (Pos('ScriptUnsupported[TextLiteral]: Text := Demo', CancelShortCircuitTrace.Text) = 0) and
+      TraceWindowHasNoTargetObjectHooks(CancelShortCircuitTrace);
+    if CancelShortCircuitPass then
+      Lines.Add('CanPrint short-circuit mixed sequence subtest: PASS')
+    else
+      Lines.Add('CanPrint short-circuit mixed sequence subtest: FAIL');
+
     Lines.Add('');
     Lines.Add('Parser edge-case summary:');
     if EscapedQuotePass then
@@ -3067,7 +3103,8 @@ begin
       TextLiteralPass and
       CanPrintValuePass and
       MultiInvalidPass and
-      MixedValidInvalidPass;
+      MixedValidInvalidPass and
+      CancelShortCircuitPass;
     Lines.Insert(0, '');
     if OverallPass then
       Lines.Insert(0, 'Overall: PASS')
@@ -3107,12 +3144,13 @@ begin
     AppendUnsupportedSummary('CanPrint value', CanPrintValueTrace, Lines);
     AppendUnsupportedSummary('Multi-invalid aggregation', MultiInvalidTrace, Lines);
     AppendUnsupportedSummary('Mixed valid+invalid sequence', MixedValidInvalidTrace, Lines);
+    AppendUnsupportedSummary('CanPrint short-circuit mixed sequence', CancelShortCircuitTrace, Lines);
     AppendUnsupportedReasonSummary(Lines,
       [BaselineTrace, ObjectSkipTrace, BandSkipTrace, ScriptCancelTrace, FieldBindTrace,
        BackgroundTrace, VisibleTrace, EscapedQuoteTrace, WhitespaceTrace, TrailingSemicolonTrace,
        UnknownCommandTrace, FieldSyntaxTrace, FieldNameTrace, ColorValueTrace,
        VisibleValueTrace, TextLiteralTrace, CanPrintValueTrace, MultiInvalidTrace,
-       MixedValidInvalidTrace]);
+       MixedValidInvalidTrace, CancelShortCircuitTrace]);
 
     Lines.Add('');
     Lines.Add('Baseline trace preview:');
@@ -3201,6 +3239,7 @@ begin
     CanPrintValueTrace.Free;
     MultiInvalidTrace.Free;
     MixedValidInvalidTrace.Free;
+    CancelShortCircuitTrace.Free;
     TextLiteralTrace.Free;
     VisibleValueTrace.Free;
     ColorValueTrace.Free;
