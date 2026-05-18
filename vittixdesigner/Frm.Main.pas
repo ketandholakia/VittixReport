@@ -2176,6 +2176,7 @@ var
   PaddingRightPass: Boolean;
   PaddingBottomPass: Boolean;
   FontColorOnTruePass: Boolean;
+  BackgroundOnTruePass: Boolean;
   OverallPass: Boolean;
   ScriptCancelTrace: TStringList;
   FieldBindTrace: TStringList;
@@ -2214,6 +2215,7 @@ var
   PaddingRightTrace: TStringList;
   PaddingBottomTrace: TStringList;
   FontColorOnTrueTrace: TStringList;
+  BackgroundOnTrueTrace: TStringList;
   Obj: TReportObject;
   Band: TReportBand;
   ChildObj: TReportObject;
@@ -2421,6 +2423,7 @@ begin
   PaddingRightTrace := TStringList.Create;
   PaddingBottomTrace := TStringList.Create;
   FontColorOnTrueTrace := TStringList.Create;
+  BackgroundOnTrueTrace := TStringList.Create;
   try
     FN := GetRegressionReportPath('01_simple_masterdata.vrt');
     if TFile.Exists(FN) then
@@ -3715,6 +3718,35 @@ begin
       Lines.Add('FontColorOnTrue command subtest: FAIL');
 
     Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'BackgroundOnTrue := clYellow';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    BackgroundOnTrueTrace.Assign(Harness.Trace);
+    BackgroundOnTruePass :=
+      (Pos('ScriptSetBackgroundOnTrue: TReportTextObject "txtTitle" -> clYellow', BackgroundOnTrueTrace.Text) > 0) and
+      (Harness.ScriptUnsupportedCount = 0);
+    if BackgroundOnTruePass then
+      Lines.Add('BackgroundOnTrue command subtest: PASS')
+    else
+      Lines.Add('BackgroundOnTrue command subtest: FAIL');
+
+    Harness.ResetCounts;
     if Assigned(DemoNonTextTarget) then
     begin
       DemoNonTextTarget.OnBeforePrint := 'Text := ''X''; Background := clYellow';
@@ -3808,7 +3840,8 @@ begin
       PaddingTopPass and
       PaddingRightPass and
       PaddingBottomPass and
-      FontColorOnTruePass;
+      FontColorOnTruePass and
+      BackgroundOnTruePass;
     Lines.Insert(0, '');
     if OverallPass then
       Lines.Insert(0, 'Overall: PASS')
@@ -3868,6 +3901,7 @@ begin
     AppendUnsupportedSummary('PaddingRight', PaddingRightTrace, Lines);
     AppendUnsupportedSummary('PaddingBottom', PaddingBottomTrace, Lines);
     AppendUnsupportedSummary('FontColorOnTrue', FontColorOnTrueTrace, Lines);
+    AppendUnsupportedSummary('BackgroundOnTrue', BackgroundOnTrueTrace, Lines);
     AppendUnsupportedReasonSummary(Lines,
       [BaselineTrace, ObjectSkipTrace, BandSkipTrace, ScriptCancelTrace, FieldBindTrace,
        FieldResolveMissTrace, FieldResolveMissWithUnsupportedTrace, BackgroundTrace, VisibleTrace, EscapedQuoteTrace, WhitespaceTrace, TrailingSemicolonTrace,
@@ -3878,7 +3912,7 @@ begin
        MixedCaseVisibleTrace, MixedCaseBackgroundTrace, FontColorTrace, BorderColorTrace,
        TransparentTrace, AutoSizeTrace, WordWrapTrace, BorderVisibleTrace,
        BorderWidthTrace, PaddingLeftTrace, PaddingTopTrace, PaddingRightTrace,
-       PaddingBottomTrace, FontColorOnTrueTrace]);
+       PaddingBottomTrace, FontColorOnTrueTrace, BackgroundOnTrueTrace]);
 
     Lines.Add('');
     Lines.Add('Baseline trace preview:');
@@ -3988,6 +4022,7 @@ begin
     PaddingRightTrace.Free;
     PaddingBottomTrace.Free;
     FontColorOnTrueTrace.Free;
+    BackgroundOnTrueTrace.Free;
     TextLiteralTrace.Free;
     VisibleValueTrace.Free;
     ColorValueTrace.Free;
