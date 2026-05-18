@@ -2162,6 +2162,8 @@ var
   ObjectTypeMismatchPass: Boolean;
   LowercaseTextKeyPass: Boolean;
   MixedCaseCanPrintPass: Boolean;
+  MixedCaseVisiblePass: Boolean;
+  MixedCaseBackgroundPass: Boolean;
   OverallPass: Boolean;
   ScriptCancelTrace: TStringList;
   FieldBindTrace: TStringList;
@@ -2186,6 +2188,8 @@ var
   ObjectTypeMismatchTrace: TStringList;
   LowercaseTextKeyTrace: TStringList;
   MixedCaseCanPrintTrace: TStringList;
+  MixedCaseVisibleTrace: TStringList;
+  MixedCaseBackgroundTrace: TStringList;
   Obj: TReportObject;
   Band: TReportBand;
   ChildObj: TReportObject;
@@ -2379,6 +2383,8 @@ begin
   ObjectTypeMismatchTrace := TStringList.Create;
   LowercaseTextKeyTrace := TStringList.Create;
   MixedCaseCanPrintTrace := TStringList.Create;
+  MixedCaseVisibleTrace := TStringList.Create;
+  MixedCaseBackgroundTrace := TStringList.Create;
   try
     FN := GetRegressionReportPath('01_simple_masterdata.vrt');
     if TFile.Exists(FN) then
@@ -3251,6 +3257,64 @@ begin
       Lines.Add('Mixed-case key subtest (CanPrint): FAIL');
 
     Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'VISIBLE := True';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    MixedCaseVisibleTrace.Assign(Harness.Trace);
+    MixedCaseVisiblePass :=
+      (Pos('ScriptSetVisible: TReportTextObject "txtTitle" -> True', MixedCaseVisibleTrace.Text) > 0) and
+      (Harness.ScriptUnsupportedCount = 0);
+    if MixedCaseVisiblePass then
+      Lines.Add('Mixed-case key subtest (VISIBLE): PASS')
+    else
+      Lines.Add('Mixed-case key subtest (VISIBLE): FAIL');
+
+    Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'BaCkGrOuNd := clYellow';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    MixedCaseBackgroundTrace.Assign(Harness.Trace);
+    MixedCaseBackgroundPass :=
+      (Pos('ScriptSetBackground: TReportTextObject "txtTitle" -> clYellow', MixedCaseBackgroundTrace.Text) > 0) and
+      (Harness.ScriptUnsupportedCount = 0);
+    if MixedCaseBackgroundPass then
+      Lines.Add('Mixed-case key subtest (BaCkGrOuNd): PASS')
+    else
+      Lines.Add('Mixed-case key subtest (BaCkGrOuNd): FAIL');
+
+    Harness.ResetCounts;
     if Assigned(DemoNonTextTarget) then
     begin
       DemoNonTextTarget.OnBeforePrint := 'Text := ''X''; Background := clYellow';
@@ -3330,7 +3394,9 @@ begin
       QuotedSemicolonWithUnsupportedPass and
       ObjectTypeMismatchPass and
       LowercaseTextKeyPass and
-      MixedCaseCanPrintPass;
+      MixedCaseCanPrintPass and
+      MixedCaseVisiblePass and
+      MixedCaseBackgroundPass;
     Lines.Insert(0, '');
     if OverallPass then
       Lines.Insert(0, 'Overall: PASS')
@@ -3377,13 +3443,16 @@ begin
     AppendUnsupportedSummary('Object-type mismatch', ObjectTypeMismatchTrace, Lines);
     AppendUnsupportedSummary('Lowercase key (text)', LowercaseTextKeyTrace, Lines);
     AppendUnsupportedSummary('Mixed-case key (CanPrint)', MixedCaseCanPrintTrace, Lines);
+    AppendUnsupportedSummary('Mixed-case key (VISIBLE)', MixedCaseVisibleTrace, Lines);
+    AppendUnsupportedSummary('Mixed-case key (BaCkGrOuNd)', MixedCaseBackgroundTrace, Lines);
     AppendUnsupportedReasonSummary(Lines,
       [BaselineTrace, ObjectSkipTrace, BandSkipTrace, ScriptCancelTrace, FieldBindTrace,
        FieldResolveMissTrace, FieldResolveMissWithUnsupportedTrace, BackgroundTrace, VisibleTrace, EscapedQuoteTrace, WhitespaceTrace, TrailingSemicolonTrace,
        UnknownCommandTrace, FieldSyntaxTrace, FieldNameTrace, ColorValueTrace,
        VisibleValueTrace, TextLiteralTrace, CanPrintValueTrace, MultiInvalidTrace,
        MixedValidInvalidTrace, CancelShortCircuitTrace, QuotedSemicolonWithUnsupportedTrace,
-       ObjectTypeMismatchTrace, LowercaseTextKeyTrace, MixedCaseCanPrintTrace]);
+       ObjectTypeMismatchTrace, LowercaseTextKeyTrace, MixedCaseCanPrintTrace,
+       MixedCaseVisibleTrace, MixedCaseBackgroundTrace]);
 
     Lines.Add('');
     Lines.Add('Baseline trace preview:');
@@ -3479,6 +3548,8 @@ begin
     ObjectTypeMismatchTrace.Free;
     LowercaseTextKeyTrace.Free;
     MixedCaseCanPrintTrace.Free;
+    MixedCaseVisibleTrace.Free;
+    MixedCaseBackgroundTrace.Free;
     TextLiteralTrace.Free;
     VisibleValueTrace.Free;
     ColorValueTrace.Free;

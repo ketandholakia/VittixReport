@@ -263,3 +263,4 @@ Log('AfterBand:' + ABand.Name);
 - Each subtest reports PASS/FAIL in the demo output summary.
 - Demo output also includes an unsupported-command diagnostics block grouped by subtest.
 - Demo output includes a compact unsupported-reason summary block with per-reason counts.
+
