@@ -400,6 +400,30 @@ begin
     Exit;
   end;
 
+  if Key = 'paddingright' then
+  begin
+    if not (AObject is TReportTextObject) then
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      Exit;
+    end;
+    if not TryStrToInt(Value, N) then
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[PaddingRightValue]: ' + AScript;
+      Exit;
+    end;
+    if N < 0 then
+      N := 0;
+    TReportTextObject(AObject).PaddingRight := N;
+    Result.TraceMessage := Format('ScriptSetPaddingRight: %s "%s" -> %d',
+      [AObject.ClassName, AObject.Name, N]);
+    Exit;
+  end;
+
   if Key = 'text' then
   begin
     if (Length(Value) >= 8) and SameText(Copy(Value, 1, 6), 'Field(') and
