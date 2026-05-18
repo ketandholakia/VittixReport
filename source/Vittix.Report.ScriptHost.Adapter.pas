@@ -263,6 +263,21 @@ begin
     Exit;
   end;
 
+  if Key = 'bordercolorcondition' then
+  begin
+    if not (AObject is TReportTextObject) then
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      Exit;
+    end;
+    TReportTextObject(AObject).BorderColorCondition := Value;
+    Result.TraceMessage := Format('ScriptSetBorderColorCondition: %s "%s" -> "%s"',
+      [AObject.ClassName, AObject.Name, Value]);
+    Exit;
+  end;
+
   if Key = 'bordercolorontrue' then
   begin
     if not (AObject is TReportTextObject) then

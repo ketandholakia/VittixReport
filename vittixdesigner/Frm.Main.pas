@@ -2179,6 +2179,7 @@ var
   BackgroundOnTruePass: Boolean;
   BorderColorOnTruePass: Boolean;
   BackgroundConditionPass: Boolean;
+  BorderColorConditionPass: Boolean;
   OverallPass: Boolean;
   ScriptCancelTrace: TStringList;
   FieldBindTrace: TStringList;
@@ -2220,6 +2221,7 @@ var
   BackgroundOnTrueTrace: TStringList;
   BorderColorOnTrueTrace: TStringList;
   BackgroundConditionTrace: TStringList;
+  BorderColorConditionTrace: TStringList;
   Obj: TReportObject;
   Band: TReportBand;
   ChildObj: TReportObject;
@@ -2430,6 +2432,7 @@ begin
   BackgroundOnTrueTrace := TStringList.Create;
   BorderColorOnTrueTrace := TStringList.Create;
   BackgroundConditionTrace := TStringList.Create;
+  BorderColorConditionTrace := TStringList.Create;
   try
     FN := GetRegressionReportPath('01_simple_masterdata.vrt');
     if TFile.Exists(FN) then
@@ -3811,6 +3814,35 @@ begin
       Lines.Add('BackgroundCondition command subtest: FAIL');
 
     Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'BorderColorCondition := Value < 100';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    BorderColorConditionTrace.Assign(Harness.Trace);
+    BorderColorConditionPass :=
+      (Pos('ScriptSetBorderColorCondition: TReportTextObject "txtTitle" -> "Value < 100"', BorderColorConditionTrace.Text) > 0) and
+      (Harness.ScriptUnsupportedCount = 0);
+    if BorderColorConditionPass then
+      Lines.Add('BorderColorCondition command subtest: PASS')
+    else
+      Lines.Add('BorderColorCondition command subtest: FAIL');
+
+    Harness.ResetCounts;
     if Assigned(DemoNonTextTarget) then
     begin
       DemoNonTextTarget.OnBeforePrint := 'Text := ''X''; Background := clYellow';
@@ -3907,7 +3939,8 @@ begin
       FontColorOnTruePass and
       BackgroundOnTruePass and
       BorderColorOnTruePass and
-      BackgroundConditionPass;
+      BackgroundConditionPass and
+      BorderColorConditionPass;
     Lines.Insert(0, '');
     if OverallPass then
       Lines.Insert(0, 'Overall: PASS')
@@ -3970,6 +4003,7 @@ begin
     AppendUnsupportedSummary('BackgroundOnTrue', BackgroundOnTrueTrace, Lines);
     AppendUnsupportedSummary('BorderColorOnTrue', BorderColorOnTrueTrace, Lines);
     AppendUnsupportedSummary('BackgroundCondition', BackgroundConditionTrace, Lines);
+    AppendUnsupportedSummary('BorderColorCondition', BorderColorConditionTrace, Lines);
     AppendUnsupportedReasonSummary(Lines,
       [BaselineTrace, ObjectSkipTrace, BandSkipTrace, ScriptCancelTrace, FieldBindTrace,
        FieldResolveMissTrace, FieldResolveMissWithUnsupportedTrace, BackgroundTrace, VisibleTrace, EscapedQuoteTrace, WhitespaceTrace, TrailingSemicolonTrace,
@@ -3981,7 +4015,8 @@ begin
        TransparentTrace, AutoSizeTrace, WordWrapTrace, BorderVisibleTrace,
        BorderWidthTrace, PaddingLeftTrace, PaddingTopTrace, PaddingRightTrace,
        PaddingBottomTrace, FontColorOnTrueTrace, BackgroundOnTrueTrace,
-       BorderColorOnTrueTrace, BackgroundConditionTrace]);
+       BorderColorOnTrueTrace, BackgroundConditionTrace,
+       BorderColorConditionTrace]);
 
     Lines.Add('');
     Lines.Add('Baseline trace preview:');
@@ -4094,6 +4129,7 @@ begin
     BackgroundOnTrueTrace.Free;
     BorderColorOnTrueTrace.Free;
     BackgroundConditionTrace.Free;
+    BorderColorConditionTrace.Free;
     TextLiteralTrace.Free;
     VisibleValueTrace.Free;
     ColorValueTrace.Free;

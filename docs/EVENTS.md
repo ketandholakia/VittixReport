@@ -156,6 +156,7 @@ Quick notes:
 - `BackgroundOnTrue := clColorName` (for `TReportTextObject` only)
 - `BorderColorOnTrue := clColorName` (for `TReportTextObject` only)
 - `BackgroundCondition := <string>` (for `TReportTextObject` only)
+- `BorderColorCondition := <string>` (for `TReportTextObject` only)
 - `ScriptUnsupported[ObjectType]` is emitted when a command is not valid for the current object class.
 - Bounded multi-command form is supported with semicolon separators, executed left-to-right:
 - `Visible := True; Text := Field('CustomerName')`
@@ -295,6 +296,7 @@ Log('AfterBand:' + ABand.Name);
 - `BackgroundOnTrue := clYellow` (text-object conditional background command)
 - `BorderColorOnTrue := clRed` (text-object conditional border color command)
 - `BackgroundCondition := Value > 0` (text-object conditional background expression)
+- `BorderColorCondition := Value < 100` (text-object conditional border color expression)
 - Keys are case-insensitive for supported commands (for example `text := 'lower'`, `cAnPrInT := False`)
 - Non-text object with `Text := 'X'; Background := clYellow` (both commands report `ObjectType` unsupported)
 - Each subtest reports PASS/FAIL in the demo output summary.
