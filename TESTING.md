@@ -359,6 +359,7 @@ Release build:
 - Demo host parser supports `FontColorOnTrue := clColorName` for `TReportTextObject`.
 - Demo host parser supports `BackgroundOnTrue := clColorName` for `TReportTextObject`.
 - Demo host parser supports `BorderColorOnTrue := clColorName` for `TReportTextObject`.
+- Demo host parser supports `BackgroundCondition := <string>` for `TReportTextObject`.
 - Unsupported script commands are logged by host/demo and do not crash.
 - Unsupported script diagnostics include reason tags (for example:
 - `ScriptUnsupported[UnknownCommand]`, `ScriptUnsupported[FieldSyntax]`, `ScriptUnsupported[ColorValue]`).
@@ -379,6 +380,7 @@ Release build:
 - Runtime Event Callback Demo subtest `FontColorOnTrue := clMaroon` reports PASS.
 - Runtime Event Callback Demo subtest `BackgroundOnTrue := clYellow` reports PASS.
 - Runtime Event Callback Demo subtest `BorderColorOnTrue := clRed` reports PASS.
+- Runtime Event Callback Demo subtest `BackgroundCondition := Value > 0` reports PASS.
 - Runtime Event Callback Demo subtest `Visible := False` reports PASS.
 - Runtime Event Callback Demo subtest `Text := 'O''Reilly'` (escaped quote literal) reports PASS.
 - Runtime Event Callback Demo subtest whitespace-normalized sequence `Visible := True ; Text := 'WS'` reports PASS.

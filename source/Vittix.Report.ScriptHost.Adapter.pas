@@ -248,6 +248,21 @@ begin
     Exit;
   end;
 
+  if Key = 'backgroundcondition' then
+  begin
+    if not (AObject is TReportTextObject) then
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      Exit;
+    end;
+    TReportTextObject(AObject).BackgroundCondition := Value;
+    Result.TraceMessage := Format('ScriptSetBackgroundCondition: %s "%s" -> "%s"',
+      [AObject.ClassName, AObject.Name, Value]);
+    Exit;
+  end;
+
   if Key = 'bordercolorontrue' then
   begin
     if not (AObject is TReportTextObject) then
