@@ -391,6 +391,21 @@ begin
     Exit;
   end;
 
+  if Key = 'datafield' then
+  begin
+    if not (AObject is TReportTextObject) then
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      Exit;
+    end;
+    TReportTextObject(AObject).DataField := Value;
+    Result.TraceMessage := Format('ScriptSetDataField: %s "%s" -> "%s"',
+      [AObject.ClassName, AObject.Name, Value]);
+    Exit;
+  end;
+
   if Key = 'fontsize' then
   begin
     if not (AObject is TReportTextObject) then
