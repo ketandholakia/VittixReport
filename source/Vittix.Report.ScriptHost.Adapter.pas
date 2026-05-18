@@ -204,6 +204,30 @@ begin
     Exit;
   end;
 
+  if Key = 'fontsize' then
+  begin
+    if not (AObject is TReportTextObject) then
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      Exit;
+    end;
+    if not TryStrToInt(Value, N) then
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[FontSizeValue]: ' + AScript;
+      Exit;
+    end;
+    if N < 1 then
+      N := 1;
+    TReportTextObject(AObject).Font.Size := N;
+    Result.TraceMessage := Format('ScriptSetFontSize: %s "%s" -> %d',
+      [AObject.ClassName, AObject.Name, N]);
+    Exit;
+  end;
+
   if Key = 'fontcolorontrue' then
   begin
     if not (AObject is TReportTextObject) then

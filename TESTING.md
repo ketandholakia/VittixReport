@@ -346,6 +346,7 @@ Release build:
 - Demo host parser supports `Visible := False|True`.
 - Demo host parser supports `Background := clColorName` for `TReportTextObject`.
 - Demo host parser supports `FontColor := clColorName` for `TReportTextObject`.
+- Demo host parser supports `FontSize := <integer>` for `TReportTextObject`.
 - Demo host parser supports `BorderColor := clColorName` for `TReportTextObject`.
 - Demo host parser supports `Transparent := False|True` for `TReportTextObject`.
 - Demo host parser supports `AutoSize := False|True` for `TReportTextObject`.
@@ -369,6 +370,7 @@ Release build:
 - Runtime Event Callback Demo subtest `Background := clYellow` reports PASS.
 - Runtime Event Callback Demo subtest `FontColor := clNavy` reports PASS.
 - Runtime Event Callback Demo subtest `BorderColor := clOlive` reports PASS.
+- Runtime Event Callback Demo subtest `FontSize := 14` reports PASS.
 - Runtime Event Callback Demo subtest `Transparent := False` reports PASS.
 - Runtime Event Callback Demo subtest `AutoSize := True` reports PASS.
 - Runtime Event Callback Demo subtest `WordWrap := True` reports PASS.

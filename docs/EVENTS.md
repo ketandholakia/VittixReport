@@ -142,6 +142,7 @@ Quick notes:
 - `Visible := False|True`
 - `Background := clColorName` (for `TReportTextObject` only)
 - `FontColor := clColorName` (for `TReportTextObject` only)
+- `FontSize := <integer>` (for `TReportTextObject` only)
 - `BorderColor := clColorName` (for `TReportTextObject` only)
 - `Transparent := False|True` (for `TReportTextObject` only)
 - `AutoSize := False|True` (for `TReportTextObject` only)
@@ -283,6 +284,7 @@ Log('AfterBand:' + ABand.Name);
 - `Text := 'A;B'; Foo := 1` (quoted semicolon literal remains intact; following unsupported command is still tagged)
 - `FontColor := clNavy` (text-object font color command)
 - `BorderColor := clOlive` (text-object border color command)
+- `FontSize := 14` (text-object font size command)
 - `Transparent := False` (text-object transparency command)
 - `AutoSize := True` (text-object auto-size command)
 - `WordWrap := True` (text-object word-wrap command)

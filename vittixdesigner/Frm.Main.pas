@@ -2165,6 +2165,7 @@ var
   MixedCaseVisiblePass: Boolean;
   MixedCaseBackgroundPass: Boolean;
   FontColorPass: Boolean;
+  FontSizePass: Boolean;
   BorderColorPass: Boolean;
   TransparentPass: Boolean;
   AutoSizePass: Boolean;
@@ -2207,6 +2208,7 @@ var
   MixedCaseVisibleTrace: TStringList;
   MixedCaseBackgroundTrace: TStringList;
   FontColorTrace: TStringList;
+  FontSizeTrace: TStringList;
   BorderColorTrace: TStringList;
   TransparentTrace: TStringList;
   AutoSizeTrace: TStringList;
@@ -2418,6 +2420,7 @@ begin
   MixedCaseVisibleTrace := TStringList.Create;
   MixedCaseBackgroundTrace := TStringList.Create;
   FontColorTrace := TStringList.Create;
+  FontSizeTrace := TStringList.Create;
   BorderColorTrace := TStringList.Create;
   TransparentTrace := TStringList.Create;
   AutoSizeTrace := TStringList.Create;
@@ -3411,6 +3414,35 @@ begin
     if Assigned(DemoScriptTarget) then
       DemoScriptTarget.Visible := True;
     if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'FontSize := 14';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    FontSizeTrace.Assign(Harness.Trace);
+    FontSizePass :=
+      (Pos('ScriptSetFontSize: TReportTextObject "txtTitle" -> 14', FontSizeTrace.Text) > 0) and
+      (Harness.ScriptUnsupportedCount = 0);
+    if FontSizePass then
+      Lines.Add('FontSize command subtest: PASS')
+    else
+      Lines.Add('FontSize command subtest: FAIL');
+
+    Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
       DemoScriptTarget.OnBeforePrint := 'BorderColor := clOlive';
     Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
     try
@@ -3926,6 +3958,7 @@ begin
       MixedCaseVisiblePass and
       MixedCaseBackgroundPass and
       FontColorPass and
+      FontSizePass and
       BorderColorPass and
       TransparentPass and
       AutoSizePass and
@@ -3990,6 +4023,7 @@ begin
     AppendUnsupportedSummary('Mixed-case key (VISIBLE)', MixedCaseVisibleTrace, Lines);
     AppendUnsupportedSummary('Mixed-case key (BaCkGrOuNd)', MixedCaseBackgroundTrace, Lines);
     AppendUnsupportedSummary('BorderColor', BorderColorTrace, Lines);
+    AppendUnsupportedSummary('FontSize', FontSizeTrace, Lines);
     AppendUnsupportedSummary('Transparent', TransparentTrace, Lines);
     AppendUnsupportedSummary('AutoSize', AutoSizeTrace, Lines);
     AppendUnsupportedSummary('WordWrap', WordWrapTrace, Lines);
@@ -4011,8 +4045,8 @@ begin
        VisibleValueTrace, TextLiteralTrace, CanPrintValueTrace, MultiInvalidTrace,
        MixedValidInvalidTrace, CancelShortCircuitTrace, QuotedSemicolonWithUnsupportedTrace,
        ObjectTypeMismatchTrace, LowercaseTextKeyTrace, MixedCaseCanPrintTrace,
-       MixedCaseVisibleTrace, MixedCaseBackgroundTrace, FontColorTrace, BorderColorTrace,
-       TransparentTrace, AutoSizeTrace, WordWrapTrace, BorderVisibleTrace,
+       MixedCaseVisibleTrace, MixedCaseBackgroundTrace, FontColorTrace, FontSizeTrace,
+       BorderColorTrace, TransparentTrace, AutoSizeTrace, WordWrapTrace, BorderVisibleTrace,
        BorderWidthTrace, PaddingLeftTrace, PaddingTopTrace, PaddingRightTrace,
        PaddingBottomTrace, FontColorOnTrueTrace, BackgroundOnTrueTrace,
        BorderColorOnTrueTrace, BackgroundConditionTrace,
@@ -4115,6 +4149,7 @@ begin
     MixedCaseVisibleTrace.Free;
     MixedCaseBackgroundTrace.Free;
     FontColorTrace.Free;
+    FontSizeTrace.Free;
     BorderColorTrace.Free;
     TransparentTrace.Free;
     AutoSizeTrace.Free;
