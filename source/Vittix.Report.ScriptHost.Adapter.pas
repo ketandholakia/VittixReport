@@ -204,6 +204,28 @@ begin
     Exit;
   end;
 
+  if Key = 'fontname' then
+  begin
+    if not (AObject is TReportTextObject) then
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      Exit;
+    end;
+    if Value = '' then
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[FontNameValue]: ' + AScript;
+      Exit;
+    end;
+    TReportTextObject(AObject).Font.Name := Value;
+    Result.TraceMessage := Format('ScriptSetFontName: %s "%s" -> "%s"',
+      [AObject.ClassName, AObject.Name, Value]);
+    Exit;
+  end;
+
   if Key = 'fontsize' then
   begin
     if not (AObject is TReportTextObject) then

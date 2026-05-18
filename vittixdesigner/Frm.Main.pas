@@ -2166,6 +2166,7 @@ var
   MixedCaseBackgroundPass: Boolean;
   FontColorPass: Boolean;
   FontSizePass: Boolean;
+  FontNamePass: Boolean;
   BorderColorPass: Boolean;
   TransparentPass: Boolean;
   AutoSizePass: Boolean;
@@ -2209,6 +2210,7 @@ var
   MixedCaseBackgroundTrace: TStringList;
   FontColorTrace: TStringList;
   FontSizeTrace: TStringList;
+  FontNameTrace: TStringList;
   BorderColorTrace: TStringList;
   TransparentTrace: TStringList;
   AutoSizeTrace: TStringList;
@@ -2421,6 +2423,7 @@ begin
   MixedCaseBackgroundTrace := TStringList.Create;
   FontColorTrace := TStringList.Create;
   FontSizeTrace := TStringList.Create;
+  FontNameTrace := TStringList.Create;
   BorderColorTrace := TStringList.Create;
   TransparentTrace := TStringList.Create;
   AutoSizeTrace := TStringList.Create;
@@ -3443,6 +3446,35 @@ begin
     if Assigned(DemoScriptTarget) then
       DemoScriptTarget.Visible := True;
     if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'FontName := Arial';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    FontNameTrace.Assign(Harness.Trace);
+    FontNamePass :=
+      (Pos('ScriptSetFontName: TReportTextObject "txtTitle" -> "Arial"', FontNameTrace.Text) > 0) and
+      (Harness.ScriptUnsupportedCount = 0);
+    if FontNamePass then
+      Lines.Add('FontName command subtest: PASS')
+    else
+      Lines.Add('FontName command subtest: FAIL');
+
+    Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
       DemoScriptTarget.OnBeforePrint := 'BorderColor := clOlive';
     Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
     try
@@ -3959,6 +3991,7 @@ begin
       MixedCaseBackgroundPass and
       FontColorPass and
       FontSizePass and
+      FontNamePass and
       BorderColorPass and
       TransparentPass and
       AutoSizePass and
@@ -4024,6 +4057,7 @@ begin
     AppendUnsupportedSummary('Mixed-case key (BaCkGrOuNd)', MixedCaseBackgroundTrace, Lines);
     AppendUnsupportedSummary('BorderColor', BorderColorTrace, Lines);
     AppendUnsupportedSummary('FontSize', FontSizeTrace, Lines);
+    AppendUnsupportedSummary('FontName', FontNameTrace, Lines);
     AppendUnsupportedSummary('Transparent', TransparentTrace, Lines);
     AppendUnsupportedSummary('AutoSize', AutoSizeTrace, Lines);
     AppendUnsupportedSummary('WordWrap', WordWrapTrace, Lines);
@@ -4046,7 +4080,7 @@ begin
        MixedValidInvalidTrace, CancelShortCircuitTrace, QuotedSemicolonWithUnsupportedTrace,
        ObjectTypeMismatchTrace, LowercaseTextKeyTrace, MixedCaseCanPrintTrace,
        MixedCaseVisibleTrace, MixedCaseBackgroundTrace, FontColorTrace, FontSizeTrace,
-       BorderColorTrace, TransparentTrace, AutoSizeTrace, WordWrapTrace, BorderVisibleTrace,
+       FontNameTrace, BorderColorTrace, TransparentTrace, AutoSizeTrace, WordWrapTrace, BorderVisibleTrace,
        BorderWidthTrace, PaddingLeftTrace, PaddingTopTrace, PaddingRightTrace,
        PaddingBottomTrace, FontColorOnTrueTrace, BackgroundOnTrueTrace,
        BorderColorOnTrueTrace, BackgroundConditionTrace,
@@ -4150,6 +4184,7 @@ begin
     MixedCaseBackgroundTrace.Free;
     FontColorTrace.Free;
     FontSizeTrace.Free;
+    FontNameTrace.Free;
     BorderColorTrace.Free;
     TransparentTrace.Free;
     AutoSizeTrace.Free;
