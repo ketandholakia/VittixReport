@@ -52,7 +52,6 @@ Use this checklist before releases or major engine changes.
 - ImagePath report.
 - PrintWhen reports.
 - Conditional color reports.
-- DisplayFormat report.
 
 ## 8) Diagnostics tests
 Debug build:
@@ -216,7 +215,6 @@ Release build:
 - Property hint/status text covers DataField.
 - Property hint/status text covers Expression.
 - Property hint/status text covers PrintWhen.
-- Property hint/status text covers DisplayFormat.
 - Property hint/status text covers FontColor / BackgroundColor / BorderColor.
 - Expression Helper still works.
 - Font dialog still works.

@@ -5449,8 +5449,6 @@ begin
     Exit('Background fill color')
   else if SameText(AKey, 'BorderColor') then
     Exit('Border line color')
-  else if SameText(AKey, 'DisplayFormat') then
-    Exit('Formatting mask for numbers/dates/text')
   else if SameText(AKey, 'CanGrow') then
     Exit('Allow control height to increase for long content')
   else if SameText(AKey, 'CanShrink') then
@@ -7349,8 +7347,8 @@ const
     'BackColor', 'BackColorTransparent',
     'OnBeforePrint', 'OnAfterPrint'
   );
-  TextKeys: array[0..21] of string = (
-    'Text', 'DataField', 'Expression', 'DisplayFormat',
+  TextKeys: array[0..20] of string = (
+    'Text', 'DataField', 'Expression',
     'Bounds', 'Left', 'Top', 'Width', 'Height',
     'FontName', 'FontSize', 'FontBold', 'FontItalic', 'FontColor',
     'WordWrap', 'AutoSize', 'Transparent', 'Background',
