@@ -2169,6 +2169,8 @@ var
   FontColorPass: Boolean;
   FontSizePass: Boolean;
   FontNamePass: Boolean;
+  FontBoldPass: Boolean;
+  FontItalicPass: Boolean;
   HAlignPass: Boolean;
   VAlignPass: Boolean;
   PrintWhenPass: Boolean;
@@ -2218,6 +2220,8 @@ var
   FontColorTrace: TStringList;
   FontSizeTrace: TStringList;
   FontNameTrace: TStringList;
+  FontBoldTrace: TStringList;
+  FontItalicTrace: TStringList;
   HAlignTrace: TStringList;
   VAlignTrace: TStringList;
   PrintWhenTrace: TStringList;
@@ -2436,6 +2440,8 @@ begin
   FontColorTrace := TStringList.Create;
   FontSizeTrace := TStringList.Create;
   FontNameTrace := TStringList.Create;
+  FontBoldTrace := TStringList.Create;
+  FontItalicTrace := TStringList.Create;
   HAlignTrace := TStringList.Create;
   VAlignTrace := TStringList.Create;
   PrintWhenTrace := TStringList.Create;
@@ -3548,6 +3554,64 @@ begin
     if Assigned(DemoScriptTarget) then
       DemoScriptTarget.Visible := True;
     if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'FontBold := True';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    FontBoldTrace.Assign(Harness.Trace);
+    FontBoldPass :=
+      (Pos('ScriptSetFontBold: TReportTextObject "txtTitle" -> True', FontBoldTrace.Text) > 0) and
+      (Harness.ScriptUnsupportedCount = 0);
+    if FontBoldPass then
+      Lines.Add('FontBold command subtest: PASS')
+    else
+      Lines.Add('FontBold command subtest: FAIL');
+
+    Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'FontItalic := True';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    FontItalicTrace.Assign(Harness.Trace);
+    FontItalicPass :=
+      (Pos('ScriptSetFontItalic: TReportTextObject "txtTitle" -> True', FontItalicTrace.Text) > 0) and
+      (Harness.ScriptUnsupportedCount = 0);
+    if FontItalicPass then
+      Lines.Add('FontItalic command subtest: PASS')
+    else
+      Lines.Add('FontItalic command subtest: FAIL');
+
+    Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
       DemoScriptTarget.OnBeforePrint := 'HAlign := Center';
     Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
     try
@@ -4153,6 +4217,8 @@ begin
       FontColorPass and
       FontSizePass and
       FontNamePass and
+      FontBoldPass and
+      FontItalicPass and
       HAlignPass and
       VAlignPass and
       PrintWhenPass and
@@ -4224,6 +4290,8 @@ begin
     AppendUnsupportedSummary('BorderColor', BorderColorTrace, Lines);
     AppendUnsupportedSummary('FontSize', FontSizeTrace, Lines);
     AppendUnsupportedSummary('FontName', FontNameTrace, Lines);
+    AppendUnsupportedSummary('FontBold', FontBoldTrace, Lines);
+    AppendUnsupportedSummary('FontItalic', FontItalicTrace, Lines);
     AppendUnsupportedSummary('HAlign', HAlignTrace, Lines);
     AppendUnsupportedSummary('VAlign', VAlignTrace, Lines);
     AppendUnsupportedSummary('PrintWhen', PrintWhenTrace, Lines);
@@ -4356,6 +4424,8 @@ begin
     FontColorTrace.Free;
     FontSizeTrace.Free;
     FontNameTrace.Free;
+    FontBoldTrace.Free;
+    FontItalicTrace.Free;
     HAlignTrace.Free;
     VAlignTrace.Free;
     PrintWhenTrace.Free;

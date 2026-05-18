@@ -350,6 +350,8 @@ Release build:
 - Demo host parser supports `FontColor := clColorName` for `TReportTextObject`.
 - Demo host parser supports `FontSize := <integer>` for `TReportTextObject`.
 - Demo host parser supports `FontName := <string>` for `TReportTextObject`.
+- Demo host parser supports `FontBold := False|True` for `TReportTextObject`.
+- Demo host parser supports `FontItalic := False|True` for `TReportTextObject`.
 - Demo host parser supports `HAlign := Left|Center|Right` for `TReportTextObject`.
 - Demo host parser supports `VAlign := Top|Center|Bottom` for `TReportTextObject`.
 - Demo host parser supports `PrintWhen := <string>` for `TReportTextObject`.
@@ -378,6 +380,8 @@ Release build:
 - Runtime Event Callback Demo subtest `AnchorBottom := True` reports PASS.
 - Runtime Event Callback Demo subtest `FontColor := clNavy` reports PASS.
 - Runtime Event Callback Demo subtest `FontName := Arial` reports PASS.
+- Runtime Event Callback Demo subtest `FontBold := True` reports PASS.
+- Runtime Event Callback Demo subtest `FontItalic := True` reports PASS.
 - Runtime Event Callback Demo subtest `HAlign := Center` reports PASS.
 - Runtime Event Callback Demo subtest `VAlign := Bottom` reports PASS.
 - Runtime Event Callback Demo subtest `PrintWhen := Value > 0` reports PASS.

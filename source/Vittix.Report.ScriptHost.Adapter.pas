@@ -333,6 +333,64 @@ begin
     Exit;
   end;
 
+  if Key = 'fontbold' then
+  begin
+    if not (AObject is TReportTextObject) then
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      Exit;
+    end;
+    if SameText(Value, 'True') then
+      B := True
+    else if SameText(Value, 'False') then
+      B := False
+    else
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[FontBoldValue]: ' + AScript;
+      Exit;
+    end;
+    if B then
+      TReportTextObject(AObject).Font.Style := TReportTextObject(AObject).Font.Style + [fsBold]
+    else
+      TReportTextObject(AObject).Font.Style := TReportTextObject(AObject).Font.Style - [fsBold];
+    Result.TraceMessage := Format('ScriptSetFontBold: %s "%s" -> %s',
+      [AObject.ClassName, AObject.Name, BoolToStr(B, True)]);
+    Exit;
+  end;
+
+  if Key = 'fontitalic' then
+  begin
+    if not (AObject is TReportTextObject) then
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      Exit;
+    end;
+    if SameText(Value, 'True') then
+      B := True
+    else if SameText(Value, 'False') then
+      B := False
+    else
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[FontItalicValue]: ' + AScript;
+      Exit;
+    end;
+    if B then
+      TReportTextObject(AObject).Font.Style := TReportTextObject(AObject).Font.Style + [fsItalic]
+    else
+      TReportTextObject(AObject).Font.Style := TReportTextObject(AObject).Font.Style - [fsItalic];
+    Result.TraceMessage := Format('ScriptSetFontItalic: %s "%s" -> %s',
+      [AObject.ClassName, AObject.Name, BoolToStr(B, True)]);
+    Exit;
+  end;
+
   if Key = 'fontsize' then
   begin
     if not (AObject is TReportTextObject) then
