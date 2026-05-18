@@ -25,31 +25,45 @@ Unlike legacy reporting tools, VittixReport relies entirely on standard Delphi R
 * `packages/` — Delphi runtime and design-time package files (`.dpk`).
 * `docs/` — Additional technical documentation (e.g., Event Scripting Rules).
 
+## Requirements
+* Delphi 12.2 or later
+* VCL application target
+* Windows 10 or later
+* Win32 or Win64 target platform
+
+*PDF export currently relies on the Windows printing system, such as Microsoft Print to PDF.*
+
 ## Getting Started
 
-### Prerequisites
-* Delphi 12.2 (VCL, Win32/Win64)
-* Windows 10+ (Required for native "Microsoft Print to PDF" functionality)
-
 ### Building the Standalone Designer
-1. Open `vittixdesigner/VittixDesigner.dproj` in the Delphi IDE.
-2. Build and run (`F9`). 
-3. Use the tool palette on the left to drag objects onto the canvas, edit properties on the right, and use `F5` to preview.
+
+1. Open the project: `vittixdesigner/VittixDesigner.dproj`
+2. Build the project in Delphi.
+3. Run the designer.
+
+Use the designer to:
+* Create reports
+* Add bands
+* Place report objects
+* Bind fields
+* Edit properties
+* Preview reports
+* Save `.vrt` files
 
 ### Using the Runtime Components
-To integrate VittixReport into your own VCL application:
+To use VittixReport in your own Delphi VCL application:
 
-1. Install the packages from the `packages/` folder.
-2. Add the `source/` directory to your Delphi Library Path.
-3. Drop a `TVittixReport` component onto your form.
-4. Assign a `TDataSource` to bind your data.
+1. Add the `source/` folder to your Delphi library/search path.
+2. Install the runtime/design-time packages from `packages/`, if required.
+3. Load a `.vrt` report file using `TReportSerializer`.
+4. Attach your dataset.
+5. Prepare and preview, print, or export the report.
 
-### Example: Exporting a Report to PDF
-
-The engine operates completely independently of the designer, allowing for silent background generation:
+### Example: Export a Report to PDF
 
 ```delphi
 uses
+  Vittix.Report.Model,
   Vittix.Report.Engine,
   Vittix.Report.Serializer,
   Vittix.Report.Export.PDF;
@@ -59,19 +73,20 @@ var
   Report: TReportModel;
   Engine: TReportEngine;
 begin
-  // 1. Load the JSON report definition
   Report := TReportSerializer.LoadFromFile('C:\Reports\Invoice.vrt');
-  
-  // 2. Initialize the engine with the report and your live dataset
-  Engine := TReportEngine.Create(Report, qryInvoiceData);
   try
-    // 3. Process the bands and evaluate expressions
-    Engine.Prepare;
-    
-    // 4. Export the rendered pages
-    TReportPDFExporter.ExportToFile(Engine.Pages, 'C:\Output\Invoice_001.pdf');
+    Engine := TReportEngine.Create(Report, qryInvoiceData);
+    try
+      Engine.Prepare;
+
+      TReportPDFExporter.ExportToFile(
+        Engine.Pages,
+        'C:\Output\Invoice_001.pdf'
+      );
+    finally
+      Engine.Free;
+    end;
   finally
-    Engine.Free;
     Report.Free;
   end;
 end;
