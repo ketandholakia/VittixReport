@@ -2166,6 +2166,7 @@ var
   MixedCaseBackgroundPass: Boolean;
   FontColorPass: Boolean;
   BorderColorPass: Boolean;
+  TransparentPass: Boolean;
   OverallPass: Boolean;
   ScriptCancelTrace: TStringList;
   FieldBindTrace: TStringList;
@@ -2194,6 +2195,7 @@ var
   MixedCaseBackgroundTrace: TStringList;
   FontColorTrace: TStringList;
   BorderColorTrace: TStringList;
+  TransparentTrace: TStringList;
   Obj: TReportObject;
   Band: TReportBand;
   ChildObj: TReportObject;
@@ -2391,6 +2393,7 @@ begin
   MixedCaseBackgroundTrace := TStringList.Create;
   FontColorTrace := TStringList.Create;
   BorderColorTrace := TStringList.Create;
+  TransparentTrace := TStringList.Create;
   try
     FN := GetRegressionReportPath('01_simple_masterdata.vrt');
     if TFile.Exists(FN) then
@@ -3395,6 +3398,35 @@ begin
       Lines.Add('BorderColor command subtest: FAIL');
 
     Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'Transparent := False';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    TransparentTrace.Assign(Harness.Trace);
+    TransparentPass :=
+      (Pos('ScriptSetTransparent: TReportTextObject "txtTitle" -> False', TransparentTrace.Text) > 0) and
+      (Harness.ScriptUnsupportedCount = 0);
+    if TransparentPass then
+      Lines.Add('Transparent command subtest: PASS')
+    else
+      Lines.Add('Transparent command subtest: FAIL');
+
+    Harness.ResetCounts;
     if Assigned(DemoNonTextTarget) then
     begin
       DemoNonTextTarget.OnBeforePrint := 'Text := ''X''; Background := clYellow';
@@ -3478,7 +3510,8 @@ begin
       MixedCaseVisiblePass and
       MixedCaseBackgroundPass and
       FontColorPass and
-      BorderColorPass;
+      BorderColorPass and
+      TransparentPass;
     Lines.Insert(0, '');
     if OverallPass then
       Lines.Insert(0, 'Overall: PASS')
@@ -3528,6 +3561,7 @@ begin
     AppendUnsupportedSummary('Mixed-case key (VISIBLE)', MixedCaseVisibleTrace, Lines);
     AppendUnsupportedSummary('Mixed-case key (BaCkGrOuNd)', MixedCaseBackgroundTrace, Lines);
     AppendUnsupportedSummary('BorderColor', BorderColorTrace, Lines);
+    AppendUnsupportedSummary('Transparent', TransparentTrace, Lines);
     AppendUnsupportedReasonSummary(Lines,
       [BaselineTrace, ObjectSkipTrace, BandSkipTrace, ScriptCancelTrace, FieldBindTrace,
        FieldResolveMissTrace, FieldResolveMissWithUnsupportedTrace, BackgroundTrace, VisibleTrace, EscapedQuoteTrace, WhitespaceTrace, TrailingSemicolonTrace,
@@ -3535,7 +3569,8 @@ begin
        VisibleValueTrace, TextLiteralTrace, CanPrintValueTrace, MultiInvalidTrace,
        MixedValidInvalidTrace, CancelShortCircuitTrace, QuotedSemicolonWithUnsupportedTrace,
        ObjectTypeMismatchTrace, LowercaseTextKeyTrace, MixedCaseCanPrintTrace,
-       MixedCaseVisibleTrace, MixedCaseBackgroundTrace, FontColorTrace, BorderColorTrace]);
+       MixedCaseVisibleTrace, MixedCaseBackgroundTrace, FontColorTrace, BorderColorTrace,
+       TransparentTrace]);
 
     Lines.Add('');
     Lines.Add('Baseline trace preview:');
@@ -3635,6 +3670,7 @@ begin
     MixedCaseBackgroundTrace.Free;
     FontColorTrace.Free;
     BorderColorTrace.Free;
+    TransparentTrace.Free;
     TextLiteralTrace.Free;
     VisibleValueTrace.Free;
     ColorValueTrace.Free;

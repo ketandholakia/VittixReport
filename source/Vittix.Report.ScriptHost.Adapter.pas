@@ -226,6 +226,31 @@ begin
     Exit;
   end;
 
+  if Key = 'transparent' then
+  begin
+    if not (AObject is TReportTextObject) then
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      Exit;
+    end;
+    if SameText(Value, 'True') then
+      TReportTextObject(AObject).Transparent := True
+    else if SameText(Value, 'False') then
+      TReportTextObject(AObject).Transparent := False
+    else
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[TransparentValue]: ' + AScript;
+      Exit;
+    end;
+    Result.TraceMessage := Format('ScriptSetTransparent: %s "%s" -> %s',
+      [AObject.ClassName, AObject.Name, Value]);
+    Exit;
+  end;
+
   if Key = 'text' then
   begin
     if (Length(Value) >= 8) and SameText(Copy(Value, 1, 6), 'Field(') and
