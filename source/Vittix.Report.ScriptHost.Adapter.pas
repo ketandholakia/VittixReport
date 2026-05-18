@@ -253,6 +253,33 @@ begin
     Exit;
   end;
 
+  if Key = 'valign' then
+  begin
+    if not (AObject is TReportTextObject) then
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      Exit;
+    end;
+    if SameText(Value, 'Top') then
+      TReportTextObject(AObject).VAlign := taAlignTop
+    else if SameText(Value, 'Center') then
+      TReportTextObject(AObject).VAlign := taVerticalCenter
+    else if SameText(Value, 'Bottom') then
+      TReportTextObject(AObject).VAlign := taAlignBottom
+    else
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[VAlignValue]: ' + AScript;
+      Exit;
+    end;
+    Result.TraceMessage := Format('ScriptSetVAlign: %s "%s" -> %s',
+      [AObject.ClassName, AObject.Name, Value]);
+    Exit;
+  end;
+
   if Key = 'fontsize' then
   begin
     if not (AObject is TReportTextObject) then
