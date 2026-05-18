@@ -2167,6 +2167,7 @@ var
   FontColorPass: Boolean;
   FontSizePass: Boolean;
   FontNamePass: Boolean;
+  HAlignPass: Boolean;
   BorderColorPass: Boolean;
   TransparentPass: Boolean;
   AutoSizePass: Boolean;
@@ -2211,6 +2212,7 @@ var
   FontColorTrace: TStringList;
   FontSizeTrace: TStringList;
   FontNameTrace: TStringList;
+  HAlignTrace: TStringList;
   BorderColorTrace: TStringList;
   TransparentTrace: TStringList;
   AutoSizeTrace: TStringList;
@@ -2424,6 +2426,7 @@ begin
   FontColorTrace := TStringList.Create;
   FontSizeTrace := TStringList.Create;
   FontNameTrace := TStringList.Create;
+  HAlignTrace := TStringList.Create;
   BorderColorTrace := TStringList.Create;
   TransparentTrace := TStringList.Create;
   AutoSizeTrace := TStringList.Create;
@@ -3475,6 +3478,35 @@ begin
     if Assigned(DemoScriptTarget) then
       DemoScriptTarget.Visible := True;
     if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'HAlign := Center';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    HAlignTrace.Assign(Harness.Trace);
+    HAlignPass :=
+      (Pos('ScriptSetHAlign: TReportTextObject "txtTitle" -> Center', HAlignTrace.Text) > 0) and
+      (Harness.ScriptUnsupportedCount = 0);
+    if HAlignPass then
+      Lines.Add('HAlign command subtest: PASS')
+    else
+      Lines.Add('HAlign command subtest: FAIL');
+
+    Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
       DemoScriptTarget.OnBeforePrint := 'BorderColor := clOlive';
     Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
     try
@@ -3992,6 +4024,7 @@ begin
       FontColorPass and
       FontSizePass and
       FontNamePass and
+      HAlignPass and
       BorderColorPass and
       TransparentPass and
       AutoSizePass and
@@ -4058,6 +4091,7 @@ begin
     AppendUnsupportedSummary('BorderColor', BorderColorTrace, Lines);
     AppendUnsupportedSummary('FontSize', FontSizeTrace, Lines);
     AppendUnsupportedSummary('FontName', FontNameTrace, Lines);
+    AppendUnsupportedSummary('HAlign', HAlignTrace, Lines);
     AppendUnsupportedSummary('Transparent', TransparentTrace, Lines);
     AppendUnsupportedSummary('AutoSize', AutoSizeTrace, Lines);
     AppendUnsupportedSummary('WordWrap', WordWrapTrace, Lines);
@@ -4185,6 +4219,7 @@ begin
     FontColorTrace.Free;
     FontSizeTrace.Free;
     FontNameTrace.Free;
+    HAlignTrace.Free;
     BorderColorTrace.Free;
     TransparentTrace.Free;
     AutoSizeTrace.Free;

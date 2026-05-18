@@ -226,6 +226,33 @@ begin
     Exit;
   end;
 
+  if Key = 'halign' then
+  begin
+    if not (AObject is TReportTextObject) then
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      Exit;
+    end;
+    if SameText(Value, 'Left') then
+      TReportTextObject(AObject).HAlign := taLeftJustify
+    else if SameText(Value, 'Center') then
+      TReportTextObject(AObject).HAlign := taCenter
+    else if SameText(Value, 'Right') then
+      TReportTextObject(AObject).HAlign := taRightJustify
+    else
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[HAlignValue]: ' + AScript;
+      Exit;
+    end;
+    Result.TraceMessage := Format('ScriptSetHAlign: %s "%s" -> %s',
+      [AObject.ClassName, AObject.Name, Value]);
+    Exit;
+  end;
+
   if Key = 'fontsize' then
   begin
     if not (AObject is TReportTextObject) then
