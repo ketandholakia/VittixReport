@@ -251,6 +251,31 @@ begin
     Exit;
   end;
 
+  if Key = 'autosize' then
+  begin
+    if not (AObject is TReportTextObject) then
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      Exit;
+    end;
+    if SameText(Value, 'True') then
+      TReportTextObject(AObject).AutoSize := True
+    else if SameText(Value, 'False') then
+      TReportTextObject(AObject).AutoSize := False
+    else
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[AutoSizeValue]: ' + AScript;
+      Exit;
+    end;
+    Result.TraceMessage := Format('ScriptSetAutoSize: %s "%s" -> %s',
+      [AObject.ClassName, AObject.Name, Value]);
+    Exit;
+  end;
+
   if Key = 'text' then
   begin
     if (Length(Value) >= 8) and SameText(Copy(Value, 1, 6), 'Field(') and

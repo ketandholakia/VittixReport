@@ -144,6 +144,7 @@ Quick notes:
 - `FontColor := clColorName` (for `TReportTextObject` only)
 - `BorderColor := clColorName` (for `TReportTextObject` only)
 - `Transparent := False|True` (for `TReportTextObject` only)
+- `AutoSize := False|True` (for `TReportTextObject` only)
 - `ScriptUnsupported[ObjectType]` is emitted when a command is not valid for the current object class.
 - Bounded multi-command form is supported with semicolon separators, executed left-to-right:
 - `Visible := True; Text := Field('CustomerName')`
@@ -271,6 +272,7 @@ Log('AfterBand:' + ABand.Name);
 - `FontColor := clNavy` (text-object font color command)
 - `BorderColor := clOlive` (text-object border color command)
 - `Transparent := False` (text-object transparency command)
+- `AutoSize := True` (text-object auto-size command)
 - Keys are case-insensitive for supported commands (for example `text := 'lower'`, `cAnPrInT := False`)
 - Non-text object with `Text := 'X'; Background := clYellow` (both commands report `ObjectType` unsupported)
 - Each subtest reports PASS/FAIL in the demo output summary.
