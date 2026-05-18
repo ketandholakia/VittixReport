@@ -100,6 +100,7 @@ var
   Key: string;
   Value: string;
   B: Boolean;
+  N: Integer;
   C: TColor;
   Lit: string;
   Arg: string;
@@ -323,6 +324,31 @@ begin
     end;
     Result.TraceMessage := Format('ScriptSetBorderVisible: %s "%s" -> %s',
       [AObject.ClassName, AObject.Name, Value]);
+    Exit;
+  end;
+
+  if Key = 'borderwidth' then
+  begin
+    if not (AObject is TReportTextObject) then
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      Exit;
+    end;
+    if not TryStrToInt(Value, N) then
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[BorderWidthValue]: ' + AScript;
+      Exit;
+    end;
+    if N < 0 then
+      N := 0;
+    TReportTextObject(AObject).BorderWidth := N;
+    TReportTextObject(AObject).BorderVisible := True;
+    Result.TraceMessage := Format('ScriptSetBorderWidth: %s "%s" -> %d',
+      [AObject.ClassName, AObject.Name, N]);
     Exit;
   end;
 

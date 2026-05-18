@@ -147,6 +147,7 @@ Quick notes:
 - `AutoSize := False|True` (for `TReportTextObject` only)
 - `WordWrap := False|True` (for `TReportTextObject` only)
 - `BorderVisible := False|True` (for `TReportTextObject` only)
+- `BorderWidth := <integer>` (for `TReportTextObject` only)
 - `ScriptUnsupported[ObjectType]` is emitted when a command is not valid for the current object class.
 - Bounded multi-command form is supported with semicolon separators, executed left-to-right:
 - `Visible := True; Text := Field('CustomerName')`
@@ -277,6 +278,7 @@ Log('AfterBand:' + ABand.Name);
 - `AutoSize := True` (text-object auto-size command)
 - `WordWrap := True` (text-object word-wrap command)
 - `BorderVisible := True` (text-object border toggle command)
+- `BorderWidth := 3` (text-object border width command)
 - Keys are case-insensitive for supported commands (for example `text := 'lower'`, `cAnPrInT := False`)
 - Non-text object with `Text := 'X'; Background := clYellow` (both commands report `ObjectType` unsupported)
 - Each subtest reports PASS/FAIL in the demo output summary.
