@@ -301,6 +301,31 @@ begin
     Exit;
   end;
 
+  if Key = 'bordervisible' then
+  begin
+    if not (AObject is TReportTextObject) then
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      Exit;
+    end;
+    if SameText(Value, 'True') then
+      TReportTextObject(AObject).BorderVisible := True
+    else if SameText(Value, 'False') then
+      TReportTextObject(AObject).BorderVisible := False
+    else
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[BorderVisibleValue]: ' + AScript;
+      Exit;
+    end;
+    Result.TraceMessage := Format('ScriptSetBorderVisible: %s "%s" -> %s',
+      [AObject.ClassName, AObject.Name, Value]);
+    Exit;
+  end;
+
   if Key = 'text' then
   begin
     if (Length(Value) >= 8) and SameText(Copy(Value, 1, 6), 'Field(') and
