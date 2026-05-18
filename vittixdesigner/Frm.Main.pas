@@ -2141,6 +2141,7 @@ var
   TargetOrderPass: Boolean;
   TargetCancelOrderPass: Boolean;
   FieldBindPass: Boolean;
+  FieldResolveMissPass: Boolean;
   BackgroundPass: Boolean;
   VisiblePass: Boolean;
   EscapedQuotePass: Boolean;
@@ -2161,6 +2162,7 @@ var
   OverallPass: Boolean;
   ScriptCancelTrace: TStringList;
   FieldBindTrace: TStringList;
+  FieldResolveMissTrace: TStringList;
   BackgroundTrace: TStringList;
   VisibleTrace: TStringList;
   EscapedQuoteTrace: TStringList;
@@ -2350,6 +2352,7 @@ begin
   BandSkipTrace := TStringList.Create;
   ScriptCancelTrace := TStringList.Create;
   FieldBindTrace := TStringList.Create;
+  FieldResolveMissTrace := TStringList.Create;
   BackgroundTrace := TStringList.Create;
   VisibleTrace := TStringList.Create;
   EscapedQuoteTrace := TStringList.Create;
@@ -2641,6 +2644,34 @@ begin
       Lines.Add('Field() text-binding subtest: PASS')
     else
       Lines.Add('Field() text-binding subtest: FAIL');
+
+    Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'Text := Field(''NoSuchField'')';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    FieldResolveMissTrace.Assign(Harness.Trace);
+    FieldResolveMissPass :=
+      (Pos('ScriptFieldResolveMiss: NoSuchField', FieldResolveMissTrace.Text) > 0) and
+      (Harness.ScriptUnsupportedCount = 0) and
+      (Pos('ScriptUnsupported[', FieldResolveMissTrace.Text) = 0);
+    if FieldResolveMissPass then
+      Lines.Add('Field() missing-field resolve subtest: PASS')
+    else
+      Lines.Add('Field() missing-field resolve subtest: FAIL');
 
     Harness.ResetCounts;
     if Assigned(DemoScriptTarget) then
@@ -3182,6 +3213,7 @@ begin
       ScriptCancelPass and
       TargetCancelOrderPass and
       FieldBindPass and
+      FieldResolveMissPass and
       BackgroundPass and
       VisiblePass and
       EscapedQuotePass and
@@ -3224,6 +3256,7 @@ begin
     AppendUnsupportedSummary('Band-skip', BandSkipTrace, Lines);
     AppendUnsupportedSummary('Script-host cancel', ScriptCancelTrace, Lines);
     AppendUnsupportedSummary('Field() binding', FieldBindTrace, Lines);
+    AppendUnsupportedSummary('Field() resolve miss', FieldResolveMissTrace, Lines);
     AppendUnsupportedSummary('Background', BackgroundTrace, Lines);
     AppendUnsupportedSummary('Visible', VisibleTrace, Lines);
     AppendUnsupportedSummary('Escaped quote', EscapedQuoteTrace, Lines);
@@ -3243,7 +3276,7 @@ begin
     AppendUnsupportedSummary('Object-type mismatch', ObjectTypeMismatchTrace, Lines);
     AppendUnsupportedReasonSummary(Lines,
       [BaselineTrace, ObjectSkipTrace, BandSkipTrace, ScriptCancelTrace, FieldBindTrace,
-       BackgroundTrace, VisibleTrace, EscapedQuoteTrace, WhitespaceTrace, TrailingSemicolonTrace,
+       FieldResolveMissTrace, BackgroundTrace, VisibleTrace, EscapedQuoteTrace, WhitespaceTrace, TrailingSemicolonTrace,
        UnknownCommandTrace, FieldSyntaxTrace, FieldNameTrace, ColorValueTrace,
        VisibleValueTrace, TextLiteralTrace, CanPrintValueTrace, MultiInvalidTrace,
        MixedValidInvalidTrace, CancelShortCircuitTrace, QuotedSemicolonWithUnsupportedTrace,
@@ -3333,6 +3366,7 @@ begin
     VisibleTrace.Free;
     BackgroundTrace.Free;
     FieldBindTrace.Free;
+    FieldResolveMissTrace.Free;
     CanPrintValueTrace.Free;
     MultiInvalidTrace.Free;
     MixedValidInvalidTrace.Free;

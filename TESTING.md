@@ -1,4 +1,4 @@
-﻿    # VittixReport Manual Testing Checklist
+    # VittixReport Manual Testing Checklist
 
 Use this checklist before releases or major engine changes.
 
@@ -488,3 +488,4 @@ Expected result:
 - Event exceptions behave consistently with engine policy.
 - Preview and export use the same event path.
 - No .vrt schema/serializer change is required for runtime callbacks.
+
