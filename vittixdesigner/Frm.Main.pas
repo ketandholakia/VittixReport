@@ -2169,6 +2169,7 @@ var
   FontNamePass: Boolean;
   HAlignPass: Boolean;
   VAlignPass: Boolean;
+  PrintWhenPass: Boolean;
   BorderColorPass: Boolean;
   TransparentPass: Boolean;
   AutoSizePass: Boolean;
@@ -2215,6 +2216,7 @@ var
   FontNameTrace: TStringList;
   HAlignTrace: TStringList;
   VAlignTrace: TStringList;
+  PrintWhenTrace: TStringList;
   BorderColorTrace: TStringList;
   TransparentTrace: TStringList;
   AutoSizeTrace: TStringList;
@@ -2430,6 +2432,7 @@ begin
   FontNameTrace := TStringList.Create;
   HAlignTrace := TStringList.Create;
   VAlignTrace := TStringList.Create;
+  PrintWhenTrace := TStringList.Create;
   BorderColorTrace := TStringList.Create;
   TransparentTrace := TStringList.Create;
   AutoSizeTrace := TStringList.Create;
@@ -3539,6 +3542,35 @@ begin
     if Assigned(DemoScriptTarget) then
       DemoScriptTarget.Visible := True;
     if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'PrintWhen := Value > 0';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    PrintWhenTrace.Assign(Harness.Trace);
+    PrintWhenPass :=
+      (Pos('ScriptSetPrintWhen: TReportTextObject "txtTitle" -> "Value > 0"', PrintWhenTrace.Text) > 0) and
+      (Harness.ScriptUnsupportedCount = 0);
+    if PrintWhenPass then
+      Lines.Add('PrintWhen command subtest: PASS')
+    else
+      Lines.Add('PrintWhen command subtest: FAIL');
+
+    Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
       DemoScriptTarget.OnBeforePrint := 'BorderColor := clOlive';
     Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
     try
@@ -4058,6 +4090,7 @@ begin
       FontNamePass and
       HAlignPass and
       VAlignPass and
+      PrintWhenPass and
       BorderColorPass and
       TransparentPass and
       AutoSizePass and
@@ -4126,6 +4159,7 @@ begin
     AppendUnsupportedSummary('FontName', FontNameTrace, Lines);
     AppendUnsupportedSummary('HAlign', HAlignTrace, Lines);
     AppendUnsupportedSummary('VAlign', VAlignTrace, Lines);
+    AppendUnsupportedSummary('PrintWhen', PrintWhenTrace, Lines);
     AppendUnsupportedSummary('Transparent', TransparentTrace, Lines);
     AppendUnsupportedSummary('AutoSize', AutoSizeTrace, Lines);
     AppendUnsupportedSummary('WordWrap', WordWrapTrace, Lines);
@@ -4255,6 +4289,7 @@ begin
     FontNameTrace.Free;
     HAlignTrace.Free;
     VAlignTrace.Free;
+    PrintWhenTrace.Free;
     BorderColorTrace.Free;
     TransparentTrace.Free;
     AutoSizeTrace.Free;
