@@ -2191,6 +2191,7 @@ var
   BorderColorOnTruePass: Boolean;
   BackgroundConditionPass: Boolean;
   BorderColorConditionPass: Boolean;
+  FontColorConditionPass: Boolean;
   OverallPass: Boolean;
   ScriptCancelTrace: TStringList;
   FieldBindTrace: TStringList;
@@ -2244,6 +2245,7 @@ var
   BorderColorOnTrueTrace: TStringList;
   BackgroundConditionTrace: TStringList;
   BorderColorConditionTrace: TStringList;
+  FontColorConditionTrace: TStringList;
   Obj: TReportObject;
   Band: TReportBand;
   ChildObj: TReportObject;
@@ -2466,6 +2468,7 @@ begin
   BorderColorOnTrueTrace := TStringList.Create;
   BackgroundConditionTrace := TStringList.Create;
   BorderColorConditionTrace := TStringList.Create;
+  FontColorConditionTrace := TStringList.Create;
   try
     FN := GetRegressionReportPath('01_simple_masterdata.vrt');
     if TFile.Exists(FN) then
@@ -4195,6 +4198,35 @@ begin
       Lines.Add('BorderColorCondition command subtest: FAIL');
 
     Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'FontColorCondition := Value > 0';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    FontColorConditionTrace.Assign(Harness.Trace);
+    FontColorConditionPass :=
+      (Pos('ScriptSetFontColorCondition: TReportTextObject "txtTitle" -> "Value > 0"', FontColorConditionTrace.Text) > 0) and
+      (Harness.ScriptUnsupportedCount = 0);
+    if FontColorConditionPass then
+      Lines.Add('FontColorCondition command subtest: PASS')
+    else
+      Lines.Add('FontColorCondition command subtest: FAIL');
+
+    Harness.ResetCounts;
     if Assigned(DemoNonTextTarget) then
     begin
       DemoNonTextTarget.OnBeforePrint := 'Text := ''X''; Background := clYellow';
@@ -4288,6 +4320,7 @@ begin
       PrintWhenPass and
       DataFieldPass and
       ExpressionPass and
+      FontColorConditionPass and
       BorderColorPass and
       AnchorBottomPass and
       TransparentPass and
@@ -4363,6 +4396,7 @@ begin
     AppendUnsupportedSummary('PrintWhen', PrintWhenTrace, Lines);
     AppendUnsupportedSummary('DataField', DataFieldTrace, Lines);
     AppendUnsupportedSummary('Expression', ExpressionTrace, Lines);
+    AppendUnsupportedSummary('FontColorCondition', FontColorConditionTrace, Lines);
     AppendUnsupportedSummary('AnchorBottom', AnchorBottomTrace, Lines);
     AppendUnsupportedSummary('Transparent', TransparentTrace, Lines);
     AppendUnsupportedSummary('AutoSize', AutoSizeTrace, Lines);
@@ -4499,6 +4533,7 @@ begin
     PrintWhenTrace.Free;
     DataFieldTrace.Free;
     ExpressionTrace.Free;
+    FontColorConditionTrace.Free;
     AnchorBottomTrace.Free;
     BorderColorTrace.Free;
     TransparentTrace.Free;
