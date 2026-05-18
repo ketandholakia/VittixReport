@@ -2192,6 +2192,8 @@ var
   BackgroundConditionPass: Boolean;
   BorderColorConditionPass: Boolean;
   FontColorConditionPass: Boolean;
+  FieldDisplayFormatPass: Boolean;
+  FieldEditMaskPass: Boolean;
   OverallPass: Boolean;
   ScriptCancelTrace: TStringList;
   FieldBindTrace: TStringList;
@@ -2246,10 +2248,13 @@ var
   BackgroundConditionTrace: TStringList;
   BorderColorConditionTrace: TStringList;
   FontColorConditionTrace: TStringList;
+  FieldDisplayFormatTrace: TStringList;
+  FieldEditMaskTrace: TStringList;
   Obj: TReportObject;
   Band: TReportBand;
   ChildObj: TReportObject;
   DemoScriptTarget: TReportObject;
+  DemoFieldTarget: TReportFieldObject;
   DemoNonTextTarget: TReportObject;
   ResultDlg: TForm;
   ResultMemo: TMemo;
@@ -2469,6 +2474,8 @@ begin
   BackgroundConditionTrace := TStringList.Create;
   BorderColorConditionTrace := TStringList.Create;
   FontColorConditionTrace := TStringList.Create;
+  FieldDisplayFormatTrace := TStringList.Create;
+  FieldEditMaskTrace := TStringList.Create;
   try
     FN := GetRegressionReportPath('01_simple_masterdata.vrt');
     if TFile.Exists(FN) then
@@ -2481,6 +2488,7 @@ begin
 
     Harness := TRuntimeEventDemoHarness.Create;
     DemoScriptTarget := nil;
+    DemoFieldTarget := nil;
     DemoNonTextTarget := nil;
     for Obj in ReportModel.Objects do
     begin
@@ -2489,10 +2497,12 @@ begin
         if not Assigned(DemoScriptTarget) then
           DemoScriptTarget := Obj;
       end
+      else if (Obj is TReportFieldObject) and not Assigned(DemoFieldTarget) then
+        DemoFieldTarget := TReportFieldObject(Obj)
       else if (not (Obj is TReportBand)) and not Assigned(DemoNonTextTarget) then
         DemoNonTextTarget := Obj;
 
-      if Assigned(DemoScriptTarget) and Assigned(DemoNonTextTarget) then
+      if Assigned(DemoScriptTarget) and Assigned(DemoFieldTarget) and Assigned(DemoNonTextTarget) then
         Break;
     end;
 
@@ -2507,13 +2517,15 @@ begin
           begin
             if (ChildObj is TReportTextObject) and not Assigned(DemoScriptTarget) then
               DemoScriptTarget := ChildObj
+            else if (ChildObj is TReportFieldObject) and not Assigned(DemoFieldTarget) then
+              DemoFieldTarget := TReportFieldObject(ChildObj)
             else if (not (ChildObj is TReportTextObject)) and not Assigned(DemoNonTextTarget) then
               DemoNonTextTarget := ChildObj;
-            if Assigned(DemoScriptTarget) and Assigned(DemoNonTextTarget) then
+            if Assigned(DemoScriptTarget) and Assigned(DemoFieldTarget) and Assigned(DemoNonTextTarget) then
               Break;
           end;
         end;
-        if Assigned(DemoScriptTarget) and Assigned(DemoNonTextTarget) then
+        if Assigned(DemoScriptTarget) and Assigned(DemoFieldTarget) and Assigned(DemoNonTextTarget) then
           Break;
       end;
     end;
@@ -2542,8 +2554,18 @@ begin
         DemoScriptTarget.OnAfterPrint := 'DemoObjectAfter';
     end;
 
+    if Assigned(DemoFieldTarget) then
+    begin
+      if Trim(DemoFieldTarget.OnBeforePrint) = '' then
+        DemoFieldTarget.OnBeforePrint := 'DisplayFormat := #,##0.00; EditMask := ''!99;0;_''';
+      if Trim(DemoFieldTarget.OnAfterPrint) = '' then
+        DemoFieldTarget.OnAfterPrint := 'DemoFieldAfter';
+    end;
+
     if not Assigned(DemoScriptTarget) then
       raise Exception.Create('Could not find text object for runtime event demo.');
+    if not Assigned(DemoFieldTarget) then
+      raise Exception.Create('Could not find field object for runtime event demo.');
 
     Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
     try
@@ -3763,6 +3785,36 @@ begin
       Lines.Add('Expression command subtest: FAIL');
 
     Harness.ResetCounts;
+    if Assigned(DemoFieldTarget) then
+      DemoFieldTarget.Visible := True;
+    if Assigned(DemoFieldTarget) then
+      DemoFieldTarget.OnBeforePrint := 'DisplayFormat := #,##0.00; EditMask := ''!99;0;_''';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    FieldDisplayFormatTrace.Assign(Harness.Trace);
+    FieldDisplayFormatPass :=
+      (Pos('ScriptSetDisplayFormat: TReportFieldObject', FieldDisplayFormatTrace.Text) > 0) and
+      (Pos('ScriptSetEditMask: TReportFieldObject', FieldDisplayFormatTrace.Text) > 0) and
+      (Harness.ScriptUnsupportedCount = 0);
+    if FieldDisplayFormatPass then
+      Lines.Add('Field DisplayFormat/EditMask command subtest: PASS')
+    else
+      Lines.Add('Field DisplayFormat/EditMask command subtest: FAIL');
+
+    Harness.ResetCounts;
     if Assigned(DemoScriptTarget) then
       DemoScriptTarget.Visible := True;
     if Assigned(DemoScriptTarget) then
@@ -4321,6 +4373,7 @@ begin
       DataFieldPass and
       ExpressionPass and
       FontColorConditionPass and
+      FieldDisplayFormatPass and
       BorderColorPass and
       AnchorBottomPass and
       TransparentPass and
@@ -4398,6 +4451,7 @@ begin
     AppendUnsupportedSummary('Expression', ExpressionTrace, Lines);
     AppendUnsupportedSummary('FontColorCondition', FontColorConditionTrace, Lines);
     AppendUnsupportedSummary('AnchorBottom', AnchorBottomTrace, Lines);
+    AppendUnsupportedSummary('FieldDisplayFormat', FieldDisplayFormatTrace, Lines);
     AppendUnsupportedSummary('Transparent', TransparentTrace, Lines);
     AppendUnsupportedSummary('AutoSize', AutoSizeTrace, Lines);
     AppendUnsupportedSummary('WordWrap', WordWrapTrace, Lines);
@@ -4535,6 +4589,7 @@ begin
     ExpressionTrace.Free;
     FontColorConditionTrace.Free;
     AnchorBottomTrace.Free;
+    FieldDisplayFormatTrace.Free;
     BorderColorTrace.Free;
     TransparentTrace.Free;
     AutoSizeTrace.Free;

@@ -26,6 +26,7 @@ type
   private
     function ParseScriptAssignment(const AScript: string; out AKey, AValue: string): Boolean;
     function SplitStatements(const AScript: string): TArray<string>;
+    function StripOuterQuotes(const S: string): string;
     function ExecuteSingleBeforeObject(AObject: TReportObject; const AScript: string;
       var Context: TExpressionContext; var ACanPrint: Boolean): TScriptHostCommandResult;
   public
@@ -92,6 +93,13 @@ begin
   finally
     Parts.Free;
   end;
+end;
+
+function TReportScriptHostAdapter.StripOuterQuotes(const S: string): string;
+begin
+  Result := S;
+  if (Length(Result) >= 2) and (Result[1] = '''') and (Result[Length(Result)] = '''') then
+    Result := Copy(Result, 2, Length(Result) - 2);
 end;
 
 function TReportScriptHostAdapter.ExecuteSingleBeforeObject(AObject: TReportObject;
@@ -403,6 +411,36 @@ begin
     TReportTextObject(AObject).DataField := Value;
     Result.TraceMessage := Format('ScriptSetDataField: %s "%s" -> "%s"',
       [AObject.ClassName, AObject.Name, Value]);
+    Exit;
+  end;
+
+  if Key = 'displayformat' then
+  begin
+    if not (AObject is TReportFieldObject) then
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      Exit;
+    end;
+    TReportFieldObject(AObject).DisplayFormat := StripOuterQuotes(Value);
+    Result.TraceMessage := Format('ScriptSetDisplayFormat: %s "%s" -> "%s"',
+      [AObject.ClassName, AObject.Name, TReportFieldObject(AObject).DisplayFormat]);
+    Exit;
+  end;
+
+  if Key = 'editmask' then
+  begin
+    if not (AObject is TReportFieldObject) then
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      Exit;
+    end;
+    TReportFieldObject(AObject).EditMask := StripOuterQuotes(Value);
+    Result.TraceMessage := Format('ScriptSetEditMask: %s "%s" -> "%s"',
+      [AObject.ClassName, AObject.Name, TReportFieldObject(AObject).EditMask]);
     Exit;
   end;
 
