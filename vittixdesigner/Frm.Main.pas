@@ -2153,6 +2153,7 @@ var
   VisibleValuePass: Boolean;
   TextLiteralPass: Boolean;
   CanPrintValuePass: Boolean;
+  MultiInvalidPass: Boolean;
   OverallPass: Boolean;
   ScriptCancelTrace: TStringList;
   FieldBindTrace: TStringList;
@@ -2168,6 +2169,7 @@ var
   VisibleValueTrace: TStringList;
   TextLiteralTrace: TStringList;
   CanPrintValueTrace: TStringList;
+  MultiInvalidTrace: TStringList;
   Obj: TReportObject;
   Band: TReportBand;
   ChildObj: TReportObject;
@@ -2351,6 +2353,7 @@ begin
   VisibleValueTrace := TStringList.Create;
   TextLiteralTrace := TStringList.Create;
   CanPrintValueTrace := TStringList.Create;
+  MultiInvalidTrace := TStringList.Create;
   try
     FN := GetRegressionReportPath('01_simple_masterdata.vrt');
     if TFile.Exists(FN) then
@@ -2960,6 +2963,37 @@ begin
     else
       Lines.Add('CanPrint value subtest: FAIL');
 
+    Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'Foo := 1; Visible := Maybe; Text := Demo; Foo := 1';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    MultiInvalidTrace.Assign(Harness.Trace);
+    MultiInvalidPass :=
+      (Harness.ScriptUnsupportedCount >= 4) and
+      (Pos('ScriptUnsupported[UnknownCommand]: Foo := 1', MultiInvalidTrace.Text) > 0) and
+      (Pos('ScriptUnsupported[VisibleValue]: Visible := Maybe', MultiInvalidTrace.Text) > 0) and
+      (Pos('ScriptUnsupported[TextLiteral]: Text := Demo', MultiInvalidTrace.Text) > 0);
+    if MultiInvalidPass then
+      Lines.Add('Multi-invalid aggregation subtest: PASS')
+    else
+      Lines.Add('Multi-invalid aggregation subtest: FAIL');
+
     Lines.Add('');
     Lines.Add('Parser edge-case summary:');
     if EscapedQuotePass then
@@ -2995,7 +3029,8 @@ begin
       ColorValuePass and
       VisibleValuePass and
       TextLiteralPass and
-      CanPrintValuePass;
+      CanPrintValuePass and
+      MultiInvalidPass;
     Lines.Insert(0, '');
     if OverallPass then
       Lines.Insert(0, 'Overall: PASS')
@@ -3033,11 +3068,12 @@ begin
     AppendUnsupportedSummary('Visible value', VisibleValueTrace, Lines);
     AppendUnsupportedSummary('Text literal', TextLiteralTrace, Lines);
     AppendUnsupportedSummary('CanPrint value', CanPrintValueTrace, Lines);
+    AppendUnsupportedSummary('Multi-invalid aggregation', MultiInvalidTrace, Lines);
     AppendUnsupportedReasonSummary(Lines,
       [BaselineTrace, ObjectSkipTrace, BandSkipTrace, ScriptCancelTrace, FieldBindTrace,
        BackgroundTrace, VisibleTrace, EscapedQuoteTrace, WhitespaceTrace, TrailingSemicolonTrace,
        UnknownCommandTrace, FieldSyntaxTrace, FieldNameTrace, ColorValueTrace,
-       VisibleValueTrace, TextLiteralTrace, CanPrintValueTrace]);
+       VisibleValueTrace, TextLiteralTrace, CanPrintValueTrace, MultiInvalidTrace]);
 
     Lines.Add('');
     Lines.Add('Baseline trace preview:');
@@ -3124,6 +3160,7 @@ begin
     BackgroundTrace.Free;
     FieldBindTrace.Free;
     CanPrintValueTrace.Free;
+    MultiInvalidTrace.Free;
     TextLiteralTrace.Free;
     VisibleValueTrace.Free;
     ColorValueTrace.Free;

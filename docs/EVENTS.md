@@ -252,6 +252,7 @@ Log('AfterBand:' + ABand.Name);
 - `Visible := Maybe` (invalid boolean token -> `VisibleValue`)
 - `Text := Demo` (unquoted literal -> `TextLiteral`)
 - `CanPrint := Maybe` (invalid cancel token -> `CanPrintValue`)
+- `Foo := 1; Visible := Maybe; Text := Demo; Foo := 1` (multi-invalid sequence; validates duplicate reason aggregation)
 - Each subtest reports PASS/FAIL in the demo output summary.
 - Demo output also includes an unsupported-command diagnostics block grouped by subtest.
 - Demo output includes a compact unsupported-reason summary block with per-reason counts.

@@ -361,6 +361,7 @@ Release build:
 - Runtime Event Callback Demo subtest `Visible := Maybe` reports `VisibleValue` unsupported PASS.
 - Runtime Event Callback Demo subtest `Text := Demo` reports `TextLiteral` unsupported PASS.
 - Runtime Event Callback Demo subtest `CanPrint := Maybe` reports `CanPrintValue` unsupported PASS.
+- Runtime Event Callback Demo subtest `Foo := 1; Visible := Maybe; Text := Demo; Foo := 1` reports multi-invalid aggregation PASS.
 - Runtime Event Callback Demo supports bounded semicolon command sequences and reports PASS.
 - `CanPrint := False; ...` short-circuits remaining commands for that object.
 - Quote-aware semicolon split works: `Text := 'A;B'; Visible := True`.
@@ -370,6 +371,7 @@ Release build:
 - Runtime Event Callback Demo unsupported reason summary includes `UnknownCommand` when invalid command subtest runs.
 - Runtime Event Callback Demo unsupported reason summary includes:
 - `UnknownCommand`, `FieldSyntax`, `FieldName`, `ColorValue`, `VisibleValue`, `TextLiteral`, `CanPrintValue`.
+- Multi-invalid aggregation subtest confirms duplicate reason counting (for example `UnknownCommand` appears twice in one script and is counted accordingly).
 - Band script behavior remains unchanged.
 - Preview and export use consistent object event execution behavior.
 
