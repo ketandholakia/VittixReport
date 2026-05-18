@@ -406,6 +406,21 @@ begin
     Exit;
   end;
 
+  if Key = 'expression' then
+  begin
+    if not (AObject is TReportTextObject) then
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      Exit;
+    end;
+    TReportTextObject(AObject).Expression := Value;
+    Result.TraceMessage := Format('ScriptSetExpression: %s "%s" -> "%s"',
+      [AObject.ClassName, AObject.Name, Value]);
+    Exit;
+  end;
+
   if Key = 'fontsize' then
   begin
     if not (AObject is TReportTextObject) then
