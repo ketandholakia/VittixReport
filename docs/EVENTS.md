@@ -255,6 +255,7 @@ Log('AfterBand:' + ABand.Name);
 - `Foo := 1; Visible := Maybe; Text := Demo; Foo := 1` (multi-invalid sequence; validates duplicate reason aggregation)
 - `Text := 'OK'; Foo := 1; Visible := True; Text := Demo` (mixed valid+invalid sequence; validates left-to-right execution with unsupported tagging)
 - `CanPrint := False; Foo := 1; Text := Demo` (short-circuit sequence; later commands are not evaluated)
+- `Text := 'A;B'; Foo := 1` (quoted semicolon literal remains intact; following unsupported command is still tagged)
 - Each subtest reports PASS/FAIL in the demo output summary.
 - Demo output also includes an unsupported-command diagnostics block grouped by subtest.
 - Demo output includes a compact unsupported-reason summary block with per-reason counts.

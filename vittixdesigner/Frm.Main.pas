@@ -2156,6 +2156,7 @@ var
   MultiInvalidPass: Boolean;
   MixedValidInvalidPass: Boolean;
   CancelShortCircuitPass: Boolean;
+  QuotedSemicolonWithUnsupportedPass: Boolean;
   OverallPass: Boolean;
   ScriptCancelTrace: TStringList;
   FieldBindTrace: TStringList;
@@ -2174,6 +2175,7 @@ var
   MultiInvalidTrace: TStringList;
   MixedValidInvalidTrace: TStringList;
   CancelShortCircuitTrace: TStringList;
+  QuotedSemicolonWithUnsupportedTrace: TStringList;
   Obj: TReportObject;
   Band: TReportBand;
   ChildObj: TReportObject;
@@ -2360,6 +2362,7 @@ begin
   MultiInvalidTrace := TStringList.Create;
   MixedValidInvalidTrace := TStringList.Create;
   CancelShortCircuitTrace := TStringList.Create;
+  QuotedSemicolonWithUnsupportedTrace := TStringList.Create;
   try
     FN := GetRegressionReportPath('01_simple_masterdata.vrt');
     if TFile.Exists(FN) then
@@ -3066,6 +3069,37 @@ begin
     else
       Lines.Add('CanPrint short-circuit mixed sequence subtest: FAIL');
 
+    Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'Text := ''A;B''; Foo := 1';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    QuotedSemicolonWithUnsupportedTrace.Assign(Harness.Trace);
+    QuotedSemicolonWithUnsupportedPass :=
+      (Harness.ScriptTextSetCount > 0) and
+      (Harness.ScriptUnsupportedCount = 1) and
+      (Pos('ScriptSetText: TReportTextObject "txtTitle" -> "A;B"', QuotedSemicolonWithUnsupportedTrace.Text) > 0) and
+      (Pos('ScriptUnsupported[UnknownCommand]: Foo := 1', QuotedSemicolonWithUnsupportedTrace.Text) > 0);
+    if QuotedSemicolonWithUnsupportedPass then
+      Lines.Add('Quoted semicolon + unsupported subtest: PASS')
+    else
+      Lines.Add('Quoted semicolon + unsupported subtest: FAIL');
+
     Lines.Add('');
     Lines.Add('Parser edge-case summary:');
     if EscapedQuotePass then
@@ -3104,7 +3138,8 @@ begin
       CanPrintValuePass and
       MultiInvalidPass and
       MixedValidInvalidPass and
-      CancelShortCircuitPass;
+      CancelShortCircuitPass and
+      QuotedSemicolonWithUnsupportedPass;
     Lines.Insert(0, '');
     if OverallPass then
       Lines.Insert(0, 'Overall: PASS')
@@ -3145,12 +3180,13 @@ begin
     AppendUnsupportedSummary('Multi-invalid aggregation', MultiInvalidTrace, Lines);
     AppendUnsupportedSummary('Mixed valid+invalid sequence', MixedValidInvalidTrace, Lines);
     AppendUnsupportedSummary('CanPrint short-circuit mixed sequence', CancelShortCircuitTrace, Lines);
+    AppendUnsupportedSummary('Quoted semicolon + unsupported', QuotedSemicolonWithUnsupportedTrace, Lines);
     AppendUnsupportedReasonSummary(Lines,
       [BaselineTrace, ObjectSkipTrace, BandSkipTrace, ScriptCancelTrace, FieldBindTrace,
        BackgroundTrace, VisibleTrace, EscapedQuoteTrace, WhitespaceTrace, TrailingSemicolonTrace,
        UnknownCommandTrace, FieldSyntaxTrace, FieldNameTrace, ColorValueTrace,
        VisibleValueTrace, TextLiteralTrace, CanPrintValueTrace, MultiInvalidTrace,
-       MixedValidInvalidTrace, CancelShortCircuitTrace]);
+       MixedValidInvalidTrace, CancelShortCircuitTrace, QuotedSemicolonWithUnsupportedTrace]);
 
     Lines.Add('');
     Lines.Add('Baseline trace preview:');
@@ -3240,6 +3276,7 @@ begin
     MultiInvalidTrace.Free;
     MixedValidInvalidTrace.Free;
     CancelShortCircuitTrace.Free;
+    QuotedSemicolonWithUnsupportedTrace.Free;
     TextLiteralTrace.Free;
     VisibleValueTrace.Free;
     ColorValueTrace.Free;
