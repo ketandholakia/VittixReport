@@ -2146,6 +2146,7 @@ var
   BackgroundPass: Boolean;
   VisiblePass: Boolean;
   AnchorRightPass: Boolean;
+  AnchorBottomPass: Boolean;
   EscapedQuotePass: Boolean;
   WhitespacePass: Boolean;
   TrailingSemicolonPass: Boolean;
@@ -2194,6 +2195,7 @@ var
   BackgroundTrace: TStringList;
   VisibleTrace: TStringList;
   AnchorRightTrace: TStringList;
+  AnchorBottomTrace: TStringList;
   EscapedQuoteTrace: TStringList;
   WhitespaceTrace: TStringList;
   TrailingSemicolonTrace: TStringList;
@@ -2411,6 +2413,7 @@ begin
   BackgroundTrace := TStringList.Create;
   VisibleTrace := TStringList.Create;
   AnchorRightTrace := TStringList.Create;
+  AnchorBottomTrace := TStringList.Create;
   EscapedQuoteTrace := TStringList.Create;
   WhitespaceTrace := TStringList.Create;
   TrailingSemicolonTrace := TStringList.Create;
@@ -2880,6 +2883,35 @@ begin
       Lines.Add('AnchorRight command subtest: PASS')
     else
       Lines.Add('AnchorRight command subtest: FAIL');
+
+    Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'AnchorBottom := True';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    AnchorBottomTrace.Assign(Harness.Trace);
+    AnchorBottomPass :=
+      (Pos('ScriptSetAnchorBottom: TReportTextObject "txtTitle" -> True', AnchorBottomTrace.Text) > 0) and
+      (Harness.ScriptUnsupportedCount = 0);
+    if AnchorBottomPass then
+      Lines.Add('AnchorBottom command subtest: PASS')
+    else
+      Lines.Add('AnchorBottom command subtest: FAIL');
 
     Harness.ResetCounts;
     if Assigned(DemoScriptTarget) then
@@ -4125,6 +4157,7 @@ begin
       VAlignPass and
       PrintWhenPass and
       BorderColorPass and
+      AnchorBottomPass and
       TransparentPass and
       AutoSizePass and
       WordWrapPass and
@@ -4194,6 +4227,7 @@ begin
     AppendUnsupportedSummary('HAlign', HAlignTrace, Lines);
     AppendUnsupportedSummary('VAlign', VAlignTrace, Lines);
     AppendUnsupportedSummary('PrintWhen', PrintWhenTrace, Lines);
+    AppendUnsupportedSummary('AnchorBottom', AnchorBottomTrace, Lines);
     AppendUnsupportedSummary('Transparent', TransparentTrace, Lines);
     AppendUnsupportedSummary('AutoSize', AutoSizeTrace, Lines);
     AppendUnsupportedSummary('WordWrap', WordWrapTrace, Lines);
@@ -4325,6 +4359,7 @@ begin
     HAlignTrace.Free;
     VAlignTrace.Free;
     PrintWhenTrace.Free;
+    AnchorBottomTrace.Free;
     BorderColorTrace.Free;
     TransparentTrace.Free;
     AutoSizeTrace.Free;
