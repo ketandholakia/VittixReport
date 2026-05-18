@@ -358,6 +358,9 @@ Release build:
 - Demo host parser supports `DisplayFormat := <string>` for `TReportFieldObject`.
 - Demo host parser supports `EditMask := <string>` for `TReportFieldObject`.
 - Demo host parser supports `FontColorCondition := <string>` for `TReportTextObject`.
+- Demo host parser supports `Stretch := False|True` for `TReportImageObject`.
+- Demo host parser supports `Center := False|True` for `TReportImageObject`.
+- Demo host parser supports `Proportional := False|True` for `TReportImageObject`.
 - Demo host parser supports `BorderColor := clColorName` for `TReportTextObject`.
 - Demo host parser supports `Transparent := False|True` for `TReportTextObject`.
 - Demo host parser supports `AutoSize := False|True` for `TReportTextObject`.
@@ -392,6 +395,7 @@ Release build:
 - Runtime Event Callback Demo subtest `Expression := Value + 1` reports PASS.
 - Runtime Event Callback Demo subtest `DisplayFormat := #,##0.00; EditMask := '!99;0;_'` reports PASS.
 - Runtime Event Callback Demo subtest `FontColorCondition := Value > 0` reports PASS.
+- Runtime Event Callback Demo subtest `Stretch := False; Center := True; Proportional := False` reports PASS.
 - Runtime Event Callback Demo subtest `BorderColor := clOlive` reports PASS.
 - Runtime Event Callback Demo subtest `FontSize := 14` reports PASS.
 - Runtime Event Callback Demo subtest `Transparent := False` reports PASS.

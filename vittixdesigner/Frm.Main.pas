@@ -2194,6 +2194,9 @@ var
   FontColorConditionPass: Boolean;
   FieldDisplayFormatPass: Boolean;
   FieldEditMaskPass: Boolean;
+  ImageStretchPass: Boolean;
+  ImageCenterPass: Boolean;
+  ImageProportionalPass: Boolean;
   OverallPass: Boolean;
   ScriptCancelTrace: TStringList;
   FieldBindTrace: TStringList;
@@ -2250,11 +2253,15 @@ var
   FontColorConditionTrace: TStringList;
   FieldDisplayFormatTrace: TStringList;
   FieldEditMaskTrace: TStringList;
+  ImageStretchTrace: TStringList;
+  ImageCenterTrace: TStringList;
+  ImageProportionalTrace: TStringList;
   Obj: TReportObject;
   Band: TReportBand;
   ChildObj: TReportObject;
   DemoScriptTarget: TReportObject;
   DemoFieldTarget: TReportFieldObject;
+  DemoImageTarget: TReportImageObject;
   DemoNonTextTarget: TReportObject;
   ResultDlg: TForm;
   ResultMemo: TMemo;
@@ -2476,6 +2483,9 @@ begin
   FontColorConditionTrace := TStringList.Create;
   FieldDisplayFormatTrace := TStringList.Create;
   FieldEditMaskTrace := TStringList.Create;
+  ImageStretchTrace := TStringList.Create;
+  ImageCenterTrace := TStringList.Create;
+  ImageProportionalTrace := TStringList.Create;
   try
     FN := GetRegressionReportPath('01_simple_masterdata.vrt');
     if TFile.Exists(FN) then
@@ -2489,6 +2499,7 @@ begin
     Harness := TRuntimeEventDemoHarness.Create;
     DemoScriptTarget := nil;
     DemoFieldTarget := nil;
+    DemoImageTarget := nil;
     DemoNonTextTarget := nil;
     for Obj in ReportModel.Objects do
     begin
@@ -2499,10 +2510,12 @@ begin
       end
       else if (Obj is TReportFieldObject) and not Assigned(DemoFieldTarget) then
         DemoFieldTarget := TReportFieldObject(Obj)
+      else if (Obj is TReportImageObject) and not Assigned(DemoImageTarget) then
+        DemoImageTarget := TReportImageObject(Obj)
       else if (not (Obj is TReportBand)) and not Assigned(DemoNonTextTarget) then
         DemoNonTextTarget := Obj;
 
-      if Assigned(DemoScriptTarget) and Assigned(DemoFieldTarget) and Assigned(DemoNonTextTarget) then
+      if Assigned(DemoScriptTarget) and Assigned(DemoFieldTarget) and Assigned(DemoImageTarget) and Assigned(DemoNonTextTarget) then
         Break;
     end;
 
@@ -2519,13 +2532,15 @@ begin
               DemoScriptTarget := ChildObj
             else if (ChildObj is TReportFieldObject) and not Assigned(DemoFieldTarget) then
               DemoFieldTarget := TReportFieldObject(ChildObj)
+            else if (ChildObj is TReportImageObject) and not Assigned(DemoImageTarget) then
+              DemoImageTarget := TReportImageObject(ChildObj)
             else if (not (ChildObj is TReportTextObject)) and not Assigned(DemoNonTextTarget) then
               DemoNonTextTarget := ChildObj;
-            if Assigned(DemoScriptTarget) and Assigned(DemoFieldTarget) and Assigned(DemoNonTextTarget) then
+            if Assigned(DemoScriptTarget) and Assigned(DemoFieldTarget) and Assigned(DemoImageTarget) and Assigned(DemoNonTextTarget) then
               Break;
           end;
         end;
-        if Assigned(DemoScriptTarget) and Assigned(DemoFieldTarget) and Assigned(DemoNonTextTarget) then
+        if Assigned(DemoScriptTarget) and Assigned(DemoFieldTarget) and Assigned(DemoImageTarget) and Assigned(DemoNonTextTarget) then
           Break;
       end;
     end;
@@ -2541,6 +2556,23 @@ begin
           DemoNonTextTarget.Name := 'rtDemoObjectTypeMismatch';
           DemoNonTextTarget.Bounds := Rect(12, 28, 180, 30);
           Band.Children.Add(DemoNonTextTarget);
+          Break;
+        end;
+      end;
+    end;
+
+    if not Assigned(DemoImageTarget) then
+    begin
+      for Obj in ReportModel.Objects do
+      begin
+        if Obj is TReportBand then
+        begin
+          Band := TReportBand(Obj);
+          DemoImageTarget := TReportImageObject.Create;
+          DemoImageTarget.Name := 'rtDemoImageObject';
+          DemoImageTarget.Bounds := Rect(200, 3, 300, 58);
+          DemoImageTarget.DataField := 'ImagePath';
+          Band.Children.Add(DemoImageTarget);
           Break;
         end;
       end;
@@ -2562,10 +2594,20 @@ begin
         DemoFieldTarget.OnAfterPrint := 'DemoFieldAfter';
     end;
 
+    if Assigned(DemoImageTarget) then
+    begin
+      if Trim(DemoImageTarget.OnBeforePrint) = '' then
+        DemoImageTarget.OnBeforePrint := 'Stretch := False; Center := True; Proportional := False';
+      if Trim(DemoImageTarget.OnAfterPrint) = '' then
+        DemoImageTarget.OnAfterPrint := 'DemoImageAfter';
+    end;
+
     if not Assigned(DemoScriptTarget) then
       raise Exception.Create('Could not find text object for runtime event demo.');
     if not Assigned(DemoFieldTarget) then
       raise Exception.Create('Could not find field object for runtime event demo.');
+    if not Assigned(DemoImageTarget) then
+      raise Exception.Create('Could not find image object for runtime event demo.');
 
     Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
     try
@@ -3813,6 +3855,39 @@ begin
       Lines.Add('Field DisplayFormat/EditMask command subtest: PASS')
     else
       Lines.Add('Field DisplayFormat/EditMask command subtest: FAIL');
+
+    Harness.ResetCounts;
+    if Assigned(DemoImageTarget) then
+      DemoImageTarget.Visible := True;
+    if Assigned(DemoImageTarget) then
+      DemoImageTarget.OnBeforePrint := 'Stretch := False; Center := True; Proportional := False';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    ImageStretchTrace.Assign(Harness.Trace);
+    ImageStretchPass :=
+      (Pos('ScriptSetStretch: TReportImageObject', ImageStretchTrace.Text) > 0) and
+      (Harness.ScriptUnsupportedCount = 0);
+    ImageCenterPass := (Pos('ScriptSetCenter: TReportImageObject', ImageStretchTrace.Text) > 0) and
+      (Harness.ScriptUnsupportedCount = 0);
+    ImageProportionalPass := (Pos('ScriptSetProportional: TReportImageObject', ImageStretchTrace.Text) > 0) and
+      (Harness.ScriptUnsupportedCount = 0);
+    if ImageStretchPass and ImageCenterPass and ImageProportionalPass then
+      Lines.Add('Image fit command subtest: PASS')
+    else
+      Lines.Add('Image fit command subtest: FAIL');
 
     Harness.ResetCounts;
     if Assigned(DemoScriptTarget) then

@@ -617,6 +617,84 @@ begin
     Exit;
   end;
 
+  if Key = 'stretch' then
+  begin
+    if not (AObject is TReportImageObject) then
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      Exit;
+    end;
+    if SameText(Value, 'True') then
+      B := True
+    else if SameText(Value, 'False') then
+      B := False
+    else
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[StretchValue]: ' + AScript;
+      Exit;
+    end;
+    TReportImageObject(AObject).Stretch := B;
+    Result.TraceMessage := Format('ScriptSetStretch: %s "%s" -> %s',
+      [AObject.ClassName, AObject.Name, BoolToStr(B, True)]);
+    Exit;
+  end;
+
+  if Key = 'center' then
+  begin
+    if not (AObject is TReportImageObject) then
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      Exit;
+    end;
+    if SameText(Value, 'True') then
+      B := True
+    else if SameText(Value, 'False') then
+      B := False
+    else
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[CenterValue]: ' + AScript;
+      Exit;
+    end;
+    TReportImageObject(AObject).Center := B;
+    Result.TraceMessage := Format('ScriptSetCenter: %s "%s" -> %s',
+      [AObject.ClassName, AObject.Name, BoolToStr(B, True)]);
+    Exit;
+  end;
+
+  if Key = 'proportional' then
+  begin
+    if not (AObject is TReportImageObject) then
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      Exit;
+    end;
+    if SameText(Value, 'True') then
+      B := True
+    else if SameText(Value, 'False') then
+      B := False
+    else
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[ProportionalValue]: ' + AScript;
+      Exit;
+    end;
+    TReportImageObject(AObject).Proportional := B;
+    Result.TraceMessage := Format('ScriptSetProportional: %s "%s" -> %s',
+      [AObject.ClassName, AObject.Name, BoolToStr(B, True)]);
+    Exit;
+  end;
+
   if Key = 'transparent' then
   begin
     if not (AObject is TReportTextObject) then
