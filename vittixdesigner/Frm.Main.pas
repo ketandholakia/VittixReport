@@ -2171,6 +2171,7 @@ var
   WordWrapPass: Boolean;
   BorderVisiblePass: Boolean;
   BorderWidthPass: Boolean;
+  PaddingLeftPass: Boolean;
   OverallPass: Boolean;
   ScriptCancelTrace: TStringList;
   FieldBindTrace: TStringList;
@@ -2204,6 +2205,7 @@ var
   WordWrapTrace: TStringList;
   BorderVisibleTrace: TStringList;
   BorderWidthTrace: TStringList;
+  PaddingLeftTrace: TStringList;
   Obj: TReportObject;
   Band: TReportBand;
   ChildObj: TReportObject;
@@ -2406,6 +2408,7 @@ begin
   WordWrapTrace := TStringList.Create;
   BorderVisibleTrace := TStringList.Create;
   BorderWidthTrace := TStringList.Create;
+  PaddingLeftTrace := TStringList.Create;
   try
     FN := GetRegressionReportPath('01_simple_masterdata.vrt');
     if TFile.Exists(FN) then
@@ -3555,6 +3558,35 @@ begin
       Lines.Add('BorderWidth command subtest: FAIL');
 
     Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'PaddingLeft := 12';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    PaddingLeftTrace.Assign(Harness.Trace);
+    PaddingLeftPass :=
+      (Pos('ScriptSetPaddingLeft: TReportTextObject "txtTitle" -> 12', PaddingLeftTrace.Text) > 0) and
+      (Harness.ScriptUnsupportedCount = 0);
+    if PaddingLeftPass then
+      Lines.Add('PaddingLeft command subtest: PASS')
+    else
+      Lines.Add('PaddingLeft command subtest: FAIL');
+
+    Harness.ResetCounts;
     if Assigned(DemoNonTextTarget) then
     begin
       DemoNonTextTarget.OnBeforePrint := 'Text := ''X''; Background := clYellow';
@@ -3643,7 +3675,8 @@ begin
       AutoSizePass and
       WordWrapPass and
       BorderVisiblePass and
-      BorderWidthPass;
+      BorderWidthPass and
+      PaddingLeftPass;
     Lines.Insert(0, '');
     if OverallPass then
       Lines.Insert(0, 'Overall: PASS')
@@ -3698,6 +3731,7 @@ begin
     AppendUnsupportedSummary('WordWrap', WordWrapTrace, Lines);
     AppendUnsupportedSummary('BorderVisible', BorderVisibleTrace, Lines);
     AppendUnsupportedSummary('BorderWidth', BorderWidthTrace, Lines);
+    AppendUnsupportedSummary('PaddingLeft', PaddingLeftTrace, Lines);
     AppendUnsupportedReasonSummary(Lines,
       [BaselineTrace, ObjectSkipTrace, BandSkipTrace, ScriptCancelTrace, FieldBindTrace,
        FieldResolveMissTrace, FieldResolveMissWithUnsupportedTrace, BackgroundTrace, VisibleTrace, EscapedQuoteTrace, WhitespaceTrace, TrailingSemicolonTrace,
@@ -3707,7 +3741,7 @@ begin
        ObjectTypeMismatchTrace, LowercaseTextKeyTrace, MixedCaseCanPrintTrace,
        MixedCaseVisibleTrace, MixedCaseBackgroundTrace, FontColorTrace, BorderColorTrace,
        TransparentTrace, AutoSizeTrace, WordWrapTrace, BorderVisibleTrace,
-       BorderWidthTrace]);
+       BorderWidthTrace, PaddingLeftTrace]);
 
     Lines.Add('');
     Lines.Add('Baseline trace preview:');
@@ -3812,6 +3846,7 @@ begin
     WordWrapTrace.Free;
     BorderVisibleTrace.Free;
     BorderWidthTrace.Free;
+    PaddingLeftTrace.Free;
     TextLiteralTrace.Free;
     VisibleValueTrace.Free;
     ColorValueTrace.Free;
