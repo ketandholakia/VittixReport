@@ -207,7 +207,7 @@ begin
 
   if Key = 'background' then
   begin
-    if not (AObject is TReportTextObject) then
+    if not (AObject is TReportTextObject) and not (AObject is TReportImageObject) then
     begin
       Result.Unsupported := True;
       Result.UnsupportedCount := 1;
@@ -230,7 +230,7 @@ begin
 
   if Key = 'fontcolor' then
   begin
-    if not (AObject is TReportTextObject) then
+    if not (AObject is TReportTextObject) and not (AObject is TReportImageObject) then
     begin
       Result.Unsupported := True;
       Result.UnsupportedCount := 1;
@@ -605,8 +605,16 @@ begin
     end;
     try
       C := StringToColor(Value);
-      TReportTextObject(AObject).BorderColor := C;
-      TReportTextObject(AObject).BorderVisible := True;
+      if AObject is TReportTextObject then
+      begin
+        TReportTextObject(AObject).BorderColor := C;
+        TReportTextObject(AObject).BorderVisible := True;
+      end
+      else
+      begin
+        TReportImageObject(AObject).BorderColor := C;
+        TReportImageObject(AObject).BorderVisible := True;
+      end;
       Result.TraceMessage := Format('ScriptSetBorderColor: %s "%s" -> %s',
         [AObject.ClassName, AObject.Name, Value]);
     except
@@ -772,7 +780,7 @@ begin
 
   if Key = 'bordervisible' then
   begin
-    if not (AObject is TReportTextObject) then
+    if not (AObject is TReportTextObject) and not (AObject is TReportImageObject) then
     begin
       Result.Unsupported := True;
       Result.UnsupportedCount := 1;
@@ -780,9 +788,19 @@ begin
       Exit;
     end;
     if SameText(Value, 'True') then
-      TReportTextObject(AObject).BorderVisible := True
+    begin
+      if AObject is TReportTextObject then
+        TReportTextObject(AObject).BorderVisible := True
+      else
+        TReportImageObject(AObject).BorderVisible := True;
+    end
     else if SameText(Value, 'False') then
-      TReportTextObject(AObject).BorderVisible := False
+    begin
+      if AObject is TReportTextObject then
+        TReportTextObject(AObject).BorderVisible := False
+      else
+        TReportImageObject(AObject).BorderVisible := False;
+    end
     else
     begin
       Result.Unsupported := True;
@@ -797,7 +815,7 @@ begin
 
   if Key = 'borderwidth' then
   begin
-    if not (AObject is TReportTextObject) then
+    if not (AObject is TReportTextObject) and not (AObject is TReportImageObject) then
     begin
       Result.Unsupported := True;
       Result.UnsupportedCount := 1;
@@ -813,8 +831,16 @@ begin
     end;
     if N < 0 then
       N := 0;
-    TReportTextObject(AObject).BorderWidth := N;
-    TReportTextObject(AObject).BorderVisible := True;
+    if AObject is TReportTextObject then
+    begin
+      TReportTextObject(AObject).BorderWidth := N;
+      TReportTextObject(AObject).BorderVisible := True;
+    end
+    else
+    begin
+      TReportImageObject(AObject).BorderWidth := N;
+      TReportImageObject(AObject).BorderVisible := True;
+    end;
     Result.TraceMessage := Format('ScriptSetBorderWidth: %s "%s" -> %d',
       [AObject.ClassName, AObject.Name, N]);
     Exit;

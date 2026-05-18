@@ -2197,6 +2197,7 @@ var
   ImageStretchPass: Boolean;
   ImageCenterPass: Boolean;
   ImageProportionalPass: Boolean;
+  ImageBorderPass: Boolean;
   OverallPass: Boolean;
   ScriptCancelTrace: TStringList;
   FieldBindTrace: TStringList;
@@ -2256,6 +2257,7 @@ var
   ImageStretchTrace: TStringList;
   ImageCenterTrace: TStringList;
   ImageProportionalTrace: TStringList;
+  ImageBorderTrace: TStringList;
   Obj: TReportObject;
   Band: TReportBand;
   ChildObj: TReportObject;
@@ -2486,6 +2488,7 @@ begin
   ImageStretchTrace := TStringList.Create;
   ImageCenterTrace := TStringList.Create;
   ImageProportionalTrace := TStringList.Create;
+  ImageBorderTrace := TStringList.Create;
   try
     FN := GetRegressionReportPath('01_simple_masterdata.vrt');
     if TFile.Exists(FN) then
@@ -3890,6 +3893,37 @@ begin
       Lines.Add('Image fit command subtest: FAIL');
 
     Harness.ResetCounts;
+    if Assigned(DemoImageTarget) then
+      DemoImageTarget.Visible := True;
+    if Assigned(DemoImageTarget) then
+      DemoImageTarget.OnBeforePrint := 'BorderColor := clOlive; BorderVisible := True; BorderWidth := 3';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    ImageBorderTrace.Assign(Harness.Trace);
+    ImageBorderPass :=
+      (Pos('ScriptSetBorderColor: TReportImageObject', ImageBorderTrace.Text) > 0) and
+      (Pos('ScriptSetBorderVisible: TReportImageObject', ImageBorderTrace.Text) > 0) and
+      (Pos('ScriptSetBorderWidth: TReportImageObject', ImageBorderTrace.Text) > 0) and
+      (Harness.ScriptUnsupportedCount = 0);
+    if ImageBorderPass then
+      Lines.Add('Image border command subtest: PASS')
+    else
+      Lines.Add('Image border command subtest: FAIL');
+
+    Harness.ResetCounts;
     if Assigned(DemoScriptTarget) then
       DemoScriptTarget.Visible := True;
     if Assigned(DemoScriptTarget) then
@@ -4418,6 +4452,7 @@ begin
       BackgroundPass and
       VisiblePass and
       AnchorRightPass and
+      AnchorBottomPass and
       EscapedQuotePass and
       WhitespacePass and
       TrailingSemicolonPass and
@@ -4449,6 +4484,10 @@ begin
       ExpressionPass and
       FontColorConditionPass and
       FieldDisplayFormatPass and
+      ImageStretchPass and
+      ImageCenterPass and
+      ImageProportionalPass and
+      ImageBorderPass and
       BorderColorPass and
       AnchorBottomPass and
       TransparentPass and
@@ -4527,6 +4566,8 @@ begin
     AppendUnsupportedSummary('FontColorCondition', FontColorConditionTrace, Lines);
     AppendUnsupportedSummary('AnchorBottom', AnchorBottomTrace, Lines);
     AppendUnsupportedSummary('FieldDisplayFormat', FieldDisplayFormatTrace, Lines);
+    AppendUnsupportedSummary('ImageStretch', ImageStretchTrace, Lines);
+    AppendUnsupportedSummary('ImageBorder', ImageBorderTrace, Lines);
     AppendUnsupportedSummary('Transparent', TransparentTrace, Lines);
     AppendUnsupportedSummary('AutoSize', AutoSizeTrace, Lines);
     AppendUnsupportedSummary('WordWrap', WordWrapTrace, Lines);
@@ -4552,7 +4593,8 @@ begin
        FontNameTrace, BorderColorTrace, TransparentTrace, AutoSizeTrace, WordWrapTrace, BorderVisibleTrace,
        BorderWidthTrace, PaddingLeftTrace, PaddingTopTrace, PaddingRightTrace,
        PaddingBottomTrace, FontColorOnTrueTrace, BackgroundOnTrueTrace,
-       BorderColorOnTrueTrace, BackgroundConditionTrace,
+       BorderColorOnTrueTrace, BackgroundConditionTrace, ImageStretchTrace,
+       ImageCenterTrace, ImageProportionalTrace, ImageBorderTrace,
        BorderColorConditionTrace]);
 
     Lines.Add('');
@@ -4665,6 +4707,10 @@ begin
     FontColorConditionTrace.Free;
     AnchorBottomTrace.Free;
     FieldDisplayFormatTrace.Free;
+    ImageStretchTrace.Free;
+    ImageCenterTrace.Free;
+    ImageProportionalTrace.Free;
+    ImageBorderTrace.Free;
     BorderColorTrace.Free;
     TransparentTrace.Free;
     AutoSizeTrace.Free;
