@@ -355,6 +355,7 @@ Release build:
 - Demo host parser supports `PaddingLeft := <integer>` for `TReportTextObject`.
 - Demo host parser supports `PaddingTop := <integer>` for `TReportTextObject`.
 - Demo host parser supports `PaddingRight := <integer>` for `TReportTextObject`.
+- Demo host parser supports `PaddingBottom := <integer>` for `TReportTextObject`.
 - Unsupported script commands are logged by host/demo and do not crash.
 - Unsupported script diagnostics include reason tags (for example:
 - `ScriptUnsupported[UnknownCommand]`, `ScriptUnsupported[FieldSyntax]`, `ScriptUnsupported[ColorValue]`).
@@ -371,6 +372,7 @@ Release build:
 - Runtime Event Callback Demo subtest `PaddingLeft := 12` reports PASS.
 - Runtime Event Callback Demo subtest `PaddingTop := 7` reports PASS.
 - Runtime Event Callback Demo subtest `PaddingRight := 9` reports PASS.
+- Runtime Event Callback Demo subtest `PaddingBottom := 4` reports PASS.
 - Runtime Event Callback Demo subtest `Visible := False` reports PASS.
 - Runtime Event Callback Demo subtest `Text := 'O''Reilly'` (escaped quote literal) reports PASS.
 - Runtime Event Callback Demo subtest whitespace-normalized sequence `Visible := True ; Text := 'WS'` reports PASS.

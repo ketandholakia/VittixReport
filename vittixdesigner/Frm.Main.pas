@@ -2174,6 +2174,7 @@ var
   PaddingLeftPass: Boolean;
   PaddingTopPass: Boolean;
   PaddingRightPass: Boolean;
+  PaddingBottomPass: Boolean;
   OverallPass: Boolean;
   ScriptCancelTrace: TStringList;
   FieldBindTrace: TStringList;
@@ -2210,6 +2211,7 @@ var
   PaddingLeftTrace: TStringList;
   PaddingTopTrace: TStringList;
   PaddingRightTrace: TStringList;
+  PaddingBottomTrace: TStringList;
   Obj: TReportObject;
   Band: TReportBand;
   ChildObj: TReportObject;
@@ -2415,6 +2417,7 @@ begin
   PaddingLeftTrace := TStringList.Create;
   PaddingTopTrace := TStringList.Create;
   PaddingRightTrace := TStringList.Create;
+  PaddingBottomTrace := TStringList.Create;
   try
     FN := GetRegressionReportPath('01_simple_masterdata.vrt');
     if TFile.Exists(FN) then
@@ -3651,6 +3654,35 @@ begin
       Lines.Add('PaddingRight command subtest: FAIL');
 
     Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'PaddingBottom := 4';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    PaddingBottomTrace.Assign(Harness.Trace);
+    PaddingBottomPass :=
+      (Pos('ScriptSetPaddingBottom: TReportTextObject "txtTitle" -> 4', PaddingBottomTrace.Text) > 0) and
+      (Harness.ScriptUnsupportedCount = 0);
+    if PaddingBottomPass then
+      Lines.Add('PaddingBottom command subtest: PASS')
+    else
+      Lines.Add('PaddingBottom command subtest: FAIL');
+
+    Harness.ResetCounts;
     if Assigned(DemoNonTextTarget) then
     begin
       DemoNonTextTarget.OnBeforePrint := 'Text := ''X''; Background := clYellow';
@@ -3742,7 +3774,8 @@ begin
       BorderWidthPass and
       PaddingLeftPass and
       PaddingTopPass and
-      PaddingRightPass;
+      PaddingRightPass and
+      PaddingBottomPass;
     Lines.Insert(0, '');
     if OverallPass then
       Lines.Insert(0, 'Overall: PASS')
@@ -3800,6 +3833,7 @@ begin
     AppendUnsupportedSummary('PaddingLeft', PaddingLeftTrace, Lines);
     AppendUnsupportedSummary('PaddingTop', PaddingTopTrace, Lines);
     AppendUnsupportedSummary('PaddingRight', PaddingRightTrace, Lines);
+    AppendUnsupportedSummary('PaddingBottom', PaddingBottomTrace, Lines);
     AppendUnsupportedReasonSummary(Lines,
       [BaselineTrace, ObjectSkipTrace, BandSkipTrace, ScriptCancelTrace, FieldBindTrace,
        FieldResolveMissTrace, FieldResolveMissWithUnsupportedTrace, BackgroundTrace, VisibleTrace, EscapedQuoteTrace, WhitespaceTrace, TrailingSemicolonTrace,
@@ -3809,7 +3843,8 @@ begin
        ObjectTypeMismatchTrace, LowercaseTextKeyTrace, MixedCaseCanPrintTrace,
        MixedCaseVisibleTrace, MixedCaseBackgroundTrace, FontColorTrace, BorderColorTrace,
        TransparentTrace, AutoSizeTrace, WordWrapTrace, BorderVisibleTrace,
-       BorderWidthTrace, PaddingLeftTrace, PaddingTopTrace, PaddingRightTrace]);
+       BorderWidthTrace, PaddingLeftTrace, PaddingTopTrace, PaddingRightTrace,
+       PaddingBottomTrace]);
 
     Lines.Add('');
     Lines.Add('Baseline trace preview:');
@@ -3917,6 +3952,7 @@ begin
     PaddingLeftTrace.Free;
     PaddingTopTrace.Free;
     PaddingRightTrace.Free;
+    PaddingBottomTrace.Free;
     TextLiteralTrace.Free;
     VisibleValueTrace.Free;
     ColorValueTrace.Free;
