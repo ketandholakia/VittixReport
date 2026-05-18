@@ -401,16 +401,25 @@ begin
 
   if Key = 'datafield' then
   begin
-    if not (AObject is TReportTextObject) then
+    if not (AObject is TReportTextObject) and not (AObject is TReportImageObject) then
     begin
       Result.Unsupported := True;
       Result.UnsupportedCount := 1;
       Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
-    TReportTextObject(AObject).DataField := Value;
-    Result.TraceMessage := Format('ScriptSetDataField: %s "%s" -> "%s"',
-      [AObject.ClassName, AObject.Name, Value]);
+    if AObject is TReportTextObject then
+    begin
+      TReportTextObject(AObject).DataField := Value;
+      Result.TraceMessage := Format('ScriptSetDataField: %s "%s" -> "%s"',
+        [AObject.ClassName, AObject.Name, Value]);
+    end
+    else
+    begin
+      TReportImageObject(AObject).DataField := Value;
+      Result.TraceMessage := Format('ScriptSetDataField: %s "%s" -> "%s"',
+        [AObject.ClassName, AObject.Name, Value]);
+    end;
     Exit;
   end;
 

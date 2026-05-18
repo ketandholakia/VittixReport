@@ -2177,6 +2177,7 @@ var
   DataFieldPass: Boolean;
   ExpressionPass: Boolean;
   BorderColorPass: Boolean;
+  ImageDataFieldPass: Boolean;
   TransparentPass: Boolean;
   AutoSizePass: Boolean;
   WordWrapPass: Boolean;
@@ -2256,6 +2257,7 @@ var
   ImageStretchTrace: TStringList;
   ImageCenterTrace: TStringList;
   ImageProportionalTrace: TStringList;
+  ImageDataFieldTrace: TStringList;
   Obj: TReportObject;
   Band: TReportBand;
   ChildObj: TReportObject;
@@ -2486,6 +2488,7 @@ begin
   ImageStretchTrace := TStringList.Create;
   ImageCenterTrace := TStringList.Create;
   ImageProportionalTrace := TStringList.Create;
+  ImageDataFieldTrace := TStringList.Create;
   try
     FN := GetRegressionReportPath('01_simple_masterdata.vrt');
     if TFile.Exists(FN) then
@@ -3860,7 +3863,7 @@ begin
     if Assigned(DemoImageTarget) then
       DemoImageTarget.Visible := True;
     if Assigned(DemoImageTarget) then
-      DemoImageTarget.OnBeforePrint := 'Stretch := False; Center := True; Proportional := False';
+      DemoImageTarget.OnBeforePrint := 'DataField := ImagePath; Stretch := False; Center := True; Proportional := False';
     Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
     try
       Engine.OnBeforePrintReport := Harness.BeforeReport;
@@ -3888,6 +3891,15 @@ begin
       Lines.Add('Image fit command subtest: PASS')
     else
       Lines.Add('Image fit command subtest: FAIL');
+
+    ImageDataFieldTrace.Assign(Harness.Trace);
+    ImageDataFieldPass :=
+      (Pos('ScriptSetDataField: TReportImageObject "rtDemoImageObject" -> "ImagePath"', ImageDataFieldTrace.Text) > 0) and
+      (Harness.ScriptUnsupportedCount = 0);
+    if ImageDataFieldPass then
+      Lines.Add('Image DataField command subtest: PASS')
+    else
+      Lines.Add('Image DataField command subtest: FAIL');
 
     Harness.ResetCounts;
     if Assigned(DemoScriptTarget) then
@@ -4453,6 +4465,7 @@ begin
       ImageStretchPass and
       ImageCenterPass and
       ImageProportionalPass and
+      ImageDataFieldPass and
       BorderColorPass and
       AnchorBottomPass and
       TransparentPass and
@@ -4532,6 +4545,7 @@ begin
     AppendUnsupportedSummary('AnchorBottom', AnchorBottomTrace, Lines);
     AppendUnsupportedSummary('FieldDisplayFormat', FieldDisplayFormatTrace, Lines);
     AppendUnsupportedSummary('ImageStretch', ImageStretchTrace, Lines);
+    AppendUnsupportedSummary('ImageDataField', ImageDataFieldTrace, Lines);
     AppendUnsupportedSummary('Transparent', TransparentTrace, Lines);
     AppendUnsupportedSummary('AutoSize', AutoSizeTrace, Lines);
     AppendUnsupportedSummary('WordWrap', WordWrapTrace, Lines);
@@ -4558,7 +4572,7 @@ begin
        BorderWidthTrace, PaddingLeftTrace, PaddingTopTrace, PaddingRightTrace,
        PaddingBottomTrace, FontColorOnTrueTrace, BackgroundOnTrueTrace,
        BorderColorOnTrueTrace, BackgroundConditionTrace, ImageStretchTrace,
-       ImageCenterTrace, ImageProportionalTrace,
+       ImageDataFieldTrace, ImageCenterTrace, ImageProportionalTrace,
        BorderColorConditionTrace]);
 
     Lines.Add('');
@@ -4672,6 +4686,7 @@ begin
     AnchorBottomTrace.Free;
     FieldDisplayFormatTrace.Free;
     ImageStretchTrace.Free;
+    ImageDataFieldTrace.Free;
     ImageCenterTrace.Free;
     ImageProportionalTrace.Free;
     BorderColorTrace.Free;
