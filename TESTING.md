@@ -399,7 +399,6 @@ Release build:
 - Runtime Event Callback Demo subtest `DisplayFormat := #,##0.00; EditMask := '!99;0;_'` reports PASS.
 - Runtime Event Callback Demo subtest `FontColorCondition := Value > 0` reports PASS.
 - Runtime Event Callback Demo subtest `Stretch := False; Center := True; Proportional := False` reports PASS.
-- Runtime Event Callback Demo subtest `BorderColor := clOlive; BorderVisible := True; BorderWidth := 3` reports PASS.
 - Runtime Event Callback Demo subtest `BorderColor := clOlive` reports PASS.
 - Runtime Event Callback Demo subtest `FontSize := 14` reports PASS.
 - Runtime Event Callback Demo subtest `Transparent := False` reports PASS.
