@@ -248,6 +248,28 @@ begin
     Exit;
   end;
 
+  if Key = 'bordercolorontrue' then
+  begin
+    if not (AObject is TReportTextObject) then
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      Exit;
+    end;
+    try
+      C := StringToColor(Value);
+      TReportTextObject(AObject).BorderColorOnTrue := C;
+      Result.TraceMessage := Format('ScriptSetBorderColorOnTrue: %s "%s" -> %s',
+        [AObject.ClassName, AObject.Name, Value]);
+    except
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[ColorValue]: ' + AScript;
+    end;
+    Exit;
+  end;
+
   if Key = 'bordercolor' then
   begin
     if not (AObject is TReportTextObject) then
