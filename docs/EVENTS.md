@@ -256,6 +256,7 @@ Log('AfterBand:' + ABand.Name);
 - `Text := 'OK'; Foo := 1; Visible := True; Text := Demo` (mixed valid+invalid sequence; validates left-to-right execution with unsupported tagging)
 - `CanPrint := False; Foo := 1; Text := Demo` (short-circuit sequence; later commands are not evaluated)
 - `Text := 'A;B'; Foo := 1` (quoted semicolon literal remains intact; following unsupported command is still tagged)
+- Non-text object with `Text := 'X'; Background := clYellow` (both commands report `ObjectType` unsupported)
 - Each subtest reports PASS/FAIL in the demo output summary.
 - Demo output also includes an unsupported-command diagnostics block grouped by subtest.
 - Demo output includes a compact unsupported-reason summary block with per-reason counts.

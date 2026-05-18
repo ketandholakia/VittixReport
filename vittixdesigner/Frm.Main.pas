@@ -2157,6 +2157,7 @@ var
   MixedValidInvalidPass: Boolean;
   CancelShortCircuitPass: Boolean;
   QuotedSemicolonWithUnsupportedPass: Boolean;
+  ObjectTypeMismatchPass: Boolean;
   OverallPass: Boolean;
   ScriptCancelTrace: TStringList;
   FieldBindTrace: TStringList;
@@ -2176,10 +2177,12 @@ var
   MixedValidInvalidTrace: TStringList;
   CancelShortCircuitTrace: TStringList;
   QuotedSemicolonWithUnsupportedTrace: TStringList;
+  ObjectTypeMismatchTrace: TStringList;
   Obj: TReportObject;
   Band: TReportBand;
   ChildObj: TReportObject;
   DemoScriptTarget: TReportObject;
+  DemoNonTextTarget: TReportObject;
   ResultDlg: TForm;
   ResultMemo: TMemo;
   BtnCopy: TButton;
@@ -2363,6 +2366,7 @@ begin
   MixedValidInvalidTrace := TStringList.Create;
   CancelShortCircuitTrace := TStringList.Create;
   QuotedSemicolonWithUnsupportedTrace := TStringList.Create;
+  ObjectTypeMismatchTrace := TStringList.Create;
   try
     FN := GetRegressionReportPath('01_simple_masterdata.vrt');
     if TFile.Exists(FN) then
@@ -2375,24 +2379,39 @@ begin
 
     Harness := TRuntimeEventDemoHarness.Create;
     DemoScriptTarget := nil;
+    DemoNonTextTarget := nil;
     for Obj in ReportModel.Objects do
     begin
       if Obj is TReportTextObject then
       begin
-        DemoScriptTarget := Obj;
-        Break;
-      end;
+        if not Assigned(DemoScriptTarget) then
+          DemoScriptTarget := Obj;
+      end
+      else if (not (Obj is TReportBand)) and not Assigned(DemoNonTextTarget) then
+        DemoNonTextTarget := Obj;
 
-      if Obj is TReportBand then
+      if Assigned(DemoScriptTarget) and Assigned(DemoNonTextTarget) then
+        Break;
+    end;
+
+    if not Assigned(DemoScriptTarget) then
+    begin
+      for Obj in ReportModel.Objects do
       begin
-        Band := TReportBand(Obj);
-        for ChildObj in Band.Children do
-          if ChildObj is TReportTextObject then
+        if Obj is TReportBand then
+        begin
+          Band := TReportBand(Obj);
+          for ChildObj in Band.Children do
           begin
-            DemoScriptTarget := ChildObj;
-            Break;
+            if (ChildObj is TReportTextObject) and not Assigned(DemoScriptTarget) then
+              DemoScriptTarget := ChildObj
+            else if (not (ChildObj is TReportTextObject)) and not Assigned(DemoNonTextTarget) then
+              DemoNonTextTarget := ChildObj;
+            if Assigned(DemoScriptTarget) and Assigned(DemoNonTextTarget) then
+              Break;
           end;
-        if Assigned(DemoScriptTarget) then
+        end;
+        if Assigned(DemoScriptTarget) and Assigned(DemoNonTextTarget) then
           Break;
       end;
     end;
@@ -2404,6 +2423,9 @@ begin
       if Trim(DemoScriptTarget.OnAfterPrint) = '' then
         DemoScriptTarget.OnAfterPrint := 'DemoObjectAfter';
     end;
+
+    if not Assigned(DemoScriptTarget) then
+      raise Exception.Create('Could not find text object for runtime event demo.');
 
     Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
     try
@@ -3100,6 +3122,42 @@ begin
     else
       Lines.Add('Quoted semicolon + unsupported subtest: FAIL');
 
+    Harness.ResetCounts;
+    if Assigned(DemoNonTextTarget) then
+    begin
+      DemoNonTextTarget.OnBeforePrint := 'Text := ''X''; Background := clYellow';
+      Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+      try
+        Engine.OnBeforePrintReport := Harness.BeforeReport;
+        Engine.OnAfterPrintReport := Harness.AfterReport;
+        Engine.OnBeforeBand := Harness.BeforeBand;
+        Engine.OnAfterBand := Harness.AfterBand;
+        Engine.OnBeforeObject := Harness.BeforeObject;
+        Engine.OnAfterObject := Harness.AfterObject;
+        Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+        Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+        Engine.Prepare;
+      finally
+        Engine.Free;
+        Engine := nil;
+      end;
+      ObjectTypeMismatchTrace.Assign(Harness.Trace);
+      ObjectTypeMismatchPass :=
+        (Harness.ScriptUnsupportedCount >= 2) and
+        (Pos('ScriptUnsupported[ObjectType]: ' + DemoNonTextTarget.ClassName, ObjectTypeMismatchTrace.Text) > 0);
+      if ObjectTypeMismatchPass then
+        Lines.Add('Object-type mismatch subtest: PASS')
+      else
+        Lines.Add('Object-type mismatch subtest: FAIL');
+    end
+    else
+    begin
+      // Some reports may not include a non-text object target.
+      ObjectTypeMismatchPass := True;
+      ObjectTypeMismatchTrace.Clear;
+      Lines.Add('Object-type mismatch subtest: SKIP (no non-text object target)');
+    end;
+
     Lines.Add('');
     Lines.Add('Parser edge-case summary:');
     if EscapedQuotePass then
@@ -3139,7 +3197,8 @@ begin
       MultiInvalidPass and
       MixedValidInvalidPass and
       CancelShortCircuitPass and
-      QuotedSemicolonWithUnsupportedPass;
+      QuotedSemicolonWithUnsupportedPass and
+      ObjectTypeMismatchPass;
     Lines.Insert(0, '');
     if OverallPass then
       Lines.Insert(0, 'Overall: PASS')
@@ -3181,12 +3240,14 @@ begin
     AppendUnsupportedSummary('Mixed valid+invalid sequence', MixedValidInvalidTrace, Lines);
     AppendUnsupportedSummary('CanPrint short-circuit mixed sequence', CancelShortCircuitTrace, Lines);
     AppendUnsupportedSummary('Quoted semicolon + unsupported', QuotedSemicolonWithUnsupportedTrace, Lines);
+    AppendUnsupportedSummary('Object-type mismatch', ObjectTypeMismatchTrace, Lines);
     AppendUnsupportedReasonSummary(Lines,
       [BaselineTrace, ObjectSkipTrace, BandSkipTrace, ScriptCancelTrace, FieldBindTrace,
        BackgroundTrace, VisibleTrace, EscapedQuoteTrace, WhitespaceTrace, TrailingSemicolonTrace,
        UnknownCommandTrace, FieldSyntaxTrace, FieldNameTrace, ColorValueTrace,
        VisibleValueTrace, TextLiteralTrace, CanPrintValueTrace, MultiInvalidTrace,
-       MixedValidInvalidTrace, CancelShortCircuitTrace, QuotedSemicolonWithUnsupportedTrace]);
+       MixedValidInvalidTrace, CancelShortCircuitTrace, QuotedSemicolonWithUnsupportedTrace,
+       ObjectTypeMismatchTrace]);
 
     Lines.Add('');
     Lines.Add('Baseline trace preview:');
@@ -3277,6 +3338,7 @@ begin
     MixedValidInvalidTrace.Free;
     CancelShortCircuitTrace.Free;
     QuotedSemicolonWithUnsupportedTrace.Free;
+    ObjectTypeMismatchTrace.Free;
     TextLiteralTrace.Free;
     VisibleValueTrace.Free;
     ColorValueTrace.Free;

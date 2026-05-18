@@ -365,11 +365,13 @@ Release build:
 - Runtime Event Callback Demo subtest `Text := 'OK'; Foo := 1; Visible := True; Text := Demo` reports mixed valid+invalid sequence PASS.
 - Runtime Event Callback Demo subtest `CanPrint := False; Foo := 1; Text := Demo` reports short-circuit PASS.
 - Runtime Event Callback Demo subtest `Text := 'A;B'; Foo := 1` reports quoted-semicolon + unsupported PASS.
+- Runtime Event Callback Demo subtest on non-text object `Text := 'X'; Background := clYellow` reports object-type mismatch PASS.
 - Runtime Event Callback Demo supports bounded semicolon command sequences and reports PASS.
 - `CanPrint := False; ...` short-circuits remaining commands for that object.
 - In the mixed short-circuit subtest, no `UnknownCommand` or `TextLiteral` unsupported lines are emitted after `CanPrint := False`.
 - Quote-aware semicolon split works: `Text := 'A;B'; Visible := True`.
 - Quote-aware semicolon + unsupported mix keeps `A;B` as one literal and still reports following `UnknownCommand`.
+- Object-type mismatch subtest reports `ScriptUnsupported[ObjectType]` for text-only commands on non-text objects.
 - Runtime Event Callback Demo shows compact parser edge-case summary (EscapedQuote/WhitespaceNormalization/TrailingSemicolon).
 - Runtime Event Callback Demo shows unsupported-command diagnostics grouped by subtest.
 - Runtime Event Callback Demo shows compact unsupported-reason summary with per-reason counts.
