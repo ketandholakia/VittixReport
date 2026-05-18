@@ -246,6 +246,7 @@ Release build:
 - Object event text saves/reopens.
 - Object event text helper remains editor-only (no designer-side validation or execution).
 - Band event helper still works.
+- Runtime Event Callback Demo covers non-text object mismatch handling and emits `ScriptUnsupported[ObjectType]`.
 
 ### Band Event Script Helper
 - Select a band and verify [Events] group appears.
@@ -344,12 +345,16 @@ Release build:
 - Demo host parser supports `Text := Field('FieldName')` for `TReportTextObject`.
 - Demo host parser supports `Visible := False|True`.
 - Demo host parser supports `Background := clColorName` for `TReportTextObject`.
+- Demo host parser supports `FontColor := clColorName` for `TReportTextObject`.
+- Demo host parser supports `BorderColor := clColorName` for `TReportTextObject`.
 - Unsupported script commands are logged by host/demo and do not crash.
 - Unsupported script diagnostics include reason tags (for example:
 - `ScriptUnsupported[UnknownCommand]`, `ScriptUnsupported[FieldSyntax]`, `ScriptUnsupported[ColorValue]`).
 - Demo parser command handling is routed through reusable host-side adapter logic (behavior unchanged).
 - Runtime Event Callback Demo subtest `Text := Field('CustomerName')` reports PASS.
 - Runtime Event Callback Demo subtest `Background := clYellow` reports PASS.
+- Runtime Event Callback Demo subtest `FontColor := clNavy` reports PASS.
+- Runtime Event Callback Demo subtest `BorderColor := clOlive` reports PASS.
 - Runtime Event Callback Demo subtest `Visible := False` reports PASS.
 - Runtime Event Callback Demo subtest `Text := 'O''Reilly'` (escaped quote literal) reports PASS.
 - Runtime Event Callback Demo subtest whitespace-normalized sequence `Visible := True ; Text := 'WS'` reports PASS.
@@ -412,6 +417,14 @@ Expected result:
 - Skipped objects must not execute before/after event logic.
 - Preview and export follow the same object event execution path and order.
 - If object script-host `OnBeforePrint` sets `CanPrint=False`, runtime `OnBeforeObject`, draw, persisted `OnAfterPrint`, and runtime `OnAfterObject` are skipped.
+
+### Object Event Scripting Demo
+- Object event scripts execute in the final render pass only.
+- Object event scripts remain skipped during counting pass.
+- Object event cancel path suppresses runtime object callbacks and draw.
+- Parser supports text literals, `Field(...)`, `Visible`, `Background`, case-insensitive keys, and multi-command scripts.
+- Unsupported commands are tagged with reason codes and logged once per occurrence.
+- Non-text object mismatch coverage is present and should report `ScriptUnsupported[ObjectType]`.
 
 ## 18) Designer UI / Variables checklist
 
@@ -488,6 +501,7 @@ Expected result:
 - Event exceptions behave consistently with engine policy.
 - Preview and export use the same event path.
 - No .vrt schema/serializer change is required for runtime callbacks.
+
 
 
 

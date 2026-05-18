@@ -126,6 +126,7 @@ Quick notes:
 - Persisted event text is passed to host script handling.
 - The designer does not guarantee a built-in script grammar.
 - The designer does not validate, compile, or execute persisted event text.
+- Object event text is stored for both text and non-text objects, but the host script layer may only support a subset of commands per object type.
 
 ### Object script-host contract
 - The engine does not interpret object event text directly.
@@ -140,6 +141,9 @@ Quick notes:
 - `Text := Field('FieldName')` (for `TReportTextObject`, using current `Context.DataSet`)
 - `Visible := False|True`
 - `Background := clColorName` (for `TReportTextObject` only)
+- `FontColor := clColorName` (for `TReportTextObject` only)
+- `BorderColor := clColorName` (for `TReportTextObject` only)
+- `ScriptUnsupported[ObjectType]` is emitted when a command is not valid for the current object class.
 - Bounded multi-command form is supported with semicolon separators, executed left-to-right:
 - `Visible := True; Text := Field('CustomerName')`
 - `CanPrint := False` short-circuits remaining commands for that object.
@@ -182,6 +186,11 @@ Object-level execution order:
 - Object draw
 - Persisted object `OnAfterPrint` text
 - Runtime `OnAfterObject`
+
+### Demo coverage notes
+- Runtime Event Callback Demo covers object script-host runtime execution, cancel behavior, parser edge cases, and unsupported-command diagnostics.
+- The demo includes a non-text object mismatch path so `ScriptUnsupported[ObjectType]` is exercised instead of skipped.
+- The demo keeps counting-pass inflation checks to confirm callbacks only run in the final render pass.
 
 Band/report order:
 - Report lifecycle callbacks wrap report execution (`OnBeforePrintReport` -> render -> `OnAfterPrintReport`).
@@ -258,9 +267,12 @@ Log('AfterBand:' + ABand.Name);
 - `Text := 'OK'; Foo := 1; Visible := True; Text := Demo` (mixed valid+invalid sequence; validates left-to-right execution with unsupported tagging)
 - `CanPrint := False; Foo := 1; Text := Demo` (short-circuit sequence; later commands are not evaluated)
 - `Text := 'A;B'; Foo := 1` (quoted semicolon literal remains intact; following unsupported command is still tagged)
+- `FontColor := clNavy` (text-object font color command)
+- `BorderColor := clOlive` (text-object border color command)
 - Keys are case-insensitive for supported commands (for example `text := 'lower'`, `cAnPrInT := False`)
 - Non-text object with `Text := 'X'; Background := clYellow` (both commands report `ObjectType` unsupported)
 - Each subtest reports PASS/FAIL in the demo output summary.
 - Demo output also includes an unsupported-command diagnostics block grouped by subtest.
 - Demo output includes a compact unsupported-reason summary block with per-reason counts.
+
 

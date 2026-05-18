@@ -2164,6 +2164,8 @@ var
   MixedCaseCanPrintPass: Boolean;
   MixedCaseVisiblePass: Boolean;
   MixedCaseBackgroundPass: Boolean;
+  FontColorPass: Boolean;
+  BorderColorPass: Boolean;
   OverallPass: Boolean;
   ScriptCancelTrace: TStringList;
   FieldBindTrace: TStringList;
@@ -2190,6 +2192,8 @@ var
   MixedCaseCanPrintTrace: TStringList;
   MixedCaseVisibleTrace: TStringList;
   MixedCaseBackgroundTrace: TStringList;
+  FontColorTrace: TStringList;
+  BorderColorTrace: TStringList;
   Obj: TReportObject;
   Band: TReportBand;
   ChildObj: TReportObject;
@@ -2385,6 +2389,8 @@ begin
   MixedCaseCanPrintTrace := TStringList.Create;
   MixedCaseVisibleTrace := TStringList.Create;
   MixedCaseBackgroundTrace := TStringList.Create;
+  FontColorTrace := TStringList.Create;
+  BorderColorTrace := TStringList.Create;
   try
     FN := GetRegressionReportPath('01_simple_masterdata.vrt');
     if TFile.Exists(FN) then
@@ -2431,6 +2437,22 @@ begin
         end;
         if Assigned(DemoScriptTarget) and Assigned(DemoNonTextTarget) then
           Break;
+      end;
+    end;
+
+    if not Assigned(DemoNonTextTarget) then
+    begin
+      for Obj in ReportModel.Objects do
+      begin
+        if Obj is TReportBand then
+        begin
+          Band := TReportBand(Obj);
+          DemoNonTextTarget := TReportLineObject.Create;
+          DemoNonTextTarget.Name := 'rtDemoObjectTypeMismatch';
+          DemoNonTextTarget.Bounds := Rect(12, 28, 180, 30);
+          Band.Children.Add(DemoNonTextTarget);
+          Break;
+        end;
       end;
     end;
 
@@ -3315,6 +3337,64 @@ begin
       Lines.Add('Mixed-case key subtest (BaCkGrOuNd): FAIL');
 
     Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'FontColor := clNavy';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    FontColorTrace.Assign(Harness.Trace);
+    FontColorPass :=
+      (Pos('ScriptSetFontColor: TReportTextObject "txtTitle" -> clNavy', FontColorTrace.Text) > 0) and
+      (Harness.ScriptUnsupportedCount = 0);
+    if FontColorPass then
+      Lines.Add('FontColor command subtest: PASS')
+    else
+      Lines.Add('FontColor command subtest: FAIL');
+
+    Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'BorderColor := clOlive';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    BorderColorTrace.Assign(Harness.Trace);
+    BorderColorPass :=
+      (Pos('ScriptSetBorderColor: TReportTextObject "txtTitle" -> clOlive', BorderColorTrace.Text) > 0) and
+      (Harness.ScriptUnsupportedCount = 0);
+    if BorderColorPass then
+      Lines.Add('BorderColor command subtest: PASS')
+    else
+      Lines.Add('BorderColor command subtest: FAIL');
+
+    Harness.ResetCounts;
     if Assigned(DemoNonTextTarget) then
     begin
       DemoNonTextTarget.OnBeforePrint := 'Text := ''X''; Background := clYellow';
@@ -3396,7 +3476,9 @@ begin
       LowercaseTextKeyPass and
       MixedCaseCanPrintPass and
       MixedCaseVisiblePass and
-      MixedCaseBackgroundPass;
+      MixedCaseBackgroundPass and
+      FontColorPass and
+      BorderColorPass;
     Lines.Insert(0, '');
     if OverallPass then
       Lines.Insert(0, 'Overall: PASS')
@@ -3445,6 +3527,7 @@ begin
     AppendUnsupportedSummary('Mixed-case key (CanPrint)', MixedCaseCanPrintTrace, Lines);
     AppendUnsupportedSummary('Mixed-case key (VISIBLE)', MixedCaseVisibleTrace, Lines);
     AppendUnsupportedSummary('Mixed-case key (BaCkGrOuNd)', MixedCaseBackgroundTrace, Lines);
+    AppendUnsupportedSummary('BorderColor', BorderColorTrace, Lines);
     AppendUnsupportedReasonSummary(Lines,
       [BaselineTrace, ObjectSkipTrace, BandSkipTrace, ScriptCancelTrace, FieldBindTrace,
        FieldResolveMissTrace, FieldResolveMissWithUnsupportedTrace, BackgroundTrace, VisibleTrace, EscapedQuoteTrace, WhitespaceTrace, TrailingSemicolonTrace,
@@ -3452,7 +3535,7 @@ begin
        VisibleValueTrace, TextLiteralTrace, CanPrintValueTrace, MultiInvalidTrace,
        MixedValidInvalidTrace, CancelShortCircuitTrace, QuotedSemicolonWithUnsupportedTrace,
        ObjectTypeMismatchTrace, LowercaseTextKeyTrace, MixedCaseCanPrintTrace,
-       MixedCaseVisibleTrace, MixedCaseBackgroundTrace]);
+       MixedCaseVisibleTrace, MixedCaseBackgroundTrace, FontColorTrace, BorderColorTrace]);
 
     Lines.Add('');
     Lines.Add('Baseline trace preview:');
@@ -3550,6 +3633,8 @@ begin
     MixedCaseCanPrintTrace.Free;
     MixedCaseVisibleTrace.Free;
     MixedCaseBackgroundTrace.Free;
+    FontColorTrace.Free;
+    BorderColorTrace.Free;
     TextLiteralTrace.Free;
     VisibleValueTrace.Free;
     ColorValueTrace.Free;
@@ -4460,13 +4545,13 @@ begin
   else if SameText(AKey, 'OnBeforePrint') then
   begin
     if Assigned(Target) and not (Target is TReportBand) then
-      Exit('Persisted object script text stored with this object. Runtime execution is not enabled yet.');
+      Exit('Persisted object script text stored with this object and passed to the host script callback.');
     Exit('Persisted band script hook executed before the band prints. Different from runtime Delphi callbacks.');
   end
   else if SameText(AKey, 'OnAfterPrint') then
   begin
     if Assigned(Target) and not (Target is TReportBand) then
-      Exit('Persisted object script text stored with this object. Runtime execution is not enabled yet.');
+      Exit('Persisted object script text stored with this object and passed to the host script callback.');
     Exit('Persisted band script hook executed after the band prints. Different from runtime Delphi callbacks.');
   end;
 
@@ -5895,7 +5980,7 @@ begin
     LblHelp.Height := 34;
     LblHelp.WordWrap := True;
     LblHelp.Caption :=
-      'This text is stored with the ' + StorageSubject + ' and passed to the host script callback.' + sLineBreak +
+      'This text is stored with the ' + StorageSubject + ' and passed to the host script callback in the final render pass.' + sLineBreak +
       'Runtime Delphi callbacks are separate and are not stored in the report.';
 
     LblTip := TLabel.Create(Dlg);

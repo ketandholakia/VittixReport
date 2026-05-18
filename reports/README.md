@@ -29,6 +29,11 @@ These reports are intentionally not part of automatic regression and should be r
 
 - `16_large_preview_warning.vrt` - intentionally interactive/heavy preview warning test
 
+## Designer Runtime Demo
+
+- `Runtime Event Callback Demo` lives in `vittixdesigner` and is not a `.vrt` report file.
+- It is used to verify host-side object/band/report callback wiring, object event scripting, and parser edge cases.
+
 ## Dev/Test Artifacts
 
 - `reports/test*.vrt` files are development artifacts.
