@@ -5496,6 +5496,10 @@ begin
     Exit('Dataset field to bind this object to')
   else if SameText(AKey, 'Expression') then
     Exit('Expression evaluated at runtime for value/output')
+  else if SameText(AKey, 'DisplayFormat') then
+    Exit('Formatting pattern for field values')
+  else if SameText(AKey, 'EditMask') then
+    Exit('Input/output mask for field values')
   else if SameText(AKey, 'PrintWhen') then
     Exit('Condition that controls whether object/band prints')
   else if SameText(AKey, 'FontColor') then
@@ -7402,8 +7406,8 @@ const
     'BackColor', 'BackColorTransparent',
     'OnBeforePrint', 'OnAfterPrint'
   );
-  TextKeys: array[0..20] of string = (
-    'Text', 'DataField', 'Expression',
+  TextKeys: array[0..22] of string = (
+    'Text', 'DataField', 'Expression', 'DisplayFormat', 'EditMask',
     'Bounds', 'Left', 'Top', 'Width', 'Height',
     'FontName', 'FontSize', 'FontBold', 'FontItalic', 'FontColor',
     'WordWrap', 'AutoSize', 'Transparent', 'Background',
