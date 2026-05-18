@@ -149,6 +149,7 @@ Quick notes:
 - `BorderVisible := False|True` (for `TReportTextObject` only)
 - `BorderWidth := <integer>` (for `TReportTextObject` only)
 - `PaddingLeft := <integer>` (for `TReportTextObject` only)
+- `PaddingTop := <integer>` (for `TReportTextObject` only)
 - `ScriptUnsupported[ObjectType]` is emitted when a command is not valid for the current object class.
 - Bounded multi-command form is supported with semicolon separators, executed left-to-right:
 - `Visible := True; Text := Field('CustomerName')`
@@ -281,6 +282,7 @@ Log('AfterBand:' + ABand.Name);
 - `BorderVisible := True` (text-object border toggle command)
 - `BorderWidth := 3` (text-object border width command)
 - `PaddingLeft := 12` (text-object left padding command)
+- `PaddingTop := 7` (text-object top padding command)
 - Keys are case-insensitive for supported commands (for example `text := 'lower'`, `cAnPrInT := False`)
 - Non-text object with `Text := 'X'; Background := clYellow` (both commands report `ObjectType` unsupported)
 - Each subtest reports PASS/FAIL in the demo output summary.
