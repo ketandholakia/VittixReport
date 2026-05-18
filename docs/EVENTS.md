@@ -140,6 +140,7 @@ Quick notes:
 - `Text := 'literal'` (for `TReportTextObject` only)
 - `Text := Field('FieldName')` (for `TReportTextObject`, using current `Context.DataSet`)
 - `Visible := False|True`
+- `AnchorRight := False|True`
 - `Background := clColorName` (for `TReportTextObject` only)
 - `FontColor := clColorName` (for `TReportTextObject` only)
 - `FontSize := <integer>` (for `TReportTextObject` only)
@@ -289,6 +290,7 @@ Log('AfterBand:' + ABand.Name);
 - `FontColor := clNavy` (text-object font color command)
 - `BorderColor := clOlive` (text-object border color command)
 - `FontSize := 14` (text-object font size command)
+- `AnchorRight := True` (text-object right-anchor command)
 - `FontName := Arial` (text-object font name command)
 - `HAlign := Center` (text-object horizontal alignment command)
 - `VAlign := Bottom` (text-object vertical alignment command)

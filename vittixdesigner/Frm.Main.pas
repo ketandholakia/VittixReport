@@ -2145,6 +2145,7 @@ var
   FieldResolveMissWithUnsupportedPass: Boolean;
   BackgroundPass: Boolean;
   VisiblePass: Boolean;
+  AnchorRightPass: Boolean;
   EscapedQuotePass: Boolean;
   WhitespacePass: Boolean;
   TrailingSemicolonPass: Boolean;
@@ -2192,6 +2193,7 @@ var
   FieldResolveMissWithUnsupportedTrace: TStringList;
   BackgroundTrace: TStringList;
   VisibleTrace: TStringList;
+  AnchorRightTrace: TStringList;
   EscapedQuoteTrace: TStringList;
   WhitespaceTrace: TStringList;
   TrailingSemicolonTrace: TStringList;
@@ -2408,6 +2410,7 @@ begin
   FieldResolveMissWithUnsupportedTrace := TStringList.Create;
   BackgroundTrace := TStringList.Create;
   VisibleTrace := TStringList.Create;
+  AnchorRightTrace := TStringList.Create;
   EscapedQuoteTrace := TStringList.Create;
   WhitespaceTrace := TStringList.Create;
   TrailingSemicolonTrace := TStringList.Create;
@@ -2848,6 +2851,35 @@ begin
       Lines.Add('Visible command subtest: PASS')
     else
       Lines.Add('Visible command subtest: FAIL');
+
+    Harness.ResetCounts;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.Visible := True;
+    if Assigned(DemoScriptTarget) then
+      DemoScriptTarget.OnBeforePrint := 'AnchorRight := True';
+    Engine := TReportEngine.Create(ReportModel, FSampleDataSet);
+    try
+      Engine.OnBeforePrintReport := Harness.BeforeReport;
+      Engine.OnAfterPrintReport := Harness.AfterReport;
+      Engine.OnBeforeBand := Harness.BeforeBand;
+      Engine.OnAfterBand := Harness.AfterBand;
+      Engine.OnBeforeObject := Harness.BeforeObject;
+      Engine.OnAfterObject := Harness.AfterObject;
+      Engine.ScriptEngine.OnObjectBeforePrint := Harness.ScriptBeforeObject;
+      Engine.ScriptEngine.OnObjectAfterPrint := Harness.ScriptAfterObject;
+      Engine.Prepare;
+    finally
+      Engine.Free;
+      Engine := nil;
+    end;
+    AnchorRightTrace.Assign(Harness.Trace);
+    AnchorRightPass :=
+      (Pos('ScriptSetAnchorRight: TReportTextObject "txtTitle" -> True', AnchorRightTrace.Text) > 0) and
+      (Harness.ScriptUnsupportedCount = 0);
+    if AnchorRightPass then
+      Lines.Add('AnchorRight command subtest: PASS')
+    else
+      Lines.Add('AnchorRight command subtest: FAIL');
 
     Harness.ResetCounts;
     if Assigned(DemoScriptTarget) then
@@ -4066,6 +4098,7 @@ begin
       FieldResolveMissWithUnsupportedPass and
       BackgroundPass and
       VisiblePass and
+      AnchorRightPass and
       EscapedQuotePass and
       WhitespacePass and
       TrailingSemicolonPass and
@@ -4135,6 +4168,7 @@ begin
     AppendUnsupportedSummary('Field() resolve miss + unsupported', FieldResolveMissWithUnsupportedTrace, Lines);
     AppendUnsupportedSummary('Background', BackgroundTrace, Lines);
     AppendUnsupportedSummary('Visible', VisibleTrace, Lines);
+    AppendUnsupportedSummary('AnchorRight', AnchorRightTrace, Lines);
     AppendUnsupportedSummary('Escaped quote', EscapedQuoteTrace, Lines);
     AppendUnsupportedSummary('Whitespace normalization', WhitespaceTrace, Lines);
     AppendUnsupportedSummary('Trailing semicolon', TrailingSemicolonTrace, Lines);
@@ -4270,6 +4304,7 @@ begin
     end;
   finally
     VisibleTrace.Free;
+    AnchorRightTrace.Free;
     BackgroundTrace.Free;
     FieldBindTrace.Free;
     FieldResolveMissTrace.Free;

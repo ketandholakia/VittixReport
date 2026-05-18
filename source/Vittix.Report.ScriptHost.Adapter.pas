@@ -159,6 +159,25 @@ begin
     Exit;
   end;
 
+  if Key = 'anchorright' then
+  begin
+    if SameText(Value, 'True') then
+      B := True
+    else if SameText(Value, 'False') then
+      B := False
+    else
+    begin
+      Result.Unsupported := True;
+      Result.UnsupportedCount := 1;
+      Result.TraceMessage := 'ScriptUnsupported[AnchorRightValue]: ' + AScript;
+      Exit;
+    end;
+    AObject.AnchorRight := B;
+    Result.TraceMessage := Format('ScriptSetAnchorRight: %s "%s" -> %s',
+      [AObject.ClassName, AObject.Name, BoolToStr(B, True)]);
+    Exit;
+  end;
+
   if Key = 'background' then
   begin
     if not (AObject is TReportTextObject) then

@@ -344,6 +344,7 @@ Release build:
 - Demo host parser supports `Text := 'literal'` for `TReportTextObject`.
 - Demo host parser supports `Text := Field('FieldName')` for `TReportTextObject`.
 - Demo host parser supports `Visible := False|True`.
+- Demo host parser supports `AnchorRight := False|True`.
 - Demo host parser supports `Background := clColorName` for `TReportTextObject`.
 - Demo host parser supports `FontColor := clColorName` for `TReportTextObject`.
 - Demo host parser supports `FontSize := <integer>` for `TReportTextObject`.
@@ -372,6 +373,7 @@ Release build:
 - Demo parser command handling is routed through reusable host-side adapter logic (behavior unchanged).
 - Runtime Event Callback Demo subtest `Text := Field('CustomerName')` reports PASS.
 - Runtime Event Callback Demo subtest `Background := clYellow` reports PASS.
+- Runtime Event Callback Demo subtest `AnchorRight := True` reports PASS.
 - Runtime Event Callback Demo subtest `FontColor := clNavy` reports PASS.
 - Runtime Event Callback Demo subtest `FontName := Arial` reports PASS.
 - Runtime Event Callback Demo subtest `HAlign := Center` reports PASS.
