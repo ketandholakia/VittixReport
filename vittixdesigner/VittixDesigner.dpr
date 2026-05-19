@@ -10,6 +10,8 @@ uses
   vcl.Dialogs,
   Winapi.Windows,
   Frm.Main in 'Frm.Main.pas' {frmMain},
+  Frm.DesignerOptions in 'Frm.DesignerOptions.pas' {frmDesignerOptions},
+  Frm.ScriptEditor in 'Frm.ScriptEditor.pas' {frmScriptEditor},
   Frm.BandManager in 'Frm.BandManager.pas' {frmBandManager},
   Frm.PageSettings in 'Frm.PageSettings.pas' {frmPageSettings},
   Frm.Preview in 'Frm.Preview.pas' {frmPreview},

@@ -5,11 +5,13 @@ interface
 uses
   System.Classes,
   System.SysUtils,
+  System.UITypes,
   Data.DB,
   Vcl.Graphics,
   Vittix.Report.Objects,
   Vittix.Report.Context,
-  Vittix.Report.Utils;
+  Vittix.Report.Utils,
+  Vittix.Report.Model;
 
 type
   TScriptHostCommandResult = record
@@ -30,8 +32,14 @@ type
     function ExecuteSingleBeforeObject(AObject: TReportObject; const AScript: string;
       var Context: TExpressionContext; var ACanPrint: Boolean): TScriptHostCommandResult;
   public
+    procedure EngineObjectBeforePrint(AReport: TReportModel; AObject: TReportObject;
+      const AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean);
+    procedure EngineObjectAfterPrint(AReport: TReportModel; AObject: TReportObject;
+      const AScript: string; var Context: TExpressionContext);
     function ExecuteBeforeObject(AObject: TReportObject; const AScript: string;
       var Context: TExpressionContext; var ACanPrint: Boolean): TScriptHostCommandResult;
+    function ExecuteAfterObject(AObject: TReportObject; const AScript: string;
+      var Context: TExpressionContext): TScriptHostCommandResult;
   end;
 
 implementation
@@ -1083,6 +1091,27 @@ begin
   finally
     TraceLines.Free;
   end;
+end;
+
+procedure TReportScriptHostAdapter.EngineObjectBeforePrint(AReport: TReportModel; AObject: TReportObject;
+  const AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean);
+begin
+  ExecuteBeforeObject(AObject, AScript, Context, ACanPrint);
+end;
+
+function TReportScriptHostAdapter.ExecuteAfterObject(AObject: TReportObject;
+  const AScript: string; var Context: TExpressionContext): TScriptHostCommandResult;
+var
+  DummyCanPrint: Boolean;
+begin
+  DummyCanPrint := True;
+  Result := ExecuteBeforeObject(AObject, AScript, Context, DummyCanPrint);
+end;
+
+procedure TReportScriptHostAdapter.EngineObjectAfterPrint(AReport: TReportModel; AObject: TReportObject;
+  const AScript: string; var Context: TExpressionContext);
+begin
+  ExecuteAfterObject(AObject, AScript, Context);
 end;
 
 end.

@@ -35,7 +35,7 @@ uses
   Vcl.ImgList, Vcl.Graphics, Vcl.Buttons,
   Vcl.Clipbrd,
   Data.DB, Data.Win.ADODB,
-  Datasnap.DBClient,
+  FireDAC.Comp.Client, FireDAC.Stan.Intf, FireDAC.Stan.StorageJSON,
   Vittix.Report.Model,
   Vittix.Report.Objects,
   Vittix.Report.Bands,
@@ -55,7 +55,9 @@ uses
   Vittix.Report.Objects.Table, Vcl.Grids,  Vcl.CheckLst,
   Vittix.Report.ScriptHost.Adapter,
   System.ImageList, Vcl.VirtualImageList, SVGIconVirtualImageList,
-  Vcl.BaseImageCollection, SVGIconImageCollection;
+  Vcl.BaseImageCollection, SVGIconImageCollection,
+  Frm.DesignerOptions,
+  Frm.ScriptEditor;
 
 type
   TfrmMain = class(TForm)
@@ -114,6 +116,7 @@ type
       mnuSnapGrid   : TMenuItem;
       mnuShowRulers : TMenuItem;
       mnuShowMargins: TMenuItem;
+      mnuDesignerOptions: TMenuItem;
     mnuReport      : TMenuItem;
       mnuPreview    : TMenuItem;
       mnuPageSetup  : TMenuItem;
@@ -255,6 +258,7 @@ type
     procedure mnuSnapGridClick(Sender: TObject);
     procedure mnuShowRulersClick(Sender: TObject);
     procedure mnuShowMarginsClick(Sender: TObject);
+    procedure mnuDesignerOptionsClick(Sender: TObject);
 
     { Report }
     procedure mnuPreviewClick(Sender: TObject);
@@ -331,11 +335,14 @@ type
     FStructureTreeExpandAllItem: TMenuItem;
     FStructureTreeCollapseAllItem: TMenuItem;
     FUpdatingStructureSelection: Boolean;
+    FStructureTreeAddBandItem: TMenuItem;
+    FStructureTreeAddObjectItem: TMenuItem;
+    FStructureTreeAddSep: TMenuItem;
     FReportSampleReportsMenu: TMenuItem;
     FReportDemoReportsMenu: TMenuItem;
     FReportRegressionTestsMenu: TMenuItem;
     FReportMenuSeparator: TMenuItem;
-    FSampleDataSet: TClientDataSet;
+    FSampleDataSet: TFDMemTable;
     FExprHelperMemo: TMemo;
     FExprHelperFields: TListBox;
     FExprHelperExamples: TListBox;
@@ -624,21 +631,6 @@ type
     property SkipMasterDataBand: Boolean read FSkipMasterDataBand write FSkipMasterDataBand;
   end;
 
-  TBandEventScriptDialogHelper = class
-  private
-    FDialog: TForm;
-    FMemo: TMemo;
-    FStatsLabel: TLabel;
-    FSnippetCombo: TComboBox;
-  public
-    constructor Create(ADialog: TForm; AMemo: TMemo; AStatsLabel: TLabel;
-      ASnippetCombo: TComboBox);
-    procedure UpdateStats;
-    procedure MemoChange(Sender: TObject);
-    procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
-    procedure InsertSnippetClick(Sender: TObject);
-  end;
-
 function PageSettingsEqual(A, B: TReportPageSettings): Boolean;
 begin
   Result := Assigned(A) and Assigned(B) and
@@ -795,96 +787,6 @@ procedure TRuntimeEventDemoHarness.LogScriptUnsupported(const AReason: string);
 begin
   Inc(ScriptUnsupportedCount);
   FTrace.Add(AReason);
-end;
-
-{ TBandEventScriptDialogHelper }
-
-constructor TBandEventScriptDialogHelper.Create(ADialog: TForm; AMemo: TMemo;
-  AStatsLabel: TLabel; ASnippetCombo: TComboBox);
-begin
-  inherited Create;
-  FDialog := ADialog;
-  FMemo := AMemo;
-  FStatsLabel := AStatsLabel;
-  FSnippetCombo := ASnippetCombo;
-end;
-
-procedure TBandEventScriptDialogHelper.UpdateStats;
-var
-  LineCount: Integer;
-  CharCount: Integer;
-begin
-  if not Assigned(FMemo) or not Assigned(FStatsLabel) then
-    Exit;
-
-  CharCount := Length(FMemo.Text);
-  if FMemo.Text = '' then
-    LineCount := 0
-  else
-    LineCount := FMemo.Lines.Count;
-
-  FStatsLabel.Caption := Format('Lines: %d | Chars: %d', [LineCount, CharCount]);
-end;
-
-procedure TBandEventScriptDialogHelper.MemoChange(Sender: TObject);
-begin
-  UpdateStats;
-end;
-
-procedure TBandEventScriptDialogHelper.FormKeyDown(Sender: TObject; var Key: Word;
-  Shift: TShiftState);
-begin
-  if (Key = VK_RETURN) and (ssCtrl in Shift) then
-  begin
-    Key := 0;
-    if Assigned(FDialog) then
-      FDialog.ModalResult := mrOk;
-  end;
-end;
-
-procedure TBandEventScriptDialogHelper.InsertSnippetClick(Sender: TObject);
-var
-  S: string;
-begin
-  if not Assigned(FMemo) or not Assigned(FSnippetCombo) then
-    Exit;
-  if FSnippetCombo.ItemIndex < 0 then
-    Exit;
-
-  case FSnippetCombo.ItemIndex of
-    0:
-      S :=
-        '// Host callback script example' + sLineBreak +
-        '// Purpose: describe what this hook should do';
-    1:
-      S :=
-        '// Example: set visibility in host callback' + sLineBreak +
-        'Visible := False;';
-    2:
-      S :=
-        '// Example: set variable in host callback' + sLineBreak +
-        'Vars[''MyVar''] := ''value'';';
-    3:
-      S :=
-        'if <condition> then' + sLineBreak +
-        'begin' + sLineBreak +
-        '  // ...' + sLineBreak +
-        'end;';
-    4:
-      S :=
-        '// This script is passed as text to the host callback implementation.' + sLineBreak +
-        '// VittixReport does not execute this text by itself.';
-  else
-    Exit;
-  end;
-
-  if (FMemo.Text <> '') and (FMemo.SelStart > 0) and
-     (FMemo.Text[FMemo.SelStart] <> #10) and (FMemo.Text[FMemo.SelStart] <> #13) then
-    FMemo.SelText := sLineBreak + S
-  else
-    FMemo.SelText := S;
-  FMemo.SetFocus;
-  UpdateStats;
 end;
 
 constructor TPropertyBatchChangeCommand.Create(AObj: TObject;
@@ -1118,7 +1020,6 @@ begin
   // which self-register in their unit initialization sections)
   Toolbox.ToolImages := SVGIconVirtualImageList1;
   Toolbox.RefreshToolList;
-  BuildInsertMenu;
 
   // ---- Build the Fields panel dynamically inside pnlToolbox ----
   FPnlFields          := TPanel.Create(Self);
@@ -1214,6 +1115,18 @@ begin
   FStructureTreePopup := TPopupMenu.Create(Self);
   FStructureTreePopup.OnPopup := StructureTreePopupPopup;
 
+  FStructureTreeAddBandItem := TMenuItem.Create(FStructureTreePopup);
+  FStructureTreeAddBandItem.Caption := 'Add Band';
+  FStructureTreePopup.Items.Add(FStructureTreeAddBandItem);
+
+  FStructureTreeAddObjectItem := TMenuItem.Create(FStructureTreePopup);
+  FStructureTreeAddObjectItem.Caption := 'Add Object';
+  FStructureTreePopup.Items.Add(FStructureTreeAddObjectItem);
+
+  FStructureTreeAddSep := TMenuItem.Create(FStructureTreePopup);
+  FStructureTreeAddSep.Caption := '-';
+  FStructureTreePopup.Items.Add(FStructureTreeAddSep);
+
   FStructureTreeDeleteItem := TMenuItem.Create(FStructureTreePopup);
   FStructureTreeDeleteItem.Caption := 'Delete';
   FStructureTreeDeleteItem.OnClick := StructureTreeDeleteClick;
@@ -1234,6 +1147,9 @@ begin
   FStructureTreePopup.Items.Add(FStructureTreeCollapseAllItem);
 
   FTreeStructure.PopupMenu := FStructureTreePopup;
+
+  // Now that the popup menus are created, populate them with bands and objects!
+  BuildInsertMenu;
 
   // Ensure toolbar SVG icons render at full-strength normal color.
   // These properties are applied only when available in the installed
@@ -4837,6 +4753,27 @@ begin
   UpdateMenuState;
 end;
 
+procedure TfrmMain.mnuDesignerOptionsClick(Sender: TObject);
+var
+  Frm: TfrmDesignerOptions;
+begin
+  Frm := TfrmDesignerOptions.Create(Self);
+  try
+    Frm.LoadFromDesigner(FDesigner);
+    if Frm.ShowModal = mrOk then
+    begin
+      Frm.ApplyToDesigner(FDesigner);
+      mnuShowGrid.Checked := FDesigner.ShowGrid;
+      mnuSnapGrid.Checked := FDesigner.SnapToGrid;
+      mnuShowRulers.Checked := FDesigner.ShowRulers;
+      mnuShowMargins.Checked := FDesigner.ShowMargins;
+      UpdateMenuState;
+    end;
+  finally
+    Frm.Free;
+  end;
+end;
+
 procedure TfrmMain.ApplyZoom;
 var Z: Integer;
 begin
@@ -6419,12 +6356,25 @@ end;
 procedure TfrmMain.StructureTreePopupPopup(Sender: TObject);
 var
   Node: TTreeNode;
+  Target: TObject;
 begin
   if not Assigned(FTreeStructure) then
     Exit;
 
   Node := FTreeStructure.Selected;
-  FStructureTreeDeleteItem.Enabled := Assigned(Node) and Assigned(Node.Data);
+  if Assigned(Node) then
+    Target := Node.Data
+  else
+    Target := nil;
+
+  // Can delete any object or band, but not the root node (which has nil Data)
+  FStructureTreeDeleteItem.Enabled := Assigned(Target);
+
+  // Can only add a band to the root of the report (nil Data)
+  FStructureTreeAddBandItem.Enabled := not Assigned(Target);
+
+  // Can only add an object to a band
+  FStructureTreeAddObjectItem.Enabled := Assigned(Target) and (Target is TReportBand);
 end;
 
 procedure TfrmMain.StructureTreeDeleteClick(Sender: TObject);
@@ -6995,19 +6945,7 @@ var
   IsBandTarget: Boolean;
   DialogTitle: string;
   StorageSubject: string;
-  Dlg: TForm;
-  PnlBottom: TPanel;
-  LblHelp: TLabel;
-  LblTip: TLabel;
-  LblNoValidation: TLabel;
-  LblStats: TLabel;
-  LblSnippets: TLabel;
-  CboSnippets: TComboBox;
-  BtnInsertSnippet: TButton;
-  MemoScript: TMemo;
-  BtnOK: TButton;
-  BtnCancel: TButton;
-  Helper: TBandEventScriptDialogHelper;
+  Dlg: TfrmScriptEditor;
 begin
   Result := False;
   if (ARow <= 0) or (ARow >= PropEditor.RowCount) then
@@ -7032,137 +6970,20 @@ begin
 
   CurrentValue := PropEditor.Values[KeyName];
 
-  Dlg := TForm.Create(Self);
-  Helper := nil;
+  Dlg := TfrmScriptEditor.Create(Self);
   try
-    Dlg.Caption := DialogTitle;
-    Dlg.Position := poScreenCenter;
-    Dlg.BorderStyle := bsDialog;
-    Dlg.BorderIcons := [biSystemMenu];
-    Dlg.KeyPreview := True;
-    Dlg.ClientWidth := 760;
-    Dlg.ClientHeight := 460;
-
-    LblHelp := TLabel.Create(Dlg);
-    LblHelp.Parent := Dlg;
-    LblHelp.Left := 12;
-    LblHelp.Top := 10;
-    LblHelp.Width := Dlg.ClientWidth - 24;
-    LblHelp.Height := 34;
-    LblHelp.WordWrap := True;
-    LblHelp.Caption :=
-      'This text is stored with the ' + StorageSubject + ' and passed to the host script callback in the final render pass.' + sLineBreak +
-      'Runtime Delphi callbacks are separate and are not stored in the report.';
-
-    LblTip := TLabel.Create(Dlg);
-    LblTip.Parent := Dlg;
-    LblTip.Left := 12;
-    LblTip.Top := 46;
-    LblTip.Width := Dlg.ClientWidth - 24;
-    LblTip.Caption := 'Tip: Ctrl+Enter to save';
-
-    LblNoValidation := TLabel.Create(Dlg);
-    LblNoValidation.Parent := Dlg;
-    LblNoValidation.Left := 12;
-    LblNoValidation.Top := 62;
-    LblNoValidation.Width := Dlg.ClientWidth - 24;
-    LblNoValidation.Caption :=
-      'No syntax validation is performed in the designer. ' +
-      'Script meaning is defined by your host callback implementation.';
-
-    LblSnippets := TLabel.Create(Dlg);
-    LblSnippets.Parent := Dlg;
-    LblSnippets.Left := 12;
-    LblSnippets.Top := 84;
-    LblSnippets.Caption := 'Host-script example snippets (text only):';
-
-    CboSnippets := TComboBox.Create(Dlg);
-    CboSnippets.Parent := Dlg;
-    CboSnippets.Left := 12;
-    CboSnippets.Top := 102;
-    CboSnippets.Width := Dlg.ClientWidth - 118;
-    CboSnippets.Style := csDropDownList;
-    CboSnippets.Anchors := [akLeft, akTop, akRight];
-    CboSnippets.Items.Add('Comment/Header block');
-    CboSnippets.Items.Add('Set visibility placeholder');
-    CboSnippets.Items.Add('Set variable placeholder');
-    CboSnippets.Items.Add('If/Then pseudo-template');
-    CboSnippets.Items.Add('Host callback note');
-    CboSnippets.ItemIndex := 0;
-
-    BtnInsertSnippet := TButton.Create(Dlg);
-    BtnInsertSnippet.Parent := Dlg;
-    BtnInsertSnippet.Caption := 'Insert';
-    BtnInsertSnippet.Hint := 'Inserts selected example text at the caret. This does not validate or run the script.';
-    BtnInsertSnippet.ShowHint := True;
-    BtnInsertSnippet.Left := Dlg.ClientWidth - 98;
-    BtnInsertSnippet.Top := 100;
-    BtnInsertSnippet.Width := 86;
-    BtnInsertSnippet.Height := 25;
-    BtnInsertSnippet.Anchors := [akTop, akRight];
-
-    MemoScript := TMemo.Create(Dlg);
-    MemoScript.Parent := Dlg;
-    MemoScript.Left := 12;
-    MemoScript.Top := 132;
-    MemoScript.Width := Dlg.ClientWidth - 24;
-    MemoScript.Height := Dlg.ClientHeight - 172;
-    MemoScript.Anchors := [akLeft, akTop, akRight, akBottom];
-    MemoScript.ScrollBars := ssBoth;
-    MemoScript.WordWrap := False;
-    MemoScript.Font.Name := 'Consolas';
-    MemoScript.Font.Size := 10;
-    MemoScript.Lines.Text := CurrentValue;
-
-    PnlBottom := TPanel.Create(Dlg);
-    PnlBottom.Parent := Dlg;
-    PnlBottom.Align := alBottom;
-    PnlBottom.Height := 44;
-    PnlBottom.BevelOuter := bvNone;
-
-    LblStats := TLabel.Create(Dlg);
-    LblStats.Parent := PnlBottom;
-    LblStats.Left := 12;
-    LblStats.Top := 14;
-    LblStats.Caption := 'Lines: 0 | Chars: 0';
-
-    BtnOK := TButton.Create(Dlg);
-    BtnOK.Parent := PnlBottom;
-    BtnOK.Caption := 'OK';
-    BtnOK.ModalResult := mrOk;
-    BtnOK.Left := Dlg.ClientWidth - 180;
-    BtnOK.Top := 8;
-    BtnOK.Width := 80;
-    BtnOK.Anchors := [akRight, akBottom];
-
-    BtnCancel := TButton.Create(Dlg);
-    BtnCancel.Parent := PnlBottom;
-    BtnCancel.Caption := 'Cancel';
-    BtnCancel.ModalResult := mrCancel;
-    BtnCancel.Left := Dlg.ClientWidth - 92;
-    BtnCancel.Top := 8;
-    BtnCancel.Width := 80;
-    BtnCancel.Anchors := [akRight, akBottom];
-
-    Helper := TBandEventScriptDialogHelper.Create(Dlg, MemoScript, LblStats, CboSnippets);
-    MemoScript.OnChange := Helper.MemoChange;
-    Dlg.OnKeyDown := Helper.FormKeyDown;
-    BtnInsertSnippet.OnClick := Helper.InsertSnippetClick;
-    Helper.UpdateStats;
-
-    Dlg.ActiveControl := MemoScript;
-    if Dlg.ShowModal <> mrOk then
+    Dlg.Initialize(DialogTitle, StorageSubject, CurrentValue, Target);
+    if not Dlg.Execute(CurrentValue) then
       Exit;
 
-    if PropEditor.Values[KeyName] <> MemoScript.Lines.Text then
+    if PropEditor.Values[KeyName] <> CurrentValue then
     begin
-      PropEditor.Values[KeyName] := MemoScript.Lines.Text;
+      PropEditor.Values[KeyName] := CurrentValue;
       SetPropertyPanelDirty(True);
       UpdatePropertyPanelHintForRow(ARow);
     end;
     Result := True;
   finally
-    Helper.Free;
     Dlg.Free;
   end;
 end;
@@ -7625,7 +7446,7 @@ begin
   if Assigned(FSampleDataSet) then
     Exit;
 
-  FSampleDataSet := TClientDataSet.Create(Self);
+  FSampleDataSet := TFDMemTable.Create(Self);
   with FSampleDataSet.FieldDefs do
   begin
     Clear;
@@ -7683,11 +7504,23 @@ var
   ImagePath: string;
   BarcodeValue: string;
   Remarks: string;
+  JsonFile: string;
 begin
+  JsonFile := GetRegressionReportPath('sample_data.json');
+
   CreateSampleDataSet;
+
+  // If we already generated the JSON dataset previously, load it instantly!
+  if TFile.Exists(JsonFile) then
+  begin
+    FSampleDataSet.LoadFromFile(JsonFile, sfJSON);
+    Exit;
+  end;
+
   FSampleDataSet.DisableControls;
   try
-    FSampleDataSet.EmptyDataSet;
+    if FSampleDataSet.Active then
+      FSampleDataSet.EmptyDataSet;
     for I := 1 to SampleRowCount do
     begin
       CustomerName := Customers[(I - 1) mod Length(Customers)];
@@ -7744,6 +7577,9 @@ begin
   finally
     FSampleDataSet.EnableControls;
   end;
+
+  // Save it for the Headless Runner and future designer sessions!
+  FSampleDataSet.SaveToFile(JsonFile, sfJSON);
   FSampleDataSet.First;
 end;
 
@@ -7758,7 +7594,7 @@ end;
 procedure TfrmMain.BuildInsertMenu;
 var
   C, ExistingClass: TReportObjectClass;
-  MI : TMenuItem;
+  MI, TreeMI : TMenuItem;
   I  : Integer;
   BT : TReportBandType;
   Exists: Boolean;
@@ -7768,6 +7604,19 @@ begin
     if SameText(mnuInsert.Items[I].Hint, 'dynobj') or
        SameText(mnuInsert.Items[I].Hint, 'dynband') then
       mnuInsert.Delete(I);
+      
+  if Assigned(FStructureTreeAddBandItem) then
+  begin
+    FStructureTreeAddBandItem.Clear;
+    for BT := Low(TReportBandType) to High(TReportBandType) do
+    begin
+      TreeMI := TMenuItem.Create(FStructureTreeAddBandItem);
+      TreeMI.Caption := BandTypeName(BT);
+      TreeMI.Tag := Ord(BT);
+      TreeMI.OnClick := DynAddBandMenuClick;
+      FStructureTreeAddBandItem.Add(TreeMI);
+    end;
+  end;
 
   // Add missing band menu entries so all runtime band types are reachable.
   for BT := Low(TReportBandType) to High(TReportBandType) do
@@ -7793,6 +7642,9 @@ begin
       mnuInsert.Insert(mnuInsert.IndexOf(mnuSep5), MI);
     end;
   end;
+  
+  if Assigned(FStructureTreeAddObjectItem) then
+    FStructureTreeAddObjectItem.Clear;
 
   // Dynamically add one menu item per registered object class
   for C in GetRegisteredReportObjects do
@@ -7822,6 +7674,15 @@ begin
     MI.Hint    := 'dynobj';
     MI.OnClick := DynInsertMenuClick;
     mnuInsert.Add(MI);
+    
+    if Assigned(FStructureTreeAddObjectItem) then
+    begin
+      TreeMI := TMenuItem.Create(FStructureTreeAddObjectItem);
+      TreeMI.Caption := C.DisplayName;
+      TreeMI.Tag := NativeInt(C);
+      TreeMI.OnClick := DynInsertMenuClick;
+      FStructureTreeAddObjectItem.Add(TreeMI);
+    end;
   end;
 end;
 
@@ -7831,4 +7692,3 @@ begin
 end;
 
 end.
-

@@ -21,6 +21,8 @@ Use this checklist before releases or major engine changes.
 - Run: `Report -> Regression Tests -> Run Regression Test Reports`.
 - Confirm all automatic reports pass.
 - Confirm manual-only report `16_large_preview_warning.vrt` is not auto-run.
+- Run `VittixRunner --scripts` and confirm the object-script demo reports pass.
+- Use `VittixRunner <reportfile.vrt>` to target a specific script case while developing object event handling.
 
 ## 4) Manual key reports
 - Preview:
@@ -28,6 +30,8 @@ Use this checklist before releases or major engine changes.
 - `16_large_preview_warning.vrt`
 - `22_expression_usage_demo.vrt`
 - `23_invalid_datafield_diagnostics.vrt`
+- `24_object_event_before_after_masterdata.vrt`
+- `25_object_event_before_after_expression.vrt`
 
 ## 5) Keyboard tests
 - Property panel `Ctrl+C` / `Ctrl+X` / `Ctrl+V` / `Delete`.

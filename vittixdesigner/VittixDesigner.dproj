@@ -110,6 +110,9 @@
         <DCCReference Include="Frm.Main.pas">
             <Form>frmMain</Form>
         </DCCReference>
+        <DCCReference Include="Frm.DesignerOptions.pas">
+            <Form>frmDesignerOptions</Form>
+        </DCCReference>
         <DCCReference Include="Frm.BandManager.pas">
             <Form>frmBandManager</Form>
         </DCCReference>
@@ -138,6 +141,7 @@
         <DCCReference Include="..\Vittix.Report.Utils.pas"/>
         <DCCReference Include="..\Vittix.Report.Objects.Barcode.pas"/>
         <DCCReference Include="..\Vittix.Report.Objects.Table.pas"/>
+        <DCCReference Include="..\Vittix.Report.ScriptHost.Adapter.pas"/>
         <DCCReference Include="..\Vittix.Report.Export.PDF.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>

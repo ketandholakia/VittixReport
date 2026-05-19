@@ -198,7 +198,7 @@ object frmMain: TfrmMain
       Top = 0
       Hint = 'Center selected objects vertically'
       Caption = 'Center V'
-      ImageIndex = 19
+      ImageIndex = 16
       ImageName = 'align_vertical_center'
       OnClick = mnuCenterVClick
     end
@@ -246,7 +246,7 @@ object frmMain: TfrmMain
       Top = 0
       Hint = 'Send selected objects to back'
       Caption = 'Back'
-      ImageIndex = 20
+      ImageIndex = 18
       ImageName = 'flip_to_back'
       OnClick = mnuBackClick
     end
@@ -276,7 +276,7 @@ object frmMain: TfrmMain
     end
     object cboZoomToolbar: TComboBox
       Left = 906
-      Top = 2
+      Top = 0
       Width = 102
       Height = 23
       TabOrder = 1
@@ -362,7 +362,7 @@ object frmMain: TfrmMain
       object lblToolbox: TLabel
         Left = 0
         Top = 0
-        Width = 48
+        Width = 140
         Height = 15
         Align = alTop
         Caption = '  Objects'
@@ -375,6 +375,7 @@ object frmMain: TfrmMain
         ParentColor = False
         ParentFont = False
         Transparent = False
+        ExplicitWidth = 48
       end
       object Toolbox: TVittixReportToolbox
         Left = 0
@@ -404,7 +405,7 @@ object frmMain: TfrmMain
       object lblProperties: TLabel
         Left = 0
         Top = 0
-        Width = 139
+        Width = 260
         Height = 15
         Align = alTop
         Caption = '  Selected Object Header'
@@ -417,17 +418,19 @@ object frmMain: TfrmMain
         ParentColor = False
         ParentFont = False
         Transparent = False
+        ExplicitWidth = 139
       end
       object lblSelectedProps: TLabel
         Left = 0
         Top = 159
-        Width = 144
+        Width = 260
         Height = 15
         Align = alTop
         Caption = '  Selected Object Properties'
         Color = 12105912
         ParentColor = False
         Transparent = False
+        ExplicitWidth = 144
       end
       object pnlReportInfo: TPanel
         Left = 0
@@ -807,6 +810,10 @@ object frmMain: TfrmMain
         Caption = 'Show &Margins'
         Checked = True
         OnClick = mnuShowMarginsClick
+      end
+      object mnuDesignerOptions: TMenuItem
+        Caption = 'Designer &Options...'
+        OnClick = mnuDesignerOptionsClick
       end
     end
     object mnuReport: TMenuItem

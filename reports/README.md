@@ -22,6 +22,8 @@ They are lightweight, non-interactive, and expected to render deterministically 
 - `21_condition_color_boolean_coercion.vrt` - conditional color boolean coercion
 - `22_expression_usage_demo.vrt` - expression usage demo
 - `23_invalid_datafield_diagnostics.vrt` - invalid DataField diagnostics
+- `24_object_event_before_after_masterdata.vrt` - object before/after script demo
+- `25_object_event_before_after_expression.vrt` - object before/after script demo
 
 ## Manual-only Reports
 
@@ -33,6 +35,7 @@ These reports are intentionally not part of automatic regression and should be r
 
 - `Runtime Event Callback Demo` lives in `vittixdesigner` and is not a `.vrt` report file.
 - It is used to verify host-side object/band/report callback wiring, object event scripting, and parser edge cases.
+- `VittixRunner` can be used with `--scripts` to focus on reports that contain object event text.
 
 ## Dev/Test Artifacts
 

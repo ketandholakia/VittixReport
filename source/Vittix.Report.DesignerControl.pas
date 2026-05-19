@@ -52,6 +52,8 @@ type
   TDesignerMode = (dmSelect, dmMove, dmResize, dmBandResize,
                    dmRubberBand, dmInsert);
 
+  TDesignerGridUnit = (guCentimeters, guInches, guPixels, guPoints);
+
   TResizeHandle = (
     rhNone,
     rhTopLeft, rhTop, rhTopRight,
@@ -78,6 +80,7 @@ type
     FShowGrid   : Boolean;
     FSnapToGrid : Boolean;
     FGridSize   : Integer;
+    FGridUnit   : TDesignerGridUnit;
     FShowRulers : Boolean;
     FShowMargins: Boolean;
     FZoom       : Integer;
@@ -173,6 +176,7 @@ type
     procedure SetShowGrid(const V: Boolean);
     procedure SetShowRulers(const V: Boolean);
     procedure SetShowMargins(const V: Boolean);
+    function  GridStepPx: Integer;
 
     function  GetPrimarySelected: TReportObject;
     function  GetSelectedCount: Integer;
@@ -292,6 +296,7 @@ type
     property ShowGrid   : Boolean  read FShowGrid   write SetShowGrid   default True;
     property SnapToGrid : Boolean  read FSnapToGrid write FSnapToGrid   default True;
     property GridSize   : Integer  read FGridSize   write FGridSize     default 8;
+    property GridUnit   : TDesignerGridUnit read FGridUnit write FGridUnit default guPixels;
     property ShowRulers : Boolean  read FShowRulers write SetShowRulers default True;
     property ShowMargins: Boolean  read FShowMargins write SetShowMargins default True;
     property Zoom       : Integer  read FZoom       write SetZoom       default 100;
@@ -392,6 +397,7 @@ begin
   FShowGrid    := True;
   FSnapToGrid  := True;
   FGridSize    := 8;
+  FGridUnit    := guPixels;
   FShowRulers  := True;
   FShowMargins := True;
   FMode        := dmSelect;
@@ -454,6 +460,20 @@ function TVittixReportDesigner.ScreenToPage(const P: TPoint): TPoint;
 begin
   Result.X := UnScale(P.X - PageLeft);
   Result.Y := UnScale(P.Y - PageTop);
+end;
+
+function TVittixReportDesigner.GridStepPx: Integer;
+begin
+  case FGridUnit of
+    guCentimeters: Result := Round(FGridSize * 96 / 2.54);
+    guInches:      Result := Round(FGridSize * 96);
+    guPixels:      Result := FGridSize;
+    guPoints:      Result := Round(FGridSize * 96 / 72);
+  else
+    Result := FGridSize;
+  end;
+  if Result < 1 then
+    Result := 1;
 end;
 
 { -- Layout ------------------------------------------------------------------ }
@@ -659,8 +679,8 @@ end;
 
 function TVittixReportDesigner.SnapV(V: Integer): Integer;
 begin
-  if FSnapToGrid and (FGridSize > 0) then
-    Result := Round(V / FGridSize) * FGridSize
+  if FSnapToGrid and (GridStepPx > 0) then
+    Result := Round(V / GridStepPx) * GridStepPx
   else
     Result := V;
 end;
@@ -1686,7 +1706,7 @@ var
   Step: Integer;
 begin
   if not FShowGrid then Exit;
-  Step := Scale(FGridSize);
+  Step := Scale(GridStepPx);
   if Step < 4 then Exit;   // too zoomed out to show dots
 
   PL := PageLeft; PT := PageTop;
