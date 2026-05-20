@@ -47,6 +47,7 @@ const
   MIN_BAND_H  = 10;   // minimum band height (logical)
   BAND_LBL_W  = 68;   // width of band label strip on page left (logical)
   BAND_SEP_HT = 4;    // screen pixels - click zone for band-bottom separator
+  MOVE_DRAG_THRESHOLD = 3; // screen pixels before a click becomes a drag
 
 type
   TDesignerMode = (dmSelect, dmMove, dmResize, dmBandResize,
@@ -2197,6 +2198,8 @@ begin
   case FMode of
     dmMove:
     begin
+      if (Abs(DX) < MOVE_DRAG_THRESHOLD) and (Abs(DY) < MOVE_DRAG_THRESHOLD) then
+        Exit;
       for Obj in FSelected do
       begin
         if FDragStartBounds.TryGetValue(Obj, StartR) then
@@ -2250,8 +2253,9 @@ begin
 
     dmRubberBand:
     begin
-      FRubberRect.Right  := X;
-      FRubberRect.Bottom := Y;
+      if (Abs(DX) < MOVE_DRAG_THRESHOLD) and (Abs(DY) < MOVE_DRAG_THRESHOLD) then
+        Exit;
+      FRubberRect := Rect(FMouseStart.X, FMouseStart.Y, X, Y);
       Invalidate;
     end;
   end;

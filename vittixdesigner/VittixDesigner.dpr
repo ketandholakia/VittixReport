@@ -5,7 +5,12 @@ program VittixDesigner;
 {$ENDIF}
 
 uses
-  Vcl.Forms,
+   madExcept,
+  madLinkDisAsm,
+  madListHardware,
+  madListProcesses,
+  madListModules,
+ Vcl.Forms,
   System.SysUtils,
   vcl.Dialogs,
   Winapi.Windows,

@@ -12,6 +12,7 @@ implementation
 
 uses
   System.SysUtils,
+  System.StrUtils,
   System.IOUtils,
   System.Diagnostics,
   System.Classes,
@@ -25,6 +26,7 @@ uses
   Vcl.Graphics, // Required to ensure GDI canvas is available for measurement
   Vittix.Report.Model,
   Vittix.Report.Objects,
+  Vittix.Report.Bands,
   Vittix.Report.Context,
   Vittix.Report.Scripting,
   Vittix.Report.Engine,
@@ -32,6 +34,100 @@ uses
   Vittix.Report.Objects.Barcode,
   Vittix.Report.Objects.Table,
   Vittix.Report.ScriptHost.Adapter;
+
+function CountOccurrences(const Haystack, Needle: string): Integer;
+var
+  P: Integer;
+  SearchFrom: Integer;
+begin
+  Result := 0;
+  if (Haystack = '') or (Needle = '') then
+    Exit;
+  SearchFrom := 1;
+  while True do
+  begin
+    P := PosEx(Needle, Haystack, SearchFrom);
+    if P = 0 then
+      Break;
+    Inc(Result);
+    SearchFrom := P + Length(Needle);
+  end;
+end;
+
+function HasExactSwitch(const ASwitch: string): Boolean;
+var
+  I: Integer;
+begin
+  Result := False;
+  for I := 1 to ParamCount do
+    if SameText(ParamStr(I), ASwitch) then
+      Exit(True);
+end;
+
+procedure TraceScriptObject(const AAdapter: TReportScriptHostAdapter; const AObject: TReportObject;
+  const ALevel: Integer);
+var
+  Ctx: TExpressionContext;
+  DummyCanPrint: Boolean;
+  ResultBefore: TScriptHostCommandResult;
+  ResultAfter: TScriptHostCommandResult;
+  Indent: string;
+  ObjName: string;
+  TraceLine: string;
+begin
+  if not Assigned(AObject) then
+    Exit;
+
+  Indent := StringOfChar(' ', ALevel * 2);
+  ObjName := AObject.ClassName;
+  if AObject.Name <> '' then
+    ObjName := ObjName + ' "' + AObject.Name + '"';
+
+  DummyCanPrint := True;
+  Ctx := Default(TExpressionContext);
+
+  if AObject.OnBeforePrint <> '' then
+  begin
+    ResultBefore := AAdapter.ExecuteBeforeObject(AObject, AObject.OnBeforePrint, Ctx, DummyCanPrint);
+    Writeln(Indent + '[Before] ' + ObjName);
+    if ResultBefore.TraceMessage <> '' then
+    begin
+      TraceLine := StringReplace(ResultBefore.TraceMessage, sLineBreak, sLineBreak + Indent + '  ', [rfReplaceAll]);
+      Writeln(Indent + '  ' + ObjName + ':');
+      Writeln(Indent + '    ' + TraceLine);
+    end;
+  end;
+
+  if AObject.OnAfterPrint <> '' then
+  begin
+    ResultAfter := AAdapter.ExecuteAfterObject(AObject, AObject.OnAfterPrint, Ctx);
+    Writeln(Indent + '[After ] ' + ObjName);
+    if ResultAfter.TraceMessage <> '' then
+    begin
+      TraceLine := StringReplace(ResultAfter.TraceMessage, sLineBreak, sLineBreak + Indent + '  ', [rfReplaceAll]);
+      Writeln(Indent + '  ' + ObjName + ':');
+      Writeln(Indent + '    ' + TraceLine);
+    end;
+  end;
+end;
+
+procedure TraceScriptTree(const AAdapter: TReportScriptHostAdapter; const AObject: TReportObject;
+  const ALevel: Integer);
+var
+  Band: TReportBand;
+  Child: TReportObject;
+begin
+  if not Assigned(AObject) then
+    Exit;
+
+  TraceScriptObject(AAdapter, AObject, ALevel);
+  if AObject is TReportBand then
+  begin
+    Band := TReportBand(AObject);
+    for Child in Band.Children do
+      TraceScriptTree(AAdapter, Child, ALevel + 1);
+  end;
+end;
 
 { TVittixConsoleRunner }
 
@@ -54,8 +150,12 @@ var
   ExpectedPages: Integer;
   ScriptAdapter: TReportScriptHostAdapter;
   ScriptOnly: Boolean;
+  ScriptTraceOnly: Boolean;
   ReportText: string;
   HasObjectScript: Boolean;
+  ScriptBeforeCount: Integer;
+  ScriptAfterCount: Integer;
+  Obj: TReportObject;
 begin
   Writeln('================================================');
   Writeln(' VittixReport Headless Regression Runner');
@@ -95,9 +195,12 @@ begin
   end;
   Writeln('------------------------------------------------');
 
-  ScriptOnly := FindCmdLineSwitch('scripts', True);
+  ScriptOnly := HasExactSwitch('--scripts');
+  ScriptTraceOnly := HasExactSwitch('--script-trace');
   if ScriptOnly then
     Writeln('Mode: script-focused reports only');
+  if ScriptTraceOnly then
+    Writeln('Mode: script trace only');
 
   Files := TDirectory.GetFiles(ReportsPath, '*.vrt');
   TArray.Sort<string>(Files); // Ensure deterministic execution order
@@ -121,7 +224,7 @@ begin
       BaselineJSON := TJSONObject.Create;
   end
   else
-    BaselineJSON := TJSONObject.Create;
+  BaselineJSON := TJSONObject.Create;
 
   // Note: You may need to adapt this dummy dataset to exactly match what the designer uses
   MemTable := TFDMemTable.Create(nil);
@@ -140,15 +243,20 @@ begin
       var ErrorMsg: string;
 
       JustName := ExtractFileName(FileName);
+      ReportText := '';
+      HasObjectScript := False;
+      ScriptBeforeCount := 0;
+      ScriptAfterCount := 0;
 
       if (TargetFile <> '') and not SameText(JustName, TargetFile) then
         Continue;
 
-      if ScriptOnly then
+      if ScriptOnly or ScriptTraceOnly then
       begin
         ReportText := TFile.ReadAllText(FileName, TEncoding.UTF8);
-        HasObjectScript := (Pos('"OnBeforePrint": "', ReportText) > 0) or
-          (Pos('"OnAfterPrint": "', ReportText) > 0);
+        ScriptBeforeCount := CountOccurrences(ReportText, '"OnBeforePrint": "');
+        ScriptAfterCount := CountOccurrences(ReportText, '"OnAfterPrint": "');
+        HasObjectScript := (ScriptBeforeCount > 0) or (ScriptAfterCount > 0);
         if not HasObjectScript then
           Continue;
       end;
@@ -182,19 +290,45 @@ begin
             PageCount := Engine.Pages.Count;
             ElapsedMs := Stopwatch.ElapsedMilliseconds;
 
-            // Check against pagination baseline
-            if BaselineJSON.TryGetValue<Integer>(JustName, ExpectedPages) then
+            if ScriptOnly and Assigned(Report) and ((ScriptBeforeCount > 0) or (ScriptAfterCount > 0)) then
             begin
-              if ExpectedPages <> PageCount then
+              Writeln(Format('  [TRACE] %s', [JustName]));
+              Writeln(Format('    Script objects: before=%d after=%d', [ScriptBeforeCount, ScriptAfterCount]));
+            end
+            else if ScriptTraceOnly and Assigned(Report) and ((ScriptBeforeCount > 0) or (ScriptAfterCount > 0)) then
+            begin
+              Writeln(Format('  [TRACE] %s', [JustName]));
+              Writeln(Format('    Script objects: before=%d after=%d', [ScriptBeforeCount, ScriptAfterCount]));
+              Writeln('');
+              for Obj in Report.Objects do
+                TraceScriptTree(ScriptAdapter, Obj, 2);
+            end;
+            if ScriptTraceOnly then
+            begin
+              Inc(PassCount);
+              Continue;
+            end;
+            if not ScriptTraceOnly then
+            begin
+              // Check against pagination baseline
+              if BaselineJSON.TryGetValue<Integer>(JustName, ExpectedPages) then
               begin
-                TestFailed := True;
-                ErrorMsg := Format('Pagination mismatch: Expected %d pages, got %d', [ExpectedPages, PageCount]);
+                if ExpectedPages <> PageCount then
+                begin
+                  TestFailed := True;
+                  ErrorMsg := Format('Pagination mismatch: Expected %d pages, got %d', [ExpectedPages, PageCount]);
+                end;
+              end
+              else
+              begin
+                BaselineJSON.AddPair(JustName, TJSONNumber.Create(PageCount));
+                BaselineModified := True;
               end;
             end
             else
             begin
-              BaselineJSON.AddPair(JustName, TJSONNumber.Create(PageCount));
-              BaselineModified := True;
+              TestFailed := False;
+              ErrorMsg := '';
             end;
           finally
             Engine.Free;

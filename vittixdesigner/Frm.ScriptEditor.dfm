@@ -44,9 +44,16 @@ object frmScriptEditor: TfrmScriptEditor
         'No syntax validation is performed in the designer. Script meanin' +
         'g is defined by your host callback implementation.'
     end
+    object lblTarget: TLabel
+      Left = 12
+      Top = 112
+      Width = 143
+      Height = 15
+      Caption = 'Selected target: none'
+    end
     object lblSnippets: TLabel
       Left = 12
-      Top = 120
+      Top = 128
       Width = 212
       Height = 15
       Caption = 'Host-script example snippets (text only):'
@@ -67,7 +74,7 @@ object frmScriptEditor: TfrmScriptEditor
     end
     object cboSnippets: TComboBox
       Left = 12
-      Top = 138
+      Top = 146
       Width = 642
       Height = 23
       Style = csDropDownList
@@ -75,7 +82,7 @@ object frmScriptEditor: TfrmScriptEditor
     end
     object btnInsert: TButton
       Left = 662
-      Top = 137
+      Top = 145
       Width = 86
       Height = 25
       Anchors = [akTop, akRight]

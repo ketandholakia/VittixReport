@@ -24,6 +24,8 @@ They are lightweight, non-interactive, and expected to render deterministically 
 - `23_invalid_datafield_diagnostics.vrt` - invalid DataField diagnostics
 - `24_object_event_before_after_masterdata.vrt` - object before/after script demo
 - `25_object_event_before_after_expression.vrt` - object before/after script demo
+- `26_object_event_unsupported_cases.vrt` - unsupported object script diagnostics
+- `27_object_event_image_cases.vrt` - image object script demo
 
 ## Manual-only Reports
 
@@ -36,6 +38,10 @@ These reports are intentionally not part of automatic regression and should be r
 - `Runtime Event Callback Demo` lives in `vittixdesigner` and is not a `.vrt` report file.
 - It is used to verify host-side object/band/report callback wiring, object event scripting, and parser edge cases.
 - `VittixRunner` can be used with `--scripts` to focus on reports that contain object event text.
+- `VittixRunner --script-trace` prints script diagnostics without pagination checks.
+- `RunTests.bat` runs the full regression suite.
+- `RunTests-Scripts.bat` runs only script-bearing regression reports.
+- `RunTests-ScriptTrace.bat` runs trace-only diagnostics for script-bearing reports.
 
 ## Dev/Test Artifacts
 

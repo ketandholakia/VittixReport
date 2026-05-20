@@ -3,6 +3,7 @@ unit Frm.ScriptEditor;
 interface
 
 uses
+  Winapi.Windows,
   System.Classes, System.SysUtils, System.UITypes,
   Vcl.Controls, Vcl.Forms, Vcl.StdCtrls, Vcl.ExtCtrls,
   Vittix.Report.Objects, Vittix.Report.Bands;
@@ -17,6 +18,7 @@ type
     memInfo: TMemo;
     lblTip: TLabel;
     lblNoValidation: TLabel;
+    lblTarget: TLabel;
     lblSnippets: TLabel;
     cboSnippets: TComboBox;
     btnInsert: TButton;
@@ -28,9 +30,12 @@ type
     FStorageSubject: string;
     FTarget: TReportObject;
     procedure UpdateStats;
+    procedure UpdateTargetInfo;
     procedure PopulateSnippets;
     procedure InsertSelectedSnippet;
     function SnippetText(const AName: string): string;
+    function TargetDescription: string;
+    function TargetKindDescription: string;
   public
     procedure Initialize(const ATitle, AStorageSubject, AValue: string; ATarget: TReportObject);
     function Execute(var AValue: string): Boolean;
@@ -45,9 +50,7 @@ begin
   Caption := ATitle;
   FStorageSubject := AStorageSubject;
   FTarget := ATarget;
-  memInfo.Lines.Text :=
-    'This text is stored with the ' + FStorageSubject + ' and passed to the host script callback in the final render pass.' + sLineBreak +
-    'Runtime Delphi callbacks are separate and are not stored in the report.';
+  UpdateTargetInfo;
   memScript.Lines.Text := AValue;
   PopulateSnippets;
   UpdateStats;
@@ -74,6 +77,15 @@ begin
       cboSnippets.Items.Add('Set variable placeholder');
       cboSnippets.Items.Add('Host callback note');
     end
+    else if Assigned(FTarget) and (FTarget is TReportFieldObject) then
+    begin
+      cboSnippets.Items.Add('Set visibility');
+      cboSnippets.Items.Add('Set text (Literal)');
+      cboSnippets.Items.Add('Set text color');
+      cboSnippets.Items.Add('Set text (Field)');
+      cboSnippets.Items.Add('Set background');
+      cboSnippets.Items.Add('Set display format');
+    end
     else
     begin
       cboSnippets.Items.Add('Set visibility');
@@ -95,6 +107,44 @@ begin
     cboSnippets.Items.EndUpdate;
   end;
   cboSnippets.ItemIndex := 0;
+  if cboSnippets.Items.Count > 0 then
+    cboSnippets.Text := cboSnippets.Items[0];
+end;
+
+function TfrmScriptEditor.TargetDescription: string;
+begin
+  if not Assigned(FTarget) then
+    Exit('No report object selected');
+
+  Result := FTarget.ClassName;
+  if Trim(FTarget.Name) <> '' then
+    Result := Result + ' "' + FTarget.Name + '"';
+end;
+
+function TfrmScriptEditor.TargetKindDescription: string;
+begin
+  if not Assigned(FTarget) then
+    Exit('no target');
+
+  if FTarget is TReportBand then
+    Exit('band script');
+  if FTarget is TReportFieldObject then
+    Exit('field object script');
+  if FTarget is TReportTextObject then
+    Exit('text object script');
+  if FTarget is TReportImageObject then
+    Exit('image object script');
+
+  Result := 'object script';
+end;
+
+procedure TfrmScriptEditor.UpdateTargetInfo;
+begin
+  memInfo.Lines.Text :=
+    'This text is stored with the ' + FStorageSubject + ' and passed to the host script callback in the final render pass.' + sLineBreak +
+    'Runtime Delphi callbacks are separate and are not stored in the report.';
+
+  lblTarget.Caption := 'Selected target: ' + TargetDescription + ' (' + TargetKindDescription + ')';
 end;
 
 function TfrmScriptEditor.SnippetText(const AName: string): string;
@@ -116,6 +166,8 @@ begin
     Result := 'FontColor := clRed;'
   else if AName = 'Set background' then
     Result := 'Background := clYellow;'
+  else if AName = 'Set display format' then
+    Result := 'DisplayFormat := ''#,##0.00'';'
   else if AName = 'Set image data field' then
     Result := 'DataField := ''ImagePath'';'
   else if AName = 'Set image layout' then

@@ -15,7 +15,7 @@ if %errorlevel% neq 0 (
 )
 
 echo Building VittixRunner...
-:: Compiles the project using Delphi's MSBuild 
+:: Compiles the project using Delphi's MSBuild
 taskkill /f /im VittixRunner.exe >nul 2>nul
 msbuild VittixRunner.dproj /p:Config=Debug /p:Platform=Win32
 if %errorlevel% neq 0 (
@@ -26,6 +26,6 @@ if %errorlevel% neq 0 (
 )
 
 echo.
-echo Running Headless Regression Tests...
-.\bin\Win32\Debug\VittixRunner.exe -pause
+echo Running script-bearing regression reports...
+.\bin\Win32\Debug\VittixRunner.exe --scripts -pause
 pause

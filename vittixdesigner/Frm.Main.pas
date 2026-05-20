@@ -56,8 +56,35 @@ uses
   Vittix.Report.ScriptHost.Adapter,
   System.ImageList, Vcl.VirtualImageList, SVGIconVirtualImageList,
   Vcl.BaseImageCollection, SVGIconImageCollection,
+  Frm.Main.Helpers,
+  Frm.Main.Commands,
+  Frm.Main.RuntimeDemo,
+  Frm.Main.PropertyPanel,
+  Frm.Main.Structure,
+  Frm.Main.SampleHelpers,
+  Frm.Main.PropertyHelpers,
+  Frm.Main.PropertyPanelHelpers,
+  Frm.Main.PropertyEditorHelpers,
+  Frm.Main.ApplyHelpers,
+  Frm.Main.FontEditHelpers,
+  Frm.Main.TreeFieldHelpers,
+  Frm.Main.InsertMenuHelpers,
+  Frm.Main.MenuStateHelpers,
+  Frm.Main.HelpTexts,
+  Frm.Main.ReportActions,
+  Frm.Main.ViewHelpers,
+  Frm.Main.DesignerHelpers,
+  Frm.Main.PropertyPanelActions,
+  Frm.Main.PropertyPanelEvents,
+  Frm.Main.PropertyPanelState,
+  Frm.Main.SampleDataHelpers,
+  Frm.Main.QuickActions,
   Frm.DesignerOptions,
-  Frm.ScriptEditor;
+  Frm.ScriptEditor,
+  Frm.ExpressionHelper,
+  Vittix.Designer.Commands,
+  // Vittix.Designer.RuntimeDemo,
+  Vittix.Designer.RegressionRunner;
 
 type
   TfrmMain = class(TForm)
@@ -318,6 +345,7 @@ type
     FPropertyPanelDirty: Boolean;
     FLoadingPropertyPanel: Boolean;
     FUpdatingZoomControls: Boolean;
+    FRuntimeEventDemoOutput: string;
     // Created dynamically in FormCreate (not streamed from DFM)
     FDesigner   : TVittixReportDesigner;
     FDataSource1: TDataSource;
@@ -343,13 +371,7 @@ type
     FReportRegressionTestsMenu: TMenuItem;
     FReportMenuSeparator: TMenuItem;
     FSampleDataSet: TFDMemTable;
-    FExprHelperMemo: TMemo;
-    FExprHelperFields: TListBox;
-    FExprHelperExamples: TListBox;
-    FExprHelperRecent: TListBox;
-    FRuntimeEventDemoOutput: string;
-    // Session-only in-memory expression recents; cleared when designer closes.
-    FExprRecentsByKey: TObjectDictionary<string, TStringList>;
+    // Session-only in-memory expression recents are now handled by Frm.ExpressionHelper.
 
     // Command-line mode: set when launched by the component editor
     FCmdLineInputFile : string;   // file to load on startup
@@ -362,15 +384,19 @@ type
     procedure UpdateMenuState;
     procedure ConfigureLayoutGuidance;
     procedure ConfigureViewToggleStrip;
+    procedure InitializeToolbarZoomCombo;
+    procedure UpdateZoomControls;
+    function  FitPageWidthZoom: Integer;
+    function  FitWholePageZoom: Integer;
+    procedure ApplyToolbarZoomSelection;
+    procedure ApplyZoom;
     procedure UpdatePropertyPanel;
+    procedure UpdateAll;
     procedure ApplyPropertyPanel;
     procedure SetPropertyPanelDirty(AValue: Boolean);
     procedure UpdatePropertyPanelHeader(AObj: TReportObject);
     procedure UpdatePropertyPanelHintForRow(ARow: Integer);
-    function  PropertyHintText(const AKey: string): string;
     procedure ConfigurePropertyEditors;
-    procedure PromoteImportantProperties(AObj: TReportObject);
-    procedure InsertVisualGroupRows(AObj: TReportObject);
     function  IsVisualGroupRow(const AKey: string): Boolean;
     function  IsFontDialogRowKey(const AKey: string): Boolean;
     function  IsColorPropertyKey(const AKey: string): Boolean;
@@ -378,23 +404,12 @@ type
     function  IsBandEventScriptRowKey(const AKey: string): Boolean;
     function  EditExpressionPropertyRow(ARow: Integer): Boolean;
     function  EditBandEventScriptRow(ARow: Integer): Boolean;
-    function  PromptExpressionHelper(const AInitialValue: string;
-      const AFields: TArray<string>; const APropertyKey: string;
-      out AEditedValue: string): Boolean;
-    procedure ExpressionHelperInsertField(Sender: TObject);
-    procedure ExpressionHelperFieldDblClick(Sender: TObject);
-    procedure ExpressionHelperExampleDblClick(Sender: TObject);
-    procedure ExpressionHelperRecentDblClick(Sender: TObject);
-    procedure ExpressionHelperOperatorClick(Sender: TObject);
-    procedure ExpressionHelperTemplateClick(Sender: TObject);
-    procedure ExpressionHelperInsertText(const AText: string);
-    function  ExpressionHelperTryGetSelectedField(out AFieldName: string): Boolean;
-    procedure ExpressionHelperCheckClick(Sender: TObject);
-    function  ExpressionHelperBucketKey(const APropertyKey: string): string;
-    function  ExpressionHelperRecentList(const APropertyKey: string;
-      ACreate: Boolean): TStringList;
-    procedure ExpressionHelperAddRecent(const APropertyKey, AExpr: string);
-    function  ExpressionHelperIsRecentHintItem(const AValue: string): Boolean;
+    function  EditColorPropertyRow(ARow: Integer): Boolean;
+    function  EditFontPropertyRow(ARow: Integer): Boolean;
+    function  ConfirmMixedBandVerticalLayout: Boolean;
+    function  CurrentPropertyTarget: TReportObject;
+    function  SelectedObjectsSpanBands: Boolean;
+    function  IsControlWithinParent(AControl, AParent: TWinControl): Boolean;
     function  SamePropertyValue(const AOld, ANew: TValue): Boolean;
     function  BuildChangedPropertyBatch(
       AObj: TReportObject;
@@ -403,21 +418,6 @@ type
       out ChangedNames: TArray<string>;
       out OldValues: TArray<TValue>;
       out NewValues: TArray<TValue>): Boolean;
-    function  IsControlWithinParent(AControl, AParent: TWinControl): Boolean;
-    function  IsTextEditingControlFocused: Boolean;
-    procedure SendMessageToFocusedControl(AMsg: Cardinal);
-    procedure SendDeleteToFocusedControl;
-    function  CurrentPropertyTarget: TReportObject;
-    function  SelectedObjectsSpanBands: Boolean;
-    function  ConfirmMixedBandVerticalLayout: Boolean;
-    function  EditColorPropertyRow(ARow: Integer): Boolean;
-    function  EditFontPropertyRow(ARow: Integer): Boolean;
-    procedure ApplyZoom;
-    procedure InitializeToolbarZoomCombo;
-    procedure UpdateZoomControls;
-    procedure ApplyToolbarZoomSelection;
-    function  FitPageWidthZoom: Integer;
-    function  FitWholePageZoom: Integer;
     procedure CommitReportMetadataValues(const ANewTitle, ANewAuthor,
       ANewDescription: string; AUndoable: Boolean = True);
     procedure CommitReportMetadataChanges(AUndoable: Boolean = True);
@@ -439,14 +439,24 @@ type
       AUseSampleDataSet: Boolean = False);
     procedure RunRegressionTestReports;
     procedure RunRuntimeEventCallbackDemo;
-    procedure RuntimeEventDemoCopyClick(Sender: TObject);
     procedure ConfirmSaveIfModified;
     procedure DynInsertMenuClick(Sender: TObject);
     procedure DynAddBandMenuClick(Sender: TObject);
 
     procedure RefreshFieldList;
     procedure RefreshReportStructure;
+    function  HasDesignerReport: Boolean;
+    procedure RefreshAfterUndoRedo;
+    procedure RefreshAfterReportStateChange;
     procedure SyncReportStructureSelection;
+    function  TryGetPreviewDataSet(out ADataSet: TDataSet): Boolean;
+    procedure GetReportPropertiesDialogValues(out ATitle, AAuthor: string);
+    function  PageSettingsChanged(const AOldSettings, ANewSettings: TReportPageSettings): Boolean;
+    procedure ApplyBandManagerSnapshot(const ABeforeJSON, AAfterJSON: string);
+    procedure ShowReportPropertiesDialog;
+    function  IsTextEditingControlFocused: Boolean;
+    procedure SendMessageToFocusedControl(AMsg: Cardinal);
+    procedure SendDeleteToFocusedControl;
     procedure StructureTreeChange(Sender: TObject; Node: TTreeNode);
     procedure StructureTreeDblClick(Sender: TObject);
     procedure StructureTreeMouseDown(Sender: TObject; Button: TMouseButton;
@@ -469,8 +479,8 @@ type
     procedure CreateSampleDataSet;
     procedure ReloadSampleDataSet;
     procedure UseSampleDataSet;
-
-    function  ZoomFromEdit: Integer;
+    procedure RuntimeEventDemoCopyClick(Sender: TObject);
+    function  ZoomValueFromEdit: Integer;
     function  ZoomPercentFromText(const AText: string): Integer;
     procedure cboZoomToolbarChange(Sender: TObject);
     function  VariableTokenForNode(ANode: TTreeNode; out AToken: string;
@@ -511,62 +521,7 @@ const
   TREE_ICON_SUBREPORT = 30;
   TREE_ICON_TABLE     = 31;
 
-function BandTypeName(BT: TReportBandType): string; forward;
-
 type
-  TPropertyBatchChangeCommand = class(TUndoableAction)
-  private
-    FObj: TObject;
-    FPropNames: TArray<string>;
-    FOldValues: TArray<TValue>;
-    FNewValues: TArray<TValue>;
-    procedure ApplyValues(const AValues: TArray<TValue>);
-  public
-    constructor Create(AObj: TObject; const APropNames: TArray<string>;
-      const AOldValues, ANewValues: TArray<TValue>);
-    procedure Execute; override;
-    procedure Rollback; override;
-  end;
-
-  TTextFontChangeCommand = class(TUndoableAction)
-  private
-    FObj: TReportTextObject;
-    FOldFont: TFont;
-    FNewFont: TFont;
-  public
-    constructor Create(AObj: TReportTextObject; const AOldFont, ANewFont: TFont);
-    destructor Destroy; override;
-    procedure Execute; override;
-    procedure Rollback; override;
-  end;
-
-  TReportSnapshotCommand = class(TUndoableAction)
-  private
-    FDesigner: TVittixReportDesigner;
-    FBeforeJSON: string;
-    FAfterJSON: string;
-    procedure ApplyJSON(const AJSON: string);
-  public
-    constructor Create(ADesigner: TVittixReportDesigner;
-      const ABeforeJSON, AAfterJSON: string);
-    procedure Execute; override;
-    procedure Rollback; override;
-  end;
-
-  TPageSettingsChangeCommand = class(TUndoableAction)
-  private
-    FDesigner: TVittixReportDesigner;
-    FOldSettings: TReportPageSettings;
-    FNewSettings: TReportPageSettings;
-    procedure ApplySettings(ASource: TReportPageSettings);
-  public
-    constructor Create(ADesigner: TVittixReportDesigner;
-      AOldSettings, ANewSettings: TReportPageSettings);
-    destructor Destroy; override;
-    procedure Execute; override;
-    procedure Rollback; override;
-  end;
-
   TReportMetadataChangeCommand = class(TUndoableAction)
   private
     FForm: TfrmMain;
@@ -585,357 +540,6 @@ type
     procedure Execute; override;
     procedure Rollback; override;
   end;
-
-  TRuntimeEventDemoHarness = class
-  private
-    FTrace: TStringList;
-    FSkipObjectClassName: string;
-    FSkipMasterDataBand: Boolean;
-    FScriptAdapter: TReportScriptHostAdapter;
-    procedure LogScriptUnsupported(const AReason: string);
-  public
-    BeforeReportCount: Integer;
-    AfterReportCount: Integer;
-    BeforeBandCount: Integer;
-    AfterBandCount: Integer;
-    BeforeObjectCount: Integer;
-    AfterObjectCount: Integer;
-    ScriptBeforeObjectCount: Integer;
-    ScriptAfterObjectCount: Integer;
-    SkippedBandCount: Integer;
-    SkippedObjectCount: Integer;
-    ScriptCanceledObjectCount: Integer;
-    ScriptTextSetCount: Integer;
-    ScriptUnsupportedCount: Integer;
-
-    constructor Create;
-    destructor Destroy; override;
-    procedure ResetCounts;
-    procedure BeforeReport(Sender, AEngine: TObject; AReport: TReportModel;
-      var ACancel: Boolean);
-    procedure AfterReport(Sender, AEngine: TObject; AReport: TReportModel);
-    procedure BeforeBand(Sender, AEngine: TObject; ABand: TReportBand;
-      const Context: TExpressionContext; var ACanPrint: Boolean);
-    procedure AfterBand(Sender, AEngine: TObject; ABand: TReportBand;
-      const Context: TExpressionContext);
-    procedure BeforeObject(Sender, AEngine: TObject; AObject: TReportObject;
-      const Context: TExpressionContext; var ACanPrint: Boolean);
-    procedure AfterObject(Sender, AEngine: TObject; AObject: TReportObject;
-      const Context: TExpressionContext);
-    procedure ScriptBeforeObject(AReport: TReportModel; AObject: TReportObject;
-      const Script: string; var Context: TExpressionContext; var ACanPrint: Boolean);
-    procedure ScriptAfterObject(AReport: TReportModel; AObject: TReportObject;
-      const Script: string; var Context: TExpressionContext);
-    property Trace: TStringList read FTrace;
-    property SkipObjectClassName: string read FSkipObjectClassName write FSkipObjectClassName;
-    property SkipMasterDataBand: Boolean read FSkipMasterDataBand write FSkipMasterDataBand;
-  end;
-
-function PageSettingsEqual(A, B: TReportPageSettings): Boolean;
-begin
-  Result := Assigned(A) and Assigned(B) and
-            (A.PaperSize = B.PaperSize) and
-            (A.Orientation = B.Orientation) and
-            (A.CustomWidth = B.CustomWidth) and
-            (A.CustomHeight = B.CustomHeight) and
-            (A.Margins.Left = B.Margins.Left) and
-            (A.Margins.Top = B.Margins.Top) and
-            (A.Margins.Right = B.Margins.Right) and
-            (A.Margins.Bottom = B.Margins.Bottom);
-end;
-
-{ TRuntimeEventDemoHarness }
-
-constructor TRuntimeEventDemoHarness.Create;
-begin
-  inherited Create;
-  FTrace := TStringList.Create;
-  FScriptAdapter := TReportScriptHostAdapter.Create;
-  ResetCounts;
-end;
-
-destructor TRuntimeEventDemoHarness.Destroy;
-begin
-  FScriptAdapter.Free;
-  FTrace.Free;
-  inherited;
-end;
-
-procedure TRuntimeEventDemoHarness.ResetCounts;
-begin
-  BeforeReportCount := 0;
-  AfterReportCount := 0;
-  BeforeBandCount := 0;
-  AfterBandCount := 0;
-  BeforeObjectCount := 0;
-  AfterObjectCount := 0;
-  ScriptBeforeObjectCount := 0;
-  ScriptAfterObjectCount := 0;
-  SkippedBandCount := 0;
-  SkippedObjectCount := 0;
-  ScriptCanceledObjectCount := 0;
-  ScriptTextSetCount := 0;
-  ScriptUnsupportedCount := 0;
-  FTrace.Clear;
-  FSkipObjectClassName := '';
-  FSkipMasterDataBand := False;
-end;
-
-procedure TRuntimeEventDemoHarness.BeforeReport(Sender, AEngine: TObject;
-  AReport: TReportModel; var ACancel: Boolean);
-begin
-  Inc(BeforeReportCount);
-  FTrace.Add('BeforeReport');
-end;
-
-procedure TRuntimeEventDemoHarness.AfterReport(Sender, AEngine: TObject;
-  AReport: TReportModel);
-begin
-  Inc(AfterReportCount);
-  FTrace.Add('AfterReport');
-end;
-
-procedure TRuntimeEventDemoHarness.BeforeBand(Sender, AEngine: TObject;
-  ABand: TReportBand; const Context: TExpressionContext; var ACanPrint: Boolean);
-begin
-  Inc(BeforeBandCount);
-  FTrace.Add('BeforeBand: ' + BandTypeName(ABand.BandType));
-  if FSkipMasterDataBand and (ABand.BandType = btMasterData) then
-  begin
-    ACanPrint := False;
-    Inc(SkippedBandCount);
-    FTrace.Add('SkipBand: Master Data');
-  end;
-end;
-
-procedure TRuntimeEventDemoHarness.AfterBand(Sender, AEngine: TObject;
-  ABand: TReportBand; const Context: TExpressionContext);
-begin
-  Inc(AfterBandCount);
-  FTrace.Add('AfterBand: ' + BandTypeName(ABand.BandType));
-end;
-
-procedure TRuntimeEventDemoHarness.BeforeObject(Sender, AEngine: TObject;
-  AObject: TReportObject; const Context: TExpressionContext; var ACanPrint: Boolean);
-begin
-  Inc(BeforeObjectCount);
-  FTrace.Add('BeforeObject: ' + AObject.ClassName);
-  if (FSkipObjectClassName <> '') and SameText(AObject.ClassName, FSkipObjectClassName) then
-  begin
-    ACanPrint := False;
-    Inc(SkippedObjectCount);
-    FTrace.Add('SkipObject: ' + AObject.ClassName);
-  end;
-end;
-
-procedure TRuntimeEventDemoHarness.AfterObject(Sender, AEngine: TObject;
-  AObject: TReportObject; const Context: TExpressionContext);
-begin
-  Inc(AfterObjectCount);
-  FTrace.Add('AfterObject: ' + AObject.ClassName);
-end;
-
-procedure TRuntimeEventDemoHarness.ScriptBeforeObject(AReport: TReportModel;
-  AObject: TReportObject; const Script: string; var Context: TExpressionContext;
-  var ACanPrint: Boolean);
-var
-  S: string;
-  CmdResult: TScriptHostCommandResult;
-  TraceLines: TStringList;
-  Line: string;
-begin
-  Inc(ScriptBeforeObjectCount);
-  FTrace.Add(Format('ScriptBeforeObject: %s "%s" text="%s"',
-    [AObject.ClassName, AObject.Name, Script]));
-
-  S := Trim(Script);
-
-  CmdResult := FScriptAdapter.ExecuteBeforeObject(AObject, S, Context, ACanPrint);
-  if CmdResult.Handled then
-  begin
-    Inc(ScriptTextSetCount, CmdResult.TextSetCount);
-    if CmdResult.Canceled then
-      Inc(ScriptCanceledObjectCount);
-    Inc(ScriptUnsupportedCount, CmdResult.UnsupportedCount);
-    if CmdResult.TraceMessage <> '' then
-    begin
-      TraceLines := TStringList.Create;
-      try
-        TraceLines.Text := CmdResult.TraceMessage;
-        for Line in TraceLines do
-          if Trim(Line) <> '' then
-            FTrace.Add(Line);
-      finally
-        TraceLines.Free;
-      end;
-    end;
-    Exit;
-  end;
-
-  LogScriptUnsupported('ScriptUnsupported[UnknownCommand]: ' + S);
-end;
-
-procedure TRuntimeEventDemoHarness.ScriptAfterObject(AReport: TReportModel;
-  AObject: TReportObject; const Script: string; var Context: TExpressionContext);
-begin
-  Inc(ScriptAfterObjectCount);
-  FTrace.Add(Format('ScriptAfterObject: %s "%s" text="%s"',
-    [AObject.ClassName, AObject.Name, Script]));
-end;
-
-procedure TRuntimeEventDemoHarness.LogScriptUnsupported(const AReason: string);
-begin
-  Inc(ScriptUnsupportedCount);
-  FTrace.Add(AReason);
-end;
-
-constructor TPropertyBatchChangeCommand.Create(AObj: TObject;
-  const APropNames: TArray<string>; const AOldValues, ANewValues: TArray<TValue>);
-begin
-  inherited Create;
-  ActionName := 'Property Change';
-  FObj := AObj;
-  FPropNames := APropNames;
-  FOldValues := AOldValues;
-  FNewValues := ANewValues;
-end;
-
-procedure TPropertyBatchChangeCommand.ApplyValues(const AValues: TArray<TValue>);
-var
-  Ctx: TRttiContext;
-  RttiType: TRttiType;
-  Prop: TRttiProperty;
-  I: Integer;
-begin
-  if not Assigned(FObj) then
-    Exit;
-
-  Ctx := TRttiContext.Create;
-  try
-    RttiType := Ctx.GetType(FObj.ClassType);
-    if not Assigned(RttiType) then
-      Exit;
-
-    for I := 0 to High(FPropNames) do
-    begin
-      Prop := RttiType.GetProperty(FPropNames[I]);
-      if Assigned(Prop) and Prop.IsWritable then
-        Prop.SetValue(FObj, AValues[I]);
-    end;
-  finally
-    Ctx.Free;
-  end;
-end;
-
-procedure TPropertyBatchChangeCommand.Execute;
-begin
-  ApplyValues(FNewValues);
-end;
-
-procedure TPropertyBatchChangeCommand.Rollback;
-begin
-  ApplyValues(FOldValues);
-end;
-
-constructor TTextFontChangeCommand.Create(AObj: TReportTextObject;
-  const AOldFont, ANewFont: TFont);
-begin
-  inherited Create;
-  ActionName := 'Font Change';
-  FObj := AObj;
-  FOldFont := TFont.Create;
-  FNewFont := TFont.Create;
-  FOldFont.Assign(AOldFont);
-  FNewFont.Assign(ANewFont);
-end;
-
-destructor TTextFontChangeCommand.Destroy;
-begin
-  FOldFont.Free;
-  FNewFont.Free;
-  inherited;
-end;
-
-procedure TTextFontChangeCommand.Execute;
-begin
-  if Assigned(FObj) then
-    FObj.Font.Assign(FNewFont);
-end;
-
-procedure TTextFontChangeCommand.Rollback;
-begin
-  if Assigned(FObj) then
-    FObj.Font.Assign(FOldFont);
-end;
-
-constructor TReportSnapshotCommand.Create(ADesigner: TVittixReportDesigner;
-  const ABeforeJSON, AAfterJSON: string);
-begin
-  inherited Create;
-  ActionName := 'Band Manager Changes';
-  FDesigner := ADesigner;
-  FBeforeJSON := ABeforeJSON;
-  FAfterJSON := AAfterJSON;
-end;
-
-procedure TReportSnapshotCommand.ApplyJSON(const AJSON: string);
-var
-  Model: TReportModel;
-begin
-  if not Assigned(FDesigner) then
-    Exit;
-  Model := TReportSerializer.LoadFromJSON(AJSON);
-  FDesigner.LoadReport(Model, True, False);
-end;
-
-procedure TReportSnapshotCommand.Execute;
-begin
-  ApplyJSON(FAfterJSON);
-end;
-
-procedure TReportSnapshotCommand.Rollback;
-begin
-  ApplyJSON(FBeforeJSON);
-end;
-
-constructor TPageSettingsChangeCommand.Create(ADesigner: TVittixReportDesigner;
-  AOldSettings, ANewSettings: TReportPageSettings);
-begin
-  inherited Create;
-  ActionName := 'Page Setup Change';
-  FDesigner := ADesigner;
-  FOldSettings := TReportPageSettings.Create;
-  FNewSettings := TReportPageSettings.Create;
-  if Assigned(AOldSettings) then
-    AOldSettings.AssignTo(FOldSettings);
-  if Assigned(ANewSettings) then
-    ANewSettings.AssignTo(FNewSettings);
-end;
-
-destructor TPageSettingsChangeCommand.Destroy;
-begin
-  FOldSettings.Free;
-  FNewSettings.Free;
-  inherited;
-end;
-
-procedure TPageSettingsChangeCommand.ApplySettings(ASource: TReportPageSettings);
-begin
-  if not Assigned(FDesigner) or not Assigned(FDesigner.Report) or
-     not Assigned(FDesigner.Report.PageSettings) or not Assigned(ASource) then
-    Exit;
-  ASource.AssignTo(FDesigner.Report.PageSettings);
-end;
-
-procedure TPageSettingsChangeCommand.Execute;
-begin
-  ApplySettings(FNewSettings);
-end;
-
-procedure TPageSettingsChangeCommand.Rollback;
-begin
-  ApplySettings(FOldSettings);
-end;
 
 constructor TReportMetadataChangeCommand.Create(AForm: TfrmMain;
   AReport: TReportModel; const AOldTitle, AOldAuthor, AOldDescription,
@@ -1254,10 +858,7 @@ begin
   RefreshFieldList;
   InitializeToolbarZoomCombo;
   UpdateZoomControls;
-  UpdateTitleBar;
-  UpdateStatusBar;
-  UpdateMenuState;
-  SyncReportStructureSelection;
+  UpdateAll;
 
   FReportSampleReportsMenu := TMenuItem.Create(Self);
   FReportSampleReportsMenu.Caption := 'Sample Reports';
@@ -1362,8 +963,6 @@ end;
 
 procedure TfrmMain.FormDestroy(Sender: TObject);
 begin
-  // Designer frees its own TReportModel when it owns it
-  FreeAndNil(FExprRecentsByKey);
 end;
 
 procedure TfrmMain.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
@@ -1400,7 +999,7 @@ var
   OldDescription: string;
   Cmd: TReportMetadataChangeCommand;
 begin
-  if not Assigned(FDesigner) or not Assigned(FDesigner.Report) then
+  if not HasDesignerReport then
     Exit;
 
   OldTitle := FDesigner.Report.Title;
@@ -1446,7 +1045,7 @@ end;
 
 procedure TfrmMain.ReportMetadataEditChange(Sender: TObject);
 begin
-  if not Assigned(FDesigner) or not Assigned(FDesigner.Report) then
+  if not HasDesignerReport then
     Exit;
   FReportMetadataDirty :=
     (FDesigner.Report.Title <> edtReportTitle.Text) or
@@ -1490,11 +1089,7 @@ begin
   edtReportAuthor.Text := FDesigner.Report.Author;
   RefreshFieldList;
   RefreshReportStructure;
-  UpdatePropertyPanel;
-  UpdateTitleBar;
-  UpdateStatusBar;
-  UpdateMenuState;
-  SyncReportStructureSelection;
+  UpdateAll;
   StatusBar1.Panels[1].Text := 'Loaded: ' + ExtractFileName(FCurrentFile);
 end;
 
@@ -1606,21 +1201,13 @@ end;
 procedure TfrmMain.mnuUndoClick(Sender: TObject);
 begin
   FDesigner.Undo;
-  UpdateMenuState;
-  UpdatePropertyPanel;
-  UpdateStatusBar;
-  RefreshReportStructure;
-  SyncReportStructureSelection;
+  RefreshAfterUndoRedo;
 end;
 
 procedure TfrmMain.mnuRedoClick(Sender: TObject);
 begin
   FDesigner.Redo;
-  UpdateMenuState;
-  UpdatePropertyPanel;
-  UpdateStatusBar;
-  RefreshReportStructure;
-  SyncReportStructureSelection;
+  RefreshAfterUndoRedo;
 end;
 
 procedure TfrmMain.mnuCutClick(Sender: TObject);
@@ -1738,12 +1325,7 @@ end;
 procedure TfrmMain.FinalizeSampleTemplate(const AStatus: string);
 begin
   FDesigner.RebuildLayout;
-  RefreshReportStructure;
-  RefreshFieldList;
-  UpdateTitleBar;
-  UpdateMenuState;
-  UpdateStatusBar;
-  SyncReportStructureSelection;
+  RefreshAfterReportStateChange;
   StatusBar1.Panels[1].Text := AStatus;
 end;
 
@@ -1899,135 +1481,36 @@ begin
 end;
 
 function TfrmMain.GetRegressionReportPath(const AFileName: string): string;
-var
-  Candidates: array[0..3] of string;
-  I: Integer;
 begin
-  Candidates[0] := TPath.Combine(ExtractFilePath(ParamStr(0)), 'reports\' + AFileName);
-  Candidates[1] := TPath.GetFullPath(TPath.Combine(ExtractFilePath(ParamStr(0)), '..\reports\' + AFileName));
-  Candidates[2] := TPath.GetFullPath(TPath.Combine(GetCurrentDir, 'reports\' + AFileName));
-  Candidates[3] := TPath.GetFullPath(TPath.Combine(GetCurrentDir, '..\reports\' + AFileName));
-
-  for I := Low(Candidates) to High(Candidates) do
-    if TFile.Exists(Candidates[I]) then
-      Exit(Candidates[I]);
-
-  Result := Candidates[1];
+  Result := Frm.Main.SampleHelpers.GetRegressionReportPath(AFileName);
 end;
 
 procedure TfrmMain.OpenRegressionReport(const AFileName: string);
-var
-  FN: string;
 begin
-  ConfirmSaveIfModified;
-  FN := GetRegressionReportPath(AFileName);
-  if not TFile.Exists(FN) then
-  begin
-    ShowMessage('Test report file not found: ' + FN);
-    Exit;
-  end;
-
-  try
-    LoadDesignerReportFromFile(FN, True);
-  except
-    on E: Exception do
-      ShowMessage('Error loading report: ' + E.Message);
-  end;
+  Frm.Main.SampleHelpers.OpenRegressionReport(
+    AFileName,
+    procedure
+    begin
+      ConfirmSaveIfModified;
+    end,
+    procedure(AFileNameToLoad: string)
+    begin
+      LoadDesignerReportFromFile(AFileNameToLoad, True);
+    end,
+    procedure(AMessage: string)
+    begin
+      ShowMessage(AMessage);
+    end,
+    function(AReportName: string): string
+    begin
+      Result := GetRegressionReportPath(AReportName);
+    end);
 end;
 
 procedure TfrmMain.RunRegressionTestReports;
-const
-  // Automatic runner scope:
-  // - Includes lightweight, non-interactive regression reports that should
-  //   render deterministically using the sample dataset.
-  // - Intentionally excludes 16_large_preview_warning.vrt because it is a
-  //   manual interactive warning-path test for very large previews.
-  // - Intentionally excludes reports/test*.vrt dev artifacts.
-  // Manual reports can still be opened directly via OpenRegressionReport.
-  ReportFiles: array[0..16] of string = (
-    '01_simple_masterdata.vrt',
-    '03_grouped_report.vrt',
-    '05_cangrow_remarks.vrt',
-    '06_barcode_test.vrt',
-    '07_imagepath_test.vrt',
-    '11_exact_fit_boundary.vrt',
-    '12_summary_new_page_header.vrt',
-    '13_group_header_pagebreak.vrt',
-    '14_group_footer_pagebreak.vrt',
-    '15_large_preview_stress.vrt',
-    '17_object_printwhen_core.vrt',
-    '18_barcode_printwhen.vrt',
-    '19_displayformat_values.vrt',
-    '20_printwhen_boolean_coercion.vrt',
-    '21_condition_color_boolean_coercion.vrt',
-    '22_expression_usage_demo.vrt',
-    '23_invalid_datafield_diagnostics.vrt'
-  );
-var
-  Lines: TStringList;
-  I: Integer;
-  FN: string;
-  ReportModel: TReportModel;
-  Renderer: TReportRenderer;
-  PassedCount: Integer;
-  FailedCount: Integer;
-  PageSuffix: string;
 begin
   UseSampleDataSet;
-
-  Lines := TStringList.Create;
-  try
-    PassedCount := 0;
-    FailedCount := 0;
-
-    for I := Low(ReportFiles) to High(ReportFiles) do
-    begin
-      FN := GetRegressionReportPath(ReportFiles[I]);
-      if not TFile.Exists(FN) then
-      begin
-        Inc(FailedCount);
-        Lines.Add('FAIL ' + ReportFiles[I] + ' - Test report file not found: ' + FN);
-        Continue;
-      end;
-
-      ReportModel := nil;
-      Renderer := nil;
-      try
-        ReportModel := TReportSerializer.LoadFromFile(FN);
-        Renderer := TReportRenderer.Create;
-        Renderer.Render(ReportModel, FSampleDataSet);
-        Inc(PassedCount);
-        if Renderer.Pages.Count = 1 then
-          PageSuffix := ''
-        else
-          PageSuffix := 's';
-        Lines.Add(Format('PASS %s (%d page%s)',
-          [ReportFiles[I], Renderer.Pages.Count, PageSuffix]));
-      except
-        on E: Exception do
-        begin
-          Inc(FailedCount);
-          Lines.Add('FAIL ' + ReportFiles[I] + ' - ' + E.Message);
-        end;
-      end;
-      Renderer.Free;
-      ReportModel.Free;
-    end;
-
-    Lines.Insert(0, Format('Failed: %d', [FailedCount]));
-    Lines.Insert(0, Format('Passed: %d', [PassedCount]));
-    Lines.Insert(0, Format('Total tests: %d', [Length(ReportFiles)]));
-    ShowMessage(Lines.Text);
-  finally
-    Lines.Free;
-    RefreshFieldList;
-    RefreshReportStructure;
-    UpdatePropertyPanel;
-    UpdateTitleBar;
-    UpdateStatusBar;
-    UpdateMenuState;
-    SyncReportStructureSelection;
-  end;
+  RefreshAfterReportStateChange;
 end;
 
 procedure TfrmMain.RunRuntimeEventCallbackDemo;
@@ -4640,24 +4123,6 @@ begin
   end;
 end;
 
-function BandTypeName(BT: TReportBandType): string;
-begin
-  case BT of
-    btReportTitle:   Result := 'Report Title';
-    btPageHeader:    Result := 'Page Header';
-    btMasterData:    Result := 'Master Data';
-    btPageFooter:    Result := 'Page Footer';
-    btReportSummary: Result := 'Summary';
-    btGroupHeader:   Result := 'Group Header';
-    btGroupFooter:   Result := 'Group Footer';
-    btColumnHeader:  Result := 'Column Header';
-    btDetail:        Result := 'Detail';
-    btOverlay:       Result := 'Overlay';
-  else
-    Result := 'Band';
-  end;
-end;
-
 procedure TfrmMain.mnuAddBandTitleClick(Sender: TObject);
 begin AddBand(btReportTitle);   end;
 
@@ -4777,7 +4242,7 @@ end;
 procedure TfrmMain.ApplyZoom;
 var Z: Integer;
 begin
-  Z := ZoomFromEdit;
+  Z := ZoomValueFromEdit;
   if Z > 0 then
   begin
     FDesigner.Zoom := Z;
@@ -4786,7 +4251,7 @@ begin
   end;
 end;
 
-function TfrmMain.ZoomFromEdit: Integer;
+function TfrmMain.ZoomValueFromEdit: Integer;
 begin
   Result := StrToIntDef(Trim(edtZoom.Text), 0);
 end;
@@ -4802,7 +4267,9 @@ begin
 end;
 
 procedure TfrmMain.btnZoomApplyClick(Sender: TObject);
-begin ApplyZoom; end;
+begin
+  HandleZoomApply(ApplyZoom);
+end;
 
 procedure TfrmMain.InitializeToolbarZoomCombo;
 begin
@@ -4837,7 +4304,7 @@ var
   AvailW, LogicalW, LeftPad: Integer;
 begin
   Result := FDesigner.Zoom;
-  if not Assigned(FDesigner) or not Assigned(FDesigner.Report) then
+  if not HasDesignerReport then
     Exit;
 
   LogicalW := FDesigner.Report.PageSettings.PageWidth;
@@ -4862,7 +4329,7 @@ var
   ZW, ZH: Integer;
 begin
   Result := FDesigner.Zoom;
-  if not Assigned(FDesigner) or not Assigned(FDesigner.Report) then
+  if not HasDesignerReport then
     Exit;
 
   LogicalW := FDesigner.Report.PageSettings.PageWidth;
@@ -4955,26 +4422,33 @@ procedure TfrmMain.cboZoomToolbarChange(Sender: TObject);
 begin
   if FUpdatingZoomControls then
     Exit;
-  ApplyToolbarZoomSelection;
+  HandleZoomToolbarChange(ApplyToolbarZoomSelection);
 end;
 
 procedure TfrmMain.CheckListBox1ClickCheck(Sender: TObject);
 begin
-  case CheckListBox1.ItemIndex of
-    0: mnuShowGridClick(mnuShowGrid);
-    1: mnuSnapGridClick(mnuSnapGrid);
-    2: mnuShowRulersClick(mnuShowRulers);
-    3: mnuShowMarginsClick(mnuShowMargins);
-  end;
+  HandleViewToggleIndex(CheckListBox1.ItemIndex,
+    procedure
+    begin
+      mnuShowGridClick(mnuShowGrid);
+    end,
+    procedure
+    begin
+      mnuSnapGridClick(mnuSnapGrid);
+    end,
+    procedure
+    begin
+      mnuShowRulersClick(mnuShowRulers);
+    end,
+    procedure
+    begin
+      mnuShowMarginsClick(mnuShowMargins);
+    end);
 end;
 
 procedure TfrmMain.edtZoomKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
 begin
-  if Key = VK_RETURN then
-  begin
-    ApplyZoom;
-    Key := 0;
-  end;
+  HandleZoomKeyDown(ApplyZoom, Key);
 end;
 
 { =========================================================================== }
@@ -4988,18 +4462,7 @@ var
 begin
   CommitReportMetadataChanges(True);
 
-  DS := nil;
-  if Assigned(FDataSource1) then
-    DS := FDataSource1.DataSet;
-
-  if not Assigned(DS) then
-  begin
-    UseSampleDataSet;
-    if Assigned(FDataSource1) then
-      DS := FDataSource1.DataSet;
-  end;
-
-  if not Assigned(DS) then
+  if not TryGetPreviewDataSet(DS) then
   begin
     ShowMessage('No dataset is available for preview.');
     Exit;
@@ -5033,7 +4496,7 @@ begin
       // mutate the live report or create undo history noise.
       OldSettings.AssignTo(NewSettings);
       Frm.SaveSettings(NewSettings);
-      if not PageSettingsEqual(OldSettings, NewSettings) then
+      if PageSettingsChanged(OldSettings, NewSettings) then
       begin
         Cmd := TPageSettingsChangeCommand.Create(FDesigner, OldSettings, NewSettings);
         FDesigner.ExecuteUndoCommand(Cmd);
@@ -5052,7 +4515,6 @@ var
   StagedReport: TReportModel;
   BeforeJSON: string;
   AfterJSON: string;
-  Cmd: TReportSnapshotCommand;
 begin
   BeforeJSON := TReportSerializer.SaveToJSON(FDesigner.Report);
   StagedReport := nil;
@@ -5064,119 +4526,148 @@ begin
       StagedReport := Frm.TakeStagedReport;
       if Assigned(StagedReport) then
       begin
-        try
-          AfterJSON := TReportSerializer.SaveToJSON(StagedReport);
-        finally
-          StagedReport.Free;
-          StagedReport := nil;
-        end;
-
-        if BeforeJSON <> AfterJSON then
-        begin
-          Cmd := TReportSnapshotCommand.Create(FDesigner, BeforeJSON, AfterJSON);
-          FDesigner.ExecuteUndoCommand(Cmd);
-        end;
+        AfterJSON := TReportSerializer.SaveToJSON(StagedReport);
+        ApplyBandManagerSnapshot(BeforeJSON, AfterJSON);
       end;
     end;
   finally
+    StagedReport.Free;
     Frm.Free;
   end;
 end;
 
 procedure TfrmMain.mnuReportPropsClick(Sender: TObject);
-var
-  Frm: TfrmReportProperties;
-  InitialTitle: string;
-  InitialAuthor: string;
 begin
-  Frm := TfrmReportProperties.Create(Application);
-  try
-    InitialTitle := FDesigner.Report.Title;
-    InitialAuthor := FDesigner.Report.Author;
-    if FReportMetadataDirty then
-    begin
-      InitialTitle := edtReportTitle.Text;
-      InitialAuthor := edtReportAuthor.Text;
-    end;
-
-    Frm.LoadValues(InitialTitle, InitialAuthor, FDesigner.Report.Description);
-    if Frm.ShowModal = mrOk then
-    begin
-      CommitReportMetadataValues(
-        Frm.ReportTitle,
-        Frm.ReportAuthor,
-        Frm.ReportDescription,
-        True
-      );
-    end;
-  finally
-    Frm.Free;
-  end;
+  ShowReportPropertiesDialog;
 end;
 
 procedure TfrmMain.mnuCreateSimpleSampleReportClick(Sender: TObject);
 begin
-  BuildSimpleSampleReport;
+  RunSampleReportAction(
+    procedure
+    begin
+      BuildSimpleSampleReport;
+    end);
 end;
 
 procedure TfrmMain.mnuCreateSampleGroupedReportClick(Sender: TObject);
 begin
-  BuildGroupedSampleReport;
+  RunSampleReportAction(
+    procedure
+    begin
+      BuildGroupedSampleReport;
+    end);
 end;
 
 procedure TfrmMain.mnuCreateCanGrowRemarksTestReportClick(Sender: TObject);
 begin
-  BuildCanGrowRemarksTestReport;
+  RunSampleReportAction(
+    procedure
+    begin
+      BuildCanGrowRemarksTestReport;
+    end);
 end;
 
 procedure TfrmMain.mnuCreateBarcodeTestReportClick(Sender: TObject);
 begin
-  BuildBarcodeTestReport;
+  RunSampleReportAction(
+    procedure
+    begin
+      BuildBarcodeTestReport;
+    end);
 end;
 
 procedure TfrmMain.mnuCreateImagePathTestReportClick(Sender: TObject);
 begin
-  BuildImagePathTestReport;
+  RunSampleReportAction(
+    procedure
+    begin
+      BuildImagePathTestReport;
+    end);
 end;
 
 procedure TfrmMain.mnuOpenSimpleTestReportClick(Sender: TObject);
 begin
-  OpenRegressionReport('01_simple_masterdata.vrt');
+  RunOpenReportAction('01_simple_masterdata.vrt',
+    procedure(AReportName: string)
+    begin
+      OpenRegressionReport(AReportName);
+    end);
 end;
 
 procedure TfrmMain.mnuOpenGroupedTestReportClick(Sender: TObject);
 begin
-  OpenRegressionReport('03_grouped_report.vrt');
+  RunOpenReportAction('03_grouped_report.vrt',
+    procedure(AReportName: string)
+    begin
+      OpenRegressionReport(AReportName);
+    end);
 end;
 
 procedure TfrmMain.mnuOpenCanGrowTestReportClick(Sender: TObject);
 begin
-  OpenRegressionReport('05_cangrow_remarks.vrt');
+  RunOpenReportAction('05_cangrow_remarks.vrt',
+    procedure(AReportName: string)
+    begin
+      OpenRegressionReport(AReportName);
+    end);
 end;
 
 procedure TfrmMain.mnuOpenBarcodeTestReportClick(Sender: TObject);
 begin
-  OpenRegressionReport('06_barcode_test.vrt');
+  RunOpenReportAction('06_barcode_test.vrt',
+    procedure(AReportName: string)
+    begin
+      OpenRegressionReport(AReportName);
+    end);
 end;
 
 procedure TfrmMain.mnuOpenImagePathTestReportClick(Sender: TObject);
 begin
-  OpenRegressionReport('07_imagepath_test.vrt');
+  RunOpenReportAction('07_imagepath_test.vrt',
+    procedure(AReportName: string)
+    begin
+      OpenRegressionReport(AReportName);
+    end);
 end;
 
 procedure TfrmMain.mnuOpenExpressionUsageDemoClick(Sender: TObject);
 begin
-  OpenRegressionReport('22_expression_usage_demo.vrt');
+  RunOpenReportAction('22_expression_usage_demo.vrt',
+    procedure(AReportName: string)
+    begin
+      OpenRegressionReport(AReportName);
+    end);
 end;
 
 procedure TfrmMain.mnuOpenInvalidDataFieldDiagnosticsDemoClick(Sender: TObject);
 begin
-  OpenRegressionReport('23_invalid_datafield_diagnostics.vrt');
+  RunOpenReportAction('23_invalid_datafield_diagnostics.vrt',
+    procedure(AReportName: string)
+    begin
+      OpenRegressionReport(AReportName);
+    end);
 end;
 
 procedure TfrmMain.mnuRunRegressionTestReportsClick(Sender: TObject);
 begin
-  RunRegressionTestReports;
+  RunRegressionTestReportsAction(
+    procedure
+    begin
+      UseSampleDataSet;
+    end,
+    procedure
+    begin
+      RefreshFieldList;
+    end,
+    procedure
+    begin
+      RefreshReportStructure;
+    end,
+    procedure
+    begin
+      UpdateAll;
+    end);
 end;
 
 procedure TfrmMain.mnuRunRuntimeEventCallbackDemoClick(Sender: TObject);
@@ -5186,53 +4677,12 @@ end;
 
 procedure TfrmMain.mnuKeyboardShortcutsClick(Sender: TObject);
 begin
-  ShowMessage(
-    'File:' + sLineBreak +
-    '- Ctrl+N = New Report' + sLineBreak +
-    '- Ctrl+O = Open Report' + sLineBreak +
-    '- Ctrl+S = Save Report' + sLineBreak + sLineBreak +
-    'Canvas:' + sLineBreak +
-    '- Delete = Delete selected object' + sLineBreak +
-    '- Arrow Keys = Nudge selected object' + sLineBreak +
-    '- Ctrl + Arrow = Move selected object by 1' + sLineBreak +
-    '- Shift + Arrow = Resize selected object by 1' + sLineBreak +
-    '- Ctrl + Shift + Arrow = Move selected object by grid size' + sLineBreak + sLineBreak +
-    'Property Panel:' + sLineBreak +
-    '- Ctrl+C = Copy selected text' + sLineBreak +
-    '- Ctrl+X = Cut selected text' + sLineBreak +
-    '- Ctrl+V = Paste text' + sLineBreak +
-    '- Delete = Delete selected text/value' + sLineBreak +
-    '- Arrow Keys = Edit/navigate property value' + sLineBreak + sLineBreak +
-    'Notes:' + sLineBreak +
-    '- Keyboard move/resize works when canvas has focus.' + sLineBreak +
-    '- Property panel shortcuts work when editing a property value.'
-  );
+  ShowMessage(KeyboardShortcutsText);
 end;
 
 procedure TfrmMain.mnuExpressionHelpClick(Sender: TObject);
 begin
-  ShowMessage(
-    'Expression Help' + sLineBreak + sLineBreak +
-    'Field token syntax:' + sLineBreak +
-    '[FieldName]' + sLineBreak + sLineBreak +
-    'Common examples:' + sLineBreak +
-    '[Qty] * [Rate]' + sLineBreak +
-    '[Amount] > 1000' + sLineBreak +
-    '[GroupName] = ''Labels''' + sLineBreak +
-    '[Qty] > 5' + sLineBreak +
-    '[CustomerName] <> ' + QuotedStr('') + sLineBreak +
-    '[RecNo]' + sLineBreak + sLineBreak +
-    'Use expressions in:' + sLineBreak +
-    'Expression' + sLineBreak +
-    'PrintWhen' + sLineBreak +
-    'BackgroundCondition' + sLineBreak +
-    'FontColorCondition' + sLineBreak +
-    'BorderColorCondition' + sLineBreak + sLineBreak +
-    'Tips:' + sLineBreak +
-    'Use the Expression Helper ellipsis button in the property panel.' + sLineBreak +
-    'Use Preview to verify the result.' + sLineBreak +
-    'Open Report -> Demo Reports -> Expression Usage Demo for live examples.'
-  );
+  ShowMessage(ExpressionHelpText);
 end;
 
 { =========================================================================== }
@@ -5241,27 +4691,21 @@ end;
 
 procedure TfrmMain.DesignerSelectionChanged(Sender: TObject);
 begin
-  UpdatePropertyPanel;
-  UpdateMenuState;
-  SyncReportStructureSelection;
+  HandleDesignerSelectionChanged(
+    UpdatePropertyPanel,
+    UpdateMenuState,
+    SyncReportStructureSelection);
 end;
 
 procedure TfrmMain.DesignerModified(Sender: TObject);
 begin
   FModified := True;
-  RefreshReportStructure;
-  UpdatePropertyPanel;
-  UpdateTitleBar;
-  UpdateMenuState;
-  UpdateStatusBar;
-  SyncReportStructureSelection;
+  HandleDesignerModified(RefreshReportStructure, UpdateAll);
 end;
 
 procedure TfrmMain.DesignerViewChanged(Sender: TObject);
 begin
-  UpdateZoomControls;
-  UpdateMenuState;
-  UpdateStatusBar;
+  HandleDesignerViewChanged(UpdateZoomControls, UpdateMenuState, UpdateStatusBar);
 end;
 
 { =========================================================================== }
@@ -5285,6 +4729,158 @@ end;
 {  Property panel                                                              }
 { =========================================================================== }
 
+function TfrmMain.SamePropertyValue(const AOld, ANew: TValue): Boolean;
+begin
+  Result := TPropertyPanelUtils.SamePropertyValue(AOld, ANew);
+end;
+
+function TfrmMain.HasDesignerReport: Boolean;
+begin
+  Result := Assigned(FDesigner) and Assigned(FDesigner.Report);
+end;
+
+function TfrmMain.TryGetPreviewDataSet(out ADataSet: TDataSet): Boolean;
+begin
+  ADataSet := nil;
+  if Assigned(FDataSource1) then
+    ADataSet := FDataSource1.DataSet;
+
+  if not Assigned(ADataSet) then
+  begin
+    UseSampleDataSet;
+    if Assigned(FDataSource1) then
+      ADataSet := FDataSource1.DataSet;
+  end;
+
+  Result := Assigned(ADataSet);
+end;
+
+procedure TfrmMain.GetReportPropertiesDialogValues(out ATitle, AAuthor: string);
+begin
+  ATitle := FDesigner.Report.Title;
+  AAuthor := FDesigner.Report.Author;
+  if FReportMetadataDirty then
+  begin
+    ATitle := edtReportTitle.Text;
+    AAuthor := edtReportAuthor.Text;
+  end;
+end;
+
+function TfrmMain.PageSettingsChanged(const AOldSettings, ANewSettings: TReportPageSettings): Boolean;
+begin
+  Result := not PageSettingsEqual(AOldSettings, ANewSettings);
+end;
+
+procedure TfrmMain.ApplyBandManagerSnapshot(const ABeforeJSON, AAfterJSON: string);
+var
+  Cmd: TReportSnapshotCommand;
+begin
+  if ABeforeJSON = AAfterJSON then
+    Exit;
+
+  Cmd := TReportSnapshotCommand.Create(FDesigner, ABeforeJSON, AAfterJSON);
+  FDesigner.ExecuteUndoCommand(Cmd);
+end;
+
+procedure TfrmMain.ShowReportPropertiesDialog;
+var
+  Frm: TfrmReportProperties;
+  InitialTitle: string;
+  InitialAuthor: string;
+begin
+  Frm := TfrmReportProperties.Create(Application);
+  try
+    GetReportPropertiesDialogValues(InitialTitle, InitialAuthor);
+    Frm.LoadValues(InitialTitle, InitialAuthor, FDesigner.Report.Description);
+    if Frm.ShowModal = mrOk then
+      CommitReportMetadataValues(
+        Frm.ReportTitle,
+        Frm.ReportAuthor,
+        Frm.ReportDescription,
+        True
+      );
+  finally
+    Frm.Free;
+  end;
+end;
+
+procedure TfrmMain.RefreshAfterUndoRedo;
+begin
+  UpdateMenuState;
+  UpdatePropertyPanel;
+  UpdateStatusBar;
+  RefreshReportStructure;
+  SyncReportStructureSelection;
+end;
+
+procedure TfrmMain.RefreshAfterReportStateChange;
+begin
+  RefreshFieldList;
+  RefreshReportStructure;
+  UpdatePropertyPanel;
+  UpdateTitleBar;
+  UpdateStatusBar;
+  UpdateMenuState;
+  SyncReportStructureSelection;
+end;
+
+function TfrmMain.BuildChangedPropertyBatch(
+  AObj: TReportObject;
+  const AOldByProp: TDictionary<string, TValue>;
+  const APropNames: TArray<string>;
+  out ChangedNames: TArray<string>;
+  out OldValues: TArray<TValue>;
+  out NewValues: TArray<TValue>): Boolean;
+begin
+  Result := TPropertyPanelUtils.BuildChangedPropertyBatch(AObj, AOldByProp,
+    APropNames, ChangedNames, OldValues, NewValues);
+end;
+
+function TfrmMain.IsControlWithinParent(AControl, AParent: TWinControl): Boolean;
+begin
+  Result := TPropertyPanelUtils.IsControlWithinParent(AControl, AParent);
+end;
+
+function TfrmMain.IsTextEditingControlFocused: Boolean;
+var
+  FocusedCtrl: TWinControl;
+begin
+  FocusedCtrl := Screen.ActiveControl;
+  if not Assigned(FocusedCtrl) then
+    FocusedCtrl := ActiveControl;
+  Result := TPropertyPanelUtils.IsTextEditingControlFocused(FocusedCtrl, pnlProperties);
+end;
+
+procedure TfrmMain.SendMessageToFocusedControl(AMsg: Cardinal);
+begin
+  TPropertyPanelUtils.SendMessageToFocusedControl(AMsg);
+end;
+
+procedure TfrmMain.SendDeleteToFocusedControl;
+begin
+  TPropertyPanelUtils.SendDeleteToFocusedControl;
+end;
+
+function TfrmMain.CurrentPropertyTarget: TReportObject;
+begin
+  Result := TPropertyPanelUtils.CurrentPropertyTarget(FDesigner);
+end;
+
+function TfrmMain.SelectedObjectsSpanBands: Boolean;
+begin
+  Result := TPropertyPanelUtils.SelectedObjectsSpanBands(FDesigner);
+end;
+
+function TfrmMain.ConfirmMixedBandVerticalLayout: Boolean;
+begin
+  Result := TPropertyPanelUtils.ConfirmMixedBandVerticalLayout(FDesigner);
+end;
+
+function TfrmMain.ShortNodePreview(const S: string; AMaxLen: Integer): string;
+begin
+  Result := Frm.Main.Structure.ShortNodePreview(S, AMaxLen);
+end;
+
 procedure TfrmMain.UpdatePropertyPanel;
 var
   Obj: TReportObject;
@@ -5293,8 +4889,8 @@ begin
   try
     Obj := CurrentPropertyTarget;
     TReportPropertyBridge.LoadObjectToGrid(Obj, PropEditor);
-    PromoteImportantProperties(Obj);
-    InsertVisualGroupRows(Obj);
+    Frm.Main.PropertyPanelHelpers.PromoteImportantProperties(PropEditor, Obj);
+    Frm.Main.PropertyPanelHelpers.InsertVisualGroupRows(PropEditor, Obj);
     ConfigurePropertyEditors;
   finally
     FLoadingPropertyPanel := False;
@@ -5306,555 +4902,57 @@ begin
 end;
 
 procedure TfrmMain.UpdatePropertyPanelHeader(AObj: TReportObject);
-var
-  SelCount: Integer;
-  Band: TReportBand;
-  ObjName: string;
 begin
-  SelCount := FDesigner.SelectedCount;
-  if SelCount > 1 then
-    lblSelectedProps.Caption := Format('Selected: %d Objects', [SelCount])
-  else if Assigned(AObj) and (AObj is TReportBand) then
-  begin
-    Band := TReportBand(AObj);
-    if Trim(Band.Name) <> '' then
-      lblSelectedProps.Caption := 'Selected: ' + BandTypeName(Band.BandType) +
-        ' Band (' + Band.Name + ')'
-    else
-      lblSelectedProps.Caption := 'Selected: ' + BandTypeName(Band.BandType) + ' Band';
-  end
-  else if Assigned(AObj) then
-  begin
-    ObjName := Trim(AObj.Name);
-    if ObjName <> '' then
-      lblSelectedProps.Caption := 'Selected: ' + AObj.ClassName + ' (' + ObjName + ')'
-    else
-      lblSelectedProps.Caption := 'Selected: ' + AObj.ClassName;
-  end
-  else
-    lblSelectedProps.Caption := 'Selected: None';
+  Frm.Main.PropertyPanelHelpers.UpdatePropertyPanelHeader(FDesigner, lblSelectedProps, AObj);
 end;
 
 procedure TfrmMain.ConfigurePropertyEditors;
-var
-  I, J: Integer;
-  KeyName, ValueText: string;
-  Fields: TArray<string>;
-  Obj: TReportObject;
-  Ctx: TRttiContext;
-  RttiType: TRttiType;
-  RttiProp: TRttiProperty;
-  TypeData: PTypeData;
-  EnumValue: Integer;
 begin
-  Obj := CurrentPropertyTarget;
-  Fields := FDesigner.GetFieldNames;
-  Ctx := TRttiContext.Create;
-  try
-    if Assigned(Obj) then
-      RttiType := Ctx.GetType(Obj.ClassType)
-    else
-      RttiType := nil;
-
-    for I := 1 to PropEditor.RowCount - 1 do
-    begin
-      KeyName := PropEditor.Keys[I];
-      ValueText := PropEditor.Values[KeyName];
-
-      if IsVisualGroupRow(KeyName) then
-        Continue;
-
-      if SameText(KeyName, 'DataField') then
-      begin
-        PropEditor.ItemProps[KeyName].EditStyle := esPickList;
-        PropEditor.ItemProps[KeyName].PickList.BeginUpdate;
-        try
-          PropEditor.ItemProps[KeyName].PickList.Clear;
-          PropEditor.ItemProps[KeyName].PickList.Add('');
-          for J := 0 to High(Fields) do
-            PropEditor.ItemProps[KeyName].PickList.Add(Fields[J]);
-        finally
-          PropEditor.ItemProps[KeyName].PickList.EndUpdate;
-        end;
-      end
-      else if IsBandEventScriptRowKey(KeyName) then
-      begin
-        PropEditor.ItemProps[KeyName].EditStyle := esEllipsis;
-      end
-      else if IsExpressionPropertyKey(KeyName) then
-      begin
-        PropEditor.ItemProps[KeyName].EditStyle := esEllipsis;
-      end
-      else if IsColorPropertyKey(KeyName) then
-      begin
-        PropEditor.ItemProps[KeyName].EditStyle := esEllipsis;
-      end
-      else if SameText(ValueText, 'True') or SameText(ValueText, 'False') then
-      begin
-        PropEditor.ItemProps[KeyName].EditStyle := esPickList;
-        PropEditor.ItemProps[KeyName].PickList.BeginUpdate;
-        try
-          PropEditor.ItemProps[KeyName].PickList.Clear;
-          PropEditor.ItemProps[KeyName].PickList.Add('True');
-          PropEditor.ItemProps[KeyName].PickList.Add('False');
-        finally
-          PropEditor.ItemProps[KeyName].PickList.EndUpdate;
-        end;
-      end
-      else if Assigned(RttiType) then
-      begin
-        RttiProp := RttiType.GetProperty(KeyName);
-        if Assigned(RttiProp) and Assigned(RttiProp.PropertyType) and
-           (RttiProp.PropertyType.TypeKind = tkEnumeration) then
-        begin
-          PropEditor.ItemProps[KeyName].EditStyle := esPickList;
-          PropEditor.ItemProps[KeyName].PickList.BeginUpdate;
-          try
-            PropEditor.ItemProps[KeyName].PickList.Clear;
-            TypeData := GetTypeData(RttiProp.PropertyType.Handle);
-            if Assigned(TypeData) then
-              for EnumValue := TypeData.MinValue to TypeData.MaxValue do
-                PropEditor.ItemProps[KeyName].PickList.Add(
-                  GetEnumName(RttiProp.PropertyType.Handle, EnumValue));
-          finally
-            PropEditor.ItemProps[KeyName].PickList.EndUpdate;
-          end;
-        end;
-      end;
-    end;
-  finally
-    Ctx.Free;
-  end;
+  Frm.Main.PropertyEditorHelpers.ConfigurePropertyEditors(PropEditor, CurrentPropertyTarget, FDesigner.GetFieldNames);
 end;
 
 procedure TfrmMain.ApplyPropertyPanel;
-var
-  Obj: TReportObject;
-  I: Integer;
-  KeyName: string;
-  Ctx: TRttiContext;
-  RttiType: TRttiType;
-  Prop: TRttiProperty;
-  PropNames: TArray<string>;
-  ChangedNames: TArray<string>;
-  OldValues: TArray<TValue>;
-  NewValues: TArray<TValue>;
-  OldByProp: TDictionary<string, TValue>;
-  PropIndex: Integer;
 begin
-  if not FPropertyPanelDirty then
-    Exit;
-
-  Obj := CurrentPropertyTarget;
-  if not Assigned(Obj) then Exit;
-
-  OldByProp := TDictionary<string, TValue>.Create;
-  try
-    SetLength(PropNames, 0);
-    Ctx := TRttiContext.Create;
-    try
-      RttiType := Ctx.GetType(Obj.ClassType);
-      if Assigned(RttiType) then
-      begin
-        for I := 1 to PropEditor.RowCount - 1 do
-        begin
-          KeyName := PropEditor.Keys[I];
-          if IsVisualGroupRow(KeyName) then
-            Continue;
-          if OldByProp.ContainsKey(KeyName) then
-            Continue;
-
-          Prop := RttiType.GetProperty(KeyName);
-          if not Assigned(Prop) or not Prop.IsReadable or not Prop.IsWritable then
-            Continue;
-
-          OldByProp.Add(KeyName, Prop.GetValue(Obj));
-          PropIndex := Length(PropNames);
-          SetLength(PropNames, PropIndex + 1);
-          PropNames[PropIndex] := KeyName;
-        end;
-      end;
-    finally
-      Ctx.Free;
-    end;
-
-    for I := PropEditor.RowCount - 1 downto 0 do
-      if IsVisualGroupRow(PropEditor.Keys[I]) then
-        PropEditor.Strings.Delete(I);
-    TReportPropertyBridge.SaveGridToObject(Obj, PropEditor);
-
-    if BuildChangedPropertyBatch(Obj, OldByProp, PropNames, ChangedNames, OldValues, NewValues) then
+  Frm.Main.ApplyHelpers.ApplyPropertyPanel(
+    FDesigner,
+    PropEditor,
+    CurrentPropertyTarget,
+    FPropertyPanelDirty,
+    FModified,
+    procedure
     begin
-      var Cmd := TPropertyBatchChangeCommand.Create(Obj, ChangedNames, OldValues, NewValues);
-      if not Assigned(FDesigner) then
-        Cmd.Free;
       if Assigned(FDesigner) then
-        FDesigner.ExecuteUndoCommand(Cmd);
-    end;
-    FDesigner.RebuildLayout;   // repaint with new property values
-    FModified := True;
-    UpdateTitleBar;
-    // Keep the property list stable after Apply (same selected object, same rows).
-    UpdatePropertyPanel;
-    SetPropertyPanelDirty(False);
-  finally
-    OldByProp.Free;
-  end;
+        FDesigner.RebuildLayout;
+    end,
+    procedure
+    begin
+      UpdateTitleBar;
+    end,
+    procedure
+    begin
+      UpdatePropertyPanel;
+    end,
+    procedure(AValue: Boolean)
+    begin
+      SetPropertyPanelDirty(AValue);
+    end);
+end;
+
+procedure TfrmMain.UpdatePropertyPanelHintForRow(ARow: Integer);
+begin
+  Frm.Main.PropertyPanelHelpers.UpdatePropertyPanelHintForRow(PropEditor, StatusBar1, ARow, CurrentPropertyTarget);
 end;
 
 procedure TfrmMain.SetPropertyPanelDirty(AValue: Boolean);
-begin
-  FPropertyPanelDirty := AValue and (CurrentPropertyTarget <> nil);
-  btnApplyProps.Enabled := FPropertyPanelDirty;
-  if FPropertyPanelDirty then
-  begin
-    btnApplyProps.Caption := 'Apply *';
-    btnApplyProps.Hint := 'Apply pending changes';
-  end
-  else
-  begin
-    btnApplyProps.Caption := 'Apply';
-    btnApplyProps.Hint := 'Apply property changes';
-  end;
-end;
-
-function TfrmMain.PropertyHintText(const AKey: string): string;
 var
   Target: TReportObject;
 begin
   Target := CurrentPropertyTarget;
-  if SameText(AKey, 'Name') then
-    Exit('Object name used by expressions and references')
-  else if SameText(AKey, 'Left') or SameText(AKey, 'Top') or
-          SameText(AKey, 'Width') or SameText(AKey, 'Height') then
-    Exit('Object bounds in pixels on the designer')
-  else if SameText(AKey, 'DataField') then
-    Exit('Dataset field to bind this object to')
-  else if SameText(AKey, 'Expression') then
-    Exit('Expression evaluated at runtime for value/output')
-  else if SameText(AKey, 'DisplayFormat') then
-    Exit('Formatting pattern for field values')
-  else if SameText(AKey, 'EditMask') then
-    Exit('Input/output mask for field values')
-  else if SameText(AKey, 'PrintWhen') then
-    Exit('Condition that controls whether object/band prints')
-  else if SameText(AKey, 'FontColor') then
-    Exit('Text color')
-  else if SameText(AKey, 'BackgroundColor') then
-    Exit('Background fill color')
-  else if SameText(AKey, 'BorderColor') then
-    Exit('Border line color')
-  else if SameText(AKey, 'CanGrow') then
-    Exit('Allow control height to increase for long content')
-  else if SameText(AKey, 'CanShrink') then
-    Exit('Allow control height to shrink when content is empty')
-  else if SameText(AKey, 'GroupField') then
-    Exit('Field used for grouping band sections')
-  else if SameText(AKey, 'OnBeforePrint') then
-  begin
-    if Assigned(Target) and not (Target is TReportBand) then
-      Exit('Persisted object script text stored with this object and passed to the host script callback.');
-    Exit('Persisted band script hook executed before the band prints. Different from runtime Delphi callbacks.');
-  end
-  else if SameText(AKey, 'OnAfterPrint') then
-  begin
-    if Assigned(Target) and not (Target is TReportBand) then
-      Exit('Persisted object script text stored with this object and passed to the host script callback.');
-    Exit('Persisted band script hook executed after the band prints. Different from runtime Delphi callbacks.');
-  end;
-
-  Result := '';
-end;
-
-procedure TfrmMain.UpdatePropertyPanelHintForRow(ARow: Integer);
-var
-  KeyName: string;
-  HintText: string;
-begin
-  if (ARow <= 0) or (ARow >= PropEditor.RowCount) then
-  begin
-    if StatusBar1.Panels.Count > 1 then
-      StatusBar1.Panels[1].Text := '';
-    Exit;
-  end;
-
-  KeyName := Trim(PropEditor.Keys[ARow]);
-  if IsVisualGroupRow(KeyName) then
-    HintText := ''
-  else
-    HintText := PropertyHintText(KeyName);
-
-  if (HintText = '') and (KeyName <> '') and not IsVisualGroupRow(KeyName) then
-    HintText := KeyName;
-
-  if StatusBar1.Panels.Count > 1 then
-    StatusBar1.Panels[1].Text := HintText;
-end;
-
-function TfrmMain.SamePropertyValue(const AOld, ANew: TValue): Boolean;
-var
-  K: TTypeKind;
-begin
-  if AOld.IsEmpty and ANew.IsEmpty then
-    Exit(True);
-  if AOld.IsEmpty xor ANew.IsEmpty then
-    Exit(False);
-
-  if AOld.TypeInfo <> ANew.TypeInfo then
-    Exit(False);
-
-  K := AOld.Kind;
-  case K of
-    tkString, tkLString, tkWString, tkUString:
-      Exit(AOld.AsString = ANew.AsString);
-    tkChar, tkWChar:
-      Exit(AOld.AsOrdinal = ANew.AsOrdinal);
-    tkInteger, tkInt64, tkEnumeration, tkSet:
-      Exit(AOld.AsOrdinal = ANew.AsOrdinal);
-    tkFloat:
-      Exit(SameValue(AOld.AsExtended, ANew.AsExtended, 1E-12));
-    tkClass:
-      Exit(AOld.AsObject = ANew.AsObject);
-    tkMethod:
-      Exit(AOld.GetReferenceToRawData = ANew.GetReferenceToRawData);
-  else
-    // Conservative fallback for unsupported types:
-    // treat as changed unless definitely equal was proven above.
-    Exit(False);
-  end;
-end;
-
-function TfrmMain.BuildChangedPropertyBatch(
-  AObj: TReportObject;
-  const AOldByProp: TDictionary<string, TValue>;
-  const APropNames: TArray<string>;
-  out ChangedNames: TArray<string>;
-  out OldValues: TArray<TValue>;
-  out NewValues: TArray<TValue>): Boolean;
-var
-  Ctx: TRttiContext;
-  RttiType: TRttiType;
-  Prop: TRttiProperty;
-  OldV, NewV: TValue;
-  I, OutIdx: Integer;
-begin
-  SetLength(ChangedNames, 0);
-  SetLength(OldValues, 0);
-  SetLength(NewValues, 0);
-  Result := False;
-  if not Assigned(AObj) then
-    Exit;
-
-  Ctx := TRttiContext.Create;
-  try
-    RttiType := Ctx.GetType(AObj.ClassType);
-    if not Assigned(RttiType) then
-      Exit;
-
-    for I := 0 to High(APropNames) do
-    begin
-      if not AOldByProp.TryGetValue(APropNames[I], OldV) then
-        Continue;
-
-      Prop := RttiType.GetProperty(APropNames[I]);
-      if not Assigned(Prop) or not Prop.IsReadable then
-        Continue;
-      NewV := Prop.GetValue(AObj);
-
-      if SamePropertyValue(OldV, NewV) then
-        Continue;
-
-      OutIdx := Length(ChangedNames);
-      SetLength(ChangedNames, OutIdx + 1);
-      SetLength(OldValues, OutIdx + 1);
-      SetLength(NewValues, OutIdx + 1);
-      ChangedNames[OutIdx] := APropNames[I];
-      OldValues[OutIdx] := OldV;
-      NewValues[OutIdx] := NewV;
-    end;
-  finally
-    Ctx.Free;
-  end;
-
-  Result := Length(ChangedNames) > 0;
-end;
-
-function TfrmMain.IsControlWithinParent(AControl, AParent: TWinControl): Boolean;
-begin
-  Result := False;
-  if not Assigned(AControl) or not Assigned(AParent) then
-    Exit;
-
-  while Assigned(AControl) do
-  begin
-    if AControl = AParent then
-      Exit(True);
-    AControl := AControl.Parent;
-  end;
-end;
-
-function TfrmMain.IsTextEditingControlFocused: Boolean;
-var
-  FocusedCtrl: TWinControl;
-begin
-  FocusedCtrl := Screen.ActiveControl;
-  if not Assigned(FocusedCtrl) then
-    FocusedCtrl := ActiveControl;
-
-  Result := False;
-  if not Assigned(FocusedCtrl) then
-    Exit;
-
-  // Property panel (including TValueListEditor in-place editors) gets
-  // normal text/clipboard semantics and must not trigger designer object ops.
-  if IsControlWithinParent(FocusedCtrl, pnlProperties) then
-    Exit(True);
-
-  Result :=
-    (FocusedCtrl is TCustomEdit) or
-    (FocusedCtrl is TCustomComboBox);
-end;
-
-procedure TfrmMain.SendMessageToFocusedControl(AMsg: Cardinal);
-var
-  FocusedCtrl: TWinControl;
-  FocusedWnd: HWND;
-begin
-  FocusedWnd := GetFocus;
-  if FocusedWnd <> 0 then
-  begin
-    SendMessage(FocusedWnd, AMsg, 0, 0);
-    Exit;
-  end;
-
-  FocusedCtrl := Screen.ActiveControl;
-  if not Assigned(FocusedCtrl) then
-    FocusedCtrl := ActiveControl;
-
-  if Assigned(FocusedCtrl) and FocusedCtrl.HandleAllocated then
-    SendMessage(FocusedCtrl.Handle, AMsg, 0, 0);
-end;
-
-procedure TfrmMain.SendDeleteToFocusedControl;
-var
-  FocusedCtrl: TWinControl;
-  FocusedWnd: HWND;
-begin
-  FocusedWnd := GetFocus;
-  if FocusedWnd <> 0 then
-  begin
-    SendMessage(FocusedWnd, WM_CLEAR, 0, 0);
-    SendMessage(FocusedWnd, WM_KEYDOWN, VK_DELETE, 0);
-    SendMessage(FocusedWnd, WM_KEYUP, VK_DELETE, 0);
-    Exit;
-  end;
-
-  FocusedCtrl := Screen.ActiveControl;
-  if not Assigned(FocusedCtrl) then
-    FocusedCtrl := ActiveControl;
-
-  if Assigned(FocusedCtrl) and FocusedCtrl.HandleAllocated then
-  begin
-    SendMessage(FocusedCtrl.Handle, WM_CLEAR, 0, 0);
-    SendMessage(FocusedCtrl.Handle, WM_KEYDOWN, VK_DELETE, 0);
-    SendMessage(FocusedCtrl.Handle, WM_KEYUP, VK_DELETE, 0);
-  end;
-end;
-
-function TfrmMain.CurrentPropertyTarget: TReportObject;
-var
-  Ctx: TRttiContext;
-  T: TRttiType;
-  F: TRttiField;
-  V: TValue;
-begin
-  Result := FDesigner.PrimarySelected;
-  if Assigned(Result) then
-    Exit;
-
-  // Band clicks can set FActiveBand while selection is empty.
-  Ctx := TRttiContext.Create;
-  try
-    T := Ctx.GetType(FDesigner.ClassType);
-    if not Assigned(T) then
-      Exit(nil);
-    F := T.GetField('FActiveBand');
-    if not Assigned(F) then
-      Exit(nil);
-
-    V := F.GetValue(FDesigner);
-    if not V.IsEmpty and (V.AsObject is TReportObject) then
-      Result := TReportObject(V.AsObject);
-  finally
-    Ctx.Free;
-  end;
-end;
-
-function TfrmMain.SelectedObjectsSpanBands: Boolean;
-var
-  Ctx: TRttiContext;
-  T: TRttiType;
-  SelField, MapField: TRttiField;
-  SelValue, MapValue: TValue;
-  SelList: TList<TReportObject>;
-  ObjBandMap: TDictionary<TReportObject, TReportBand>;
-  Obj: TReportObject;
-  Band, FirstBand: TReportBand;
-  HasFirstBand: Boolean;
-begin
-  Result := False;
-  if FDesigner.SelectedCount < 2 then
-    Exit;
-
-  Ctx := TRttiContext.Create;
-  try
-    T := Ctx.GetType(FDesigner.ClassType);
-    if not Assigned(T) then
-      Exit;
-
-    SelField := T.GetField('FSelected');
-    MapField := T.GetField('FObjectBandMap');
-    if not Assigned(SelField) or not Assigned(MapField) then
-      Exit;
-
-    SelValue := SelField.GetValue(FDesigner);
-    MapValue := MapField.GetValue(FDesigner);
-    if SelValue.IsEmpty or MapValue.IsEmpty then
-      Exit;
-
-    SelList := TList<TReportObject>(SelValue.AsObject);
-    ObjBandMap := TDictionary<TReportObject, TReportBand>(MapValue.AsObject);
-    if not Assigned(SelList) or not Assigned(ObjBandMap) then
-      Exit;
-
-    HasFirstBand := False;
-    for Obj in SelList do
-    begin
-      if not ObjBandMap.TryGetValue(Obj, Band) then
-        Band := nil;
-
-      if not HasFirstBand then
-      begin
-        FirstBand := Band;
-        HasFirstBand := True;
-      end
-      else if FirstBand <> Band then
-        Exit(True);
-    end;
-  finally
-    Ctx.Free;
-  end;
-end;
-
-function TfrmMain.ConfirmMixedBandVerticalLayout: Boolean;
-begin
-  if not SelectedObjectsSpanBands then
-    Exit(True);
-
-  Result :=
-    MessageDlg(
-      'Selected objects are in different bands. Vertical layout uses local band coordinates and may look unexpected. Continue?',
-      mtWarning, [mbYes, mbNo], 0) = mrYes;
+  Frm.Main.PropertyPanelState.SetPropertyPanelDirty(
+    Target,
+    btnApplyProps,
+    FPropertyPanelDirty,
+    AValue);
 end;
 
 procedure TfrmMain.btnApplyPropsClick(Sender: TObject);
@@ -5863,12 +4961,10 @@ begin
 end;
 
 procedure TfrmMain.PropEditorKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
-const
-  NavKeys = [VK_UP, VK_DOWN, VK_LEFT, VK_RIGHT, VK_HOME, VK_END, VK_PRIOR, VK_NEXT, VK_TAB];
 begin
   if (PropEditor.Row > 0) and IsVisualGroupRow(PropEditor.Keys[PropEditor.Row]) then
   begin
-    if not (Key in NavKeys) then
+    if not (Key in [VK_UP, VK_DOWN, VK_LEFT, VK_RIGHT, VK_HOME, VK_END, VK_PRIOR, VK_NEXT, VK_TAB]) then
       Key := 0;
     Exit;
   end;
@@ -5891,8 +4987,6 @@ end;
 
 procedure TfrmMain.PropEditorSetEditText(Sender: TObject; ACol, ARow: Integer;
   const Value: string);
-var
-  KeyName: string;
 begin
   if FLoadingPropertyPanel then
     Exit;
@@ -5900,8 +4994,7 @@ begin
   if (ARow <= 0) or (ARow >= PropEditor.RowCount) then
     Exit;
 
-  KeyName := Trim(PropEditor.Keys[ARow]);
-  if IsVisualGroupRow(KeyName) then
+  if IsVisualGroupRow(Trim(PropEditor.Keys[ARow])) then
     Exit;
 
   SetPropertyPanelDirty(True);
@@ -5910,19 +5003,13 @@ end;
 
 procedure TfrmMain.PropEditorDblClick(Sender: TObject);
 begin
-  if (PropEditor.Row < 0) or (PropEditor.Row >= PropEditor.RowCount) then
-    Exit;
-
-  EditFontPropertyRow(PropEditor.Row);
+  HandlePropEditorDblClick(PropEditor, EditFontPropertyRow);
 end;
 
 procedure TfrmMain.PropEditorEditButtonClick(Sender: TObject);
 begin
-  if EditBandEventScriptRow(PropEditor.Row) then
-    Exit;
-  if EditExpressionPropertyRow(PropEditor.Row) then
-    Exit;
-  EditColorPropertyRow(PropEditor.Row);
+  HandlePropEditorEditButtonClick(PropEditor, EditBandEventScriptRow,
+    EditExpressionPropertyRow, EditColorPropertyRow);
 end;
 
 { =========================================================================== }
@@ -5987,137 +5074,42 @@ end;
 
 procedure TfrmMain.ConfigureViewToggleStrip;
 begin
-  CheckListBox1.Items.BeginUpdate;
-  try
-    CheckListBox1.Items.Clear;
-    CheckListBox1.Items.Add('Grid');
-    CheckListBox1.Items.Add('Snap');
-    CheckListBox1.Items.Add('Ruler');
-    CheckListBox1.Items.Add('Margin');
-  finally
-    CheckListBox1.Items.EndUpdate;
-  end;
-  CheckListBox1.Hint := 'Quick view toggles: Grid, Snap, Ruler, Margin';
-  CheckListBox1.ShowHint := True;
+  Frm.Main.ViewHelpers.ConfigureViewToggleStrip(CheckListBox1);
   CheckListBox1.OnClickCheck := CheckListBox1ClickCheck;
 end;
 
 procedure TfrmMain.UpdateStatusBar;
-var
-  SelCount: Integer;
 begin
-  SelCount := FDesigner.SelectedCount;
+  Frm.Main.ViewHelpers.UpdateStatusBar(StatusBar1, FDesigner);
+end;
 
-  if SelCount = 0 then
-    StatusBar1.Panels[0].Text := 'No selection'
-  else if SelCount = 1 then
-  begin
-    var Obj := FDesigner.PrimarySelected;
-    if Assigned(Obj) then
-      StatusBar1.Panels[0].Text :=
-        'Selected: ' + Obj.ClassName +
-        ' | X=' + IntToStr(Obj.Bounds.Left) +
-        ' Y=' + IntToStr(Obj.Bounds.Top) +
-        ' W=' + IntToStr(Obj.Bounds.Width) +
-        ' H=' + IntToStr(Obj.Bounds.Height)
-    else
-      StatusBar1.Panels[0].Text := '1 object selected';
-  end
-  else
-    StatusBar1.Panels[0].Text :=
-      IntToStr(SelCount) + ' objects selected | Reference: last selected';
-
-  if StatusBar1.Panels.Count > 2 then
-    StatusBar1.Panels[2].Text := 'Zoom: ' + IntToStr(FDesigner.Zoom) + '%';
+procedure TfrmMain.UpdateAll;
+begin
+  UpdatePropertyPanel;
+  UpdateTitleBar;
+  UpdateStatusBar;
+  UpdateMenuState;
+  SyncReportStructureSelection;
 end;
 
 procedure TfrmMain.UpdateMenuState;
-var
-  HasSel: Boolean;
-  Multi : Boolean;
-  UndoName: string;
-  RedoName: string;
 begin
-  HasSel := FDesigner.SelectedCount > 0;
-  Multi  := FDesigner.SelectedCount >= 2;
-
-  mnuUndo.Enabled    := FDesigner.CanUndo;
-  mnuRedo.Enabled    := FDesigner.CanRedo;
-  btnUndo.Enabled    := FDesigner.CanUndo;
-  btnRedo.Enabled    := FDesigner.CanRedo;
-
-  UndoName := Trim(FDesigner.NextUndoName);
-  RedoName := Trim(FDesigner.NextRedoName);
-  if FDesigner.CanUndo and (UndoName <> '') then
-  begin
-    mnuUndo.Caption := '&Undo ' + UndoName;
-    btnUndo.Hint := 'Undo ' + UndoName;
-  end
-  else
-  begin
-    mnuUndo.Caption := '&Undo';
-    btnUndo.Hint := 'Undo';
-  end;
-  if FDesigner.CanRedo and (RedoName <> '') then
-  begin
-    mnuRedo.Caption := '&Redo ' + RedoName;
-    btnRedo.Hint := 'Redo ' + RedoName;
-  end
-  else
-  begin
-    mnuRedo.Caption := '&Redo';
-    btnRedo.Hint := 'Redo';
-  end;
-  btnUndo.ShowHint := True;
-  btnRedo.ShowHint := True;
-
-  mnuCut.Enabled    := HasSel;
-  mnuCopy.Enabled   := HasSel;
-  mnuDelete.Enabled := HasSel;
-  btnDelete.Enabled := HasSel;
-  btnCopy.Enabled   := HasSel;
-
-  mnuAlignLeft.Enabled   := Multi;
-  mnuAlignRight.Enabled  := Multi;
-  mnuAlignTop.Enabled    := Multi;
-  mnuAlignBottom.Enabled := Multi;
-  mnuSameWidth.Enabled   := Multi;
-  mnuSameHeight.Enabled  := Multi;
-  btnAlignLeft.Enabled   := Multi;
-  btnAlignRight.Enabled  := Multi;
-  btnAlignTop.Enabled    := Multi;
-  btnAlignBottom.Enabled := Multi;
-  btnSameW.Enabled       := Multi;
-  btnSameH.Enabled       := Multi;
-
-  mnuCenterH.Enabled := HasSel;
-  mnuCenterV.Enabled := HasSel;
-  btnCenterH.Enabled := HasSel;
-  btnCenterV.Enabled := HasSel;
-
-  mnuDistH.Enabled := FDesigner.SelectedCount >= 3;
-  mnuDistV.Enabled := FDesigner.SelectedCount >= 3;
-  btnDistH.Enabled := FDesigner.SelectedCount >= 3;
-  btnDistV.Enabled := FDesigner.SelectedCount >= 3;
-
-  mnuFront.Enabled := HasSel;
-  mnuBack.Enabled  := HasSel;
-  btnFront.Enabled := HasSel;
-  btnBack.Enabled  := HasSel;
-
-  mnuShowGrid.Checked    := FDesigner.ShowGrid;
-  mnuSnapGrid.Checked    := FDesigner.SnapToGrid;
-  mnuShowRulers.Checked  := FDesigner.ShowRulers;
-  mnuShowMargins.Checked := FDesigner.ShowMargins;
-  if CheckListBox1.Items.Count >= 4 then
-  begin
-    CheckListBox1.Checked[0] := FDesigner.ShowGrid;
-    CheckListBox1.Checked[1] := FDesigner.SnapToGrid;
-    CheckListBox1.Checked[2] := FDesigner.ShowRulers;
-    CheckListBox1.Checked[3] := FDesigner.ShowMargins;
-  end;
-
-  UpdateStatusBar;
+  Frm.Main.MenuStateHelpers.UpdateMenuState(
+    FDesigner,
+    mnuUndo, mnuRedo, mnuCut, mnuCopy, mnuDelete,
+    mnuAlignLeft, mnuAlignRight, mnuAlignTop, mnuAlignBottom,
+    mnuSameWidth, mnuSameHeight, mnuCenterH, mnuCenterV,
+    mnuDistH, mnuDistV, mnuFront, mnuBack,
+    mnuShowGrid, mnuSnapGrid, mnuShowRulers, mnuShowMargins,
+    btnUndo, btnRedo, btnDelete, btnCopy,
+    btnAlignLeft, btnAlignRight, btnAlignTop, btnAlignBottom,
+    btnSameW, btnSameH, btnCenterH, btnCenterV,
+    btnDistH, btnDistV, btnFront, btnBack,
+    CheckListBox1,
+    procedure
+    begin
+      UpdateStatusBar;
+    end);
 end;
 
 procedure TfrmMain.ConfirmSaveIfModified;
@@ -6130,152 +5122,24 @@ begin
   end;
 end;
 
-function TfrmMain.ShortNodePreview(const S: string; AMaxLen: Integer): string;
-var
-  Text: string;
-begin
-  Text := Trim(StringReplace(StringReplace(S, sLineBreak, ' ', [rfReplaceAll]),
-    #10, ' ', [rfReplaceAll]));
-  if Length(Text) > AMaxLen then
-    Result := Copy(Text, 1, AMaxLen - 3) + '...'
-  else
-    Result := Text;
-end;
-
 function TfrmMain.StructureBandCaption(ABand: TReportBand): string;
-var
-  BaseCaption: string;
 begin
-  if not Assigned(ABand) then
-    Exit('Band');
-
-  case ABand.BandType of
-    btReportTitle:   BaseCaption := 'Report Title Band';
-    btPageHeader:    BaseCaption := 'Page Header Band';
-    btPageFooter:    BaseCaption := 'Page Footer Band';
-    btMasterData:    BaseCaption := 'Master Data Band';
-    btGroupHeader:   BaseCaption := 'Group Header Band';
-    btGroupFooter:   BaseCaption := 'Group Footer Band';
-    btColumnHeader:  BaseCaption := 'Column Header Band';
-    btDetail:        BaseCaption := 'Detail Band';
-    btReportSummary: BaseCaption := 'Report Summary Band';
-    btOverlay:       BaseCaption := 'Overlay Band';
-  else
-    BaseCaption := 'Band';
-  end;
-
-  if Trim(ABand.Name) <> '' then
-    Result := BaseCaption + ': ' + ABand.Name
-  else
-    Result := BaseCaption;
+  Result := Frm.Main.Structure.StructureBandCaption(ABand);
 end;
 
 function TfrmMain.StructureObjectCaption(AObj: TReportObject): string;
-  function NamedValue(const APrefix, AName, AValue, AWrapLeft, AWrapRight: string): string;
-  begin
-    if Trim(AName) <> '' then
-    begin
-      if Trim(AValue) <> '' then
-        Result := APrefix + ': ' + AName + ' ' + AWrapLeft + AValue + AWrapRight
-      else
-        Result := APrefix + ': ' + AName;
-    end
-    else if Trim(AValue) <> '' then
-      Result := APrefix + ': ' + AWrapLeft + AValue + AWrapRight
-    else
-      Result := APrefix;
-  end;
-var
-  ObjName: string;
 begin
-  ObjName := Trim(AObj.Name);
-  if AObj is TReportFieldObject then
-    Result := NamedValue('Field', ObjName, TReportFieldObject(AObj).DataField, '[', ']')
-  else if AObj is TReportMemoObject then
-  begin
-    if Trim(TReportMemoObject(AObj).DataField) <> '' then
-      Result := NamedValue('Memo', ObjName, TReportMemoObject(AObj).DataField, '[', ']')
-    else if Trim(TReportMemoObject(AObj).Text) <> '' then
-      Result := NamedValue('Memo', ObjName, ShortNodePreview(TReportMemoObject(AObj).Text), '"', '"')
-    else
-      Result := NamedValue('Memo', ObjName, '', '', '');
-  end
-  else if AObj is TReportImageObject then
-  begin
-    if Trim(TReportImageObject(AObj).DataField) <> '' then
-      Result := NamedValue('Image', ObjName, TReportImageObject(AObj).DataField, '[', ']')
-    else
-      Result := NamedValue('Image', ObjName, '', '', '');
-  end
-  else if AObj is TReportBarcodeObject then
-  begin
-    if Trim(TReportBarcodeObject(AObj).DataField) <> '' then
-      Result := NamedValue('Barcode', ObjName, TReportBarcodeObject(AObj).DataField, '[', ']')
-    else if Trim(TReportBarcodeObject(AObj).Value) <> '' then
-      Result := NamedValue('Barcode', ObjName, ShortNodePreview(TReportBarcodeObject(AObj).Value), '"', '"')
-    else
-      Result := NamedValue('Barcode', ObjName, '', '', '');
-  end
-  else if AObj is TReportShapeObject then
-    Result := NamedValue('Shape', ObjName,
-      GetEnumName(TypeInfo(TReportShapeType), Ord(TReportShapeObject(AObj).ShapeType)), '[', ']')
-  else if AObj is TReportLineObject then
-    Result := NamedValue('Line', ObjName, '', '', '')
-  else if AObj is TReportSubReportObject then
-    Result := NamedValue('SubReport', ObjName, '', '', '')
-  else if AObj is TReportTableObject then
-    Result := NamedValue('Table', ObjName, '', '', '')
-  else if AObj is TReportTextObject then
-  begin
-    if Trim(TReportTextObject(AObj).Text) <> '' then
-      Result := NamedValue('Text', ObjName, ShortNodePreview(TReportTextObject(AObj).Text), '"', '"')
-    else
-      Result := NamedValue('Text', ObjName, '', '', '');
-  end
-  else
-    Result := NamedValue(TReportObjectClass(AObj.ClassType).DisplayName, ObjName, '', '', '');
+  Result := Frm.Main.Structure.StructureObjectCaption(AObj);
 end;
 
 function TfrmMain.StructureObjectIconIndex(AObj: TReportObject): Integer;
 begin
-  if AObj is TReportBand then
-    Exit(TREE_ICON_BAND);
-
-  if AObj is TReportFieldObject then
-    Exit(TREE_ICON_FIELD);
-  if AObj is TReportMemoObject then
-    Exit(TREE_ICON_MEMO);
-  if AObj is TReportImageObject then
-    Exit(TREE_ICON_IMAGE);
-  if AObj is TReportBarcodeObject then
-    Exit(TREE_ICON_BARCODE);
-  if AObj is TReportShapeObject then
-    Exit(TREE_ICON_SHAPE);
-  if AObj is TReportLineObject then
-    Exit(TREE_ICON_LINE);
-  if AObj is TReportSubReportObject then
-    Exit(TREE_ICON_SUBREPORT);
-  if AObj is TReportTableObject then
-    Exit(TREE_ICON_TABLE);
-  if AObj is TReportTextObject then
-    Exit(TREE_ICON_TEXT);
-
-  Result := TREE_ICON_REPORT;
+  Result := Frm.Main.Structure.StructureObjectIconIndex(AObj);
 end;
 
 function TfrmMain.FindStructureNodeByData(AData: Pointer): TTreeNode;
 begin
-  Result := nil;
-  if not Assigned(FTreeStructure) then
-    Exit;
-
-  Result := FTreeStructure.Items.GetFirstNode;
-  while Assigned(Result) do
-  begin
-    if Result.Data = AData then
-      Exit;
-    Result := Result.GetNext;
-  end;
+  Result := Frm.Main.Structure.FindStructureNodeByData(FTreeStructure, AData);
 end;
 
 procedure TfrmMain.SyncReportStructureSelection;
@@ -6407,7 +5271,7 @@ var
   TopObj, ChildObj: TReportObject;
   IconIndex: Integer;
 begin
-  if not Assigned(FTreeStructure) or not Assigned(FDesigner) or not Assigned(FDesigner.Report) then
+  if not Assigned(FTreeStructure) or not HasDesignerReport then
     Exit;
 
   FUpdatingStructureSelection := True;
@@ -6473,28 +5337,8 @@ end;
 { =========================================================================== }
 
 procedure TfrmMain.RefreshFieldList;
-var
-  Names: TArray<string>;
-  N    : string;
 begin
-  // FormCreate can trigger dataset notifications before this panel exists.
-  if not Assigned(FLstFields) or not Assigned(FLblFields) then
-    Exit;
-
-  FLstFields.Items.BeginUpdate;
-  try
-    FLstFields.Items.Clear;
-    Names := FDesigner.GetFieldNames;
-    for N in Names do
-      FLstFields.Items.Add(N);
-  finally
-    FLstFields.Items.EndUpdate;
-  end;
-
-  if FLstFields.Items.Count = 0 then
-    FLblFields.Caption := ' Dataset Fields  (none)'
-  else
-    FLblFields.Caption := Format(' Dataset Fields  (%d)', [FLstFields.Items.Count]);
+  Frm.Main.TreeFieldHelpers.RefreshFieldList(FLstFields, FLblFields, FDesigner);
 end;
 
 procedure TfrmMain.FieldListDblClick(Sender: TObject);
@@ -6509,82 +5353,27 @@ end;
 
 function TfrmMain.VariableTokenForNode(ANode: TTreeNode; out AToken: string;
   out ASupported: Boolean): Boolean;
-var
-  S: string;
 begin
-  Result := False;
-  AToken := '';
-  ASupported := False;
-  if not Assigned(ANode) then
-    Exit;
-
-  S := Trim(ANode.Text);
-  if Pos('(', S) > 0 then
-    S := Trim(Copy(S, 1, Pos('(', S) - 1));
-
-  if SameText(S, 'Date') then
-    AToken := '[Date]'
-  else if SameText(S, 'Time') then
-    AToken := '[Time]'
-  else if SameText(S, 'Page') then
-    AToken := '[Page]'
-  else if SameText(S, 'Page#') then
-    AToken := '[Page#]'
-  else if SameText(S, 'TotalPages') then
-    AToken := '[TotalPages]'
-  else if SameText(S, 'TotalPages#') then
-    AToken := '[TotalPages#]'
-  else if SameText(S, 'Line') then
-    AToken := '[Line]'
-  else if SameText(S, 'Line#') then
-    AToken := '[Line#]';
-
-  ASupported := AToken <> '';
-  Result := ASupported or SameText(S, 'CopyName#') or SameText(S, 'TableRow') or SameText(S, 'TableColumn');
+  Result := Frm.Main.TreeFieldHelpers.VariableTokenForNode(ANode, AToken, ASupported);
 end;
 
 function TfrmMain.CanInsertVariableIntoCurrentProperty(out AKey: string): Boolean;
 begin
-  Result := False;
-  AKey := '';
-  if (PropEditor.Row <= 0) or (PropEditor.Row >= PropEditor.RowCount) then
-    Exit;
-
-  AKey := Trim(PropEditor.Keys[PropEditor.Row]);
-  if IsVisualGroupRow(AKey) then
-    Exit;
-
-  Result :=
-    SameText(AKey, 'Text') or
-    SameText(AKey, 'Expression') or
-    SameText(AKey, 'PrintWhen') or
-    SameText(AKey, 'BackgroundCondition') or
-    SameText(AKey, 'FontColorCondition') or
-    SameText(AKey, 'BorderColorCondition');
+  Result := Frm.Main.TreeFieldHelpers.CanInsertVariableIntoCurrentProperty(PropEditor, AKey);
 end;
 
 procedure TfrmMain.InsertVariableToken(const AToken: string);
-var
-  KeyName: string;
-  CurV: string;
 begin
-  if CanInsertVariableIntoCurrentProperty(KeyName) then
-  begin
-    CurV := Trim(PropEditor.Values[KeyName]);
-    if CurV = '' then
-      PropEditor.Values[KeyName] := AToken
-    else if (Length(CurV) > 0) and (CurV[Length(CurV)] = ' ') then
-      PropEditor.Values[KeyName] := CurV + AToken
-    else
-      PropEditor.Values[KeyName] := CurV + ' ' + AToken;
-
-    SetPropertyPanelDirty(True);
-    UpdatePropertyPanelHintForRow(PropEditor.Row);
-    Exit;
-  end;
-
-  Clipboard.AsText := AToken;
-  ShowMessage('No compatible property row is active. Token copied to clipboard: ' + AToken);
+  Frm.Main.TreeFieldHelpers.InsertVariableToken(PropEditor,
+    procedure(AValue: Boolean)
+    begin
+      SetPropertyPanelDirty(AValue);
+    end,
+    procedure(ARow: Integer)
+    begin
+      UpdatePropertyPanelHintForRow(ARow);
+    end,
+    AToken);
 end;
 
 procedure TfrmMain.VariableListDblClick(Sender: TObject);
@@ -6631,286 +5420,37 @@ begin
 end;
 
 procedure TfrmMain.btnFontQuickClick(Sender: TObject);
-var
-  I: Integer;
 begin
-  for I := 1 to PropEditor.RowCount - 1 do
-    if SameText(PropEditor.Keys[I], 'Font') then
+  Frm.Main.QuickActions.HandleFontQuickClick(PropEditor,
+    procedure
     begin
-      PropEditor.Row := I;
-      Break;
-    end;
-  PropEditorDblClick(PropEditor);
+      PropEditorDblClick(PropEditor);
+    end);
 end;
 
 function TfrmMain.IsVisualGroupRow(const AKey: string): Boolean;
 begin
-  Result := (Length(AKey) >= 3) and (AKey[1] = '[') and (AKey[Length(AKey)] = ']');
+  Result := Frm.Main.PropertyHelpers.IsVisualGroupRow(AKey);
 end;
 
 function TfrmMain.IsFontDialogRowKey(const AKey: string): Boolean;
 begin
-  Result :=
-    SameText(AKey, 'Font') or
-    SameText(AKey, 'FontName') or
-    SameText(AKey, 'FontSize') or
-    SameText(AKey, 'FontBold') or
-    SameText(AKey, 'FontItalic') or
-    SameText(AKey, 'FontColor');
+  Result := Frm.Main.PropertyHelpers.IsFontDialogRowKey(AKey);
 end;
 
 function TfrmMain.IsColorPropertyKey(const AKey: string): Boolean;
 begin
-  Result :=
-    SameText(AKey, 'FontColor') or
-    SameText(AKey, 'Background') or
-    SameText(AKey, 'BorderColor') or
-    SameText(AKey, 'BackColor') or
-    SameText(AKey, 'BackgroundOnTrue') or
-    SameText(AKey, 'BorderColorOnTrue') or
-    SameText(AKey, 'FontColorOnTrue');
+  Result := Frm.Main.PropertyHelpers.IsColorPropertyKey(AKey);
 end;
 
 function TfrmMain.IsExpressionPropertyKey(const AKey: string): Boolean;
 begin
-  Result :=
-    SameText(AKey, 'Expression') or
-    SameText(AKey, 'PrintWhen') or
-    SameText(AKey, 'FontColorCondition') or
-    SameText(AKey, 'BackgroundCondition') or
-    SameText(AKey, 'BorderColorCondition');
+  Result := Frm.Main.PropertyHelpers.IsExpressionPropertyKey(AKey);
 end;
 
 function TfrmMain.IsBandEventScriptRowKey(const AKey: string): Boolean;
 begin
-  Result :=
-    SameText(AKey, 'OnBeforePrint') or
-    SameText(AKey, 'OnAfterPrint');
-end;
-
-function TfrmMain.PromptExpressionHelper(const AInitialValue: string;
-  const AFields: TArray<string>; const APropertyKey: string;
-  out AEditedValue: string): Boolean;
-var
-  Dlg: TForm;
-  PnlTop, PnlBottom, PnlLeft, PnlRight, PnlCenter, PnlOperators, PnlTemplates: TPanel;
-  LblFields, LblExamples, LblRecent: TLabel;
-  BtnInsert, BtnCheck, BtnOK, BtnCancel, Btn: TButton;
-  I: Integer;
-  ExampleItems: array[0..7] of string;
-  RecentItems: TStringList;
-
-  procedure AddQuickButton(AParent: TWinControl; const ACaption, AInsertText: string;
-    ALeft, ATop, AWidth: Integer; AOnClick: TNotifyEvent; ATag: NativeInt = 0);
-  begin
-    Btn := TButton.Create(Dlg);
-    Btn.Parent := AParent;
-    Btn.Caption := ACaption;
-    Btn.Left := ALeft;
-    Btn.Top := ATop;
-    Btn.Width := AWidth;
-    Btn.Height := 24;
-    Btn.Hint := AInsertText;
-    Btn.Tag := ATag;
-    Btn.OnClick := AOnClick;
-  end;
-begin
-  Result := False;
-  AEditedValue := AInitialValue;
-
-  Dlg := TForm.Create(Self);
-  try
-    Dlg.Caption := 'Expression Helper';
-    Dlg.Position := poScreenCenter;
-    Dlg.BorderStyle := bsDialog;
-    Dlg.BorderIcons := [biSystemMenu];
-    Dlg.ClientWidth := 760;
-    Dlg.ClientHeight := 430;
-
-    PnlTop := TPanel.Create(Dlg);
-    PnlTop.Parent := Dlg;
-    PnlTop.Align := alClient;
-    PnlTop.BevelOuter := bvNone;
-
-    PnlBottom := TPanel.Create(Dlg);
-    PnlBottom.Parent := Dlg;
-    PnlBottom.Align := alBottom;
-    PnlBottom.Height := 44;
-    PnlBottom.BevelOuter := bvNone;
-
-    PnlLeft := TPanel.Create(Dlg);
-    PnlLeft.Parent := PnlTop;
-    PnlLeft.Align := alLeft;
-    PnlLeft.Width := 210;
-    PnlLeft.BevelOuter := bvNone;
-
-    PnlRight := TPanel.Create(Dlg);
-    PnlRight.Parent := PnlTop;
-    PnlRight.Align := alRight;
-    PnlRight.Width := 240;
-    PnlRight.BevelOuter := bvNone;
-
-    PnlCenter := TPanel.Create(Dlg);
-    PnlCenter.Parent := PnlTop;
-    PnlCenter.Align := alClient;
-    PnlCenter.BevelOuter := bvNone;
-
-    LblFields := TLabel.Create(Dlg);
-    LblFields.Parent := PnlLeft;
-    LblFields.Align := alTop;
-    LblFields.Caption := 'Available Fields';
-    LblFields.Height := 20;
-    LblFields.Font.Style := [fsBold];
-
-    FExprHelperFields := TListBox.Create(Dlg);
-    FExprHelperFields.Parent := PnlLeft;
-    FExprHelperFields.Align := alClient;
-    for I := 0 to High(AFields) do
-      FExprHelperFields.Items.Add(AFields[I]);
-
-    BtnInsert := TButton.Create(Dlg);
-    BtnInsert.Parent := PnlLeft;
-    BtnInsert.Align := alBottom;
-    BtnInsert.Caption := 'Insert Field';
-    BtnInsert.Height := 30;
-    BtnInsert.OnClick := ExpressionHelperInsertField;
-    FExprHelperFields.OnDblClick := ExpressionHelperFieldDblClick;
-
-    LblExamples := TLabel.Create(Dlg);
-    LblExamples.Parent := PnlRight;
-    LblExamples.Align := alTop;
-    LblExamples.Caption := 'Examples';
-    LblExamples.Height := 20;
-    LblExamples.Font.Style := [fsBold];
-
-    FExprHelperExamples := TListBox.Create(Dlg);
-    FExprHelperExamples.Parent := PnlRight;
-    FExprHelperExamples.Align := alBottom;
-    FExprHelperExamples.Height := 150;
-
-    ExampleItems[0] := '[Qty] * [Rate]';
-    ExampleItems[1] := '[Amount] > 1000';
-    ExampleItems[2] := '[GroupName] = ''Labels''';
-    ExampleItems[3] := '[Qty] > 5';
-    ExampleItems[4] := '[CustomerName] <> ' + QuotedStr('');
-    ExampleItems[5] := '[RecNo]';
-    ExampleItems[6] := '1=1';
-    ExampleItems[7] := '1=0';
-    for I := Low(ExampleItems) to High(ExampleItems) do
-      FExprHelperExamples.Items.Add(ExampleItems[I]);
-
-    // Double-click replaces the entire expression for faster template usage.
-    FExprHelperExamples.OnDblClick := ExpressionHelperExampleDblClick;
-
-    LblRecent := TLabel.Create(Dlg);
-    LblRecent.Parent := PnlRight;
-    LblRecent.Align := alTop;
-    LblRecent.Caption := 'Recent';
-    LblRecent.Height := 20;
-    LblRecent.Font.Style := [fsBold];
-
-    FExprHelperRecent := TListBox.Create(Dlg);
-    FExprHelperRecent.Parent := PnlRight;
-    FExprHelperRecent.Align := alClient;
-    FExprHelperRecent.OnDblClick := ExpressionHelperRecentDblClick;
-
-    RecentItems := ExpressionHelperRecentList(APropertyKey, False);
-    if Assigned(RecentItems) and (RecentItems.Count > 0) then
-      for I := 0 to RecentItems.Count - 1 do
-        FExprHelperRecent.Items.Add(RecentItems[I]);
-    if FExprHelperRecent.Items.Count = 0 then
-      FExprHelperRecent.Items.Add('No recent expressions (session only)');
-
-    PnlOperators := TPanel.Create(Dlg);
-    PnlOperators.Parent := PnlCenter;
-    PnlOperators.Align := alTop;
-    PnlOperators.Height := 56;
-    PnlOperators.BevelOuter := bvNone;
-
-    AddQuickButton(PnlOperators, '+',  ' + ', 8,   6, 42, ExpressionHelperOperatorClick);
-    AddQuickButton(PnlOperators, '-',  ' - ', 54,  6, 42, ExpressionHelperOperatorClick);
-    AddQuickButton(PnlOperators, '*',  ' * ', 100, 6, 42, ExpressionHelperOperatorClick);
-    AddQuickButton(PnlOperators, '/',  ' / ', 146, 6, 42, ExpressionHelperOperatorClick);
-    AddQuickButton(PnlOperators, '=',  ' = ', 192, 6, 42, ExpressionHelperOperatorClick);
-    AddQuickButton(PnlOperators, '<>', ' <> ',238, 6, 42, ExpressionHelperOperatorClick);
-    AddQuickButton(PnlOperators, '>',  ' > ', 284, 6, 42, ExpressionHelperOperatorClick);
-    AddQuickButton(PnlOperators, '>=', ' >= ',330, 6, 42, ExpressionHelperOperatorClick);
-    AddQuickButton(PnlOperators, '<',  ' < ', 376, 6, 42, ExpressionHelperOperatorClick);
-    AddQuickButton(PnlOperators, '<=', ' <= ',422, 6, 42, ExpressionHelperOperatorClick);
-    AddQuickButton(PnlOperators, '(',  '(',   468, 6, 36, ExpressionHelperOperatorClick);
-    AddQuickButton(PnlOperators, ')',  ')',   508, 6, 36, ExpressionHelperOperatorClick);
-    AddQuickButton(PnlOperators, QuotedStr(''), QuotedStr(''), 548, 6, 44, ExpressionHelperOperatorClick);
-
-    PnlTemplates := TPanel.Create(Dlg);
-    PnlTemplates.Parent := PnlCenter;
-    PnlTemplates.Align := alTop;
-    PnlTemplates.Height := 32;
-    PnlTemplates.BevelOuter := bvNone;
-
-    AddQuickButton(PnlTemplates, '[Field] > 0', '', 8, 4, 92, ExpressionHelperTemplateClick, 1);
-    Btn.ShowHint := True;
-    Btn.Hint := 'Uses selected field from Available Fields';
-    AddQuickButton(PnlTemplates, '[Field] = ''Text''', '', 104, 4, 108, ExpressionHelperTemplateClick, 2);
-    Btn.ShowHint := True;
-    Btn.Hint := 'Uses selected field from Available Fields';
-    AddQuickButton(PnlTemplates, '[Field] <> ' + QuotedStr(''), '', 216, 4, 94, ExpressionHelperTemplateClick, 3);
-    Btn.ShowHint := True;
-    Btn.Hint := 'Uses selected field from Available Fields';
-    AddQuickButton(PnlTemplates, '[Amount] > 1000', '', 314, 4, 116, ExpressionHelperTemplateClick, 4);
-    Btn.ShowHint := True;
-    Btn.Hint := 'Inserts fixed example';
-    AddQuickButton(PnlTemplates, '[Qty] > 5', '', 434, 4, 92, ExpressionHelperTemplateClick, 5);
-    Btn.ShowHint := True;
-    Btn.Hint := 'Inserts fixed example';
-
-    FExprHelperMemo := TMemo.Create(Dlg);
-    FExprHelperMemo.Parent := PnlCenter;
-    FExprHelperMemo.Align := alClient;
-    FExprHelperMemo.ScrollBars := ssBoth;
-    FExprHelperMemo.WordWrap := False;
-    FExprHelperMemo.Lines.Text := AInitialValue;
-
-    BtnOK := TButton.Create(Dlg);
-    BtnOK.Parent := PnlBottom;
-    BtnOK.Caption := 'OK';
-    BtnOK.ModalResult := mrOk;
-    BtnOK.Left := Dlg.ClientWidth - 180;
-    BtnOK.Top := 8;
-    BtnOK.Width := 80;
-    BtnOK.Anchors := [akRight, akBottom];
-
-    BtnCancel := TButton.Create(Dlg);
-    BtnCancel.Parent := PnlBottom;
-    BtnCancel.Caption := 'Cancel';
-    BtnCancel.ModalResult := mrCancel;
-    BtnCancel.Left := Dlg.ClientWidth - 92;
-    BtnCancel.Top := 8;
-    BtnCancel.Width := 80;
-    BtnCancel.Anchors := [akRight, akBottom];
-
-    BtnCheck := TButton.Create(Dlg);
-    BtnCheck.Parent := PnlBottom;
-    BtnCheck.Caption := 'Check';
-    BtnCheck.Left := 8;
-    BtnCheck.Top := 8;
-    BtnCheck.Width := 80;
-    BtnCheck.Anchors := [akLeft, akBottom];
-    BtnCheck.OnClick := ExpressionHelperCheckClick;
-
-    Dlg.ActiveControl := FExprHelperMemo;
-    if Dlg.ShowModal = mrOk then
-    begin
-      AEditedValue := FExprHelperMemo.Lines.Text;
-      ExpressionHelperAddRecent(APropertyKey, AEditedValue);
-      Result := True;
-    end;
-  finally
-    FExprHelperMemo := nil;
-    FExprHelperFields := nil;
-    FExprHelperExamples := nil;
-    FExprHelperRecent := nil;
-    Dlg.Free;
-  end;
+  Result := Frm.Main.PropertyHelpers.IsBandEventScriptRowKey(AKey);
 end;
 
 function TfrmMain.EditExpressionPropertyRow(ARow: Integer): Boolean;
@@ -6918,6 +5458,7 @@ var
   KeyName: string;
   CurrentValue: string;
   EditedValue: string;
+  Helper: TfrmExpressionHelper;
 begin
   Result := False;
   if (ARow <= 0) or (ARow >= PropEditor.RowCount) then
@@ -6928,8 +5469,26 @@ begin
     Exit;
 
   CurrentValue := PropEditor.Values[KeyName];
-  if not PromptExpressionHelper(CurrentValue, FDesigner.GetFieldNames, KeyName, EditedValue) then
-    Exit;
+  Helper := TfrmExpressionHelper.Create(Self);
+  try
+    if not Helper.PromptExpression(
+      CurrentValue,
+      FDesigner.GetFieldNames,
+      KeyName,
+      function: TExpressionContext
+      begin
+        if Assigned(FDataSource1) then
+          Result.DataSet := FDataSource1.DataSet;
+        Result.PageNumber := 1;
+        Result.TotalPages := 1;
+        Result.ReportTitle := edtReportTitle.Text;
+        Result.ReportDate := Now;
+      end,
+      EditedValue) then
+      Exit;
+  finally
+    Helper.Free;
+  end;
 
   PropEditor.Values[KeyName] := EditedValue;
   SetPropertyPanelDirty(True);
@@ -6988,244 +5547,6 @@ begin
   end;
 end;
 
-procedure TfrmMain.ExpressionHelperInsertField(Sender: TObject);
-var
-  FieldName: string;
-begin
-  if not Assigned(FExprHelperFields) or not Assigned(FExprHelperMemo) then
-    Exit;
-  if FExprHelperFields.ItemIndex < 0 then
-    Exit;
-
-  FieldName := Trim(FExprHelperFields.Items[FExprHelperFields.ItemIndex]);
-  if FieldName = '' then
-    Exit;
-
-  FExprHelperMemo.SelText := '[' + FieldName + ']';
-  FExprHelperMemo.SetFocus;
-end;
-
-procedure TfrmMain.ExpressionHelperInsertText(const AText: string);
-begin
-  if not Assigned(FExprHelperMemo) then
-    Exit;
-  FExprHelperMemo.SelText := AText;
-  FExprHelperMemo.SetFocus;
-end;
-
-function TfrmMain.ExpressionHelperTryGetSelectedField(out AFieldName: string): Boolean;
-begin
-  AFieldName := '';
-  Result := Assigned(FExprHelperFields) and (FExprHelperFields.ItemIndex >= 0);
-  if not Result then
-    Exit;
-
-  AFieldName := Trim(FExprHelperFields.Items[FExprHelperFields.ItemIndex]);
-  Result := AFieldName <> '';
-end;
-
-procedure TfrmMain.ExpressionHelperOperatorClick(Sender: TObject);
-var
-  InsertText: string;
-begin
-  if not (Sender is TButton) then
-    Exit;
-  InsertText := TButton(Sender).Hint;
-  ExpressionHelperInsertText(InsertText);
-end;
-
-procedure TfrmMain.ExpressionHelperTemplateClick(Sender: TObject);
-var
-  FieldName: string;
-  InsertText: string;
-begin
-  if not (Sender is TButton) then
-    Exit;
-
-  InsertText := '';
-  case TButton(Sender).Tag of
-    1:
-      begin
-        if not ExpressionHelperTryGetSelectedField(FieldName) then
-        begin
-          ShowMessage('Select a field first.');
-          Exit;
-        end;
-        InsertText := '[' + FieldName + '] > 0';
-      end;
-    2:
-      begin
-        if not ExpressionHelperTryGetSelectedField(FieldName) then
-        begin
-          ShowMessage('Select a field first.');
-          Exit;
-        end;
-        InsertText := '[' + FieldName + '] = ''Text''';
-      end;
-    3:
-      begin
-        if not ExpressionHelperTryGetSelectedField(FieldName) then
-        begin
-          ShowMessage('Select a field first.');
-          Exit;
-        end;
-        InsertText := '[' + FieldName + '] <> ' + QuotedStr('');
-      end;
-    4: InsertText := '[Amount] > 1000';
-    5: InsertText := '[Qty] > 5';
-  end;
-
-  if InsertText <> '' then
-    ExpressionHelperInsertText(InsertText);
-end;
-
-procedure TfrmMain.ExpressionHelperCheckClick(Sender: TObject);
-var
-  ExprText: string;
-  EvalResult: Variant;
-  Ctx: TExpressionContext;
-begin
-  if not Assigned(FExprHelperMemo) then
-    Exit;
-
-  ExprText := Trim(FExprHelperMemo.Lines.Text);
-  if ExprText = '' then
-  begin
-    ShowMessage('Nothing to check.');
-    Exit;
-  end;
-
-  Ctx := Default(TExpressionContext);
-  if Assigned(FDataSource1) then
-    Ctx.DataSet := FDataSource1.DataSet;
-  Ctx.PageNumber := 1;
-  Ctx.TotalPages := 1;
-  Ctx.ReportTitle := edtReportTitle.Text;
-  Ctx.ReportDate := Now;
-
-  try
-    EvalResult := TReportExpression.Evaluate(ExprText, Ctx);
-
-    ShowMessage(
-      'Check OK.' + sLineBreak +
-      'Result: ' + VarToStr(EvalResult) + sLineBreak + sLineBreak +
-      'Check uses the current dataset row and runtime fallback rules.'
-    );
-  except
-    on E: Exception do
-      ShowMessage(
-        'Check Error:' + sLineBreak +
-        E.Message + sLineBreak + sLineBreak +
-        'You can still click OK to save the expression.'
-      );
-  end;
-end;
-
-function TfrmMain.ExpressionHelperBucketKey(const APropertyKey: string): string;
-begin
-  if SameText(APropertyKey, 'Expression') then
-    Exit('expression');
-  if SameText(APropertyKey, 'PrintWhen') then
-    Exit('printwhen');
-  if SameText(APropertyKey, 'BackgroundCondition') then
-    Exit('backgroundcondition');
-  if SameText(APropertyKey, 'FontColorCondition') then
-    Exit('fontcolorcondition');
-  if SameText(APropertyKey, 'BorderColorCondition') then
-    Exit('bordercolorcondition');
-  Result := '';
-end;
-
-function TfrmMain.ExpressionHelperRecentList(const APropertyKey: string;
-  ACreate: Boolean): TStringList;
-var
-  Key: string;
-begin
-  Result := nil;
-  Key := ExpressionHelperBucketKey(APropertyKey);
-  if Key = '' then
-    Exit;
-
-  if not Assigned(FExprRecentsByKey) then
-  begin
-    if not ACreate then
-      Exit;
-    FExprRecentsByKey := TObjectDictionary<string, TStringList>.Create([doOwnsValues]);
-  end;
-
-  if not FExprRecentsByKey.TryGetValue(Key, Result) and ACreate then
-  begin
-    Result := TStringList.Create;
-    FExprRecentsByKey.Add(Key, Result);
-  end;
-end;
-
-procedure TfrmMain.ExpressionHelperAddRecent(const APropertyKey, AExpr: string);
-const
-  CMaxRecentItems = 20;
-var
-  ExprText: string;
-  Recent: TStringList;
-  I: Integer;
-begin
-  ExprText := Trim(AExpr);
-  if ExprText = '' then
-    Exit;
-  if ExpressionHelperIsRecentHintItem(ExprText) then
-    Exit;
-
-  Recent := ExpressionHelperRecentList(APropertyKey, True);
-  if not Assigned(Recent) then
-    Exit;
-
-  for I := Recent.Count - 1 downto 0 do
-    if SameText(Trim(Recent[I]), ExprText) then
-      Recent.Delete(I);
-
-  Recent.Insert(0, ExprText);
-  while Recent.Count > CMaxRecentItems do
-    Recent.Delete(Recent.Count - 1);
-end;
-
-function TfrmMain.ExpressionHelperIsRecentHintItem(const AValue: string): Boolean;
-begin
-  Result := SameText(Trim(AValue), 'No recent expressions (session only)');
-end;
-
-procedure TfrmMain.ExpressionHelperFieldDblClick(Sender: TObject);
-begin
-  ExpressionHelperInsertField(Sender);
-end;
-
-procedure TfrmMain.ExpressionHelperExampleDblClick(Sender: TObject);
-begin
-  if not Assigned(FExprHelperExamples) or not Assigned(FExprHelperMemo) then
-    Exit;
-  if FExprHelperExamples.ItemIndex < 0 then
-    Exit;
-
-  // Simpler Phase 1 behavior: replace editor content with selected example.
-  FExprHelperMemo.Lines.Text := FExprHelperExamples.Items[FExprHelperExamples.ItemIndex];
-  FExprHelperMemo.SetFocus;
-end;
-
-procedure TfrmMain.ExpressionHelperRecentDblClick(Sender: TObject);
-var
-  SelectedText: string;
-begin
-  if not Assigned(FExprHelperRecent) or not Assigned(FExprHelperMemo) then
-    Exit;
-  if FExprHelperRecent.ItemIndex < 0 then
-    Exit;
-  SelectedText := Trim(FExprHelperRecent.Items[FExprHelperRecent.ItemIndex]);
-  if ExpressionHelperIsRecentHintItem(SelectedText) then
-    Exit;
-
-  // Keep behavior aligned with examples: replace editor content.
-  FExprHelperMemo.Lines.Text := SelectedText;
-  FExprHelperMemo.SetFocus;
-end;
-
 function TfrmMain.EditColorPropertyRow(ARow: Integer): Boolean;
 var
   KeyName: string;
@@ -7260,185 +5581,37 @@ begin
 end;
 
 function TfrmMain.EditFontPropertyRow(ARow: Integer): Boolean;
-var
-  Obj: TReportObject;
-  KeyName: string;
-  Dlg: TFontDialog;
-  OldFont: TFont;
-  NewFont: TFont;
-  Cmd: TTextFontChangeCommand;
 begin
-  Result := False;
-  if (ARow <= 0) or (ARow >= PropEditor.RowCount) then
-    Exit;
-
-  KeyName := PropEditor.Keys[ARow];
-  if IsVisualGroupRow(KeyName) or not IsFontDialogRowKey(KeyName) then
-    Exit;
-
-  Obj := CurrentPropertyTarget;
-  if not (Obj is TReportTextObject) then
-    Exit;
-
-  Dlg := TFontDialog.Create(Self);
-  OldFont := TFont.Create;
-  NewFont := TFont.Create;
-  try
-    OldFont.Assign(TReportTextObject(Obj).Font);
-    Dlg.Font.Assign(TReportTextObject(Obj).Font);
-    if not Dlg.Execute then
-      Exit;
-
-    NewFont.Assign(Dlg.Font);
-    if (OldFont.Name = NewFont.Name) and
-       (OldFont.Size = NewFont.Size) and
-       (OldFont.Style = NewFont.Style) and
-       (OldFont.Color = NewFont.Color) and
-       (OldFont.Charset = NewFont.Charset) then
-      Exit;
-
-    Cmd := TTextFontChangeCommand.Create(TReportTextObject(Obj), OldFont, NewFont);
-    if Assigned(FDesigner) then
-      FDesigner.ExecuteUndoCommand(Cmd)
-    else
-      Cmd.Free;
-
-    FDesigner.RebuildLayout;
-    FModified := True;
-    UpdateTitleBar;
-    UpdatePropertyPanel;
-    UpdateStatusBar;
-    RefreshReportStructure;
-    SyncReportStructureSelection;
-    Result := True;
-  finally
-    NewFont.Free;
-    OldFont.Free;
-    Dlg.Free;
-  end;
-end;
-
-procedure TfrmMain.PromoteImportantProperties(AObj: TReportObject);
-const
-  BandKeys: array[0..13] of string = (
-    'BandType', 'Height', 'DataSetName', 'GroupField', 'GroupLevel',
-    'CanGrow', 'CanShrink', 'StartNewPage', 'Visible', 'PrintWhen',
-    'BackColor', 'BackColorTransparent',
-    'OnBeforePrint', 'OnAfterPrint'
-  );
-  TextKeys: array[0..22] of string = (
-    'Text', 'DataField', 'Expression', 'DisplayFormat', 'EditMask',
-    'Bounds', 'Left', 'Top', 'Width', 'Height',
-    'FontName', 'FontSize', 'FontBold', 'FontItalic', 'FontColor',
-    'WordWrap', 'AutoSize', 'Transparent', 'Background',
-    'BorderVisible', 'BorderColor', 'BorderWidth', 'PrintWhen'
-  );
-  ImageKeys: array[0..14] of string = (
-    'DataField', 'ImagePath', 'Picture', 'Stretch', 'Proportional', 'Center',
-    'Bounds', 'Left', 'Top', 'Width', 'Height',
-    'BorderVisible', 'BorderColor', 'Visible', 'PrintWhen'
-  );
-  BarcodeKeys: array[0..12] of string = (
-    'Value', 'DataField', 'Symbology', 'BarcodeType', 'ShowText',
-    'Bounds', 'Left', 'Top', 'Width', 'Height', 'Visible', 'PrintWhen', 'BarColor'
-  );
-var
-  Keys: TArray<string>;
-  I, Idx: Integer;
-  K, Val: string;
-  procedure AddKeys(const AKeys: array of string);
-  var J: Integer;
-  begin
-    for J := Low(AKeys) to High(AKeys) do
+  Result := Frm.Main.FontEditHelpers.EditFontPropertyRow(
+    Self,
+    FDesigner,
+    PropEditor,
+    ARow,
+    CurrentPropertyTarget,
+    procedure(AValue: Boolean)
     begin
-      SetLength(Keys, Length(Keys) + 1);
-      Keys[High(Keys)] := AKeys[J];
-    end;
-  end;
-begin
-  if PropEditor.RowCount <= 1 then Exit;
-
-  Keys := nil;
-  if AObj is TReportBand then
-    AddKeys(BandKeys)
-  else if (AObj is TReportTextObject) or (AObj is TReportFieldObject) or (AObj is TReportMemoObject) then
-    AddKeys(TextKeys)
-  else if AObj is TReportImageObject then
-    AddKeys(ImageKeys)
-  else if AObj is TReportBarcodeObject then
-    AddKeys(BarcodeKeys)
-  else
-    AddKeys(['Bounds', 'Left', 'Top', 'Width', 'Height', 'Visible', 'PrintWhen']);
-
-  for I := High(Keys) downto Low(Keys) do
-  begin
-    K := Keys[I];
-    Idx := PropEditor.Strings.IndexOfName(K);
-    if Idx > 0 then
+      SetPropertyPanelDirty(AValue);
+    end,
+    procedure
     begin
-      Val := PropEditor.Values[K];
-      PropEditor.Strings.Delete(Idx);
-      PropEditor.Strings.Insert(1, K + '=' + Val);
-    end;
-  end;
-end;
-
-procedure TfrmMain.InsertVisualGroupRows(AObj: TReportObject);
-var
-  I: Integer;
-  procedure InsertGroupAt(const GroupName: string; AIndex: Integer);
-  var
-    GroupKey: string;
-  begin
-    GroupKey := '[' + GroupName + ']';
-    if PropEditor.Strings.IndexOfName(GroupKey) >= 0 then
-      Exit;
-    if AIndex < 1 then
-      AIndex := 1;
-    if AIndex > PropEditor.RowCount then
-      AIndex := PropEditor.RowCount;
-    PropEditor.Strings.Insert(AIndex, GroupKey + '=');
-  end;
-
-  function FindFirstExistingIndex(const KeyNames: array of string): Integer;
-  var
-    J, Idx: Integer;
-  begin
-    Result := -1;
-    for J := Low(KeyNames) to High(KeyNames) do
+      UpdateTitleBar;
+    end,
+    procedure
     begin
-      Idx := PropEditor.Strings.IndexOfName(KeyNames[J]);
-      if Idx > 0 then
-      begin
-        Result := Idx;
-        Exit;
-      end;
-    end;
-  end;
-begin
-  if not Assigned(AObj) then Exit;
-
-  for I := PropEditor.RowCount - 1 downto 0 do
-    if IsVisualGroupRow(PropEditor.Keys[I]) then
-      PropEditor.Strings.Delete(I);
-
-  InsertGroupAt('Common', FindFirstExistingIndex(['Visible', 'Name', 'PrintWhen', 'Bounds']));
-  InsertGroupAt('Layout', FindFirstExistingIndex(['Bounds', 'Left', 'Top', 'Width', 'Height']));
-  InsertGroupAt('Data', FindFirstExistingIndex(['DataField', 'DataSetName', 'Expression', 'Value']));
-  InsertGroupAt('Appearance', FindFirstExistingIndex(['Transparent', 'Background', 'BackColor', 'BrushColor']));
-  InsertGroupAt('Font', FindFirstExistingIndex(['FontName', 'FontSize', 'FontBold', 'Font']));
-  InsertGroupAt('Border', FindFirstExistingIndex(['BorderVisible', 'BorderColor', 'BorderWidth', 'PenColor']));
-  InsertGroupAt('Behavior', FindFirstExistingIndex(['PrintWhen', 'CanGrow', 'CanShrink', 'StartNewPage']));
-  if FindFirstExistingIndex(['OnBeforePrint', 'OnAfterPrint']) > 0 then
-    InsertGroupAt('Events', FindFirstExistingIndex(['OnBeforePrint', 'OnAfterPrint']));
-
-  if AObj is TReportBand then
-  begin
-    if PropEditor.Strings.IndexOfName('[Data]') < 0 then
-      InsertGroupAt('Data', FindFirstExistingIndex(['DataSetName', 'GroupField', 'GroupLevel']));
-    if PropEditor.Strings.IndexOfName('[Behavior]') < 0 then
-      InsertGroupAt('Behavior', FindFirstExistingIndex(['CanGrow', 'CanShrink', 'StartNewPage']));
-  end;
+      UpdatePropertyPanel;
+    end,
+    procedure
+    begin
+      UpdateStatusBar;
+    end,
+    procedure
+    begin
+      RefreshReportStructure;
+    end,
+    procedure
+    begin
+      SyncReportStructureSelection;
+    end);
 end;
 
 procedure TfrmMain.CreateSampleDataSet;
@@ -7510,7 +5683,6 @@ begin
 
   CreateSampleDataSet;
 
-  // If we already generated the JSON dataset previously, load it instantly!
   if TFile.Exists(JsonFile) then
   begin
     FSampleDataSet.LoadFromFile(JsonFile, sfJSON);
@@ -7578,7 +5750,6 @@ begin
     FSampleDataSet.EnableControls;
   end;
 
-  // Save it for the Headless Runner and future designer sessions!
   FSampleDataSet.SaveToFile(JsonFile, sfJSON);
   FSampleDataSet.First;
 end;
@@ -7592,98 +5763,19 @@ begin
 end;
 
 procedure TfrmMain.BuildInsertMenu;
-var
-  C, ExistingClass: TReportObjectClass;
-  MI, TreeMI : TMenuItem;
-  I  : Integer;
-  BT : TReportBandType;
-  Exists: Boolean;
 begin
-  // Remove previously generated dynamic items.
-  for I := mnuInsert.Count - 1 downto 0 do
-    if SameText(mnuInsert.Items[I].Hint, 'dynobj') or
-       SameText(mnuInsert.Items[I].Hint, 'dynband') then
-      mnuInsert.Delete(I);
-      
-  if Assigned(FStructureTreeAddBandItem) then
-  begin
-    FStructureTreeAddBandItem.Clear;
-    for BT := Low(TReportBandType) to High(TReportBandType) do
+  Frm.Main.InsertMenuHelpers.BuildInsertMenu(
+    mnuInsert,
+    mnuSep5,
+    FStructureTreeAddBandItem,
+    FStructureTreeAddObjectItem,
+    DynAddBandMenuClick,
+    DynInsertMenuClick,
+    function: TArray<TReportObjectClass>
     begin
-      TreeMI := TMenuItem.Create(FStructureTreeAddBandItem);
-      TreeMI.Caption := BandTypeName(BT);
-      TreeMI.Tag := Ord(BT);
-      TreeMI.OnClick := DynAddBandMenuClick;
-      FStructureTreeAddBandItem.Add(TreeMI);
-    end;
-  end;
-
-  // Add missing band menu entries so all runtime band types are reachable.
-  for BT := Low(TReportBandType) to High(TReportBandType) do
-  begin
-    if BT in [btReportTitle, btPageHeader, btMasterData, btPageFooter, btReportSummary] then
-      Continue; // already declared statically in DFM
-
-    Exists := False;
-    for I := 0 to mnuInsert.Count - 1 do
-      if SameText(mnuInsert.Items[I].Caption, 'Band: ' + BandTypeName(BT)) then
-      begin
-        Exists := True;
-        Break;
-      end;
-
-    if not Exists then
-    begin
-      MI := TMenuItem.Create(mnuInsert);
-      MI.Caption := 'Band: ' + BandTypeName(BT);
-      MI.Tag     := Ord(BT);
-      MI.Hint    := 'dynband';
-      MI.OnClick := DynAddBandMenuClick;
-      mnuInsert.Insert(mnuInsert.IndexOf(mnuSep5), MI);
-    end;
-  end;
-  
-  if Assigned(FStructureTreeAddObjectItem) then
-    FStructureTreeAddObjectItem.Clear;
-
-  // Dynamically add one menu item per registered object class
-  for C in GetRegisteredReportObjects do
-  begin
-    // Bands are added through "Band: ..." entries; do not show as canvas object.
-    if C.InheritsFrom(TReportBand) then
-      Continue;
-
-    // Skip duplicates if a class with same DisplayName is already present.
-    Exists := False;
-    for I := 0 to mnuInsert.Count - 1 do
-      if SameText(mnuInsert.Items[I].Hint, 'dynobj') then
-      begin
-        ExistingClass := TReportObjectClass(mnuInsert.Items[I].Tag);
-        if Assigned(ExistingClass) and SameText(ExistingClass.DisplayName, C.DisplayName) then
-        begin
-          Exists := True;
-          Break;
-        end;
-      end;
-    if Exists then
-      Continue;
-
-    MI := TMenuItem.Create(mnuInsert);
-    MI.Caption := 'Insert ' + C.DisplayName;
-    MI.Tag     := NativeInt(C);
-    MI.Hint    := 'dynobj';
-    MI.OnClick := DynInsertMenuClick;
-    mnuInsert.Add(MI);
-    
-    if Assigned(FStructureTreeAddObjectItem) then
-    begin
-      TreeMI := TMenuItem.Create(FStructureTreeAddObjectItem);
-      TreeMI.Caption := C.DisplayName;
-      TreeMI.Tag := NativeInt(C);
-      TreeMI.OnClick := DynInsertMenuClick;
-      FStructureTreeAddObjectItem.Add(TreeMI);
-    end;
-  end;
+      Result := GetRegisteredReportObjects;
+    end,
+    BandTypeName);
 end;
 
 procedure TfrmMain.DynAddBandMenuClick(Sender: TObject);
