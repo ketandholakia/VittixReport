@@ -589,10 +589,21 @@ begin
       end;
   end;
 
-  // Translate the DC vertically so the band draws at FCurrentY on the page
+  // Translate the DC to the printable content origin.
+  // The top margin is tracked via FCurrentY; the left margin applies to all bands.
   SaveDC(FCanvas.Handle);
   try
-    SetViewportOrgEx(FCanvas.Handle, 0, FCurrentY, nil);
+    SetViewportOrgEx(
+      FCanvas.Handle,
+      FReport.PageSettings.Margins.Left,
+      FCurrentY,
+      nil);
+    IntersectClipRect(
+      FCanvas.Handle,
+      0,
+      0,
+      FPageWidth - FReport.PageSettings.Margins.Left - FReport.PageSettings.Margins.Right,
+      FPageHeight);
     ABand.Draw(FCanvas, Ctx);
     if FIsRenderingPass and Assigned(FOnAfterBand) then
       FOnAfterBand(Self, Self, ABand, Ctx);

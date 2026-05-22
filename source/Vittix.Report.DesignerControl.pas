@@ -37,7 +37,10 @@ uses
   Data.DB,
   Vittix.Report.Model, Vittix.Report.Objects, Vittix.Report.Bands,
   Vittix.Report.PageSettings, Vittix.Report.Context,
-  Vittix.Report.Undo, Vittix.Report.Serializer;
+  Vittix.Report.Undo, Vittix.Report.Serializer,
+  Vittix.Report.DesignerInteraction,
+  Vittix.Report.SelectionHelpers,
+  Vittix.Report.DesignerInteractionController;
 
 const
   RULER_W     = 20;   // ruler strip width/height (pixels)
@@ -55,18 +58,9 @@ type
 
   TDesignerGridUnit = (guCentimeters, guInches, guPixels, guPoints);
 
-  TResizeHandle = (
-    rhNone,
-    rhTopLeft, rhTop, rhTopRight,
-    rhLeft,          rhRight,
-    rhBottomLeft, rhBottom, rhBottomRight
-  );
+  TResizeHandle = Vittix.Report.DesignerInteraction.TResizeHandle;
 
-  TBandLayout = record
-    Band  : TReportBand;
-    Y     : Integer;   // top of band in page-space (logical px)
-    Height: Integer;   // = Band.Height
-  end;
+  TBandLayout = TDesignerBandLayout;
 
   TVittixReportDesigner = class(TCustomControl)
   private
@@ -84,10 +78,12 @@ type
     FGridUnit   : TDesignerGridUnit;
     FShowRulers : Boolean;
     FShowMargins: Boolean;
+    FPageColor   : TColor;
+    FCanvasColor : TColor;
     FZoom       : Integer;
 
     { Layout (recomputed when report changes) }
-    FBandLayouts  : TArray<TBandLayout>;
+    FBandLayouts  : TDesignerBandLayouts;
     FObjectBandMap: TDictionary<TReportObject, TReportBand>;
 
     { Page position on screen (top-left of paper) }
@@ -102,20 +98,7 @@ type
     FInsertClass: TReportObjectClass;
 
     { Mode + drag state }
-    FMode           : TDesignerMode;
-    FResizeHandle   : TResizeHandle;
-    FHoverHandle    : TResizeHandle;
-
-    FMouseDown      : Boolean;
-    FMouseStart     : TPoint;    // screen coords at mouse-down
-    FDragStartBounds: TDictionary<TReportObject, TRect>;
-
-    FBandResizeBand : TReportBand;
-    FBandResizeOrigH: Integer;
-
-    { Rubber-band }
-    FRubberRect : TRect;   // screen coords
-    FRubbering  : Boolean;
+    FInteractionState: TDesignerInteractionState;
 
     { Undo/redo }
     FCommands: TCommandManager;
@@ -177,6 +160,8 @@ type
     procedure SetShowGrid(const V: Boolean);
     procedure SetShowRulers(const V: Boolean);
     procedure SetShowMargins(const V: Boolean);
+    procedure SetPageColor(const V: TColor);
+    procedure SetCanvasColor(const V: TColor);
     function  GridStepPx: Integer;
 
     function  GetPrimarySelected: TReportObject;
@@ -300,6 +285,8 @@ type
     property GridUnit   : TDesignerGridUnit read FGridUnit write FGridUnit default guPixels;
     property ShowRulers : Boolean  read FShowRulers write SetShowRulers default True;
     property ShowMargins: Boolean  read FShowMargins write SetShowMargins default True;
+    property PageColor  : TColor   read FPageColor   write SetPageColor   default clWhite;
+    property CanvasColor: TColor   read FCanvasColor write SetCanvasColor default $00808080;
     property Zoom       : Integer  read FZoom       write SetZoom       default 100;
 
     property OnSelectionChanged: TNotifyEvent
@@ -390,9 +377,9 @@ begin
   FOwnsReport := True;
 
   FSelected         := TList<TReportObject>.Create;
-  FDragStartBounds  := TDictionary<TReportObject, TRect>.Create;
   FObjectBandMap    := TDictionary<TReportObject, TReportBand>.Create;
   FCommands         := TCommandManager.Create;
+  FInteractionState.DragStartBounds := TDictionary<TReportObject, TRect>.Create;
 
   FZoom        := 100;
   FShowGrid    := True;
@@ -401,8 +388,8 @@ begin
   FGridUnit    := guPixels;
   FShowRulers  := True;
   FShowMargins := True;
-  FMode        := dmSelect;
-
+  FPageColor   := clWhite;
+  FCanvasColor := $00808080;
   ComputeBandLayouts;
 end;
 
@@ -410,7 +397,7 @@ destructor TVittixReportDesigner.Destroy;
 begin
   FCommands.Free;
   FObjectBandMap.Free;
-  FDragStartBounds.Free;
+  FInteractionState.DragStartBounds.Free;
   FSelected.Free;
   FClipboard.Free;   // nil-safe
   if FOwnsReport then
@@ -459,8 +446,7 @@ end;
 
 function TVittixReportDesigner.ScreenToPage(const P: TPoint): TPoint;
 begin
-  Result.X := UnScale(P.X - PageLeft);
-  Result.Y := UnScale(P.Y - PageTop);
+  Result := DesignerScreenToPage(P, PageLeft, PageTop, FReport.PageSettings.Margins.Left, FZoom);
 end;
 
 function TVittixReportDesigner.GridStepPx: Integer;
@@ -482,14 +468,14 @@ end;
 procedure TVittixReportDesigner.ComputeBandLayouts;
 var
   I    : Integer;
-  BL   : TBandLayout;
+  BL   : TDesignerBandLayout;
   CurY : Integer;
   Obj  : TReportObject;
-  Layouts: TList<TBandLayout>;
+  Layouts: TList<TDesignerBandLayout>;
 begin
   FBandLayouts := nil;   // always rebuild from scratch
   FObjectBandMap.Clear;
-  Layouts := TList<TBandLayout>.Create;
+  Layouts := TList<TDesignerBandLayout>.Create;
   try
     for I := 0 to FReport.Objects.Count - 1 do
     begin
@@ -500,8 +486,8 @@ begin
       Layouts.Add(BL);
     end;
 
-    Layouts.Sort(TComparer<TBandLayout>.Construct(
-      function(const L, R: TBandLayout): Integer
+    Layouts.Sort(TComparer<TDesignerBandLayout>.Construct(
+      function(const L, R: TDesignerBandLayout): Integer
       begin
         Result := BAND_ORDER[L.Band.BandType] - BAND_ORDER[R.Band.BandType];
         if Result = 0 then
@@ -563,127 +549,41 @@ end;
 { -- Object screen rect ----------------------------------------------------- }
 
 function TVittixReportDesigner.ObjScreenRect(Obj: TReportObject): TRect;
-var
-  Band: TReportBand;
-  Idx : Integer;
-  BandY: Integer;
 begin
-  Band  := BandOwnerOf(Obj);
-  BandY := 0;
-  if Assigned(Band) then
-  begin
-    Idx := BandLayoutIndex(Band);
-    if Idx >= 0 then
-      BandY := FBandLayouts[Idx].Y;
-  end;
-  Result.Left   := PageLeft + Scale(Obj.Bounds.Left);
-  Result.Top    := PageTop  + Scale(BandY + Obj.Bounds.Top);
-  Result.Right  := PageLeft + Scale(Obj.Bounds.Right);
-  Result.Bottom := PageTop  + Scale(BandY + Obj.Bounds.Bottom);
+  Result := DesignerObjScreenRect(
+    Obj, FBandLayouts, PageLeft, PageTop, FReport.PageSettings.Margins.Left, FZoom,
+    FReport.PageSettings, BandOwnerOf, BandLayoutIndex);
 end;
 
 { -- Hit testing ------------------------------------------------------------ }
 
 function TVittixReportDesigner.BandSepHitTest(ScreenPt: TPoint;
   out HitBand: TReportBand): Boolean;
-var
-  I  : Integer;
-  SepY: Integer;
 begin
-  Result  := False;
-  HitBand := nil;
-  for I := 0 to High(FBandLayouts) do
-  begin
-    SepY := PageTop + Scale(FBandLayouts[I].Y + FBandLayouts[I].Height);
-    if Abs(ScreenPt.Y - SepY) <= BAND_SEP_HT then
-    begin
-      HitBand := FBandLayouts[I].Band;
-      Exit(True);
-    end;
-  end;
+  Result := DesignerBandSepHitTest(ScreenPt, FBandLayouts, PageTop, FZoom, HitBand);
 end;
 
 function TVittixReportDesigner.ObjectHitTest(ScreenPt: TPoint;
   out HitObj: TReportObject): Boolean;
-var
-  I  : Integer;
-  BL : TBandLayout;
-  Obj: TReportObject;
-  SR : TRect;
 begin
-  Result := False;
-  HitObj := nil;
-  { Iterate bands from bottom so topmost visible is hit first }
-  for I := High(FBandLayouts) downto 0 do
-  begin
-    BL := FBandLayouts[I];
-    for Obj in BL.Band.Children do
-    begin
-      SR := ObjScreenRect(Obj);
-      if PtInRect(SR, ScreenPt) then
-      begin
-        HitObj := Obj;
-        Exit(True);
-      end;
-    end;
-  end;
+  Result := DesignerObjectHitTest(
+    ScreenPt, FBandLayouts, PageLeft, PageTop, FReport.PageSettings.Margins.Left, FZoom,
+    FReport.PageSettings, BandOwnerOf, BandLayoutIndex, HitObj);
 end;
 
 function TVittixReportDesigner.HandleHitTest(ScreenPt: TPoint;
   out H: TResizeHandle): Boolean;
-const
-  R: array[TResizeHandle] of TPoint = (
-    (X:0; Y:0),                // rhNone - unused
-    (X:0; Y:0),  (X:0; Y:0),  // rhTopLeft, rhTop
-    (X:0; Y:0),  (X:0; Y:0),  // rhTopRight, rhLeft
-    (X:0; Y:0),  (X:0; Y:0),  // rhRight, rhBottomLeft
-    (X:0; Y:0),  (X:0; Y:0)   // rhBottom, rhBottomRight
-  );
-var
-  Obj: TReportObject;
-  SR : TRect;
-  CX, CY, HW, HH: Integer;
-  HH2: Integer;
-
-  function HandleRect(px, py: Integer): TRect;
-  begin
-    Result := Bounds(px - HANDLE_SZ, py - HANDLE_SZ, HANDLE_SZ*2+1, HANDLE_SZ*2+1);
-  end;
-
-  function Check(px, py: Integer; RH: TResizeHandle): Boolean;
-  begin
-    Result := PtInRect(HandleRect(px, py), ScreenPt);
-    if Result then H := RH;
-  end;
-
 begin
-  H      := rhNone;
-  Result := False;
-  if FSelected.Count = 0 then Exit;
-
-  Obj := FSelected[FSelected.Count - 1];
-  SR  := ObjScreenRect(Obj);
-  CX  := (SR.Left + SR.Right)  div 2;
-  CY  := (SR.Top  + SR.Bottom) div 2;
-
-  if Check(SR.Left,  SR.Top,    rhTopLeft)     then Exit(True);
-  if Check(CX,       SR.Top,    rhTop)          then Exit(True);
-  if Check(SR.Right, SR.Top,    rhTopRight)     then Exit(True);
-  if Check(SR.Left,  CY,        rhLeft)         then Exit(True);
-  if Check(SR.Right, CY,        rhRight)        then Exit(True);
-  if Check(SR.Left,  SR.Bottom, rhBottomLeft)   then Exit(True);
-  if Check(CX,       SR.Bottom, rhBottom)       then Exit(True);
-  if Check(SR.Right, SR.Bottom, rhBottomRight)  then Exit(True);
+  Result := DesignerHandleHitTest(
+    ScreenPt, FBandLayouts, PageLeft, PageTop, FReport.PageSettings.Margins.Left, FZoom,
+    FReport.PageSettings, BandOwnerOf, BandLayoutIndex, FSelected, H);
 end;
 
 { -- Snap ------------------------------------------------------------------- }
 
 function TVittixReportDesigner.SnapV(V: Integer): Integer;
 begin
-  if FSnapToGrid and (GridStepPx > 0) then
-    Result := Round(V / GridStepPx) * GridStepPx
-  else
-    Result := V;
+  Result := DesignerSnapV(V, GridStepPx, FSnapToGrid);
 end;
 
 { -- Selection -------------------------------------------------------------- }
@@ -766,55 +666,19 @@ end;
 procedure TVittixReportDesigner.BeginInsertObject(AClass: TReportObjectClass);
 begin
   FInsertClass := AClass;
-  FMode        := dmInsert;
+  FInteractionState.Mode := Ord(dmInsert);
   Cursor       := crCross;
   ClearSelection;
 end;
 
 procedure TVittixReportDesigner.SelectObject(AObj: TReportObject);
-var
-  OwnerBand: TReportBand;
 begin
-  if AObj = nil then
-  begin
-    if (FSelected.Count > 0) or Assigned(FActiveBand) then
-    begin
-      FSelected.Clear;
-      FActiveBand := nil;
-      DoSelectionChanged;
-    end;
-    Exit;
-  end;
-
-  FSelected.Clear;
-
-  if AObj is TReportBand then
-  begin
-    FActiveBand := TReportBand(AObj);
-    DoSelectionChanged;
-    Exit;
-  end;
-
-  OwnerBand := BandOwnerOf(AObj);
-  FActiveBand := OwnerBand;
-  FSelected.Add(AObj);
-  DoSelectionChanged;
+  DesignerSelectObject(FSelected, FActiveBand, AObj, BandOwnerOf, FOnSelectionChanged, Self);
 end;
 
 procedure TVittixReportDesigner.SelectAllObjects;
-var
-  I: Integer;
-  BL: TBandLayout;
-  Obj: TReportObject;
 begin
-  FSelected.Clear;
-  for I := 0 to High(FBandLayouts) do
-  begin
-    BL := FBandLayouts[I];
-    for Obj in BL.Band.Children do
-      FSelected.Add(Obj);
-  end;
-  DoSelectionChanged;
+  DesignerSelectAllObjects(FSelected, FBandLayouts, FOnSelectionChanged, Self);
 end;
 
 procedure TVittixReportDesigner.DeleteSelected;
@@ -1593,6 +1457,24 @@ begin
   DoViewChanged;
 end;
 
+procedure TVittixReportDesigner.SetPageColor(const V: TColor);
+begin
+  if FPageColor = V then
+    Exit;
+  FPageColor := V;
+  Invalidate;
+  DoViewChanged;
+end;
+
+procedure TVittixReportDesigner.SetCanvasColor(const V: TColor);
+begin
+  if FCanvasColor = V then
+    Exit;
+  FCanvasColor := V;
+  Invalidate;
+  DoViewChanged;
+end;
+
 procedure TVittixReportDesigner.UpdateSurfaceExtent;
 var
   ReqW, ReqH: Integer;
@@ -1630,7 +1512,7 @@ var
   H   : TResizeHandle;
   Dummy: TReportBand;
 begin
-  if FMode = dmInsert then
+  if FInteractionState.Mode = Ord(dmInsert) then
   begin
     Cursor := crCross;
     Exit;
@@ -1648,7 +1530,12 @@ end;
 procedure TVittixReportDesigner.DrawPageBackground;
 var
   R: TRect;
+  ContentR: TRect;
+  PM: TReportMargins;
+  MarginTopR, MarginBottomR, MarginLeftR, MarginRightR: TRect;
 begin
+  PM := FReport.PageSettings.Margins;
+
   { Shadow }
   R := Bounds(PageLeft + 4, PageTop + 4, PageWidth, PageHeight);
   Canvas.Brush.Color := $00A0A0A0;
@@ -1657,8 +1544,39 @@ begin
 
   { Page }
   R := Bounds(PageLeft, PageTop, PageWidth, PageHeight);
-  Canvas.Brush.Color := clWhite;
+  Canvas.Brush.Color := FPageColor;
   Canvas.FillRect(R);
+
+  { Margin area outside printable content }
+  Canvas.Brush.Color := FCanvasColor;
+
+  MarginTopR := Rect(R.Left, R.Top, R.Right, R.Top + Scale(PM.Top));
+  MarginBottomR := Rect(R.Left, R.Bottom - Scale(PM.Bottom), R.Right, R.Bottom);
+  MarginLeftR := Rect(R.Left, R.Top + Scale(PM.Top), R.Left + Scale(PM.Left), R.Bottom - Scale(PM.Bottom));
+  MarginRightR := Rect(R.Right - Scale(PM.Right), R.Top + Scale(PM.Top), R.Right, R.Bottom - Scale(PM.Bottom));
+
+  if MarginTopR.Bottom > MarginTopR.Top then Canvas.FillRect(MarginTopR);
+  if MarginBottomR.Bottom > MarginBottomR.Top then Canvas.FillRect(MarginBottomR);
+  if MarginLeftR.Right > MarginLeftR.Left then Canvas.FillRect(MarginLeftR);
+  if MarginRightR.Right > MarginRightR.Left then Canvas.FillRect(MarginRightR);
+
+  { Printable content area }
+  ContentR := Rect(
+    PageLeft + Scale(PM.Left),
+    PageTop + Scale(PM.Top),
+    PageLeft + PageWidth - Scale(PM.Right),
+    PageTop + PageHeight - Scale(PM.Bottom));
+  if (ContentR.Right > ContentR.Left) and (ContentR.Bottom > ContentR.Top) then
+  begin
+    Canvas.Brush.Color := FPageColor;
+    Canvas.FillRect(ContentR);
+
+    Canvas.Brush.Style := bsClear;
+    Canvas.Pen.Color := $00D0A060;
+    Canvas.Pen.Style := psSolid;
+    Canvas.Pen.Width := 1;
+    Canvas.Rectangle(ContentR);
+  end;
 
   { Page border }
   Canvas.Pen.Color := $00808080;
@@ -1798,6 +1716,7 @@ var
   OR_ : TRect;
   Ctx : TExpressionContext;
   SaveDC: Integer;
+  ClipR: TRect;
 begin
   if BL.Band.Children.Count = 0 then Exit;
 
@@ -1808,11 +1727,17 @@ begin
     SetMapMode(Canvas.Handle, MM_ANISOTROPIC);
     SetWindowExtEx(Canvas.Handle, 100, 100, nil);
     SetViewportExtEx(Canvas.Handle, FZoom, FZoom, nil);
-    { Viewport origin = screen top-left of the band's left edge (logical 0=page left) }
+    { Viewport origin = printable content origin for the band }
     SetViewportOrgEx(Canvas.Handle,
-      PageLeft,
+      PageLeft + Scale(FReport.PageSettings.Margins.Left),
       PageTop + Scale(BL.Y),
       nil);
+    ClipR := Rect(
+      0,
+      0,
+      FReport.PageSettings.PageWidth - FReport.PageSettings.Margins.Left - FReport.PageSettings.Margins.Right,
+      BL.Height);
+    IntersectClipRect(Canvas.Handle, ClipR.Left, ClipR.Top, ClipR.Right, ClipR.Bottom);
     for Obj in BL.Band.Children do
     begin
       Ctx := Default(TExpressionContext);
@@ -1883,8 +1808,8 @@ end;
 procedure TVittixReportDesigner.DrawRubberBand;
 var R: TRect;
 begin
-  if not FRubbering then Exit;
-  R := FRubberRect;
+  if not FInteractionState.Rubbering then Exit;
+  R := FInteractionState.RubberRect;
   Canvas.Brush.Style := bsClear;
   Canvas.Pen.Style   := psDot;
   Canvas.Pen.Color   := clBlack;
@@ -1980,7 +1905,7 @@ var
   HintRect: TRect;
   HintText: string;
 begin
-  if (FMode <> dmInsert) or not Assigned(FInsertClass) then
+  if (FInteractionState.Mode <> Ord(dmInsert)) or not Assigned(FInsertClass) then
     Exit;
 
   if Length(FBandLayouts) = 0 then
@@ -2050,13 +1975,12 @@ var
   BL      : TBandLayout;
 begin
   SetFocus;
-  FMouseDown  := True;
-  FMouseStart := Point(X, Y);
-
+  FInteractionState.MouseDown  := True;
+  FInteractionState.MouseStart := Point(X, Y);
   if Button = mbLeft then
   begin
     { ---- INSERT MODE ---- }
-    if FMode = dmInsert then
+    if FInteractionState.Mode = Ord(dmInsert) then
     begin
       if Assigned(FInsertClass) then
       begin
@@ -2089,7 +2013,7 @@ begin
           ClearSelection;
           AddToSelection(NewObj);
           FActiveBand := TargetBand;
-          FMode       := dmSelect;
+          FInteractionState.Mode := Ord(dmSelect);
           Cursor      := crDefault;
           DoModified;
         end;
@@ -2100,21 +2024,23 @@ begin
     { ---- BAND SEPARATOR ---- }
     if BandSepHitTest(Point(X, Y), HitBand) then
     begin
-      FMode            := dmBandResize;
-      FBandResizeBand  := HitBand;
-      FBandResizeOrigH := HitBand.Height;
+      FInteractionState.Mode := Ord(dmBandResize);
+      FInteractionState.BandResizeBand  := HitBand;
+      FInteractionState.BandResizeOrigH := HitBand.Height;
       Exit;
     end;
 
     { ---- RESIZE HANDLE ---- }
     if HandleHitTest(Point(X, Y), H) then
     begin
-      FMode         := dmResize;
-      FResizeHandle := H;
+      FInteractionState.Mode := Ord(dmResize);
+      FInteractionState.ResizeHandle := H;
       { Snapshot bounds of all selected for undo }
-      FDragStartBounds.Clear;
+      FInteractionState.DragStartBounds.Clear;
       for HitObj in FSelected do
-        FDragStartBounds.Add(HitObj, HitObj.Bounds);
+      begin
+        FInteractionState.DragStartBounds.Add(HitObj, HitObj.Bounds);
+      end;
       Exit;
     end;
 
@@ -2144,10 +2070,12 @@ begin
       FActiveBand := BandOwnerOf(HitObj);
 
       { Move mode }
-      FMode := dmMove;
-      FDragStartBounds.Clear;
+      FInteractionState.Mode := Ord(dmMove);
+      FInteractionState.DragStartBounds.Clear;
       for HitObj in FSelected do
-        FDragStartBounds.Add(HitObj, HitObj.Bounds);
+      begin
+        FInteractionState.DragStartBounds.Add(HitObj, HitObj.Bounds);
+      end;
       Exit;
     end;
 
@@ -2169,9 +2097,9 @@ begin
       ClearSelection;
     end;
 
-    FRubbering  := True;
-    FRubberRect := Rect(X, Y, X, Y);
-    FMode       := dmRubberBand;
+    FInteractionState.Rubbering  := True;
+    FInteractionState.RubberRect := Rect(X, Y, X, Y);
+    FInteractionState.Mode := Ord(dmRubberBand);
   end;
 end;
 
@@ -2184,25 +2112,25 @@ var
   NewH     : Integer;
   H        : TResizeHandle;
 begin
-  if not FMouseDown then
+  if not FInteractionState.MouseDown then
   begin
     UpdateCursor(X, Y);
     Exit;
   end;
 
-  DX := X - FMouseStart.X;
-  DY := Y - FMouseStart.Y;
+  DX := X - FInteractionState.MouseStart.X;
+  DY := Y - FInteractionState.MouseStart.Y;
   LogDX := UnScale(DX);
   LogDY := UnScale(DY);
 
-  case FMode of
+  case TDesignerMode(FInteractionState.Mode) of
     dmMove:
     begin
       if (Abs(DX) < MOVE_DRAG_THRESHOLD) and (Abs(DY) < MOVE_DRAG_THRESHOLD) then
         Exit;
       for Obj in FSelected do
       begin
-        if FDragStartBounds.TryGetValue(Obj, StartR) then
+        if FInteractionState.DragStartBounds.TryGetValue(Obj, StartR) then
         begin
           R := Bounds(
             SnapV(StartR.Left + LogDX),
@@ -2220,16 +2148,16 @@ begin
     dmResize:
     begin
       Obj := GetPrimarySelected;
-      if Assigned(Obj) and FDragStartBounds.TryGetValue(Obj, StartR) then
+      if Assigned(Obj) and FInteractionState.DragStartBounds.TryGetValue(Obj, StartR) then
       begin
         R := StartR;
-        case FResizeHandle of
+        case TResizeHandle(FInteractionState.ResizeHandle) of
           rhLeft, rhTopLeft, rhBottomLeft:
             R.Left := SnapV(Min(StartR.Left + LogDX, StartR.Right - MIN_OBJ_SZ));
           rhRight, rhTopRight, rhBottomRight:
             R.Right := SnapV(Max(StartR.Right + LogDX, StartR.Left + MIN_OBJ_SZ));
         end;
-        case FResizeHandle of
+        case TResizeHandle(FInteractionState.ResizeHandle) of
           rhTop, rhTopLeft, rhTopRight:
             R.Top    := SnapV(Min(StartR.Top + LogDY, StartR.Bottom - MIN_OBJ_SZ));
           rhBottom, rhBottomLeft, rhBottomRight:
@@ -2242,10 +2170,10 @@ begin
 
     dmBandResize:
     begin
-      if Assigned(FBandResizeBand) then
+      if Assigned(FInteractionState.BandResizeBand) then
       begin
-        NewH := Max(MIN_BAND_H, FBandResizeOrigH + LogDY);
-        FBandResizeBand.Height := NewH;
+        NewH := Max(MIN_BAND_H, FInteractionState.BandResizeOrigH + LogDY);
+        FInteractionState.BandResizeBand.Height := NewH;
         ComputeBandLayouts;
         Invalidate;
       end;
@@ -2255,7 +2183,7 @@ begin
     begin
       if (Abs(DX) < MOVE_DRAG_THRESHOLD) and (Abs(DY) < MOVE_DRAG_THRESHOLD) then
         Exit;
-      FRubberRect := Rect(FMouseStart.X, FMouseStart.Y, X, Y);
+      FInteractionState.RubberRect := Rect(FInteractionState.MouseStart.X, FInteractionState.MouseStart.Y, X, Y);
       Invalidate;
     end;
   end;
@@ -2276,10 +2204,9 @@ var
   J        : Integer;
   BandCmd  : TBandResizeCommand;
 begin
-  if not FMouseDown then Exit;
-  FMouseDown := False;
-
-  case FMode of
+  if not FInteractionState.MouseDown then Exit;
+  FInteractionState.MouseDown := False;
+  case TDesignerMode(FInteractionState.Mode) of
     dmMove:
     begin
       if FSelected.Count > 0 then
@@ -2292,7 +2219,7 @@ begin
           Obj         := FSelected[J];
           Objects[J]  := Obj;
           NewBounds[J]:= Obj.Bounds;
-          if FDragStartBounds.TryGetValue(Obj, OldBounds[J]) then ;
+          if FInteractionState.DragStartBounds.TryGetValue(Obj, OldBounds[J]) then ;
         end;
         Cmd := TMultiMoveCommand.Create(Objects, OldBounds, NewBounds);
         if Length(Objects) <= 1 then
@@ -2310,7 +2237,7 @@ begin
       if Assigned(Obj) then
       begin
         var OldR: TRect;
-        if FDragStartBounds.TryGetValue(Obj, OldR) then
+        if FInteractionState.DragStartBounds.TryGetValue(Obj, OldR) then
         begin
           var ResizeCmd := TMoveObjectCommand.Create(Obj, OldR, Obj.Bounds);
           ResizeCmd.ActionName := 'Resize Object';
@@ -2322,20 +2249,20 @@ begin
 
     dmBandResize:
     begin
-      if Assigned(FBandResizeBand) then
+      if Assigned(FInteractionState.BandResizeBand) then
       begin
         BandCmd := TBandResizeCommand.Create(
-          FBandResizeBand, FBandResizeOrigH, FBandResizeBand.Height);
+          FInteractionState.BandResizeBand, FInteractionState.BandResizeOrigH, FInteractionState.BandResizeBand.Height);
         FCommands.DoCommand(BandCmd);
         DoModified;
       end;
-      FBandResizeBand := nil;
+      FInteractionState.BandResizeBand := nil;
     end;
 
     dmRubberBand:
     begin
-      FRubbering := False;
-      NormRect   := FRubberRect;
+      FInteractionState.Rubbering := False;
+      NormRect   := FInteractionState.RubberRect;
       if NormRect.Right < NormRect.Left then
       begin
         var Tmp := NormRect.Left;
@@ -2363,8 +2290,8 @@ begin
     end;
   end;
 
-  FMode := dmSelect;
-  FDragStartBounds.Clear;
+  FInteractionState.Mode := Ord(dmSelect);
+  FInteractionState.DragStartBounds.Clear;
   UpdateCursor(X, Y);
 end;
 
@@ -2480,7 +2407,7 @@ begin
 
   case Key of
     VK_DELETE:
-      if (FMode = dmSelect) and (FSelected.Count > 0) then
+      if (FInteractionState.Mode = Ord(dmSelect)) and (FSelected.Count > 0) then
       begin
         DeleteSelected;
         Key := 0;
@@ -2520,9 +2447,9 @@ begin
     end;
     VK_ESCAPE:
     begin
-      if FMode = dmInsert then
+      if FInteractionState.Mode = Ord(dmInsert) then
       begin
-        FMode   := dmSelect;
+        FInteractionState.Mode := Ord(dmSelect);
         Cursor  := crDefault;
         FInsertClass := nil;
       end;

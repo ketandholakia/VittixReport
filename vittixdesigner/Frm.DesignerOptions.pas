@@ -4,7 +4,8 @@ interface
 
 uses
   System.Classes, System.SysUtils, Vcl.Controls, Vcl.Forms, Vcl.StdCtrls,
-  Vcl.ExtCtrls, Vcl.Samples.Spin, Vittix.Report.DesignerControl;
+  Vcl.ExtCtrls, Vcl.Dialogs, Vcl.Graphics, Vcl.Samples.Spin,
+  Vittix.Report.DesignerControl;
 
 type
   TfrmDesignerOptions = class(TForm)
@@ -15,6 +16,10 @@ type
     FSnapToGrid: TCheckBox;
     FShowRulers: TCheckBox;
     FShowMargins: TCheckBox;
+    FPageColorBtn: TButton;
+    FPageColorSwatch: TPanel;
+    FCanvasColorBtn: TButton;
+    FCanvasColorSwatch: TPanel;
     FGapLabel: TLabel;
     FOK: TButton;
     FCancel: TButton;
@@ -23,6 +28,8 @@ type
     procedure RestoreDefaults(Sender: TObject);
     procedure GridTypeChanged(Sender: TObject);
     procedure UpdateUnitCaption;
+    procedure PickColor(Sender: TObject);
+    procedure SyncColorSwatches;
   public
     constructor Create(AOwner: TComponent); override;
     procedure LoadFromDesigner(ADesigner: TVittixReportDesigner);
@@ -108,6 +115,32 @@ begin
   FShowMargins.Caption := 'Show margins';
   FShowMargins.SetBounds(268, 94, 140, 20);
 
+  FPageColorBtn := TButton.Create(Self);
+  FPageColorBtn.Parent := Self;
+  FPageColorBtn.Caption := 'Page color...';
+  FPageColorBtn.SetBounds(268, 126, 90, 25);
+  FPageColorBtn.OnClick := PickColor;
+
+  FPageColorSwatch := TPanel.Create(Self);
+  FPageColorSwatch.Parent := Self;
+  FPageColorSwatch.SetBounds(364, 126, 32, 25);
+  FPageColorSwatch.BevelOuter := bvLowered;
+  FPageColorSwatch.ParentBackground := False;
+  FPageColorSwatch.Caption := '';
+
+  FCanvasColorBtn := TButton.Create(Self);
+  FCanvasColorBtn.Parent := Self;
+  FCanvasColorBtn.Caption := 'Canvas color...';
+  FCanvasColorBtn.SetBounds(268, 156, 90, 25);
+  FCanvasColorBtn.OnClick := PickColor;
+
+  FCanvasColorSwatch := TPanel.Create(Self);
+  FCanvasColorSwatch.Parent := Self;
+  FCanvasColorSwatch.SetBounds(364, 156, 32, 25);
+  FCanvasColorSwatch.BevelOuter := bvLowered;
+  FCanvasColorSwatch.ParentBackground := False;
+  FCanvasColorSwatch.Caption := '';
+
   UpdateUnitCaption;
 end;
 
@@ -121,6 +154,9 @@ begin
   FSnapToGrid.Checked := ADesigner.SnapToGrid;
   FShowRulers.Checked := ADesigner.ShowRulers;
   FShowMargins.Checked := ADesigner.ShowMargins;
+  FPageColorBtn.Tag := ADesigner.PageColor;
+  FCanvasColorBtn.Tag := ADesigner.CanvasColor;
+  SyncColorSwatches;
   UpdateUnitCaption;
 end;
 
@@ -133,6 +169,8 @@ begin
   ADesigner.SnapToGrid := FSnapToGrid.Checked;
   ADesigner.ShowRulers := FShowRulers.Checked;
   ADesigner.ShowMargins := FShowMargins.Checked;
+  ADesigner.PageColor := TColor(FPageColorBtn.Tag);
+  ADesigner.CanvasColor := TColor(FCanvasColorBtn.Tag);
 end;
 
 procedure TfrmDesignerOptions.RestoreDefaults(Sender: TObject);
@@ -144,6 +182,9 @@ begin
     FSnapToGrid.Checked := True;
     FShowRulers.Checked := True;
     FShowMargins.Checked := True;
+    FPageColorBtn.Tag := ColorToRGB(clWhite);
+    FCanvasColorBtn.Tag := ColorToRGB($00808080);
+    SyncColorSwatches;
   end;
 end;
 
@@ -160,6 +201,34 @@ begin
     FGapLabel.Caption := 'Grid size (' + UnitNames[FGridType.ItemIndex] + ')'
   else
     FGapLabel.Caption := 'Grid size';
+end;
+
+procedure TfrmDesignerOptions.PickColor(Sender: TObject);
+var
+  Btn: TButton;
+  Dlg: TColorDialog;
+begin
+  if not (Sender is TButton) then Exit;
+  Btn := TButton(Sender);
+  Dlg := TColorDialog.Create(Self);
+  try
+    Dlg.Color := TColor(Btn.Tag);
+    if Dlg.Execute then
+    begin
+      Btn.Tag := ColorToRGB(Dlg.Color);
+      SyncColorSwatches;
+    end;
+  finally
+    Dlg.Free;
+  end;
+end;
+
+procedure TfrmDesignerOptions.SyncColorSwatches;
+begin
+  FPageColorSwatch.Color := TColor(FPageColorBtn.Tag);
+  FCanvasColorSwatch.Color := TColor(FCanvasColorBtn.Tag);
+  FPageColorSwatch.Invalidate;
+  FCanvasColorSwatch.Invalidate;
 end;
 
 end.

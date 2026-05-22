@@ -30,6 +30,7 @@ uses
   Vcl.Controls,
   Vcl.Graphics,
   Vcl.Printers,
+  Vittix.Report.PageSettings,
   Vittix.Report.Renderer;
 
 type
@@ -39,6 +40,8 @@ type
     FPageIndex:  Integer;
     FZoomPercent: Integer;
     FOnPageChanged: TNotifyEvent;
+    FMargins: TReportMargins;
+    FShowMarginOverlay: Boolean;
 
     procedure SetPageIndex(const Value: Integer);
     procedure SetZoomPercent(const Value: Integer);
@@ -76,6 +79,7 @@ type
     procedure FitWidth;
     procedure FitPage;
     procedure Print;
+    procedure SetMargins(const Value: TReportMargins);
 
     property PageCount:   Integer read GetPageCount;
     property CurrentPage: Integer read FPageIndex;
@@ -87,6 +91,10 @@ type
       read FZoomPercent write SetZoomPercent default 100;
     property PageIndex: Integer
       read FPageIndex write SetPageIndex;
+    property Margins: TReportMargins
+      read FMargins write SetMargins;
+    property ShowMarginOverlay: Boolean
+      read FShowMarginOverlay write FShowMarginOverlay default True;
     property OnPageChanged: TNotifyEvent
       read FOnPageChanged write FOnPageChanged;
   end;
@@ -107,6 +115,8 @@ begin
   Color          := clGray;
   FZoomPercent   := 100;
   FPages         := TObjectList<TBitmap>.Create(True); // owns bitmaps
+  FMargins       := TReportMargins.Default;
+  FShowMarginOverlay := True;
 end;
 
 destructor TVittixReportPreview.Destroy;
@@ -141,6 +151,12 @@ begin
     FPages.Add(Copy);
   end;
 
+  Invalidate;
+end;
+
+procedure TVittixReportPreview.SetMargins(const Value: TReportMargins);
+begin
+  FMargins := Value;
   Invalidate;
 end;
 
@@ -208,6 +224,7 @@ var
   Scale:   Double;
   W, H:   Integer;
   R:      TRect;
+  ContentR: TRect;
 begin
   Canvas.Brush.Color := Color;
   Canvas.FillRect(ClientRect);
@@ -228,6 +245,25 @@ begin
     10 + H
   );
 
+  if FShowMarginOverlay then
+  begin
+    ContentR := Rect(
+      R.Left + Round(FMargins.Left * Scale),
+      R.Top + Round(FMargins.Top * Scale),
+      R.Right - Round(FMargins.Right * Scale),
+      R.Bottom - Round(FMargins.Bottom * Scale));
+    if (ContentR.Right > ContentR.Left) and (ContentR.Bottom > ContentR.Top) then
+    begin
+      Canvas.Brush.Color := $00FAFAF0;
+      Canvas.FillRect(ContentR);
+      Canvas.Brush.Style := bsClear;
+      Canvas.Pen.Color := $00D0A060;
+      Canvas.Pen.Style := psSolid;
+      Canvas.Rectangle(ContentR);
+    end;
+  end;
+
+  Canvas.Brush.Style := bsSolid;
   Canvas.Brush.Color := clWhite;
   Canvas.Rectangle(R);
   Canvas.StretchDraw(R, PageBmp);

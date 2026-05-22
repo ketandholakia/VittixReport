@@ -74,11 +74,16 @@ uses
   Frm.Main.ReportActions,
   Frm.Main.ViewHelpers,
   Frm.Main.DesignerHelpers,
+  Frm.Main.SelectionSync,
   Frm.Main.PropertyPanelActions,
   Frm.Main.PropertyPanelEvents,
   Frm.Main.PropertyPanelState,
   Frm.Main.SampleDataHelpers,
   Frm.Main.QuickActions,
+  Frm.Main.UiStateHelpers,
+  Frm.Main.DialogHelpers,
+  Frm.Main.RecentFiles,
+  DesignerPreferences,
   Frm.DesignerOptions,
   Frm.ScriptEditor,
   Frm.ExpressionHelper,
@@ -371,6 +376,8 @@ type
     FReportRegressionTestsMenu: TMenuItem;
     FReportMenuSeparator: TMenuItem;
     FSampleDataSet: TFDMemTable;
+    FRecentFiles: TList<string>;
+    FPreferences: TDesignerPreferencesService;
     // Session-only in-memory expression recents are now handled by Frm.ExpressionHelper.
 
     // Command-line mode: set when launched by the component editor
@@ -384,6 +391,15 @@ type
     procedure UpdateMenuState;
     procedure ConfigureLayoutGuidance;
     procedure ConfigureViewToggleStrip;
+    procedure LoadDesignerPreferences;
+    procedure SaveDesignerPreferences;
+    procedure LoadRecentFiles;
+    procedure SaveRecentFiles;
+    procedure UpdateRecentFilesMenu;
+    procedure AddRecentFile(const AFileName: string);
+    procedure ClearRecentFiles(Sender: TObject);
+    procedure RecentFileClick(Sender: TObject);
+    function  FindRecentFilesMenu: TMenuItem;
     procedure InitializeToolbarZoomCombo;
     procedure UpdateZoomControls;
     function  FitPageWidthZoom: Integer;
@@ -619,6 +635,9 @@ begin
   FDesigner.Width := 1200;
   FDesigner.Height := 1600;
   FDataSource1 := TDataSource.Create(Self);
+  FRecentFiles := TList<string>.Create;
+  FPreferences := TDesignerPreferencesService.Create;
+  OnDestroy := FormDestroy;
 
   // Ensure the Toolbox knows all registered types (including Barcode + Table
   // which self-register in their unit initialization sections)
@@ -810,6 +829,8 @@ begin
   dlgSave.DefaultExt := 'vrt';
   ConfigureLayoutGuidance;
   ConfigureViewToggleStrip;
+  LoadDesignerPreferences;
+  LoadRecentFiles;
 
   FCurrentFile := '';
   FModified    := False;
@@ -961,10 +982,6 @@ begin
   mnuHelp.Add(MI);
 end;
 
-procedure TfrmMain.FormDestroy(Sender: TObject);
-begin
-end;
-
 procedure TfrmMain.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   CanClose := True;
@@ -984,11 +1001,22 @@ begin
       on E: Exception do
         ShowMessage('Could not save report: ' + E.Message);
     end;
+    SaveDesignerPreferences;
+    SaveRecentFiles;
     Exit; // skip the normal "save changes?" prompt
   end;
 
   if FModified or FReportMetadataDirty then
     ConfirmSaveIfModified;
+
+  SaveDesignerPreferences;
+  SaveRecentFiles;
+end;
+
+procedure TfrmMain.FormDestroy(Sender: TObject);
+begin
+  FreeAndNil(FPreferences);
+  FreeAndNil(FRecentFiles);
 end;
 
 procedure TfrmMain.CommitReportMetadataValues(const ANewTitle, ANewAuthor,
@@ -1099,6 +1127,7 @@ begin
   if not dlgOpen.Execute then Exit;
   try
     LoadDesignerReportFromFile(dlgOpen.FileName, False);
+    AddRecentFile(dlgOpen.FileName);
   except
     on E: Exception do
       ShowMessage('Error loading report: ' + E.Message);
@@ -1119,6 +1148,7 @@ begin
       FReportMetadataDirty := False;
       UpdateTitleBar;
       StatusBar1.Panels[1].Text := 'Saved: ' + ExtractFileName(FCurrentFile);
+      AddRecentFile(FCurrentFile);
     except
       on E: Exception do
         ShowMessage('Error saving report: ' + E.Message);
@@ -5017,65 +5047,120 @@ end;
 { =========================================================================== }
 
 procedure TfrmMain.UpdateTitleBar;
-var
-  Title: string;
 begin
-  Title := 'Vittix Report Designer';
-  if FCurrentFile <> '' then
-    Title := Title + '  —  ' + ExtractFileName(FCurrentFile);
-  if FModified or FReportMetadataDirty then
-    Title := Title + ' *';
-  Caption := Title;
+  Frm.Main.UiStateHelpers.UpdateTitleBarText(
+    FCurrentFile,
+    FModified,
+    FReportMetadataDirty,
+    procedure(const ATitle: string)
+    begin
+      Caption := ATitle;
+    end);
 end;
 
 procedure TfrmMain.ConfigureLayoutGuidance;
 begin
-  btnAlignLeft.Hint := 'Align selected objects to the leftmost edge in the selection';
-  btnAlignRight.Hint := 'Align selected objects to the rightmost edge in the selection';
-  btnAlignTop.Hint := 'Align selected objects to the topmost edge in the selection';
-  btnAlignBottom.Hint := 'Align selected objects to the bottommost edge in the selection';
-  btnSameW.Hint := 'Make same width using last selected object as reference';
-  btnSameH.Hint := 'Make same height using last selected object as reference';
-  btnCenterH.Hint := 'Center selected objects horizontally on the page';
-  btnCenterV.Hint := 'Center vertically within each object''s band';
-  btnDistH.Hint := 'Distribute horizontally between current left/right bounds; works best within the same band';
-  btnDistV.Hint := 'Distribute vertically using object local band coordinates';
-  btnFront.Hint := 'Bring last selected object to front';
-  btnBack.Hint := 'Send last selected object to back';
-  btnFrontQuick.Hint := 'Bring last selected object to front';
-  btnBackQuick.Hint := 'Send last selected object to back';
-  btnFrontQuick.ShowHint := True;
-  btnBackQuick.ShowHint := True;
-
-  mnuAlignLeft.Hint := btnAlignLeft.Hint;
-  mnuAlignRight.Hint := btnAlignRight.Hint;
-  mnuAlignTop.Hint := btnAlignTop.Hint;
-  mnuAlignBottom.Hint := btnAlignBottom.Hint;
-  mnuSameWidth.Hint := btnSameW.Hint;
-  mnuSameHeight.Hint := btnSameH.Hint;
-  mnuCenterH.Hint := btnCenterH.Hint;
-  mnuCenterV.Hint := btnCenterV.Hint;
-  mnuDistH.Hint := btnDistH.Hint;
-  mnuDistV.Hint := btnDistV.Hint;
-  mnuFront.Hint := btnFront.Hint;
-  mnuBack.Hint := btnBack.Hint;
-
-  mnuShowGrid.Hint := 'Show or hide the designer grid';
-  mnuSnapGrid.Hint := 'Snap moved and resized objects to the designer grid';
-  mnuShowRulers.Hint := 'Show or hide page rulers around the designer surface';
-  mnuShowMargins.Hint := 'Show or hide page margin guides';
-  btnZoomIn.Hint := 'Zoom in the designer surface';
-  btnZoomOut.Hint := 'Zoom out the designer surface';
-  btnZoomApply.Hint := 'Apply zoom percentage';
-  mnuZoomIn.Hint := btnZoomIn.Hint;
-  mnuZoomOut.Hint := btnZoomOut.Hint;
-  mnuZoomReset.Hint := 'Reset zoom to 100%';
+  Frm.Main.UiStateHelpers.ConfigureLayoutGuidance(
+    btnAlignLeft, btnAlignRight, btnAlignTop, btnAlignBottom,
+    btnSameW, btnSameH, btnCenterH, btnCenterV, btnDistH, btnDistV,
+    btnFront, btnBack, btnFrontQuick, btnBackQuick,
+    mnuAlignLeft, mnuAlignRight, mnuAlignTop, mnuAlignBottom,
+    mnuSameWidth, mnuSameHeight, mnuCenterH, mnuCenterV,
+    mnuDistH, mnuDistV, mnuFront, mnuBack,
+    mnuShowGrid, mnuSnapGrid, mnuShowRulers, mnuShowMargins,
+    btnZoomIn, btnZoomOut, btnZoomApply,
+    mnuZoomIn, mnuZoomOut, mnuZoomReset);
 end;
 
 procedure TfrmMain.ConfigureViewToggleStrip;
 begin
   Frm.Main.ViewHelpers.ConfigureViewToggleStrip(CheckListBox1);
   CheckListBox1.OnClickCheck := CheckListBox1ClickCheck;
+end;
+
+procedure TfrmMain.LoadDesignerPreferences;
+begin
+  if Assigned(FPreferences) then
+    FPreferences.LoadDesignerPreferences(FDesigner);
+end;
+
+function TfrmMain.FindRecentFilesMenu: TMenuItem;
+var
+  I: Integer;
+begin
+  Result := nil;
+  if not Assigned(mnuFile) then
+    Exit;
+
+  for I := 0 to mnuFile.Count - 1 do
+    if SameText(mnuFile.Items[I].Caption, 'Recent &Files') then
+      Exit(mnuFile.Items[I]);
+end;
+
+procedure TfrmMain.LoadRecentFiles;
+begin
+  if Assigned(FPreferences) then
+    FPreferences.LoadRecentFiles(FRecentFiles);
+  UpdateRecentFilesMenu;
+end;
+
+procedure TfrmMain.SaveRecentFiles;
+begin
+  if Assigned(FPreferences) then
+    FPreferences.SaveRecentFiles(FRecentFiles);
+end;
+
+procedure TfrmMain.UpdateRecentFilesMenu;
+begin
+  if not Assigned(mnuFile) or not Assigned(mnuOpen) then
+    Exit;
+  BuildRecentFilesMenu(mnuFile, mnuOpen, mnuSaveAs, FRecentFiles, RecentFileClick, ClearRecentFiles);
+end;
+
+procedure TfrmMain.AddRecentFile(const AFileName: string);
+begin
+  if Assigned(FPreferences) then
+    FPreferences.AddRecentFile(FRecentFiles, AFileName);
+  UpdateRecentFilesMenu;
+end;
+
+procedure TfrmMain.ClearRecentFiles(Sender: TObject);
+begin
+  if Assigned(FPreferences) then
+    FPreferences.ClearRecentFiles(FRecentFiles);
+  UpdateRecentFilesMenu;
+  SaveRecentFiles;
+end;
+
+procedure TfrmMain.RecentFileClick(Sender: TObject);
+var
+  MI: TMenuItem;
+  FN: string;
+begin
+  if not (Sender is TMenuItem) then
+    Exit;
+
+  MI := TMenuItem(Sender);
+  FN := MI.Hint;
+  if (FN = '') and (MI.Tag >= 0) and (MI.Tag < FRecentFiles.Count) then
+    FN := FRecentFiles[MI.Tag];
+  if FN = '' then
+    Exit;
+
+  ConfirmSaveIfModified;
+  try
+    LoadDesignerReportFromFile(FN, False);
+    AddRecentFile(FN);
+  except
+    on E: Exception do
+      ShowMessage('Error loading report: ' + E.Message);
+  end;
+end;
+
+procedure TfrmMain.SaveDesignerPreferences;
+begin
+  if Assigned(FPreferences) then
+    FPreferences.SaveDesignerPreferences(FDesigner);
 end;
 
 procedure TfrmMain.UpdateStatusBar;
@@ -5114,12 +5199,13 @@ end;
 
 procedure TfrmMain.ConfirmSaveIfModified;
 begin
-  if not (FModified or FReportMetadataDirty) then Exit;
-  case MessageDlg('The report has unsaved changes. Save now?',
-                  mtConfirmation, [mbYes, mbNo, mbCancel], 0) of
-    mrYes:    mnuSaveClick(nil);
-    mrCancel: Abort;
-  end;
+  Frm.Main.DialogHelpers.ConfirmSaveIfModified(
+    FModified,
+    FReportMetadataDirty,
+    procedure
+    begin
+      mnuSaveClick(nil);
+    end);
 end;
 
 function TfrmMain.StructureBandCaption(ABand: TReportBand): string;
@@ -5143,78 +5229,26 @@ begin
 end;
 
 procedure TfrmMain.SyncReportStructureSelection;
-var
-  Node: TTreeNode;
-  Target: TReportObject;
 begin
-  if not Assigned(FTreeStructure) or (FTreeStructure.Items.Count = 0) then
-    Exit;
-
-  Target := CurrentPropertyTarget;
-  if Assigned(Target) then
-    Node := FindStructureNodeByData(Target)
-  else
-    Node := FTreeStructure.Items.GetFirstNode;
-
-  if Assigned(Node) then
-  begin
-    FUpdatingStructureSelection := True;
-    try
-      FTreeStructure.Selected := Node;
-      Node.MakeVisible;
-    finally
-      FUpdatingStructureSelection := False;
-    end;
-  end;
+  Frm.Main.SelectionSync.SyncReportStructureSelection(
+    FTreeStructure, CurrentPropertyTarget, FUpdatingStructureSelection);
 end;
 
 procedure TfrmMain.StructureTreeChange(Sender: TObject; Node: TTreeNode);
 begin
-  if FUpdatingStructureSelection or not Assigned(FDesigner) then
-    Exit;
-
-  if not Assigned(Node) or not Assigned(Node.Data) then
-    FDesigner.SelectObject(nil)
-  else
-    FDesigner.SelectObject(TReportObject(Node.Data));
+  Frm.Main.SelectionSync.StructureTreeChange(
+    FTreeStructure, FDesigner, FUpdatingStructureSelection, Sender, Node);
 end;
 
 procedure TfrmMain.StructureTreeDblClick(Sender: TObject);
-var
-  Node: TTreeNode;
 begin
-  if not Assigned(FTreeStructure) or not Assigned(FDesigner) then
-    Exit;
-
-  Node := FTreeStructure.Selected;
-  if not Assigned(Node) then
-    Exit;
-
-  // Reinforce existing selection path without mutating report state.
-  if Assigned(Node.Data) then
-    FDesigner.SelectObject(TReportObject(Node.Data));
-
-  if Assigned(FDesigner.Parent) and FDesigner.Parent.CanFocus then
-    FDesigner.Parent.SetFocus
-  else if FDesigner.CanFocus then
-    FDesigner.SetFocus;
-
-  FDesigner.Invalidate;
+  Frm.Main.SelectionSync.StructureTreeDblClick(FTreeStructure, FDesigner);
 end;
 
 procedure TfrmMain.StructureTreeMouseDown(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
-var
-  Node: TTreeNode;
 begin
-  if (Button <> mbRight) or not Assigned(FTreeStructure) then
-    Exit;
-
-  Node := FTreeStructure.GetNodeAt(X, Y);
-  if Assigned(Node) then
-    FTreeStructure.Selected := Node
-  else
-    FTreeStructure.Selected := nil;
+  Frm.Main.SelectionSync.StructureTreeMouseDown(FTreeStructure, Button, X, Y);
 end;
 
 procedure TfrmMain.StructureTreePopupPopup(Sender: TObject);

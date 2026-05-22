@@ -115,6 +115,7 @@ begin
     try
       Rend.Render(AReport, ADataSet);
       PageCount := Rend.Pages.Count;
+      Preview.Margins := AReport.PageSettings.Margins;
       if PageCount > 0 then
       begin
         PageW := Rend.Pages[0].Bitmap.Width;
