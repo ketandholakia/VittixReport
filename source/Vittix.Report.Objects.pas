@@ -798,7 +798,29 @@ begin
     end;
   end;
 
-  DrawText(C.Handle, PChar(S), Length(S), TR, Fmt);
+  if FWordWrap then
+    DrawText(C.Handle, PChar(S), Length(S), TR, Fmt)
+  else
+  begin
+    var X := TR.Left;
+    var Y := TR.Top;
+    var TW := C.TextWidth(S);
+    var TH := C.TextHeight(S);
+
+    case FHAlign of
+      taRightJustify: X := TR.Right - TW;
+      taCenter:       X := TR.Left + ((TR.Right - TR.Left - TW) div 2);
+    end;
+
+    case FVAlign of
+      taAlignBottom:   Y := TR.Bottom - TH;
+      taVerticalCenter:Y := TR.Top + ((TR.Bottom - TR.Top - TH) div 2);
+    end;
+
+    if X < TR.Left then X := TR.Left;
+    if Y < TR.Top then Y := TR.Top;
+    C.TextOut(X, Y, S);
+  end;
 
   if FSelected then DrawSelection(C);
 end;
