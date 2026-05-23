@@ -75,6 +75,7 @@ implementation
 const
   HANDLE_SZ = 3;
   BAND_SEP_HT = 4;
+  BAND_HDR_H  = 14;
 
 function DesignerScreenToPage(
   const P: TPoint;
@@ -95,6 +96,7 @@ var
   Idx : Integer;
   BandY: Integer;
   ContentLeft: Integer;
+  PrintableW: Integer;
 begin
   Band := ABandOwner(AObj);
   BandY := 0;
@@ -105,10 +107,13 @@ begin
       BandY := ABandLayouts[Idx].Y;
   end;
   ContentLeft   := APageLeft + MulDiv(AMarginLeft, AZoom, 100);
+  PrintableW    := MulDiv(AObj.Bounds.Right - AObj.Bounds.Left, AZoom, 100);
   Result.Left   := ContentLeft + MulDiv(AObj.Bounds.Left, AZoom, 100);
-  Result.Top    := APageTop  + MulDiv(BandY + AObj.Bounds.Top, AZoom, 100);
+  Result.Top    := APageTop  + MulDiv(BandY + BAND_HDR_H + AObj.Bounds.Top, AZoom, 100);
   Result.Right  := ContentLeft + MulDiv(AObj.Bounds.Right, AZoom, 100);
-  Result.Bottom := APageTop  + MulDiv(BandY + AObj.Bounds.Bottom, AZoom, 100);
+  Result.Bottom := APageTop  + MulDiv(BandY + BAND_HDR_H + AObj.Bounds.Bottom, AZoom, 100);
+  if Result.Right < Result.Left then
+    Result.Right := Result.Left + PrintableW;
 end;
 
 function DesignerObjScreenRect(
@@ -136,7 +141,7 @@ begin
   HitBand := nil;
   for I := 0 to High(ABandLayouts) do
   begin
-    SepY := APageTop + MulDiv(ABandLayouts[I].Y + ABandLayouts[I].Height, AZoom, 100);
+    SepY := APageTop + MulDiv(ABandLayouts[I].Y + ABandLayouts[I].Height + BAND_HDR_H, AZoom, 100);
     if Abs(ScreenPt.Y - SepY) <= BAND_SEP_HT then
     begin
       HitBand := ABandLayouts[I].Band;

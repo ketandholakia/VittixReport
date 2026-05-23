@@ -13,7 +13,9 @@ implementation
 
 uses
   System.SysUtils,
-  Vittix.Report.Objects;
+  Vittix.Report.Objects,
+  Vittix.Report.Bands,
+  Frm.Main.Helpers;
 
 procedure ConfigureViewToggleStrip(ACheckListBox: TCheckListBox);
 begin
@@ -50,18 +52,29 @@ begin
   begin
     Obj := ADesigner.PrimarySelected;
     if Assigned(Obj) then
-      AStatusBar.Panels[0].Text :=
-        'Selected: ' + Obj.ClassName +
-        ' | X=' + IntToStr(Obj.Bounds.Left) +
-        ' Y=' + IntToStr(Obj.Bounds.Top) +
-        ' W=' + IntToStr(Obj.Bounds.Width) +
-        ' H=' + IntToStr(Obj.Bounds.Height)
+    begin
+      if Obj is TReportBand then
+        AStatusBar.Panels[0].Text :=
+          'Selected band: ' + BandTypeName(TReportBand(Obj).BandType) +
+          ' (' + TReportBand(Obj).Name + ')' +
+          ' | Y=' + IntToStr(TReportBand(Obj).Bounds.Top) +
+          ' | Height=' + IntToStr(TReportBand(Obj).Height) +
+          ' | Resize: drag the band edge'
+      else
+        AStatusBar.Panels[0].Text :=
+          'Selected: ' + Obj.ClassName +
+          ' | X=' + IntToStr(Obj.Bounds.Left) +
+          ' Y=' + IntToStr(Obj.Bounds.Top) +
+          ' W=' + IntToStr(Obj.Bounds.Width) +
+          ' H=' + IntToStr(Obj.Bounds.Height) +
+          ' | Resize: drag handles (Shift = constrain)';
+    end
     else
       AStatusBar.Panels[0].Text := '1 object selected';
   end
   else
     AStatusBar.Panels[0].Text :=
-      IntToStr(SelCount) + ' objects selected | Reference: last selected';
+      IntToStr(SelCount) + ' objects selected | Resize: drag the union handles (Shift = constrain)';
 
   if AStatusBar.Panels.Count > 2 then
     AStatusBar.Panels[2].Text := 'Zoom: ' + IntToStr(ADesigner.Zoom) + '%';

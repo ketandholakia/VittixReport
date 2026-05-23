@@ -19,6 +19,7 @@ type
     ShowMargins: Boolean;
     PageColor: TColor;
     CanvasColor: TColor;
+    BandGap: Integer;
   end;
 
   TDesignerPreferencesService = class
@@ -77,6 +78,7 @@ begin
     ADesigner.ShowMargins := Ini.ReadBool('Designer', 'ShowMargins', ADesigner.ShowMargins);
     ADesigner.PageColor   := TColor(Ini.ReadInteger('Designer', 'PageColor', Integer(ADesigner.PageColor)));
     ADesigner.CanvasColor := TColor(Ini.ReadInteger('Designer', 'CanvasColor', Integer(ADesigner.CanvasColor)));
+    ADesigner.BandGap     := Ini.ReadInteger('Designer', 'BandGap', ADesigner.BandGap);
   finally
     Ini.Free;
   end;
@@ -98,6 +100,7 @@ begin
     Ini.WriteBool('Designer', 'ShowMargins', ADesigner.ShowMargins);
     Ini.WriteInteger('Designer', 'PageColor', Integer(ADesigner.PageColor));
     Ini.WriteInteger('Designer', 'CanvasColor', Integer(ADesigner.CanvasColor));
+    Ini.WriteInteger('Designer', 'BandGap', ADesigner.BandGap);
   finally
     Ini.Free;
   end;

@@ -80,8 +80,8 @@ begin
       Exit;
 
     Cmd := TTextFontChangeCommand.Create(TReportTextObject(Obj), OldFont, NewFont);
-    if Assigned(ADesigner) then
-      ADesigner.ExecuteUndoCommand(Cmd)
+    if Assigned(ADesigner) and Assigned(ADesigner.Commands) then
+      ADesigner.Commands.DoCommand(Cmd)
     else
       Cmd.Free;
 

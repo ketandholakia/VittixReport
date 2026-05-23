@@ -20,6 +20,8 @@ type
     FPageColorSwatch: TPanel;
     FCanvasColorBtn: TButton;
     FCanvasColorSwatch: TPanel;
+    FBandGapLabel: TLabel;
+    FBandGapEdit: TEdit;
     FGapLabel: TLabel;
     FOK: TButton;
     FCancel: TButton;
@@ -47,7 +49,7 @@ begin
   Position := poScreenCenter;
   BorderStyle := bsDialog;
   ClientWidth := 470;
-  ClientHeight := 255;
+  ClientHeight := 290;
   BorderIcons := [biSystemMenu];
 
   P := TPanel.Create(Self);
@@ -141,6 +143,15 @@ begin
   FCanvasColorSwatch.ParentBackground := False;
   FCanvasColorSwatch.Caption := '';
 
+  FBandGapLabel := TLabel.Create(Self);
+  FBandGapLabel.Parent := Self;
+  FBandGapLabel.SetBounds(268, 186, 100, 16);
+  FBandGapLabel.Caption := 'Band spacing';
+
+  FBandGapEdit := TEdit.Create(Self);
+  FBandGapEdit.Parent := Self;
+  FBandGapEdit.SetBounds(268, 206, 60, 23);
+
   UpdateUnitCaption;
 end;
 
@@ -156,6 +167,7 @@ begin
   FShowMargins.Checked := ADesigner.ShowMargins;
   FPageColorBtn.Tag := ADesigner.PageColor;
   FCanvasColorBtn.Tag := ADesigner.CanvasColor;
+  FBandGapEdit.Text := IntToStr(ADesigner.BandGap);
   SyncColorSwatches;
   UpdateUnitCaption;
 end;
@@ -171,6 +183,7 @@ begin
   ADesigner.ShowMargins := FShowMargins.Checked;
   ADesigner.PageColor := TColor(FPageColorBtn.Tag);
   ADesigner.CanvasColor := TColor(FCanvasColorBtn.Tag);
+  ADesigner.BandGap := StrToIntDef(FBandGapEdit.Text, ADesigner.BandGap);
 end;
 
 procedure TfrmDesignerOptions.RestoreDefaults(Sender: TObject);
@@ -184,6 +197,7 @@ begin
     FShowMargins.Checked := True;
     FPageColorBtn.Tag := ColorToRGB(clWhite);
     FCanvasColorBtn.Tag := ColorToRGB($00808080);
+    FBandGapEdit.Text := '4';
     SyncColorSwatches;
   end;
 end;

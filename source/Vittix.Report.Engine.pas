@@ -38,6 +38,7 @@ uses
   Vittix.Report.Objects,
   Vittix.Report.Context,
   Vittix.Report.Scripting,
+  Vittix.Report.LayoutCache,
   Vittix.Report.Interfaces;   // IReportProgress
 
 type
@@ -273,56 +274,19 @@ end;
 { ================= Band Cache ================= }
 
 procedure TReportEngine.CacheBands;
-var
-  Obj: TReportObject;
 begin
-  FTitleBand        := nil;
-  FHeaderBand       := nil;
-  FColumnHeaderBand := nil;
-  FMasterBand       := nil;
-  FFooterBand       := nil;
-  FSummaryBand      := nil;
-  FOverlayBand      := nil;
-  
-  FGroupHeaders.Clear;
-  FGroupFooters.Clear;
-  FDetailBands.Clear;
-
-  for Obj in FReport.Objects do
-    if Obj is TReportBand then
-      case TReportBand(Obj).BandType of
-        btReportTitle:   FTitleBand        := TReportBand(Obj);
-        btPageHeader:    FHeaderBand       := TReportBand(Obj);
-        btColumnHeader:  FColumnHeaderBand := TReportBand(Obj);
-        btMasterData:    if not Assigned(FMasterBand) then
-                           FMasterBand := TReportBand(Obj);
-        btDetail:        FDetailBands.Add(TReportBand(Obj));
-        btPageFooter:    FFooterBand       := TReportBand(Obj);
-        btReportSummary: FSummaryBand      := TReportBand(Obj);
-        btOverlay:       FOverlayBand      := TReportBand(Obj);
-        btGroupHeader:   FGroupHeaders.Add(TReportBand(Obj));
-        btGroupFooter:   FGroupFooters.Add(TReportBand(Obj));
-      end;
-
-  // Backward compatibility: if a legacy report uses btDetail as the only data band,
-  // treat the first detail band as the master loop.
-  if (not Assigned(FMasterBand)) and (FDetailBands.Count > 0) then
-  begin
-    FMasterBand := FDetailBands[0];
-    FDetailBands.Delete(0);
-  end;
-      
-  FGroupHeaders.Sort(TComparer<TReportBand>.Construct(
-    function(const L, R: TReportBand): Integer
-    begin
-      Result := L.GroupLevel - R.GroupLevel;
-    end));
-    
-  FGroupFooters.Sort(TComparer<TReportBand>.Construct(
-    function(const L, R: TReportBand): Integer
-    begin
-      Result := R.GroupLevel - L.GroupLevel;  // Reverse for footers
-    end));
+  CacheReportBands(
+    FReport,
+    FTitleBand,
+    FHeaderBand,
+    FColumnHeaderBand,
+    FMasterBand,
+    FFooterBand,
+    FSummaryBand,
+    FOverlayBand,
+    FGroupHeaders,
+    FGroupFooters,
+    FDetailBands);
 end;
 
 { ================= Page Lifecycle ================= }

@@ -342,6 +342,7 @@ type
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+    procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
 
   private
     FCurrentFile: string;
@@ -622,6 +623,7 @@ var
       SetOrdProp(AObj, PI, AValue);
   end;
 begin
+  KeyPreview := True;
   // Defensive registration for command-line open mode.
   // Some environments can start with an incomplete registry; ensure bands
   // always deserialize from ReportJSON.
@@ -630,8 +632,8 @@ begin
   // Designer control is created at runtime (not streamed from DFM).
   FDesigner := TVittixReportDesigner.Create(Self);
   FDesigner.Parent := ScrollBox1;
-  FDesigner.Left := 16;
-  FDesigner.Top := 16;
+  FDesigner.Left := 0;
+  FDesigner.Top := 0;
   FDesigner.Width := 1200;
   FDesigner.Height := 1600;
   FDataSource1 := TDataSource.Create(Self);
@@ -1047,7 +1049,8 @@ begin
     Cmd := TReportMetadataChangeCommand.Create(Self, FDesigner.Report,
       OldTitle, OldAuthor, OldDescription,
       ANewTitle, ANewAuthor, ANewDescription);
-    FDesigner.ExecuteUndoCommand(Cmd);
+    if Assigned(FDesigner) and Assigned(FDesigner.Commands) then
+      FDesigner.Commands.DoCommand(Cmd);
   end
   else
   begin
@@ -1131,6 +1134,15 @@ begin
   except
     on E: Exception do
       ShowMessage('Error loading report: ' + E.Message);
+  end;
+end;
+
+procedure TfrmMain.FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+begin
+  if Key = VK_F5 then
+  begin
+    mnuPreviewClick(Sender);
+    Key := 0;
   end;
 end;
 
@@ -1230,13 +1242,15 @@ end;
 
 procedure TfrmMain.mnuUndoClick(Sender: TObject);
 begin
-  FDesigner.Undo;
+  if Assigned(FDesigner) and Assigned(FDesigner.Commands) then
+    FDesigner.Commands.Undo;
   RefreshAfterUndoRedo;
 end;
 
 procedure TfrmMain.mnuRedoClick(Sender: TObject);
 begin
-  FDesigner.Redo;
+  if Assigned(FDesigner) and Assigned(FDesigner.Commands) then
+    FDesigner.Commands.Redo;
   RefreshAfterUndoRedo;
 end;
 
@@ -1305,7 +1319,14 @@ begin
   Band.Height   := 40;
   Cmd := TInsertObjectCommand.Create(FDesigner.Report.Objects, Band);
   Cmd.ActionName := 'Add Band';
-  FDesigner.ExecuteUndoCommand(Cmd);
+  if Assigned(FDesigner) and Assigned(FDesigner.Commands) then
+    FDesigner.Commands.DoCommand(Cmd);
+  if Assigned(FDesigner) then
+  begin
+    FDesigner.RebuildLayout;
+    RefreshReportStructure;
+    UpdateAll;
+  end;
   StatusBar1.Panels[1].Text := 'Band added: ' + BandTypeName(ABandType);
 end;
 
@@ -4342,11 +4363,11 @@ begin
     Exit;
 
   if FDesigner.ShowRulers then
-    LeftPad := RULER_W + PAGE_PAD
+    LeftPad := 0
   else
-    LeftPad := PAGE_PAD;
+    LeftPad := 0;
 
-  AvailW := ScrollBox1.ClientWidth - LeftPad - PAGE_PAD - 8;
+  AvailW := ScrollBox1.ClientWidth - LeftPad - 8;
   if AvailW <= 0 then
     Exit;
 
@@ -4369,17 +4390,17 @@ begin
 
   if FDesigner.ShowRulers then
   begin
-    LeftPad := RULER_W + PAGE_PAD;
-    TopPad := RULER_W + PAGE_PAD;
+    LeftPad := 0;
+    TopPad := 0;
   end
   else
   begin
-    LeftPad := PAGE_PAD;
-    TopPad := PAGE_PAD;
+    LeftPad := 0;
+    TopPad := 0;
   end;
 
-  AvailW := ScrollBox1.ClientWidth - LeftPad - PAGE_PAD - 8;
-  AvailH := ScrollBox1.ClientHeight - TopPad - PAGE_PAD - 8;
+  AvailW := ScrollBox1.ClientWidth - LeftPad - 8;
+  AvailH := ScrollBox1.ClientHeight - TopPad - 8;
   if (AvailW <= 0) or (AvailH <= 0) then
     Exit;
 
@@ -4490,20 +4511,27 @@ var
   Frm: TfrmPreview;
   DS: TDataSet;
 begin
-  CommitReportMetadataChanges(True);
-
-  if not TryGetPreviewDataSet(DS) then
-  begin
-    ShowMessage('No dataset is available for preview.');
-    Exit;
-  end;
-
-  Frm := TfrmPreview.Create(Application);
   try
-    Frm.LoadReport(FDesigner.Report, DS);
-    Frm.ShowModal;
-  finally
-    Frm.Free;
+    CommitReportMetadataChanges(True);
+    if Assigned(FDesigner) then
+      FDesigner.RebuildLayout;
+
+    if not TryGetPreviewDataSet(DS) then
+    begin
+      ShowMessage('No dataset is available for preview.');
+      Exit;
+    end;
+
+    Frm := TfrmPreview.Create(Application);
+    try
+      Frm.LoadReport(FDesigner.Report, DS);
+      Frm.ShowModal;
+    finally
+      Frm.Free;
+    end;
+  except
+    on E: Exception do
+      ShowMessage('Preview error: ' + E.Message);
   end;
 end;
 
@@ -4529,7 +4557,8 @@ begin
       if PageSettingsChanged(OldSettings, NewSettings) then
       begin
         Cmd := TPageSettingsChangeCommand.Create(FDesigner, OldSettings, NewSettings);
-        FDesigner.ExecuteUndoCommand(Cmd);
+        if Assigned(FDesigner) and Assigned(FDesigner.Commands) then
+          FDesigner.Commands.DoCommand(Cmd);
       end;
     end;
   finally
@@ -4725,6 +4754,7 @@ begin
     UpdatePropertyPanel,
     UpdateMenuState,
     SyncReportStructureSelection);
+  UpdateStatusBar;
 end;
 
 procedure TfrmMain.DesignerModified(Sender: TObject);
@@ -4809,7 +4839,8 @@ begin
     Exit;
 
   Cmd := TReportSnapshotCommand.Create(FDesigner, ABeforeJSON, AAfterJSON);
-  FDesigner.ExecuteUndoCommand(Cmd);
+  if Assigned(FDesigner) and Assigned(FDesigner.Commands) then
+    FDesigner.Commands.DoCommand(Cmd);
 end;
 
 procedure TfrmMain.ShowReportPropertiesDialog;

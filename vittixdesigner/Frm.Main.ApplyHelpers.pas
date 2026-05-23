@@ -128,8 +128,10 @@ begin
       Cmd := TPropertyBatchChangeCommand.Create(Obj, ChangedNames, OldValues, NewValues);
       if not Assigned(ADesigner) then
         Cmd.Free
+      else if Assigned(ADesigner.Commands) then
+        ADesigner.Commands.DoCommand(Cmd)
       else
-        ADesigner.ExecuteUndoCommand(Cmd);
+        Cmd.Free;
     end;
 
     if Assigned(ADesigner) then

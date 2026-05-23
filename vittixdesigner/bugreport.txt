@@ -1,1270 +1,76 @@
-date/time          : 2026-05-19, 11:43:46, 224ms
+date/time          : 2026-05-23, 12:48:44, 937ms
 computer name      : RL
 user name          : Admin <admin>
 registered owner   : Windows User
 operating system   : Windows 11 x64 build 26100
 system language    : English
-system up time     : 2 days 2 hours
-program up time    : 6 seconds
+system up time     : 1 day 2 hours
+program up time    : 5 minutes 46 seconds
 processors         : 12x Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
-physical memory    : 1720/16187 MB (free/total)
-free disk space    : (C:) 115.92 GB (D:) 15.54 GB
+physical memory    : 3970/16187 MB (free/total)
+free disk space    : (C:) 114.41 GB (D:) 13.94 GB
 display mode       : 1920x1080, 32 bit
-process id         : $2144
-allocated memory   : 73.43 MB
-largest free block : 1.13 GB
+process id         : $5a78
+allocated memory   : 75.72 MB
+largest free block : 1.35 GB
 executable         : VittixDesigner.exe
-exec. date/time    : 2026-05-19 11:43
+exec. date/time    : 2026-05-23 12:42
 version            : 1.0.0.0
 compiled with      : Delphi 12
 madExcept version  : 5.2.0
-callstack crc      : $f5812c68, $ba3e2300, $ba3e2300
-exception number   : 5
+callstack crc      : $85c9918c, $d627e1e9, $d627e1e9
+exception number   : 9
 exception class    : EAccessViolation
-exception message  : Access violation at address 0074B76F in module 'VittixDesigner.exe' (offset 4FB76F). Read of address 00000000.
+exception message  : Access violation at address 00D373C9 in module 'VittixDesigner.exe' (offset 4373C9). Read of address 00000008.
 
-main thread ($5a04):
-0074b76f +04b VittixDesigner.exe Frm.Main       1803  +3 TfrmMain.mnuSaveAsClick
-0074b5b6 +03a VittixDesigner.exe Frm.Main       1781  +2 TfrmMain.mnuSaveClick
-0042003b +073 VittixDesigner.exe Vcl.Controls            TControl.Click
-0046f438 +000 VittixDesigner.exe Vcl.ComCtrls            TToolButton.Click
-004204ef +077 VittixDesigner.exe Vcl.Controls            TControl.WMLButtonUp
-0041fae2 +2be VittixDesigner.exe Vcl.Controls            TControl.WndProc
-0041f718 +024 VittixDesigner.exe Vcl.Controls            TControl.Perform
-0042475c +0b0 VittixDesigner.exe Vcl.Controls            GetControlAtPos
-0042482e +0ae VittixDesigner.exe Vcl.Controls            InternalControlAtPos
-0041f718 +024 VittixDesigner.exe Vcl.Controls            TControl.Perform
-00424985 +121 VittixDesigner.exe Vcl.Controls            TWinControl.IsControlMouseMsg
-00424fdc +4ec VittixDesigner.exe Vcl.Controls            TWinControl.WndProc
-004746e2 +286 VittixDesigner.exe Vcl.ComCtrls            TToolBar.WndProc
-0042465c +02c VittixDesigner.exe Vcl.Controls            TWinControl.MainWndProc
-00394804 +014 VittixDesigner.exe System.Classes          StdWndProc
-75b46ffb +00b USER32.dll                                 DispatchMessageW
-004fda87 +0f3 VittixDesigner.exe Vcl.Forms               TApplication.ProcessMessage
-004fdaca +00a VittixDesigner.exe Vcl.Forms               TApplication.HandleMessage
-004fde09 +0d1 VittixDesigner.exe Vcl.Forms               TApplication.Run
-00782102 +09a VittixDesigner.exe VittixDesigner   69 +11 initialization
-00782186 +11e VittixDesigner.exe VittixDesigner   78 +20 initialization
-75365d47 +017 KERNEL32.DLL                               BaseThreadInitThunk
+main thread ($68c4):
+00d373c9 +075 VittixDesigner.exe Vittix.Report.Undo               357  +4 TDeleteObjectsCommand.Execute
+0090ffb5 +009 VittixDesigner.exe System                           132  +0 @IntfCopy
+00d0137b +01f VittixDesigner.exe Vittix.Report.Bands               47  +0 {System.Generics.Collections}TList<Vittix.Report.Objects.TReportObject>.UpdateComparer
+009096fd +01d VittixDesigner.exe System                           132  +0 @AfterConstruction
+00d369f9 +011 VittixDesigner.exe Vittix.Report.Undo               222  +1 TCommandManager.DoCommand
+00d39a39 +015 VittixDesigner.exe Vittix.Report.CommandDispatcher   43  +1 TCommandDispatcher.DoCommand
+00d46182 +25a VittixDesigner.exe Vittix.Report.DesignerControl    698 +31 TVittixReportDesigner.DeleteSelected
+00e0ff7f +02b VittixDesigner.exe Frm.Main                        1300  +6 TfrmMain.mnuDeleteClick
+00e29e3a +012 VittixDesigner.exe Frm.Main                        5311  +1 TfrmMain.StructureTreeDeleteClick
+00b8c23e +0aa VittixDesigner.exe Vcl.Menus                                TMenuItem.Click
+00b8da2b +013 VittixDesigner.exe Vcl.Menus                                TMenu.DispatchCommand
+00b8eca6 +082 VittixDesigner.exe Vcl.Menus                                TPopupList.WndProc
+00ad4b28 +02c VittixDesigner.exe Vcl.Controls                             TWinControl.MainWndProc
+00b8ebf5 +01d VittixDesigner.exe Vcl.Menus                                TPopupList.MainWndProc
+00a44848 +014 VittixDesigner.exe System.Classes                           StdWndProc
+75a16ffb +00b USER32.dll                                                  DispatchMessageW
+00badf53 +0f3 VittixDesigner.exe Vcl.Forms                                TApplication.ProcessMessage
+00badf96 +00a VittixDesigner.exe Vcl.Forms                                TApplication.HandleMessage
+00bae2d5 +0d1 VittixDesigner.exe Vcl.Forms                                TApplication.Run
+00e3c11a +09a VittixDesigner.exe VittixDesigner                    69 +11 initialization
+00e3c19e +11e VittixDesigner.exe VittixDesigner                    78 +20 initialization
+74eb5d47 +017 KERNEL32.DLL                                                BaseThreadInitThunk
 
-thread $48a4:
-75365d47 +17 KERNEL32.DLL  BaseThreadInitThunk
-
-thread $4b14:
-75365d47 +17 KERNEL32.DLL  BaseThreadInitThunk
-
-thread $56f4:
-75365d47 +17 KERNEL32.DLL  BaseThreadInitThunk
-
-thread $366c:
-75365d47 +17 KERNEL32.DLL  BaseThreadInitThunk
-
-thread $3c58:
-75365d47 +17 KERNEL32.DLL  BaseThreadInitThunk
-
-modules:
-00250000 VittixDesigner.exe     1.0.0.0         D:\ketan\github\VittixReport\vittixdesigner
-51190000 FaultRep.dll           10.0.26100.3624 C:\Windows\SYSTEM32
-60b90000 SHFolder.dll           10.0.26100.1    C:\Windows\SYSTEM32
-61470000 CoreUIComponents.dll   10.0.26100.3912 C:\Windows\SYSTEM32
-61710000 CoreMessaging.dll      10.0.26100.4202 C:\Windows\SYSTEM32
-617f0000 textinputframework.dll 10.0.26100.4484 C:\Windows\SYSTEM32
-61900000 TextShaping.dll        10.0.26100.4343 C:\Windows\SYSTEM32
-620d0000 apphelp.dll            10.0.26100.4484 C:\Windows\SYSTEM32
-6f260000 uxtheme.dll            10.0.26100.4484 C:\Windows\system32
-6f3f0000 ntmarta.dll            10.0.26100.4202 C:\Windows\SYSTEM32
-6f450000 MSASN1.dll             10.0.26100.4652 C:\Windows\SYSTEM32
-6fca0000 DEVOBJ.dll             10.0.26100.1    C:\Windows\SYSTEM32
-6fd10000 Windows.Storage.dll    10.0.26100.4484 C:\Windows\SYSTEM32
-70830000 DWMAPI.DLL             10.0.26100.4484 C:\Windows\SYSTEM32
-71530000 kernel.appcore.dll     10.0.26100.4202 C:\Windows\SYSTEM32
-715e0000 CRYPTBASE.DLL          10.0.26100.4652 C:\Windows\SYSTEM32
-71660000 winmm.dll              10.0.26100.4202 C:\Windows\SYSTEM32
-716d0000 SspiCli.dll            10.0.26100.4484 C:\Windows\SYSTEM32
-71700000 cfgmgr32.dll           10.0.26100.4202 C:\Windows\SYSTEM32
-71750000 wsock32.dll            10.0.26100.1    C:\Windows\SYSTEM32
-71d20000 oleacc.dll             7.2.26100.4484  C:\Windows\SYSTEM32
-71f30000 winspool.drv           10.0.26100.4484 C:\Windows\SYSTEM32
-721c0000 version.dll            10.0.26100.1    C:\Windows\SYSTEM32
-74ce0000 WTSAPI32.DLL           10.0.26100.4484 C:\Windows\SYSTEM32
-74d00000 COMCTL32.dll           6.10.26100.4484 C:\Windows\WinSxS\x86_microsoft.windows.common-controls_6595b64144ccf1df_6.0.26100.4484_none_85bba423f7ab1cb9
-75070000 sechost.dll            10.0.26100.4652 C:\Windows\System32
-75100000 RPCRT4.dll             10.0.26100.4652 C:\Windows\System32
-751c0000 WS2_32.dll             10.0.26100.4652 C:\Windows\System32
-75230000 ucrtbase.dll           10.0.26100.4652 C:\Windows\System32
-75350000 KERNEL32.DLL           10.0.26100.4652 C:\Windows\System32
-75450000 SHELL32.dll            10.0.26100.4484 C:\Windows\System32
-75a80000 SHLWAPI.dll            10.0.26100.4484 C:\Windows\System32
-75ae0000 GDI32.dll              10.0.26100.4484 C:\Windows\System32
-75b20000 USER32.dll             10.0.26100.4652 C:\Windows\System32
-75cf0000 oleaut32.dll           10.0.26100.4484 C:\Windows\System32
-75da0000 psapi.dll              10.0.26100.1    C:\Windows\System32
-75db0000 shcore.dll             10.0.26100.4652 C:\Windows\System32
-75fc0000 CRYPT32.dll            10.0.26100.3775 C:\Windows\System32
-766c0000 advapi32.dll           10.0.26100.4652 C:\Windows\System32
-767d0000 gdi32full.dll          10.0.26100.4652 C:\Windows\System32
-768d0000 msvcp_win.dll          10.0.26100.4652 C:\Windows\System32
-76960000 KERNELBASE.dll         10.0.26100.4652 C:\Windows\System32
-76ca0000 ole32.dll              10.0.26100.4484 C:\Windows\System32
-76e00000 WINTRUST.dll           10.0.26100.4484 C:\Windows\System32
-76ee0000 comdlg32.dll           10.0.26100.4484 C:\Windows\System32
-76fa0000 wintypes.dll           10.0.26100.4484 C:\Windows\System32
-770b0000 win32u.dll             10.0.26100.4652 C:\Windows\System32
-770d0000 MSCTF.dll              10.0.26100.4484 C:\Windows\System32
-771f0000 IMM32.DLL              10.0.26100.4484 C:\Windows\System32
-77220000 msvcrt.dll             7.0.26100.4652  C:\Windows\System32
-772f0000 bcryptPrimitives.dll   10.0.26100.4652 C:\Windows\System32
-77360000 combase.dll            10.0.26100.4652 C:\Windows\System32
-77600000 ntdll.dll              10.0.26100.4652 C:\Windows\SYSTEM32
-
-processes:
-0000 Idle                                0 0    0
-0004 System                              0 0    0
-00e8 Secure System                       0 0    0
-0108 Registry                            0 0    0
-02f4 smss.exe                            0 0    0
-0378 csrss.exe                           0 0    0
-0468 wininit.exe                         0 0    0
-0470 csrss.exe                           1 0    0
-04b0 services.exe                        0 0    0
-04c4 LsaIso.exe                          0 0    0
-04cc lsass.exe                           0 0    0
-0514 winlogon.exe                        1 0    0
-059c svchost.exe                         0 0    0
-05bc fontdrvhost.exe                     1 0    0
-05c4 fontdrvhost.exe                     0 0    0
-061c svchost.exe                         0 0    0
-0670 dwm.exe                             1 0    0
-06e4 svchost.exe                         0 0    0
-0744 svchost.exe                         0 0    0
-074c svchost.exe                         0 0    0
-0754 svchost.exe                         0 0    0
-07c4 svchost.exe                         0 0    0
-07cc svchost.exe                         0 0    0
-07f4 IntelCpHDCPSvc.exe                  0 0    0
-0838 IntelCpHeciSvc.exe                  0 0    0
-0840 svchost.exe                         0 0    0
-0888 svchost.exe                         0 0    0
-090c NVDisplay.Container.exe             0 0    0
-0914 WUDFHost.exe                        0 0    0
-09e8 igfxCUIService.exe                  0 0    0
-0a3c svchost.exe                         0 0    0
-0b28 svchost.exe                         0 0    0
-0b60 WUDFHost.exe                        0 0    0
-0650 svchost.exe                         0 0    0
-0978 svchost.exe                         0 0    0
-098c svchost.exe                         0 0    0
-0c54 svchost.exe                         0 0    0
-0d18 svchost.exe                         0 0    0
-0d30 svchost.exe                         0 0    0
-0d4c svchost.exe                         0 0    0
-0db4 spoolsv.exe                         0 0    0
-0e20 svchost.exe                         0 0    0
-0e9c svchost.exe                         0 0    0
-0ea8 AdminService.exe                    0 0    0
-0eb0 Licensing.Service.exe               0 0    0
-0ebc remoting_host.exe                   0 0    0
-0ec4 egsissrv.exe                        0 0    0
-0ed4 firebird.exe                        0 0    0
-0ecc svchost.exe                         0 0    0
-0ef8 Everything.exe                      0 0    0
-0f4c rustdesk.exe                        0 0    0
-0f54 svchost.exe                         0 0    0
-0f60 svchost.exe                         0 0    0
-0f78 OneApp.IGCC.WinService.exe          0 0    0
-0f80 pg_ctl.exe                          0 0    0
-0f90 UltraViewer_Service.exe             0 0    0
-0f98 MsMpEng.exe                         0 0    0
-0fa0 SMSvcHost.exe                       0 0    0
-0fa8 WMIRegistrationService.exe          0 0    0
-0fb0 PsiService_2.exe                    0 0    0
-0fbc sqlwriter.exe                       0 0    0
-0fcc ss_conn_service.exe                 0 0    0
-0fe8 QsyncSvc.exe                        0 0    0
-0c10 jhi_service.exe                     0 0    0
-0ae4 wslservice.exe                      0 0    0
-0d88 MpDefenderCoreService.exe           0 0    0
-100c sqlbrowser.exe                      0 0    0
-1014 FNPLicensingService64.exe           0 0    0
-1020 ss_conn_service2.exe                0 0    0
-1044 FNPLicensingService.exe             0 0    0
-105c mqsvc.exe                           0 0    0
-1090 sqlservr.exe                        0 0    0
-1300 lmgrd.exe                           0 0    0
-1318 NVDisplay.Container.exe             1 0    0
-1474 sqlceip.exe                         0 0    0    below normal
-1540 svchost.exe                         0 0    0
-1770 conhost.exe                         0 0    0
-17a8 lmgrd.exe                           0 0    0
-0e38 postgres.exe                        0 0    0
-1134 conhost.exe                         0 0    0
-1884 EnfocusSubscriptionService.exe      0 0    0
-188c SubscriptionService.exe             0 0    0
-1928 rustdesk.exe                        1 0    0
-1990 remoting_host.exe                   0 0    0    normal
-1998 postgres.exe                        0 0    0
-19d4 postgres.exe                        0 0    0
-19e4 postgres.exe                        0 0    0
-19f4 postgres.exe                        0 0    0
-1a10 postgres.exe                        0 0    0
-1a20 postgres.exe                        0 0    0
-1b8c postgres.exe                        0 0    0
-1b98 postgres.exe                        0 0    0
-1ba4 postgres.exe                        0 0    0
-1de0 BtSystem.Service.exe                0 0    0
-1f40 svchost.exe                         0 0    0
-20cc svchost.exe                         0 0    0
-1fe0 NisSrv.exe                          0 0    0
-2244 Maestro.Service.exe                 0 0    0
-248c barco.exe                           0 0    0
-2520 esko.exe                            0 0    0
-0d04 sihost.exe                          1 0    11   normal       C:\Windows\System32
-2128 svchost.exe                         1 0    1    normal       C:\Windows\System32
-2118 svchost.exe                         1 0    4    normal       C:\Windows\System32
-26f8 taskhostw.exe                       1 0    2    normal       C:\Windows\System32
-275c Qsync.exe                           1 112  72   below normal C:\Program Files (x86)\QNAP\Qsync
-2a04 igfxEM.exe                          1 10   14   normal       C:\Windows\System32\DriverStore\FileRepository\cui_dch.inf_amd64_7208949846a9b9dc
-2a2c explorer.exe                        1 1408 1598 normal       C:\Windows
-2a48 ShellHost.exe                       1 0    10   normal       C:\Windows\System32
-2aa0 svchost.exe                         0 0    0
-2ad0 CrossDeviceResume.exe               1 0    10   normal       C:\Windows\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy
-2898 PowerToys.exe                       1 18   53   normal       C:\Users\Admin\AppData\Local\PowerToys
-2970 PowerToys.QuickAccess.exe           1 34   33   normal       C:\Users\Admin\AppData\Local\PowerToys\WinUI3Apps
-22d8 svchost.exe                         1 0    13   normal       C:\Windows\System32
-2dc4 PowerToys.AlwaysOnTop.exe           1 0    51   normal       C:\Users\Admin\AppData\Local\PowerToys
-2dec PowerToys.Awake.exe                 1 22   15   normal       C:\Users\Admin\AppData\Local\PowerToys
-2e60 PowerToys.ColorPickerUI.exe         1 27   34   normal       C:\Users\Admin\AppData\Local\PowerToys
-2e80 PowerToys.CropAndLock.exe           1 0    5    normal       C:\Users\Admin\AppData\Local\PowerToys
-2ec0 PowerToys.FancyZones.exe            1 1    18   normal       C:\Users\Admin\AppData\Local\PowerToys
-2f20 Microsoft.CmdPal.UI.exe             1 136  70   normal       C:\Program Files\WindowsApps\Microsoft.CommandPalette_0.10.11181.0_x64__8wekyb3d8bbwe
-2d18 ctfmon.exe                          1 2    23   high         C:\Windows\System32
-1fc0 PowerToys.Peek.UI.exe               1 0    8    normal       C:\Users\Admin\AppData\Local\PowerToys\WinUI3Apps
-1dfc PowerToys.PowerLauncher.exe         1 64   39   normal       C:\Users\Admin\AppData\Local\PowerToys
-307c PowerToys.PowerOCR.exe              1 22   38   normal       C:\Users\Admin\AppData\Local\PowerToys
-15a0 WindowsPackageManagerServer.exe     1 0    9    normal       C:\Program Files\WindowsApps\Microsoft.DesktopAppInstaller_1.28.240.0_x64__8wekyb3d8bbwe
-2a70 Microsoft.CmdPal.Ext.PowerToys.exe  1 0    1    normal       C:\Users\Admin\AppData\Local\PowerToys\WinUI3Apps
-2180 ShellExperienceHost.exe             1 14   40   normal       C:\Windows\SystemApps\ShellExperienceHost_cw5n1h2txyewy
-30e0 RuntimeBroker.exe                   1 4    3    normal       C:\Windows\System32
-3434 SecurityHealthSystray.exe           1 7    5    normal       C:\Windows\System32
-3448 SecurityHealthService.exe           0 0    0
-34c4 EnfocusSubscriptionNotifier.exe     1 13   6    normal       C:\Program Files\Common Files\Enfocus\EnfocusSubscriptionService\EnfocusSubscriptionService
-3580 Seagull.Notification.SystemTray.exe 1 7    6    normal       C:\Program Files\Seagull\BarTender 2021
-35b4 nextcloud.exe                       1 32   60   normal       C:\Program Files\Nextcloud
-3660 claude.exe                          1 2    27   normal       C:\Users\Admin\AppData\Local\AnthropicClaude\app-1.1.4173
-36ec claude.exe                          1 0    4    normal       C:\Users\Admin\AppData\Local\AnthropicClaude\app-1.1.4173
-37b0 claude.exe                          1 1    4    above normal C:\Users\Admin\AppData\Local\AnthropicClaude\app-1.1.4173
-37d4 claude.exe                          1 0    3    normal       C:\Users\Admin\AppData\Local\AnthropicClaude\app-1.1.4173
-2238 VittixIndicKeyboard.exe             1 46   28   normal       D:\ketan\github\vittix-indic-keyboard\build\Win32
-2f64 MuMuNxMain.exe                      1 36   68   normal       C:\Program Files\Netease\MuMuPlayer\nx_main
-0a54 crashpad_handler.exe                1 0    4    normal       C:\Program Files\Netease\MuMuPlayer\nx_main
-3c70 svchost.exe                         0 0    0
-3ccc ChatGPT.exe                         1 100  80   normal       C:\Program Files\WindowsApps\OpenAI.ChatGPT-Desktop_1.2026.133.0_x64__2p2nqsd0c76g0\app
-3dac ChatGPT.exe                         1 0    4    normal       C:\Program Files\WindowsApps\OpenAI.ChatGPT-Desktop_1.2026.133.0_x64__2p2nqsd0c76g0\app
-3e04 ChatGPT.exe                         1 5    14   above normal C:\Program Files\WindowsApps\OpenAI.ChatGPT-Desktop_1.2026.133.0_x64__2p2nqsd0c76g0\app
-3e20 ChatGPT.exe                         1 0    3    normal       C:\Program Files\WindowsApps\OpenAI.ChatGPT-Desktop_1.2026.133.0_x64__2p2nqsd0c76g0\app
-3f2c rustdesk.exe                        1 3    9    normal       C:\Program Files\RustDesk
-3f48 Everything.exe                      1 92   81   normal       C:\Program Files (x86)\Everything
-1bcc ChatGPT.exe                         1 0    0    normal       C:\Program Files\WindowsApps\OpenAI.ChatGPT-Desktop_1.2026.133.0_x64__2p2nqsd0c76g0\app
-3128 EskoSubscriptionNotifier.exe        1 13   6    normal       C:\Program Files (x86)\Common Files\Esko\SubscriptionService\SubscriptionService
-278c ShareX.exe                          1 282  193  normal       C:\Program Files\ShareX
-0dc8 CCXProcess.exe                      1 0    0    normal       C:\Program Files\Adobe\Adobe Creative Cloud Experience
-2930 node.exe                            1 0    4    normal       C:\Program Files\Adobe\Adobe Creative Cloud Experience\libs
-0e04 conhost.exe                         1 10   3    normal       C:\Windows\System32
-2eac AdobeIPCBroker.exe                  1 0    6    normal       C:\Program Files (x86)\Common Files\Adobe\Adobe Desktop Common\IPCBox
-4074 jusched.exe                         1 0    2    normal       C:\Program Files (x86)\Common Files\Java\Java Update
-430c aesm_service.exe                    0 0    0
-436c Integration.Service.exe             0 0    0
-43d4 SocketHeciServer.exe                0 0    0
-1768 PrintScheduler.Service.exe          0 0    0
-3774 elsvc5.exe                          0 0    0
-40b8 svchost.exe                         0 0    0
-02e8 svchost.exe                         0 0    0
-39e4 svchost.exe                         0 0    0
-46d8 svchost.exe                         1 0    3    normal       C:\Windows\System32
-4da0 jucheck.exe                         1 7    6    normal       C:\Program Files (x86)\Common Files\Java\Java Update
-3460 StartMenuExperienceHost.exe         1 0    8    normal       C:\Windows\SystemApps\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy
-510c TabTip.exe                          1 18   32   high         C:\Program Files\Common Files\microsoft shared\ink
-0f0c TextInputHost.exe                   1 0    64   high         C:\Windows\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy
-0e6c taskhostw.exe                       1 0    2    normal       C:\Windows\System32
-5660 ApplicationFrameHost.exe            1 12   2    normal       C:\Windows\System32
-0a7c mscopilot.exe                       1 9    38   normal       C:\Program Files (x86)\Microsoft\Copilot\Application
-48c8 mscopilot.exe                       1 0    3    normal       C:\Program Files (x86)\Microsoft\Copilot\Application
-4244 mscopilot.exe                       1 0    5    normal       C:\Program Files (x86)\Microsoft\Copilot\Application
-110c mscopilot.exe                       1 1    4    above normal C:\Program Files (x86)\Microsoft\Copilot\Application
-53c8 mscopilot.exe                       1 0    0    normal       C:\Program Files (x86)\Microsoft\Copilot\Application
-56e0 CorelDRW.exe                        1 3247 1220 normal       C:\Program Files\Corel\CorelDRAW Graphics Suite 2021\Programs64
-5558 InterprocessController.exe          1 45   7    normal       C:\Program Files\Corel\CorelDRAW Graphics Suite 2021\Programs64
-4c54 conhost.exe                         1 11   9    normal       C:\Windows\System32
-4468 Code.exe                            1 19   59   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-4080 Code.exe                            1 0    4    normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-5610 Code.exe                            1 5    11   above normal C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-4e4c Code.exe                            1 0    3    normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-54b4 Code.exe                            1 0    0    normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-5198 Code.exe                            1 0    3    normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-3e2c Code.exe                            1 0    3    normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-35e4 Code.exe                            1 0    0    normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-4510 Code.exe                            1 0    3    normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-4dcc Code.exe                            1 0    3    normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-30b4 OpenConsole.exe                     1 10   5    normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code\c3a26841a8\resources\app\node_modules\node-pty\build\Release\conpty
-3db4 powershell.exe                      1 0    4    normal       C:\Windows\System32\WindowsPowerShell\v1.0
-4b84 OpenConsole.exe                     1 10   5    normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code\c3a26841a8\resources\app\node_modules\node-pty\build\Release\conpty
-4f20 powershell.exe                      1 0    4    normal       C:\Windows\System32\WindowsPowerShell\v1.0
-4474 OpenConsole.exe                     1 10   5    normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code\c3a26841a8\resources\app\node_modules\node-pty\build\Release\conpty
-4fc0 powershell.exe                      1 0    4    normal       C:\Windows\System32\WindowsPowerShell\v1.0
-265c codex.exe                           1 0    1    normal       C:\Users\Admin\.vscode\extensions\openai.chatgpt-26.513.21555-win32-x64\bin\windows-x86_64
-5b38 conhost.exe                         1 0    1    normal       C:\Windows\System32
-3d80 Code.exe                            1 0    1    normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-4b90 Code.exe                            1 0    1    normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-57b8 cloudcode_cli.exe                   1 0    0    normal       C:\Users\Admin\AppData\Local\cloud-code\cloudcode_cli\cloudcode_cli\9c9a05d3
-47e0 conhost.exe                         1 0    1    normal       C:\Windows\System32
-2ff0 Code.exe                            1 0    0    idle         C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-395c powershell.exe                      1 0    4    normal       C:\Windows\System32\WindowsPowerShell\v1.0
-43e8 ArtworkFlow.exe                     1 188  158  normal       D:\ketan\github\Artworkflow\vx-printflow-desktop\Win32\Debug
-12ec Taskmgr.exe                         1 2516 897  normal       C:\Windows\System32
-61cc cmd.exe                             1 0    0    normal       C:\Windows\System32
-551c conhost.exe                         1 22   23   normal       C:\Windows\System32
-5b00 cmd.exe                             1 0    0    normal       C:\Windows\System32
-42a0 conhost.exe                         1 22   23   normal       C:\Windows\System32
-5428 VittixRunner.exe                    1 23   10   normal       D:\ketan\github\VittixReport\bin\Win32\Debug
-29cc ArtPro+.exe                         1 121  50   normal       C:\Esko\bg_prog_artpro+_v220\ArtPro+.app\Contents\Windows
-45b0 chrome.exe                          1 33   75   normal       C:\Program Files\Google\Chrome\Application
-4754 chrome.exe                          1 0    3    normal       C:\Program Files\Google\Chrome\Application
-3d98 chrome.exe                          1 17   16   above normal C:\Program Files\Google\Chrome\Application
-63d8 chrome.exe                          1 0    3    normal       C:\Program Files\Google\Chrome\Application
-2e00 chrome.exe                          1 0    0    normal       C:\Program Files\Google\Chrome\Application
-5398 chrome.exe                          1 0    0    idle         C:\Program Files\Google\Chrome\Application
-1f28 chrome.exe                          1 0    0    idle         C:\Program Files\Google\Chrome\Application
-1b3c chrome.exe                          1 0    0    idle         C:\Program Files\Google\Chrome\Application
-1fd0 chrome.exe                          1 0    0    idle         C:\Program Files\Google\Chrome\Application
-4a14 chrome.exe                          1 0    1    normal       C:\Program Files\Google\Chrome\Application
-4728 chrome.exe                          1 0    1    normal       C:\Program Files\Google\Chrome\Application
-0658 sqlservr.exe                        0 0    0
-1f88 chrome.exe                          1 0    0    idle         C:\Program Files\Google\Chrome\Application
-1880 chrome.exe                          1 0    0    idle         C:\Program Files\Google\Chrome\Application
-4b3c audiodg.exe                         0 0    0
-4854 smartscreen.exe                     1 0    1    normal       C:\Windows\System32
-23c8 Code.exe                            1 0    0    idle         C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-3b34 bds.exe                             1 1526 628  normal       C:\Program Files (x86)\Embarcadero\Studio\23.0\bin
-6368 WhatsApp.Root.exe                   1 54   54   idle         C:\Program Files\WindowsApps\5319275A.WhatsAppDesktop_2.2616.100.0_x64__cv1g1gvanyjgm
-59a0 svchost.exe                         0 0    0
-571c RuntimeBroker.exe                   1 0    1    normal       C:\Windows\System32
-0984 msedgewebview2.exe                  1 22   39   normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
-381c msedgewebview2.exe                  1 0    4    normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
-4cbc msedgewebview2.exe                  1 5    17   above normal C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
-61e0 msedgewebview2.exe                  1 0    5    normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
-5a3c msedgewebview2.exe                  1 0    0    normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
-3fac msedgewebview2.exe                  1 0    0    normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
-3a58 msedgewebview2.exe                  1 0    1    normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
-3b68 DelphiLSP.exe                       1 0    6    normal       C:\Program Files (x86)\Embarcadero\Studio\23.0\bin
-5cc4 conhost.exe                         1 11   9    normal       C:\Windows\System32
-3904 DelphiLSP.exe                       1 0    1    normal       C:\Program Files (x86)\Embarcadero\Studio\23.0\bin
-4784 DelphiLSP.exe                       1 0    1    normal       C:\Program Files (x86)\Embarcadero\Studio\23.0\bin
-6028 WmiPrvSE.exe                        0 0    0
-2144 VittixDesigner.exe                  1 56   47   normal       D:\ketan\github\VittixReport\vittixdesigner
-1690 conhost.exe                         1 16   21   normal       C:\Windows\System32
-
-hardware:
-+ {1ed2bbf9-11f0-4084-b21f-ad83a8e6dcdc}
-  - \\radhe1-pc\HP LaserJet Professional P1108 (Copy 1)
-  - Adobe PDF
-  - Microsoft Print to PDF
-  - PDF-XChange Lite
-  - Root Print Queue
-  - TSC TTP-384MT
-+ {36fc9e60-c465-11cf-8056-444553540000}
-  - ASMedia USB 3.1 eXtensible Host Controller - 1.10 (Microsoft)
-  - Intel(R) USB 3.0 eXtensible Host Controller - 1.0 (Microsoft)
-  - USB Composite Device
-  - USB Mass Storage Device
-  - USB Root Hub (USB 3.0)
-  - USB Root Hub (USB 3.0)
-+ {4d36e966-e325-11ce-bfc1-08002be10318}
-  - ACPI x64-based PC
-  - Dell Inc. XPS 8930
-+ {4d36e967-e325-11ce-bfc1-08002be10318}
-  - Multiple Card  Reader USB Device
-  - NVMe PCIe SSD
-  - ST1000DM010-2EP102
-  - WDC WD20EZRX-00D8PB0
-+ {4d36e968-e325-11ce-bfc1-08002be10318}
-  - Intel(R) UHD Graphics 630 (driver 27.20.100.9664)
-  - NVIDIA GeForce RTX 3050 (driver 32.0.15.6094)
-+ {4d36e96b-e325-11ce-bfc1-08002be10318}
-  - HID Keyboard Device
-+ {4d36e96c-e325-11ce-bfc1-08002be10318}
-  - High Definition Audio Device
-  - Intel(R) Display Audio (driver 10.27.0.10)
-  - Nugget
-  - Nugget Hands-Free
-  - NVIDIA High Definition Audio (driver 1.4.0.1)
-  - Portronics Twins S16
-  - Portronics Twins S16 Hands-Free
-+ {4d36e96e-e325-11ce-bfc1-08002be10318}
-  - Generic Monitor (LG IPS FULLHD)
-+ {4d36e96f-e325-11ce-bfc1-08002be10318}
-  - HID-compliant mouse
-+ {4d36e972-e325-11ce-bfc1-08002be10318}
-  - Bluetooth Device (Personal Area Network)
-  - Killer E2400 Gigabit Ethernet Controller
-  - Microsoft Kernel Debug Network Adapter
-  - Microsoft Wi-Fi Direct Virtual Adapter
-  - Microsoft Wi-Fi Direct Virtual Adapter #2
-  - Qualcomm QCA9377 802.11ac Wireless Adapter
-  - VirtualBox Host-Only Ethernet Adapter (driver 7.2.6.22322)
-+ {4d36e978-e325-11ce-bfc1-08002be10318}
-  - Communications Port (COM1)
-  - Standard Serial over Bluetooth link (COM7)
-  - Standard Serial over Bluetooth link (COM8)
-+ {4d36e97b-e325-11ce-bfc1-08002be10318}
-  - Intel Chipset SATA RAID Controller (driver 15.44.0.1015)
-  - Microsoft Storage Spaces Controller
-+ {4d36e97d-e325-11ce-bfc1-08002be10318}
-  - ACPI Fan
-  - ACPI Fan
-  - ACPI Fan
-  - ACPI Fan
-  - ACPI Fan
-  - ACPI Fixed Feature Button
-  - ACPI Power Button
-  - ACPI Processor Aggregator
-  - ACPI Sleep Button
-  - ACPI Thermal Zone
-  - ACPI Thermal Zone
-  - Charge Arbitration Driver
-  - Composite Bus Enumerator
-  - High Definition Audio Controller
-  - High Definition Audio Controller
-  - High precision event timer
-  - Intel(R) 300 Series Chipset Family LPC Controller (Z370) - A2C9 (driver 10.1.11.4)
-  - Intel(R) Gaussian Mixture Model - 1911 (driver 10.1.7.3)
-  - Intel(R) Management Engine Interface #1 (driver 2145.1.42.0)
-  - Intel(R) PCI Express Root Port #2 - A291 (driver 10.1.11.4)
-  - Intel(R) PCI Express Root Port #3 - A292 (driver 10.1.11.4)
-  - Intel(R) PCI Express Root Port #4 - A293 (driver 10.1.11.4)
-  - Intel(R) PCI Express Root Port #5 - A294 (driver 10.1.11.4)
-  - Intel(R) PMC - A2A1 (driver 10.1.11.4)
-  - Intel(R) Power Engine Plug-in
-  - Intel(R) Serial IO GPIO Host Controller - INT3451 (driver 30.100.1816.3)
-  - Intel(R) Serial IO UART Host Controller - A2A7 (driver 30.100.1943.2)
-  - Intel(R) SMBUS - A2A3 (driver 10.1.11.4)
-  - Intel(R) Software Guard Extensions Device (driver 2.25.100.3)
-  - Legacy device
-  - Microsoft ACPI-Compliant System
-  - Microsoft Basic Display Driver
-  - Microsoft Basic Render Driver
-  - Microsoft Hyper-V PCI Server
-  - Microsoft Hyper-V Virtual Disk Server
-  - Microsoft Hyper-V Virtual Machine Bus Provider
-  - Microsoft Hyper-V Virtualization Infrastructure Driver
-  - Microsoft Hypervisor Service
-  - Microsoft System Management BIOS Driver
-  - Microsoft UEFI-Compliant System
-  - Microsoft Virtual Drive Enumerator
-  - Microsoft Windows Management Interface for ACPI
-  - Microsoft Windows Management Interface for ACPI
-  - Microsoft Windows Management Interface for ACPI
-  - Motherboard resources
-  - Motherboard resources
-  - Motherboard resources
-  - Motherboard resources
-  - Motherboard resources
-  - Motherboard resources
-  - Motherboard resources
-  - Motherboard resources
-  - Motherboard resources
-  - Motherboard resources
-  - NDIS Virtual Network Adapter Enumerator
-  - Nugget Hands-Free AG
-  - Numeric data processor
-  - PCI Express Root Complex
-  - PCI standard host CPU bridge
-  - PCI-to-PCI Bridge
-  - Plug and Play Software Device Enumerator
-  - Portronics Twins S16 Hands-Free AG
-  - Programmable interrupt controller
-  - Remote Desktop Device Redirector Bus
-  - System CMOS/real time clock
-  - System timer
-  - UMBus Root Bus Enumerator
-  - Volume Manager
-+ {50127dc3-0f36-415e-a6cc-4cb3be910b65}
-  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
-  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
-  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
-  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
-  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
-  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
-  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
-  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
-  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
-  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
-  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
-  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
-+ {533c5b84-ec70-11d2-9505-00c04f79deaf}
-  - Generic volume shadow copy
-  - Generic volume shadow copy
-  - Generic volume shadow copy
-+ {5c4c3332-344d-483c-8739-259e934c9cc8}
-  - Intel(R) Dynamic Application Loader Host Interface (driver 1.44.2023.710)
-  - Intel(R) Graphics Command Center (driver 27.20.100.9664)
-  - Intel(R) Graphics Control Panel (driver 27.20.100.9664)
-  - Intel(R) iCLS Client (driver 1.63.1155.2)
-  - Intel(R) Management Engine WMI Provider (driver 2130.1.15.0)
-  - Intel(R) Software Guard Extensions Software (driver 2.25.100.3)
-+ {62f9c741-b25a-46ce-b54c-9bccce08b6f2}
-  - Bluetooth
-  - Microsoft Device Association Root Enumerator
-  - Microsoft GS Wavetable Synth
-  - Microsoft Radio Device Enumeration Bus
-  - Wi-Fi
-+ {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
-  - Bluetooth HID Device
-  - Bluetooth Low Energy GATT compliant HID device
-  - HID-compliant consumer control device
-  - HID-compliant system controller
-  - USB Input Device
-  - USB Input Device
-  - USB Input Device
-+ {c166523c-fe0c-4a94-a586-f1a80cfbbf3e}
-  - LG IPS FULLHD (NVIDIA High Definition Audio)
-+ {e0cbf06c-cd8b-4647-bb8a-263b43f0f974}
-  - Bluetooth Device (RFCOMM Protocol TDI)
-  - Bluetooth LE Generic Attribute Service
-  - Device Information Service
-  - Generic Access Profile
-  - Generic Attribute Profile
-  - Lenovo Bluetooth Mouse
-  - Microsoft Bluetooth Enumerator
-  - Microsoft Bluetooth LE Enumerator
-  - Nugget
-  - Nugget Avrcp Transport
-  - Nugget Avrcp Transport
-  - Portronics Twins S16
-  - Portronics Twins S16 Avrcp Transport
-  - Portronics Twins S16 Avrcp Transport
-  - Qualcomm QCA9377 Bluetooth (driver 10.0.0.1238)
-+ {eec5ad98-8080-425f-922a-dabf3de3f69a}
-  - N:\
-+ {f2e7dd72-6468-4e36-b6f1-6488f42c1b52}
-  - System Firmware
-
-cpu registers:
-eax = 00000000
-ebx = 04b3cb60
-ecx = 00000000
-edx = 04b3cb60
-esi = 0046f438
-edi = 00def8e4
-eip = 0074b76f
-esp = 00def70c
-ebp = 00def724
-
-stack dump:
-00def70c  2c f7 de 00 f8 a4 25 00 - 24 f7 de 00 00 00 00 00  ,.....%.$.......
-00def71c  60 cb b3 04 b0 fb 15 03 - 60 f7 de 00 bb b5 74 00  `.......`.....t.
-00def72c  c8 f9 de 00 f8 a4 25 00 - 60 f7 de 00 e4 f8 de 00  ......%.`.......
-00def73c  38 f4 46 00 60 cb b3 04 - 00 00 00 00 00 00 00 00  8.F.`...........
-00def74c  00 00 00 00 11 04 00 00 - 20 00 00 00 60 cb b3 04  ........ ...`...
-00def75c  b0 fb 15 03 d8 f8 de 00 - 41 00 42 00 38 f4 46 00  ........A.B.8.F.
-00def76c  60 cb b3 04 3d f4 46 00 - f4 04 42 00 ec f8 de 00  `...=.F...B.....
-00def77c  06 00 00 00 13 00 00 00 - 00 00 00 00 00 00 00 00  ................
-00def78c  1f 00 00 00 1e 00 00 00 - 00 00 00 00 00 00 00 00  ................
-00def79c  1f 00 00 00 1e 00 00 00 - 02 02 00 00 60 cb b3 04  ............`...
-00def7ac  e4 f8 de 00 e5 fa 41 00 - 02 02 00 00 60 cb b3 04  ......A.....`...
-00def7bc  60 cb b3 04 00 00 00 00 - 44 00 13 00 50 00 da 74  `.......D...P..t
-00def7cc  02 02 00 00 fc f7 de 00 - 93 9e b5 75 cc 1f bc 00  ...........u....
-00def7dc  02 02 00 00 00 00 00 00 - 44 00 13 00 02 02 00 00  ........D.......
-00def7ec  cd ab ba dc 04 f9 de 00 - 50 00 da 74 02 02 00 00  ........P..t....
-00def7fc  f8 f8 de 00 0d 80 b4 75 - 9a a4 9f 66 cc 1f bc 00  .......u...f....
-00def80c  02 02 00 00 17 81 b4 75 - a7 80 b4 75 ea d5 39 a9  .......u...u..9.
-00def81c  50 00 da 74 cc 1f bc 00 - 24 00 00 00 01 00 00 00  P..t....$.......
-00def82c  00 00 00 00 00 00 00 00 - 70 00 00 00 ff ff ff ff  ........p.......
-00def83c  ff ff ff ff f9 7c b4 75 - 0f 81 b4 75 00 00 00 00  .....|.u...u....
-
-disassembling:
-[...]
-0074b758        mov     eax, [ebp-4]
-0074b75b        mov     eax, [eax+$534]
-0074b761        call    -$2c7272 ($4844f4)     ; Vcl.Dialogs.TOpenDialog.SetFileName
-0074b766 1803   mov     eax, [ebp-4]
-0074b769        mov     eax, [eax+$534]
-0074b76f      > mov     edx, [eax]
-0074b771        call    dword ptr [edx+$54]
-0074b774        test    al, al
-0074b776        jz      loc_74b7a4
-0074b778 1804   lea     edx, [ebp-$c]
-0074b77b        mov     eax, [ebp-4]
-[...]
-
-date/time          : 2026-05-19, 11:43:50, 50ms
-computer name      : RL
-user name          : Admin <admin>
-registered owner   : Windows User
-operating system   : Windows 11 x64 build 26100
-system language    : English
-system up time     : 2 days 2 hours
-program up time    : 10 seconds
-processors         : 12x Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
-physical memory    : 1714/16187 MB (free/total)
-free disk space    : (C:) 115.92 GB (D:) 15.54 GB
-display mode       : 1920x1080, 32 bit
-process id         : $2144
-allocated memory   : 73.44 MB
-largest free block : 1.13 GB
-executable         : VittixDesigner.exe
-exec. date/time    : 2026-05-19 11:43
-version            : 1.0.0.0
-compiled with      : Delphi 12
-madExcept version  : 5.2.0
-callstack crc      : $a785c495, $e838e08a, $e838e08a
-exception number   : 6
-exception class    : EAccessViolation
-exception message  : Access violation at address 00765630 in module 'VittixDesigner.exe' (offset 515630). Read of address 00000058.
-
-main thread ($5a04):
-00765630 +03c VittixDesigner.exe Frm.Main        6281  +1 TfrmMain.SaveWindowLayout
-0074ad5f +00f VittixDesigner.exe Frm.Main        1629  +1 TfrmMain.FormDestroy
-004f0861 +031 VittixDesigner.exe Vcl.Forms                TCustomForm.DoDestroy
-004f0650 +064 VittixDesigner.exe Vcl.Forms                TCustomForm.BeforeDestruction
-00259739 +009 VittixDesigner.exe System          1052  +0 @BeforeDestruction
-004f065e +006 VittixDesigner.exe Vcl.Forms                TCustomForm.Destroy
-002590a0 +008 VittixDesigner.exe System          1052  +0 TObject.Free
-003922f0 +074 VittixDesigner.exe System.Classes           TComponent.DestroyComponents
-004eafc1 +035 VittixDesigner.exe Vcl.Forms                DoneApplication
-002a413d +021 VittixDesigner.exe System.SysUtils          DoExitProc
-0025ad12 +06e VittixDesigner.exe System          1052  +0 @Halt0
-00782192 +12a VittixDesigner.exe VittixDesigner    78 +20 initialization
-75365d47 +017 KERNEL32.DLL                                BaseThreadInitThunk
-
-thread $48a4:
-75365d47 +17 KERNEL32.DLL  BaseThreadInitThunk
-
-thread $4b14:
-75365d47 +17 KERNEL32.DLL  BaseThreadInitThunk
-
-thread $56f4:
-75365d47 +17 KERNEL32.DLL  BaseThreadInitThunk
-
-thread $366c:
-75365d47 +17 KERNEL32.DLL  BaseThreadInitThunk
-
-thread $3c58:
-75365d47 +17 KERNEL32.DLL  BaseThreadInitThunk
-
-modules:
-00250000 VittixDesigner.exe     1.0.0.0         D:\ketan\github\VittixReport\vittixdesigner
-51190000 FaultRep.dll           10.0.26100.3624 C:\Windows\SYSTEM32
-60b90000 SHFolder.dll           10.0.26100.1    C:\Windows\SYSTEM32
-61470000 CoreUIComponents.dll   10.0.26100.3912 C:\Windows\SYSTEM32
-61710000 CoreMessaging.dll      10.0.26100.4202 C:\Windows\SYSTEM32
-617f0000 textinputframework.dll 10.0.26100.4484 C:\Windows\SYSTEM32
-61900000 TextShaping.dll        10.0.26100.4343 C:\Windows\SYSTEM32
-620d0000 apphelp.dll            10.0.26100.4484 C:\Windows\SYSTEM32
-6f260000 uxtheme.dll            10.0.26100.4484 C:\Windows\system32
-6f3f0000 ntmarta.dll            10.0.26100.4202 C:\Windows\SYSTEM32
-6f450000 MSASN1.dll             10.0.26100.4652 C:\Windows\SYSTEM32
-6fca0000 DEVOBJ.dll             10.0.26100.1    C:\Windows\SYSTEM32
-6fd10000 Windows.Storage.dll    10.0.26100.4484 C:\Windows\SYSTEM32
-70830000 DWMAPI.DLL             10.0.26100.4484 C:\Windows\SYSTEM32
-71530000 kernel.appcore.dll     10.0.26100.4202 C:\Windows\SYSTEM32
-715e0000 CRYPTBASE.DLL          10.0.26100.4652 C:\Windows\SYSTEM32
-71660000 winmm.dll              10.0.26100.4202 C:\Windows\SYSTEM32
-716d0000 SspiCli.dll            10.0.26100.4484 C:\Windows\SYSTEM32
-71700000 cfgmgr32.dll           10.0.26100.4202 C:\Windows\SYSTEM32
-71750000 wsock32.dll            10.0.26100.1    C:\Windows\SYSTEM32
-71d20000 oleacc.dll             7.2.26100.4484  C:\Windows\SYSTEM32
-71f30000 winspool.drv           10.0.26100.4484 C:\Windows\SYSTEM32
-721c0000 version.dll            10.0.26100.1    C:\Windows\SYSTEM32
-74ce0000 WTSAPI32.DLL           10.0.26100.4484 C:\Windows\SYSTEM32
-74d00000 COMCTL32.dll           6.10.26100.4484 C:\Windows\WinSxS\x86_microsoft.windows.common-controls_6595b64144ccf1df_6.0.26100.4484_none_85bba423f7ab1cb9
-75070000 sechost.dll            10.0.26100.4652 C:\Windows\System32
-75100000 RPCRT4.dll             10.0.26100.4652 C:\Windows\System32
-751c0000 WS2_32.dll             10.0.26100.4652 C:\Windows\System32
-75230000 ucrtbase.dll           10.0.26100.4652 C:\Windows\System32
-75350000 KERNEL32.DLL           10.0.26100.4652 C:\Windows\System32
-75450000 SHELL32.dll            10.0.26100.4484 C:\Windows\System32
-75a80000 SHLWAPI.dll            10.0.26100.4484 C:\Windows\System32
-75ae0000 GDI32.dll              10.0.26100.4484 C:\Windows\System32
-75b20000 USER32.dll             10.0.26100.4652 C:\Windows\System32
-75cf0000 oleaut32.dll           10.0.26100.4484 C:\Windows\System32
-75da0000 psapi.dll              10.0.26100.1    C:\Windows\System32
-75db0000 shcore.dll             10.0.26100.4652 C:\Windows\System32
-75fc0000 CRYPT32.dll            10.0.26100.3775 C:\Windows\System32
-766c0000 advapi32.dll           10.0.26100.4652 C:\Windows\System32
-767d0000 gdi32full.dll          10.0.26100.4652 C:\Windows\System32
-768d0000 msvcp_win.dll          10.0.26100.4652 C:\Windows\System32
-76960000 KERNELBASE.dll         10.0.26100.4652 C:\Windows\System32
-76ca0000 ole32.dll              10.0.26100.4484 C:\Windows\System32
-76e00000 WINTRUST.dll           10.0.26100.4484 C:\Windows\System32
-76ee0000 comdlg32.dll           10.0.26100.4484 C:\Windows\System32
-76fa0000 wintypes.dll           10.0.26100.4484 C:\Windows\System32
-770b0000 win32u.dll             10.0.26100.4652 C:\Windows\System32
-770d0000 MSCTF.dll              10.0.26100.4484 C:\Windows\System32
-771f0000 IMM32.DLL              10.0.26100.4484 C:\Windows\System32
-77220000 msvcrt.dll             7.0.26100.4652  C:\Windows\System32
-772f0000 bcryptPrimitives.dll   10.0.26100.4652 C:\Windows\System32
-77360000 combase.dll            10.0.26100.4652 C:\Windows\System32
-77600000 ntdll.dll              10.0.26100.4652 C:\Windows\SYSTEM32
-
-processes:
-0000 Idle                                0 0    0
-0004 System                              0 0    0
-00e8 Secure System                       0 0    0
-0108 Registry                            0 0    0
-02f4 smss.exe                            0 0    0
-0378 csrss.exe                           0 0    0
-0468 wininit.exe                         0 0    0
-0470 csrss.exe                           1 0    0
-04b0 services.exe                        0 0    0
-04c4 LsaIso.exe                          0 0    0
-04cc lsass.exe                           0 0    0
-0514 winlogon.exe                        1 0    0
-059c svchost.exe                         0 0    0
-05bc fontdrvhost.exe                     1 0    0
-05c4 fontdrvhost.exe                     0 0    0
-061c svchost.exe                         0 0    0
-0670 dwm.exe                             1 0    0
-06e4 svchost.exe                         0 0    0
-0744 svchost.exe                         0 0    0
-074c svchost.exe                         0 0    0
-0754 svchost.exe                         0 0    0
-07c4 svchost.exe                         0 0    0
-07cc svchost.exe                         0 0    0
-07f4 IntelCpHDCPSvc.exe                  0 0    0
-0838 IntelCpHeciSvc.exe                  0 0    0
-0840 svchost.exe                         0 0    0
-0888 svchost.exe                         0 0    0
-090c NVDisplay.Container.exe             0 0    0
-0914 WUDFHost.exe                        0 0    0
-09e8 igfxCUIService.exe                  0 0    0
-0a3c svchost.exe                         0 0    0
-0b28 svchost.exe                         0 0    0
-0b60 WUDFHost.exe                        0 0    0
-0650 svchost.exe                         0 0    0
-0978 svchost.exe                         0 0    0
-098c svchost.exe                         0 0    0
-0c54 svchost.exe                         0 0    0
-0d18 svchost.exe                         0 0    0
-0d30 svchost.exe                         0 0    0
-0d4c svchost.exe                         0 0    0
-0db4 spoolsv.exe                         0 0    0
-0e20 svchost.exe                         0 0    0
-0e9c svchost.exe                         0 0    0
-0ea8 AdminService.exe                    0 0    0
-0eb0 Licensing.Service.exe               0 0    0
-0ebc remoting_host.exe                   0 0    0
-0ec4 egsissrv.exe                        0 0    0
-0ed4 firebird.exe                        0 0    0
-0ecc svchost.exe                         0 0    0
-0ef8 Everything.exe                      0 0    0
-0f4c rustdesk.exe                        0 0    0
-0f54 svchost.exe                         0 0    0
-0f60 svchost.exe                         0 0    0
-0f78 OneApp.IGCC.WinService.exe          0 0    0
-0f80 pg_ctl.exe                          0 0    0
-0f90 UltraViewer_Service.exe             0 0    0
-0f98 MsMpEng.exe                         0 0    0
-0fa0 SMSvcHost.exe                       0 0    0
-0fa8 WMIRegistrationService.exe          0 0    0
-0fb0 PsiService_2.exe                    0 0    0
-0fbc sqlwriter.exe                       0 0    0
-0fcc ss_conn_service.exe                 0 0    0
-0fe8 QsyncSvc.exe                        0 0    0
-0c10 jhi_service.exe                     0 0    0
-0ae4 wslservice.exe                      0 0    0
-0d88 MpDefenderCoreService.exe           0 0    0
-100c sqlbrowser.exe                      0 0    0
-1014 FNPLicensingService64.exe           0 0    0
-1020 ss_conn_service2.exe                0 0    0
-1044 FNPLicensingService.exe             0 0    0
-105c mqsvc.exe                           0 0    0
-1090 sqlservr.exe                        0 0    0
-1300 lmgrd.exe                           0 0    0
-1318 NVDisplay.Container.exe             1 0    0
-1474 sqlceip.exe                         0 0    0    below normal
-1540 svchost.exe                         0 0    0
-1770 conhost.exe                         0 0    0
-17a8 lmgrd.exe                           0 0    0
-0e38 postgres.exe                        0 0    0
-1134 conhost.exe                         0 0    0
-1884 EnfocusSubscriptionService.exe      0 0    0
-188c SubscriptionService.exe             0 0    0
-1928 rustdesk.exe                        1 0    0
-1990 remoting_host.exe                   0 0    0    normal
-1998 postgres.exe                        0 0    0
-19d4 postgres.exe                        0 0    0
-19e4 postgres.exe                        0 0    0
-19f4 postgres.exe                        0 0    0
-1a10 postgres.exe                        0 0    0
-1a20 postgres.exe                        0 0    0
-1b8c postgres.exe                        0 0    0
-1b98 postgres.exe                        0 0    0
-1ba4 postgres.exe                        0 0    0
-1de0 BtSystem.Service.exe                0 0    0
-1f40 svchost.exe                         0 0    0
-20cc svchost.exe                         0 0    0
-1fe0 NisSrv.exe                          0 0    0
-2244 Maestro.Service.exe                 0 0    0
-248c barco.exe                           0 0    0
-2520 esko.exe                            0 0    0
-0d04 sihost.exe                          1 0    11   normal       C:\Windows\System32
-2128 svchost.exe                         1 0    1    normal       C:\Windows\System32
-2118 svchost.exe                         1 0    4    normal       C:\Windows\System32
-26f8 taskhostw.exe                       1 0    2    normal       C:\Windows\System32
-275c Qsync.exe                           1 112  72   below normal C:\Program Files (x86)\QNAP\Qsync
-2a04 igfxEM.exe                          1 10   14   normal       C:\Windows\System32\DriverStore\FileRepository\cui_dch.inf_amd64_7208949846a9b9dc
-2a2c explorer.exe                        1 1410 1597 normal       C:\Windows
-2a48 ShellHost.exe                       1 0    10   normal       C:\Windows\System32
-2aa0 svchost.exe                         0 0    0
-2ad0 CrossDeviceResume.exe               1 0    10   normal       C:\Windows\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy
-2898 PowerToys.exe                       1 18   53   normal       C:\Users\Admin\AppData\Local\PowerToys
-2970 PowerToys.QuickAccess.exe           1 34   33   normal       C:\Users\Admin\AppData\Local\PowerToys\WinUI3Apps
-22d8 svchost.exe                         1 0    13   normal       C:\Windows\System32
-2dc4 PowerToys.AlwaysOnTop.exe           1 0    51   normal       C:\Users\Admin\AppData\Local\PowerToys
-2dec PowerToys.Awake.exe                 1 22   15   normal       C:\Users\Admin\AppData\Local\PowerToys
-2e60 PowerToys.ColorPickerUI.exe         1 27   34   normal       C:\Users\Admin\AppData\Local\PowerToys
-2e80 PowerToys.CropAndLock.exe           1 0    5    normal       C:\Users\Admin\AppData\Local\PowerToys
-2ec0 PowerToys.FancyZones.exe            1 1    18   normal       C:\Users\Admin\AppData\Local\PowerToys
-2f20 Microsoft.CmdPal.UI.exe             1 136  70   normal       C:\Program Files\WindowsApps\Microsoft.CommandPalette_0.10.11181.0_x64__8wekyb3d8bbwe
-2d18 ctfmon.exe                          1 2    23   high         C:\Windows\System32
-1fc0 PowerToys.Peek.UI.exe               1 0    8    normal       C:\Users\Admin\AppData\Local\PowerToys\WinUI3Apps
-1dfc PowerToys.PowerLauncher.exe         1 64   39   normal       C:\Users\Admin\AppData\Local\PowerToys
-307c PowerToys.PowerOCR.exe              1 22   38   normal       C:\Users\Admin\AppData\Local\PowerToys
-15a0 WindowsPackageManagerServer.exe     1 0    9    normal       C:\Program Files\WindowsApps\Microsoft.DesktopAppInstaller_1.28.240.0_x64__8wekyb3d8bbwe
-2a70 Microsoft.CmdPal.Ext.PowerToys.exe  1 0    1    normal       C:\Users\Admin\AppData\Local\PowerToys\WinUI3Apps
-2180 ShellExperienceHost.exe             1 14   40   normal       C:\Windows\SystemApps\ShellExperienceHost_cw5n1h2txyewy
-30e0 RuntimeBroker.exe                   1 4    3    normal       C:\Windows\System32
-3434 SecurityHealthSystray.exe           1 7    5    normal       C:\Windows\System32
-3448 SecurityHealthService.exe           0 0    0
-34c4 EnfocusSubscriptionNotifier.exe     1 13   6    normal       C:\Program Files\Common Files\Enfocus\EnfocusSubscriptionService\EnfocusSubscriptionService
-3580 Seagull.Notification.SystemTray.exe 1 7    6    normal       C:\Program Files\Seagull\BarTender 2021
-35b4 nextcloud.exe                       1 32   60   normal       C:\Program Files\Nextcloud
-3660 claude.exe                          1 2    27   normal       C:\Users\Admin\AppData\Local\AnthropicClaude\app-1.1.4173
-36ec claude.exe                          1 0    4    normal       C:\Users\Admin\AppData\Local\AnthropicClaude\app-1.1.4173
-37b0 claude.exe                          1 1    4    above normal C:\Users\Admin\AppData\Local\AnthropicClaude\app-1.1.4173
-37d4 claude.exe                          1 0    3    normal       C:\Users\Admin\AppData\Local\AnthropicClaude\app-1.1.4173
-2238 VittixIndicKeyboard.exe             1 46   28   normal       D:\ketan\github\vittix-indic-keyboard\build\Win32
-2f64 MuMuNxMain.exe                      1 36   68   normal       C:\Program Files\Netease\MuMuPlayer\nx_main
-0a54 crashpad_handler.exe                1 0    4    normal       C:\Program Files\Netease\MuMuPlayer\nx_main
-3c70 svchost.exe                         0 0    0
-3ccc ChatGPT.exe                         1 100  79   normal       C:\Program Files\WindowsApps\OpenAI.ChatGPT-Desktop_1.2026.133.0_x64__2p2nqsd0c76g0\app
-3dac ChatGPT.exe                         1 0    4    normal       C:\Program Files\WindowsApps\OpenAI.ChatGPT-Desktop_1.2026.133.0_x64__2p2nqsd0c76g0\app
-3e04 ChatGPT.exe                         1 5    14   above normal C:\Program Files\WindowsApps\OpenAI.ChatGPT-Desktop_1.2026.133.0_x64__2p2nqsd0c76g0\app
-3e20 ChatGPT.exe                         1 0    3    normal       C:\Program Files\WindowsApps\OpenAI.ChatGPT-Desktop_1.2026.133.0_x64__2p2nqsd0c76g0\app
-3f2c rustdesk.exe                        1 3    9    normal       C:\Program Files\RustDesk
-3f48 Everything.exe                      1 92   81   normal       C:\Program Files (x86)\Everything
-1bcc ChatGPT.exe                         1 0    0    normal       C:\Program Files\WindowsApps\OpenAI.ChatGPT-Desktop_1.2026.133.0_x64__2p2nqsd0c76g0\app
-3128 EskoSubscriptionNotifier.exe        1 13   6    normal       C:\Program Files (x86)\Common Files\Esko\SubscriptionService\SubscriptionService
-278c ShareX.exe                          1 282  193  normal       C:\Program Files\ShareX
-0dc8 CCXProcess.exe                      1 0    0    normal       C:\Program Files\Adobe\Adobe Creative Cloud Experience
-2930 node.exe                            1 0    4    normal       C:\Program Files\Adobe\Adobe Creative Cloud Experience\libs
-0e04 conhost.exe                         1 10   3    normal       C:\Windows\System32
-2eac AdobeIPCBroker.exe                  1 0    6    normal       C:\Program Files (x86)\Common Files\Adobe\Adobe Desktop Common\IPCBox
-4074 jusched.exe                         1 0    2    normal       C:\Program Files (x86)\Common Files\Java\Java Update
-430c aesm_service.exe                    0 0    0
-436c Integration.Service.exe             0 0    0
-43d4 SocketHeciServer.exe                0 0    0
-1768 PrintScheduler.Service.exe          0 0    0
-3774 elsvc5.exe                          0 0    0
-40b8 svchost.exe                         0 0    0
-02e8 svchost.exe                         0 0    0
-39e4 svchost.exe                         0 0    0
-46d8 svchost.exe                         1 0    3    normal       C:\Windows\System32
-4da0 jucheck.exe                         1 7    6    normal       C:\Program Files (x86)\Common Files\Java\Java Update
-3460 StartMenuExperienceHost.exe         1 0    8    normal       C:\Windows\SystemApps\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy
-510c TabTip.exe                          1 18   32   high         C:\Program Files\Common Files\microsoft shared\ink
-0f0c TextInputHost.exe                   1 0    64   high         C:\Windows\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy
-0e6c taskhostw.exe                       1 0    2    normal       C:\Windows\System32
-5660 ApplicationFrameHost.exe            1 12   2    normal       C:\Windows\System32
-0a7c mscopilot.exe                       1 9    38   normal       C:\Program Files (x86)\Microsoft\Copilot\Application
-48c8 mscopilot.exe                       1 0    3    normal       C:\Program Files (x86)\Microsoft\Copilot\Application
-4244 mscopilot.exe                       1 0    5    normal       C:\Program Files (x86)\Microsoft\Copilot\Application
-110c mscopilot.exe                       1 1    4    above normal C:\Program Files (x86)\Microsoft\Copilot\Application
-53c8 mscopilot.exe                       1 0    0    normal       C:\Program Files (x86)\Microsoft\Copilot\Application
-56e0 CorelDRW.exe                        1 3247 1220 normal       C:\Program Files\Corel\CorelDRAW Graphics Suite 2021\Programs64
-5558 InterprocessController.exe          1 45   7    normal       C:\Program Files\Corel\CorelDRAW Graphics Suite 2021\Programs64
-4c54 conhost.exe                         1 11   9    normal       C:\Windows\System32
-4468 Code.exe                            1 19   59   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-4080 Code.exe                            1 0    4    normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-5610 Code.exe                            1 5    11   above normal C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-4e4c Code.exe                            1 0    3    normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-54b4 Code.exe                            1 0    0    normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-5198 Code.exe                            1 0    3    normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-3e2c Code.exe                            1 0    3    normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-35e4 Code.exe                            1 0    0    normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-4510 Code.exe                            1 0    3    normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-4dcc Code.exe                            1 0    3    normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-30b4 OpenConsole.exe                     1 10   5    normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code\c3a26841a8\resources\app\node_modules\node-pty\build\Release\conpty
-3db4 powershell.exe                      1 0    4    normal       C:\Windows\System32\WindowsPowerShell\v1.0
-4b84 OpenConsole.exe                     1 10   5    normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code\c3a26841a8\resources\app\node_modules\node-pty\build\Release\conpty
-4f20 powershell.exe                      1 0    4    normal       C:\Windows\System32\WindowsPowerShell\v1.0
-4474 OpenConsole.exe                     1 10   5    normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code\c3a26841a8\resources\app\node_modules\node-pty\build\Release\conpty
-4fc0 powershell.exe                      1 0    4    normal       C:\Windows\System32\WindowsPowerShell\v1.0
-265c codex.exe                           1 0    1    normal       C:\Users\Admin\.vscode\extensions\openai.chatgpt-26.513.21555-win32-x64\bin\windows-x86_64
-5b38 conhost.exe                         1 0    1    normal       C:\Windows\System32
-3d80 Code.exe                            1 0    1    normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-4b90 Code.exe                            1 0    1    normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-57b8 cloudcode_cli.exe                   1 0    0    normal       C:\Users\Admin\AppData\Local\cloud-code\cloudcode_cli\cloudcode_cli\9c9a05d3
-47e0 conhost.exe                         1 0    1    normal       C:\Windows\System32
-2ff0 Code.exe                            1 0    0    idle         C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-395c powershell.exe                      1 0    4    normal       C:\Windows\System32\WindowsPowerShell\v1.0
-43e8 ArtworkFlow.exe                     1 188  158  normal       D:\ketan\github\Artworkflow\vx-printflow-desktop\Win32\Debug
-12ec Taskmgr.exe                         1 2516 897  normal       C:\Windows\System32
-61cc cmd.exe                             1 0    0    normal       C:\Windows\System32
-551c conhost.exe                         1 22   23   normal       C:\Windows\System32
-5b00 cmd.exe                             1 0    0    normal       C:\Windows\System32
-42a0 conhost.exe                         1 22   23   normal       C:\Windows\System32
-5428 VittixRunner.exe                    1 23   10   normal       D:\ketan\github\VittixReport\bin\Win32\Debug
-29cc ArtPro+.exe                         1 121  50   normal       C:\Esko\bg_prog_artpro+_v220\ArtPro+.app\Contents\Windows
-45b0 chrome.exe                          1 33   74   normal       C:\Program Files\Google\Chrome\Application
-4754 chrome.exe                          1 0    3    normal       C:\Program Files\Google\Chrome\Application
-3d98 chrome.exe                          1 17   16   above normal C:\Program Files\Google\Chrome\Application
-63d8 chrome.exe                          1 0    3    normal       C:\Program Files\Google\Chrome\Application
-2e00 chrome.exe                          1 0    0    normal       C:\Program Files\Google\Chrome\Application
-5398 chrome.exe                          1 0    0    idle         C:\Program Files\Google\Chrome\Application
-1f28 chrome.exe                          1 0    0    idle         C:\Program Files\Google\Chrome\Application
-1b3c chrome.exe                          1 0    0    idle         C:\Program Files\Google\Chrome\Application
-1fd0 chrome.exe                          1 0    0    idle         C:\Program Files\Google\Chrome\Application
-4a14 chrome.exe                          1 0    1    normal       C:\Program Files\Google\Chrome\Application
-4728 chrome.exe                          1 0    1    normal       C:\Program Files\Google\Chrome\Application
-0658 sqlservr.exe                        0 0    0
-1f88 chrome.exe                          1 0    0    idle         C:\Program Files\Google\Chrome\Application
-1880 chrome.exe                          1 0    0    idle         C:\Program Files\Google\Chrome\Application
-4b3c audiodg.exe                         0 0    0
-4854 smartscreen.exe                     1 0    1    normal       C:\Windows\System32
-23c8 Code.exe                            1 0    0    idle         C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-3b34 bds.exe                             1 1528 630  normal       C:\Program Files (x86)\Embarcadero\Studio\23.0\bin
-6368 WhatsApp.Root.exe                   1 54   54   idle         C:\Program Files\WindowsApps\5319275A.WhatsAppDesktop_2.2616.100.0_x64__cv1g1gvanyjgm
-59a0 svchost.exe                         0 0    0
-571c RuntimeBroker.exe                   1 0    1    normal       C:\Windows\System32
-0984 msedgewebview2.exe                  1 22   39   normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
-381c msedgewebview2.exe                  1 0    4    normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
-4cbc msedgewebview2.exe                  1 5    17   above normal C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
-61e0 msedgewebview2.exe                  1 0    5    normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
-5a3c msedgewebview2.exe                  1 0    0    normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
-3fac msedgewebview2.exe                  1 0    0    normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
-3a58 msedgewebview2.exe                  1 0    1    normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
-3b68 DelphiLSP.exe                       1 0    6    normal       C:\Program Files (x86)\Embarcadero\Studio\23.0\bin
-5cc4 conhost.exe                         1 11   9    normal       C:\Windows\System32
-3904 DelphiLSP.exe                       1 0    1    normal       C:\Program Files (x86)\Embarcadero\Studio\23.0\bin
-4784 DelphiLSP.exe                       1 0    1    normal       C:\Program Files (x86)\Embarcadero\Studio\23.0\bin
-6028 WmiPrvSE.exe                        0 0    0
-2144 VittixDesigner.exe                  1 56   49   normal       D:\ketan\github\VittixReport\vittixdesigner
-1690 conhost.exe                         1 16   23   normal       C:\Windows\System32
-
-hardware:
-+ {1ed2bbf9-11f0-4084-b21f-ad83a8e6dcdc}
-  - \\radhe1-pc\HP LaserJet Professional P1108 (Copy 1)
-  - Adobe PDF
-  - Microsoft Print to PDF
-  - PDF-XChange Lite
-  - Root Print Queue
-  - TSC TTP-384MT
-+ {36fc9e60-c465-11cf-8056-444553540000}
-  - ASMedia USB 3.1 eXtensible Host Controller - 1.10 (Microsoft)
-  - Intel(R) USB 3.0 eXtensible Host Controller - 1.0 (Microsoft)
-  - USB Composite Device
-  - USB Mass Storage Device
-  - USB Root Hub (USB 3.0)
-  - USB Root Hub (USB 3.0)
-+ {4d36e966-e325-11ce-bfc1-08002be10318}
-  - ACPI x64-based PC
-  - Dell Inc. XPS 8930
-+ {4d36e967-e325-11ce-bfc1-08002be10318}
-  - Multiple Card  Reader USB Device
-  - NVMe PCIe SSD
-  - ST1000DM010-2EP102
-  - WDC WD20EZRX-00D8PB0
-+ {4d36e968-e325-11ce-bfc1-08002be10318}
-  - Intel(R) UHD Graphics 630 (driver 27.20.100.9664)
-  - NVIDIA GeForce RTX 3050 (driver 32.0.15.6094)
-+ {4d36e96b-e325-11ce-bfc1-08002be10318}
-  - HID Keyboard Device
-+ {4d36e96c-e325-11ce-bfc1-08002be10318}
-  - High Definition Audio Device
-  - Intel(R) Display Audio (driver 10.27.0.10)
-  - Nugget
-  - Nugget Hands-Free
-  - NVIDIA High Definition Audio (driver 1.4.0.1)
-  - Portronics Twins S16
-  - Portronics Twins S16 Hands-Free
-+ {4d36e96e-e325-11ce-bfc1-08002be10318}
-  - Generic Monitor (LG IPS FULLHD)
-+ {4d36e96f-e325-11ce-bfc1-08002be10318}
-  - HID-compliant mouse
-+ {4d36e972-e325-11ce-bfc1-08002be10318}
-  - Bluetooth Device (Personal Area Network)
-  - Killer E2400 Gigabit Ethernet Controller
-  - Microsoft Kernel Debug Network Adapter
-  - Microsoft Wi-Fi Direct Virtual Adapter
-  - Microsoft Wi-Fi Direct Virtual Adapter #2
-  - Qualcomm QCA9377 802.11ac Wireless Adapter
-  - VirtualBox Host-Only Ethernet Adapter (driver 7.2.6.22322)
-+ {4d36e978-e325-11ce-bfc1-08002be10318}
-  - Communications Port (COM1)
-  - Standard Serial over Bluetooth link (COM7)
-  - Standard Serial over Bluetooth link (COM8)
-+ {4d36e97b-e325-11ce-bfc1-08002be10318}
-  - Intel Chipset SATA RAID Controller (driver 15.44.0.1015)
-  - Microsoft Storage Spaces Controller
-+ {4d36e97d-e325-11ce-bfc1-08002be10318}
-  - ACPI Fan
-  - ACPI Fan
-  - ACPI Fan
-  - ACPI Fan
-  - ACPI Fan
-  - ACPI Fixed Feature Button
-  - ACPI Power Button
-  - ACPI Processor Aggregator
-  - ACPI Sleep Button
-  - ACPI Thermal Zone
-  - ACPI Thermal Zone
-  - Charge Arbitration Driver
-  - Composite Bus Enumerator
-  - High Definition Audio Controller
-  - High Definition Audio Controller
-  - High precision event timer
-  - Intel(R) 300 Series Chipset Family LPC Controller (Z370) - A2C9 (driver 10.1.11.4)
-  - Intel(R) Gaussian Mixture Model - 1911 (driver 10.1.7.3)
-  - Intel(R) Management Engine Interface #1 (driver 2145.1.42.0)
-  - Intel(R) PCI Express Root Port #2 - A291 (driver 10.1.11.4)
-  - Intel(R) PCI Express Root Port #3 - A292 (driver 10.1.11.4)
-  - Intel(R) PCI Express Root Port #4 - A293 (driver 10.1.11.4)
-  - Intel(R) PCI Express Root Port #5 - A294 (driver 10.1.11.4)
-  - Intel(R) PMC - A2A1 (driver 10.1.11.4)
-  - Intel(R) Power Engine Plug-in
-  - Intel(R) Serial IO GPIO Host Controller - INT3451 (driver 30.100.1816.3)
-  - Intel(R) Serial IO UART Host Controller - A2A7 (driver 30.100.1943.2)
-  - Intel(R) SMBUS - A2A3 (driver 10.1.11.4)
-  - Intel(R) Software Guard Extensions Device (driver 2.25.100.3)
-  - Legacy device
-  - Microsoft ACPI-Compliant System
-  - Microsoft Basic Display Driver
-  - Microsoft Basic Render Driver
-  - Microsoft Hyper-V PCI Server
-  - Microsoft Hyper-V Virtual Disk Server
-  - Microsoft Hyper-V Virtual Machine Bus Provider
-  - Microsoft Hyper-V Virtualization Infrastructure Driver
-  - Microsoft Hypervisor Service
-  - Microsoft System Management BIOS Driver
-  - Microsoft UEFI-Compliant System
-  - Microsoft Virtual Drive Enumerator
-  - Microsoft Windows Management Interface for ACPI
-  - Microsoft Windows Management Interface for ACPI
-  - Microsoft Windows Management Interface for ACPI
-  - Motherboard resources
-  - Motherboard resources
-  - Motherboard resources
-  - Motherboard resources
-  - Motherboard resources
-  - Motherboard resources
-  - Motherboard resources
-  - Motherboard resources
-  - Motherboard resources
-  - Motherboard resources
-  - NDIS Virtual Network Adapter Enumerator
-  - Nugget Hands-Free AG
-  - Numeric data processor
-  - PCI Express Root Complex
-  - PCI standard host CPU bridge
-  - PCI-to-PCI Bridge
-  - Plug and Play Software Device Enumerator
-  - Portronics Twins S16 Hands-Free AG
-  - Programmable interrupt controller
-  - Remote Desktop Device Redirector Bus
-  - System CMOS/real time clock
-  - System timer
-  - UMBus Root Bus Enumerator
-  - Volume Manager
-+ {50127dc3-0f36-415e-a6cc-4cb3be910b65}
-  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
-  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
-  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
-  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
-  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
-  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
-  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
-  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
-  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
-  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
-  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
-  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
-+ {533c5b84-ec70-11d2-9505-00c04f79deaf}
-  - Generic volume shadow copy
-  - Generic volume shadow copy
-  - Generic volume shadow copy
-+ {5c4c3332-344d-483c-8739-259e934c9cc8}
-  - Intel(R) Dynamic Application Loader Host Interface (driver 1.44.2023.710)
-  - Intel(R) Graphics Command Center (driver 27.20.100.9664)
-  - Intel(R) Graphics Control Panel (driver 27.20.100.9664)
-  - Intel(R) iCLS Client (driver 1.63.1155.2)
-  - Intel(R) Management Engine WMI Provider (driver 2130.1.15.0)
-  - Intel(R) Software Guard Extensions Software (driver 2.25.100.3)
-+ {62f9c741-b25a-46ce-b54c-9bccce08b6f2}
-  - Bluetooth
-  - Microsoft Device Association Root Enumerator
-  - Microsoft GS Wavetable Synth
-  - Microsoft Radio Device Enumeration Bus
-  - Wi-Fi
-+ {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
-  - Bluetooth HID Device
-  - Bluetooth Low Energy GATT compliant HID device
-  - HID-compliant consumer control device
-  - HID-compliant system controller
-  - USB Input Device
-  - USB Input Device
-  - USB Input Device
-+ {c166523c-fe0c-4a94-a586-f1a80cfbbf3e}
-  - LG IPS FULLHD (NVIDIA High Definition Audio)
-+ {e0cbf06c-cd8b-4647-bb8a-263b43f0f974}
-  - Bluetooth Device (RFCOMM Protocol TDI)
-  - Bluetooth LE Generic Attribute Service
-  - Device Information Service
-  - Generic Access Profile
-  - Generic Attribute Profile
-  - Lenovo Bluetooth Mouse
-  - Microsoft Bluetooth Enumerator
-  - Microsoft Bluetooth LE Enumerator
-  - Nugget
-  - Nugget Avrcp Transport
-  - Nugget Avrcp Transport
-  - Portronics Twins S16
-  - Portronics Twins S16 Avrcp Transport
-  - Portronics Twins S16 Avrcp Transport
-  - Qualcomm QCA9377 Bluetooth (driver 10.0.0.1238)
-+ {eec5ad98-8080-425f-922a-dabf3de3f69a}
-  - N:\
-+ {f2e7dd72-6468-4e36-b6f1-6488f42c1b52}
-  - System Firmware
-
-cpu registers:
-eax = 00000000
-ebx = 0315fbb0
-ecx = 00defbb0
-edx = 00000000
-esi = 0318f9f0
-edi = 0315fbb0
-eip = 00765630
-esp = 00defb78
-ebp = 00defb9c
-
-stack dump:
-00defb78  bc fb de 00 f8 a4 25 00 - 9c fb de 00 b0 fb 15 03  ......%.........
-00defb88  00 00 00 00 5c fc de 00 - 76 b3 4f 00 00 00 00 00  ....\...v.O.....
-00defb98  b0 fb 15 03 b4 fb de 00 - 64 ad 74 00 b0 fb 15 03  ........d.t.....
-00defba8  10 04 00 00 50 de 19 03 - b0 fb 15 03 d8 fb de 00  ....P...........
-00defbb8  67 08 4f 00 5c fc de 00 - c8 a2 25 00 d8 fb de 00  g.O.\.....%.....
-00defbc8  b0 fb 15 03 f0 f9 18 03 - b0 fb 15 03 b0 fb 15 03  ................
-00defbd8  14 fc de 00 56 06 4f 00 - a0 f8 1e 03 3c 97 25 00  ....V.O.....<.%.
-00defbe8  01 f3 1e 03 b0 fb 15 03 - 63 06 4f 00 30 05 1f 03  ........c.O.0...
-00defbf8  ce 6e 25 00 ad 8f 25 00 - 30 05 1f 03 24 fa 18 03  .n%...%.0...$...
-00defc08  00 fa 18 03 00 00 00 00 - b0 fb 15 03 00 00 00 00  ................
-00defc18  a3 90 25 00 f5 22 39 00 - 24 fa 18 03 6c fc de 00  ..%.."9.$...l...
-00defc28  00 30 78 00 a0 6b 79 00 - 8c af 4e 00 c6 af 4e 00  .0x..ky...N...N.
-00defc38  3f 41 2a 00 1c 41 2a 00 - 14 ad 25 00 68 20 78 00  ?A*..A*...%.h x.
-00defc48  68 20 78 00 00 90 e9 00 - 97 21 78 00 00 00 00 00  h x......!x.....
-00defc58  00 00 00 00 c4 fc de 00 - c8 a7 25 00 6c fc de 00  ..........%.l...
-00defc68  00 00 00 00 7c fc de 00 - 49 5d 36 75 00 90 e9 00  ....|...I]6u....
-00defc78  30 5d 36 75 d4 fc de 00 - ab d1 66 77 00 90 e9 00  0]6u......fw....
-00defc88  e2 af 9f 66 00 00 00 00 - 00 00 00 00 00 90 e9 00  ...f............
-00defc98  00 00 00 00 00 00 00 00 - 00 00 00 00 00 00 00 00  ................
-00defca8  00 00 00 00 00 00 00 00 - 00 00 00 00 00 00 00 00  ................
-
-disassembling:
-[...]
-00765617        mov     eax, [eax+$5c8]
-0076561d        cmp     dword ptr [eax+$58], 0
-00765621        jle     loc_7656d8
-00765627        mov     eax, [ebp-4]
-0076562a        mov     eax, [eax+$5dc]
-00765630      > cmp     dword ptr [eax+$58], 0
-00765634        jle     loc_7656d8
-0076563a 6284   lea     eax, [ebp-$14]
-0076563d        call    -$39258a ($3d30b8)     ; System.IOUtils.TPath.GetHomePath
-00765642        mov     eax, [ebp-$14]
-00765645        mov     [ebp-$10], eax
-[...]
-
-date/time          : 2026-05-22, 12:12:20, 858ms
-computer name      : RL
-user name          : Admin <admin>
-registered owner   : Windows User
-operating system   : Windows 11 x64 build 26100
-system language    : English
-system up time     : 1 hour 32 minutes
-program up time    : 7 seconds
-processors         : 12x Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
-physical memory    : 4409/16187 MB (free/total)
-free disk space    : (C:) 120.11 GB (D:) 14.02 GB
-display mode       : 1920x1080, 32 bit
-process id         : $2c74
-allocated memory   : 66.35 MB
-largest free block : 1.14 GB
-executable         : VittixDesigner.exe
-exec. date/time    : 2026-05-22 12:12
-version            : 1.0.0.0
-compiled with      : Delphi 12
-madExcept version  : 5.2.0
-callstack crc      : $3b5dd932, $036aec03, $036aec03
-exception number   : 1
-exception class    : EReportException
-exception message  : Report must have a MasterData band.
-
-main thread ($1fc4):
-00e79f86 +05a VittixDesigner.exe Vittix.Report.Engine    998  +8 TReportEngine.Prepare
-00e7fb1a +072 VittixDesigner.exe Vittix.Report.Renderer   95 +11 TReportRenderer.Render
-00f21bda +086 VittixDesigner.exe Frm.Preview             116 +12 TfrmPreview.LoadReport
-00f3d975 +071 VittixDesigner.exe Frm.Main               4470 +11 TfrmMain.mnuPreviewClick
-00cab27a +0aa VittixDesigner.exe Vcl.Menus                       TMenuItem.Click
-00cacf97 +0ef VittixDesigner.exe Vcl.Menus                       DoClick
-00cad083 +087 VittixDesigner.exe Vcl.Menus                       TMenu.IsShortCut
-00cad0a4 +0a8 VittixDesigner.exe Vcl.Menus                       TMenu.IsShortCut
-00cad0d1 +0d5 VittixDesigner.exe Vcl.Menus                       TMenu.IsShortCut
-00cc862d +04d VittixDesigner.exe Vcl.Forms                       TCustomForm.IsShortCut
-00bf6ce8 +068 VittixDesigner.exe Vcl.Controls                    TWinControl.IsMenuKey
-00bf6d35 +01d VittixDesigner.exe Vcl.Controls                    TWinControl.CNKeyDown
-00beefea +2be VittixDesigner.exe Vcl.Controls                    TControl.WndProc
-00bf469f +6a7 VittixDesigner.exe Vcl.Controls                    TWinControl.WndProc
-00bf3b64 +02c VittixDesigner.exe Vcl.Controls                    TWinControl.MainWndProc
-00bf3b7f +047 VittixDesigner.exe Vcl.Controls                    TWinControl.MainWndProc
-00b647b4 +014 VittixDesigner.exe System.Classes                  StdWndProc
-75a177d1 +041 USER32.dll                                         SendMessageW
-00ccccc4 +084 VittixDesigner.exe Vcl.Forms                       TApplication.IsKeyMsg
-00cccf6b +0cf VittixDesigner.exe Vcl.Forms                       TApplication.ProcessMessage
-00cccfd2 +00a VittixDesigner.exe Vcl.Forms                       TApplication.HandleMessage
-00ccd311 +0d1 VittixDesigner.exe Vcl.Forms                       TApplication.Run
-00f5511a +09a VittixDesigner.exe VittixDesigner           69 +11 initialization
-00f5519e +11e VittixDesigner.exe VittixDesigner           78 +20 initialization
-74eb5d47 +017 KERNEL32.DLL                                       BaseThreadInitThunk
-
-thread $4430:
+thread $6bf0:
 74eb5d47 +17 KERNEL32.DLL  BaseThreadInitThunk
 
-thread $547c:
+thread $4288:
 74eb5d47 +17 KERNEL32.DLL  BaseThreadInitThunk
 
-thread $242c:
-74eb5d47 +17 KERNEL32.DLL  BaseThreadInitThunk
-
-thread $531c:
-74eb5d47 +17 KERNEL32.DLL  BaseThreadInitThunk
-
-thread $4fb8:
+thread $3ef4:
 74eb5d47 +17 KERNEL32.DLL  BaseThreadInitThunk
 
 modules:
-00a20000 VittixDesigner.exe     1.0.0.0         D:\ketan\github\VittixReport\vittixdesigner
-50de0000 FaultRep.dll           10.0.26100.3624 C:\Windows\SYSTEM32
-60950000 SHFolder.dll           10.0.26100.1    C:\Windows\SYSTEM32
+00900000 VittixDesigner.exe     1.0.0.0         D:\ketan\github\VittixReport\vittixdesigner
+5fee0000 FaultRep.dll           10.0.26100.3624 C:\Windows\SYSTEM32
 60ee0000 TextShaping.dll        10.0.26100.4343 C:\Windows\SYSTEM32
 60f90000 CoreUIComponents.dll   10.0.26100.3912 C:\Windows\SYSTEM32
 61230000 CoreMessaging.dll      10.0.26100.4202 C:\Windows\SYSTEM32
 61610000 textinputframework.dll 10.0.26100.4484 C:\Windows\SYSTEM32
+61800000 SHFolder.dll           10.0.26100.1    C:\Windows\SYSTEM32
 61e40000 apphelp.dll            10.0.26100.4484 C:\Windows\SYSTEM32
 6ee00000 uxtheme.dll            10.0.26100.4484 C:\Windows\system32
 6eeb0000 msimg32.dll            10.0.26100.1882 C:\Windows\SYSTEM32
+6f160000 MSASN1.dll             10.0.26100.4652 C:\Windows\SYSTEM32
 6f950000 ntmarta.dll            10.0.26100.4202 C:\Windows\SYSTEM32
-6faa0000 Windows.Storage.dll    10.0.26100.4484 C:\Windows\SYSTEM32
+6fa10000 DEVOBJ.dll             10.0.26100.1    C:\Windows\SYSTEM32
+6faa0000 windows.storage.dll    10.0.26100.4484 C:\Windows\SYSTEM32
 703e0000 DWMAPI.DLL             10.0.26100.4484 C:\Windows\SYSTEM32
 712a0000 kernel.appcore.dll     10.0.26100.4202 C:\Windows\SYSTEM32
 712c0000 CRYPTBASE.DLL          10.0.26100.4652 C:\Windows\SYSTEM32
@@ -1277,11 +83,13 @@ modules:
 71ec0000 winspool.drv           10.0.26100.4484 C:\Windows\SYSTEM32
 72960000 COMCTL32.dll           6.10.26100.4484 C:\Windows\WinSxS\x86_microsoft.windows.common-controls_6595b64144ccf1df_6.0.26100.4484_none_85bba423f7ab1cb9
 72ca0000 WTSAPI32.DLL           10.0.26100.4484 C:\Windows\SYSTEM32
+74e00000 psapi.dll              10.0.26100.1    C:\Windows\System32
 74e10000 msvcp_win.dll          10.0.26100.4652 C:\Windows\System32
 74ea0000 KERNEL32.DLL           10.0.26100.4652 C:\Windows\System32
 75030000 advapi32.dll           10.0.26100.4652 C:\Windows\System32
 751b0000 WS2_32.dll             10.0.26100.4652 C:\Windows\System32
 75220000 sechost.dll            10.0.26100.4652 C:\Windows\System32
+752b0000 WINTRUST.dll           10.0.26100.4484 C:\Windows\System32
 75780000 win32u.dll             10.0.26100.4652 C:\Windows\System32
 757a0000 oleaut32.dll           10.0.26100.4484 C:\Windows\System32
 75850000 shcore.dll             10.0.26100.4652 C:\Windows\System32
@@ -1301,6 +109,7 @@ modules:
 76a50000 combase.dll            10.0.26100.4652 C:\Windows\System32
 76ce0000 KERNELBASE.dll         10.0.26100.4652 C:\Windows\System32
 76fb0000 MSCTF.dll              10.0.26100.4484 C:\Windows\System32
+77250000 CRYPT32.dll            10.0.26100.3775 C:\Windows\System32
 77370000 ntdll.dll              10.0.26100.4652 C:\Windows\SYSTEM32
 
 processes:
@@ -1409,26 +218,26 @@ processes:
 26a4 esko.exe                                     0 0    0
 26ac sihost.exe                                   1 0    11  normal       C:\Windows\System32
 04e8 svchost.exe                                  1 0    1   normal       C:\Windows\System32
-0edc svchost.exe                                  1 0    5   normal       C:\Windows\System32
-28bc Qsync.exe                                    1 116  83  below normal C:\Program Files (x86)\QNAP\Qsync
+0edc svchost.exe                                  1 0    4   normal       C:\Windows\System32
+28bc Qsync.exe                                    1 116  84  below normal C:\Program Files (x86)\QNAP\Qsync
 28e0 taskhostw.exe                                1 0    2   normal       C:\Windows\System32
 2aac igfxEM.exe                                   1 10   14  normal       C:\Windows\System32\DriverStore\FileRepository\cui_dch.inf_amd64_7208949846a9b9dc
-2ad0 explorer.exe                                 1 311  333 normal       C:\Windows
+2ad0 explorer.exe                                 1 688  646 normal       C:\Windows
 2af8 ShellHost.exe                                1 0    10  normal       C:\Windows\System32
 2b70 CrossDeviceResume.exe                        1 0    10  normal       C:\Windows\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy
 2b50 svchost.exe                                  0 0    0
-2984 PowerToys.exe                                1 18   50  normal       C:\Users\Admin\AppData\Local\PowerToys
+2984 PowerToys.exe                                1 18   52  normal       C:\Users\Admin\AppData\Local\PowerToys
 1a10 PowerToys.QuickAccess.exe                    1 44   33  normal       C:\Users\Admin\AppData\Local\PowerToys\WinUI3Apps
-1bc4 svchost.exe                                  1 0    10  normal       C:\Windows\System32
-2f00 PowerToys.AlwaysOnTop.exe                    1 0    27  normal       C:\Users\Admin\AppData\Local\PowerToys
+1bc4 svchost.exe                                  1 0    14  normal       C:\Windows\System32
+2f00 PowerToys.AlwaysOnTop.exe                    1 0    39  normal       C:\Users\Admin\AppData\Local\PowerToys
 2f08 PowerToys.Awake.exe                          1 22   14  normal       C:\Users\Admin\AppData\Local\PowerToys
-2f68 PowerToys.ColorPickerUI.exe                  1 27   26  normal       C:\Users\Admin\AppData\Local\PowerToys
+2f68 PowerToys.ColorPickerUI.exe                  1 27   34  normal       C:\Users\Admin\AppData\Local\PowerToys
 2fa8 PowerToys.CropAndLock.exe                    1 0    5   normal       C:\Users\Admin\AppData\Local\PowerToys
-2fc8 PowerToys.FancyZones.exe                     1 1    19  normal       C:\Users\Admin\AppData\Local\PowerToys
+2fc8 PowerToys.FancyZones.exe                     1 1    18  normal       C:\Users\Admin\AppData\Local\PowerToys
 2c5c Microsoft.CmdPal.UI.exe                      1 142  70  normal       C:\Program Files\WindowsApps\Microsoft.CommandPalette_0.10.11181.0_x64__8wekyb3d8bbwe
 30cc ctfmon.exe                                   1 2    23  high         C:\Windows\System32
-200c PowerToys.Peek.UI.exe                        1 0    8   normal       C:\Users\Admin\AppData\Local\PowerToys\WinUI3Apps
-18ec PowerToys.PowerLauncher.exe                  1 64   38  normal       C:\Users\Admin\AppData\Local\PowerToys
+200c PowerToys.Peek.UI.exe                        1 45   43  normal       C:\Users\Admin\AppData\Local\PowerToys\WinUI3Apps
+18ec PowerToys.PowerLauncher.exe                  1 67   39  normal       C:\Users\Admin\AppData\Local\PowerToys
 1868 PowerToys.PowerOCR.exe                       1 0    6   normal       C:\Users\Admin\AppData\Local\PowerToys
 2ee0 WindowsPackageManagerServer.exe              1 0    9   normal       C:\Program Files\WindowsApps\Microsoft.DesktopAppInstaller_1.28.240.0_x64__8wekyb3d8bbwe
 1aa4 Microsoft.CmdPal.Ext.PowerToys.exe           1 0    1   normal       C:\Users\Admin\AppData\Local\PowerToys\WinUI3Apps
@@ -1438,37 +247,37 @@ processes:
 3524 SecurityHealthService.exe                    0 0    0
 3558 EnfocusSubscriptionNotifier.exe              1 13   6   normal       C:\Program Files\Common Files\Enfocus\EnfocusSubscriptionService\EnfocusSubscriptionService
 3628 Seagull.Notification.SystemTray.exe          1 7    6   normal       C:\Program Files\Seagull\BarTender 2021
-3650 nextcloud.exe                                1 32   60  normal       C:\Program Files\Nextcloud
+3650 nextcloud.exe                                1 32   59  normal       C:\Program Files\Nextcloud
 36f0 claude.exe                                   1 2    27  normal       C:\Users\Admin\AppData\Local\AnthropicClaude\app-1.1.4173
 3750 claude.exe                                   1 0    4   normal       C:\Users\Admin\AppData\Local\AnthropicClaude\app-1.1.4173
 34b8 claude.exe                                   1 1    3   above normal C:\Users\Admin\AppData\Local\AnthropicClaude\app-1.1.4173
 3614 claude.exe                                   1 0    3   normal       C:\Users\Admin\AppData\Local\AnthropicClaude\app-1.1.4173
 36e8 VittixIndicKeyboard.exe                      1 46   28  normal       D:\ketan\github\vittix-indic-keyboard\build\Win32
-1fe0 MuMuNxMain.exe                               1 28   56  normal       C:\Program Files\Netease\MuMuPlayer\nx_main
+1fe0 MuMuNxMain.exe                               1 47   73  normal       C:\Program Files\Netease\MuMuPlayer\nx_main
 10e0 crashpad_handler.exe                         1 0    4   normal       C:\Program Files\Netease\MuMuPlayer\nx_main
 373c mscopilot.exe                                1 9    38  normal       C:\Program Files (x86)\Microsoft\Copilot\Application
 1c44 mscopilot.exe                                1 0    3   normal       C:\Program Files (x86)\Microsoft\Copilot\Application
 207c mscopilot.exe                                1 0    5   normal       C:\Program Files (x86)\Microsoft\Copilot\Application
 1f4c mscopilot.exe                                1 1    4   above normal C:\Program Files (x86)\Microsoft\Copilot\Application
 2640 mscopilot.exe                                1 0    0   normal       C:\Program Files (x86)\Microsoft\Copilot\Application
-38b8 WhatsApp.Root.exe                            1 48   51  idle         C:\Program Files\WindowsApps\5319275A.WhatsAppDesktop_2.2616.100.0_x64__cv1g1gvanyjgm
+38b8 WhatsApp.Root.exe                            1 114  60  idle         C:\Program Files\WindowsApps\5319275A.WhatsAppDesktop_2.2616.100.0_x64__cv1g1gvanyjgm
 3960 RuntimeBroker.exe                            1 0    1   normal       C:\Windows\System32
-39bc msedgewebview2.exe                           1 22   35  normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+39bc msedgewebview2.exe                           1 22   38  normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
 39d8 msedgewebview2.exe                           1 0    3   normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
-3a94 msedgewebview2.exe                           1 2    12  above normal C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+3a94 msedgewebview2.exe                           1 5    16  above normal C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
 3a9c msedgewebview2.exe                           1 0    5   normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
 3af4 msedgewebview2.exe                           1 0    0   normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
-3b2c msedgewebview2.exe                           1 0    0   idle         C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+3b2c msedgewebview2.exe                           1 0    0   normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
 3b9c svchost.exe                                  0 0    0
-3c78 ChatGPT.exe                                  1 27   64  normal       C:\Program Files\WindowsApps\OpenAI.ChatGPT-Desktop_1.2026.133.0_x64__2p2nqsd0c76g0\app
+3c78 ChatGPT.exe                                  1 84   81  normal       C:\Program Files\WindowsApps\OpenAI.ChatGPT-Desktop_1.2026.133.0_x64__2p2nqsd0c76g0\app
 3d1c ChatGPT.exe                                  1 0    4   normal       C:\Program Files\WindowsApps\OpenAI.ChatGPT-Desktop_1.2026.133.0_x64__2p2nqsd0c76g0\app
 3d7c ChatGPT.exe                                  1 5    13  above normal C:\Program Files\WindowsApps\OpenAI.ChatGPT-Desktop_1.2026.133.0_x64__2p2nqsd0c76g0\app
 3d98 ChatGPT.exe                                  1 0    3   normal       C:\Program Files\WindowsApps\OpenAI.ChatGPT-Desktop_1.2026.133.0_x64__2p2nqsd0c76g0\app
 3e8c rustdesk.exe                                 1 3    8   normal       C:\Program Files\RustDesk
-3edc Everything.exe                               1 70   47  normal       C:\Program Files (x86)\Everything
-3f98 ShareX.exe                                   1 113  69  normal       C:\Program Files\ShareX
+3edc Everything.exe                               1 86   76  normal       C:\Program Files (x86)\Everything
+3f98 ShareX.exe                                   1 282  195 normal       C:\Program Files\ShareX
 3fac EskoSubscriptionNotifier.exe                 1 13   6   normal       C:\Program Files (x86)\Common Files\Esko\SubscriptionService\SubscriptionService
-3fc0 ChatGPT.exe                                  1 0    0   idle         C:\Program Files\WindowsApps\OpenAI.ChatGPT-Desktop_1.2026.133.0_x64__2p2nqsd0c76g0\app
+3fc0 ChatGPT.exe                                  1 0    0   normal       C:\Program Files\WindowsApps\OpenAI.ChatGPT-Desktop_1.2026.133.0_x64__2p2nqsd0c76g0\app
 3f3c CCXProcess.exe                               1 0    0   normal       C:\Program Files\Adobe\Adobe Creative Cloud Experience
 3f50 node.exe                                     1 0    4   normal       C:\Program Files\Adobe\Adobe Creative Cloud Experience\libs
 3f38 conhost.exe                                  1 10   3   normal       C:\Windows\System32
@@ -1496,44 +305,81 @@ processes:
 08a8 svchost.exe                                  0 0    0
 0b40 svchost.exe                                  0 0    0
 1a40 svchost.exe                                  0 0    0
-18c8 CorelDRW.exe                                 1 1780 783 normal       C:\Program Files\Corel\CorelDRAW Graphics Suite 2021\Programs64
-419c Keyline2.exe                                 1 193  67  normal       G:\keyline
-133c splwow64.exe                                 1 0    1   normal       C:\Windows
-0ec4 InterprocessController.exe                   1 45   6   normal       C:\Program Files\Corel\CorelDRAW Graphics Suite 2021\Programs64
-098c conhost.exe                                  1 11   9   normal       C:\Windows\System32
-3318 bds.exe                                      1 1573 681 normal       C:\Program Files (x86)\Embarcadero\Studio\23.0\bin
-3454 svchost.exe                                  1 0    3   normal       C:\Windows\System32
+3454 svchost.exe                                  1 0    1   normal       C:\Windows\System32
 0548 jucheck.exe                                  1 7    6   normal       C:\Program Files (x86)\Common Files\Java\Java Update
-2dbc vittix.exe                                   1 122  234 normal       D:\ketan\github\vittix\bin\Win32\Debug
-4f78 sqlservr.exe                                 0 0    0
-21fc msedgewebview2.exe                           1 0    0   idle         C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
-52c0 msedgewebview2.exe                           1 0    0   idle         C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
-21f4 ArtPro+.exe                                  1 464  45  normal       C:\Esko\bg_prog_artpro+_v220\ArtPro+.app\Contents\Windows
-4050 ArtworkFlow.exe                              1 87   83  normal       D:\ketan\github\Artworkflow\vx-printflow-desktop\Win32\Debug
-4b98 svchost.exe                                  0 0    0
-0a40 Code.exe                                     1 18   49  normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-0568 Code.exe                                     1 0    4   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-4fac Code.exe                                     1 5    11  above normal C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-5564 Code.exe                                     1 0    3   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-31c4 Code.exe                                     1 0    0   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-5374 Code.exe                                     1 0    4   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-53b0 Code.exe                                     1 0    0   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-2dcc Code.exe                                     1 0    3   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-0eb8 Code.exe                                     1 0    3   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-521c codex.exe                                    1 0    1   normal       C:\Users\Admin\.vscode\extensions\openai.chatgpt-26.513.21555-win32-x64\bin\windows-x86_64
-33d0 conhost.exe                                  1 0    1   normal       C:\Windows\System32
-495c Code.exe                                     1 0    1   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
-1158 cloudcode_cli.exe                            1 0    0   normal       C:\Users\Admin\AppData\Local\cloud-code\cloudcode_cli\cloudcode_cli\9c9a05d3
-4dac conhost.exe                                  1 0    1   normal       C:\Windows\System32
-2c54 svchost.exe                                  0 0    0
-1dcc powershell.exe                               1 0    5   normal       C:\Windows\System32\WindowsPowerShell\v1.0
-53a8 DelphiLSP.exe                                1 0    6   normal       C:\Program Files (x86)\Embarcadero\Studio\23.0\bin
-5498 conhost.exe                                  1 11   9   normal       C:\Windows\System32
-556c DelphiLSP.exe                                1 0    1   normal       C:\Program Files (x86)\Embarcadero\Studio\23.0\bin
-22e0 DelphiLSP.exe                                1 0    1   normal       C:\Program Files (x86)\Embarcadero\Studio\23.0\bin
-5710 smartscreen.exe                              1 0    1   normal       C:\Windows\System32
-2c74 VittixDesigner.exe                           1 78   74  normal       D:\ketan\github\VittixReport\vittixdesigner
-4714 conhost.exe                                  1 16   18  normal       C:\Windows\System32
+5420 msedgewebview2.exe                           1 0    1   normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+4f90 TabTip.exe                                   1 18   31  high         C:\Program Files\Common Files\microsoft shared\ink
+4dfc TextInputHost.exe                            1 0    64  high         C:\Windows\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy
+5d48 taskhostw.exe                                1 0    2   normal       C:\Windows\System32
+6350 AAM Updates Notifier.exe                     1 8    7   below normal C:\Program Files (x86)\Common Files\Adobe\OOBE\PDApp\UWA
+4cb0 StartMenuExperienceHost.exe                  1 0    8   normal       C:\Windows\SystemApps\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy
+563c ArtPro+.exe                                  1 518  67  normal       C:\Esko\bg_prog_artpro+_v220\ArtPro+.app\Contents\Windows
+0830 Code.exe                                     1 70   54  normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+4900 Code.exe                                     1 0    4   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+2680 Code.exe                                     1 5    10  above normal C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+63e0 Code.exe                                     1 0    3   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+338c Code.exe                                     1 0    0   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+5210 Code.exe                                     1 0    3   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+1cf4 Code.exe                                     1 0    0   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+6340 Code.exe                                     1 0    3   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+3e00 Code.exe                                     1 0    3   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+6034 codex.exe                                    1 0    1   normal       C:\Users\Admin\.vscode\extensions\openai.chatgpt-26.519.32039-win32-x64\bin\windows-x86_64
+5814 conhost.exe                                  1 0    1   normal       C:\Windows\System32
+5f98 Code.exe                                     1 0    1   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+6148 Code.exe                                     1 0    1   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+579c cloudcode_cli.exe                            1 0    0   normal       C:\Users\Admin\AppData\Local\cloud-code\cloudcode_cli\cloudcode_cli\9c9a05d3
+5690 conhost.exe                                  1 0    1   normal       C:\Windows\System32
+4880 notepad.exe                                  1 41   34  normal       C:\Windows\System32
+27b0 chrome.exe                                   1 76   77  normal       C:\Program Files\Google\Chrome\Application
+51bc chrome.exe                                   1 0    3   normal       C:\Program Files\Google\Chrome\Application
+6344 chrome.exe                                   1 14   16  above normal C:\Program Files\Google\Chrome\Application
+5c6c chrome.exe                                   1 0    3   normal       C:\Program Files\Google\Chrome\Application
+5c3c chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+2934 chrome.exe                                   1 0    0   idle         C:\Program Files\Google\Chrome\Application
+50b4 chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+4b9c chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+46b8 chrome.exe                                   1 0    0   idle         C:\Program Files\Google\Chrome\Application
+160c powershell.exe                               1 0    4   normal       C:\Windows\System32\WindowsPowerShell\v1.0
+547c bds.exe                                      1 1586 701 normal       C:\Program Files (x86)\Embarcadero\Studio\23.0\bin
+192c chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+057c chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+3384 chrome.exe                                   1 0    1   normal       C:\Program Files\Google\Chrome\Application
+4ae4 chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+0328 chrome.exe                                   1 0    1   normal       C:\Program Files\Google\Chrome\Application
+4cd0 chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+48ac chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+6348 chrome.exe                                   1 0    0   idle         C:\Program Files\Google\Chrome\Application
+31bc FastReportWOSQLiteDemo.exe                   1 223  208 normal       D:\delphi\vcl\sydney_vcl\FastReport.VCL.2024.2.5.Enterprise\Feature Demos\FastReport FPC Demo
+6094 FSViewer.exe                                 1 720  237 normal       C:\Program Files (x86)\FastStone Image Viewer
+5918 DelphiLSP.exe                                1 0    5   normal       C:\Program Files (x86)\Embarcadero\Studio\23.0\bin
+59d4 conhost.exe                                  1 11   9   normal       C:\Windows\System32
+5be4 DelphiLSP.exe                                1 0    1   normal       C:\Program Files (x86)\Embarcadero\Studio\23.0\bin
+4210 DelphiLSP.exe                                1 0    1   normal       C:\Program Files (x86)\Embarcadero\Studio\23.0\bin
+4cf4 EXCEL.EXE                                    1 329  105 normal       C:\Program Files (x86)\Microsoft Office\Office12
+588c ArtworkFlow.exe                              1 234  182 normal       D:\ketan\github\Artworkflow\vx-printflow-desktop\Win32\Debug
+5ffc CorelDRW.exe                                 1 2140 984 normal       C:\Program Files\Corel\CorelDRAW Graphics Suite 2021\Programs64
+3398 InterprocessController.exe                   1 45   7   normal       C:\Program Files\Corel\CorelDRAW Graphics Suite 2021\Programs64
+5214 conhost.exe                                  1 11   9   normal       C:\Windows\System32
+3530 msedgewebview2.exe                           1 22   38  normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+0d90 msedgewebview2.exe                           1 0    3   normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+46c8 msedgewebview2.exe                           1 0    5   normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+33dc msedgewebview2.exe                           1 2    11  above normal C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+1f74 msedgewebview2.exe                           1 0    0   normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+5f78 msedgewebview2.exe                           1 0    0   idle         C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+58b4 chrome.exe                                   1 0    0   idle         C:\Program Files\Google\Chrome\Application
+1374 chrome.exe                                   1 0    0   idle         C:\Program Files\Google\Chrome\Application
+5cc4 chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+46f4 chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+4930 chrome.exe                                   1 0    0   idle         C:\Program Files\Google\Chrome\Application
+0600 sqlservr.exe                                 0 0    0
+5130 chrome.exe                                   1 0    0   idle         C:\Program Files\Google\Chrome\Application
+082c svchost.exe                                  0 0    0
+2918 backgroundTaskHost.exe                       1 0    4   normal       C:\Windows\System32
+50a4 RuntimeBroker.exe                            1 0    1   normal       C:\Windows\System32
+4770 svchost.exe                                  0 0    0
+5a78 VittixDesigner.exe                           1 86   86  normal       D:\ketan\github\VittixReport\vittixdesigner
+4e8c conhost.exe                                  1 16   21  normal       C:\Windows\System32
+56ec chrome.exe                                   1 0    0   idle         C:\Program Files\Google\Chrome\Application
 
 hardware:
 + {1ed2bbf9-11f0-4084-b21f-ad83a8e6dcdc}
@@ -1583,6 +429,14 @@ hardware:
   - Microsoft Wi-Fi Direct Virtual Adapter #2
   - Qualcomm QCA9377 802.11ac Wireless Adapter
   - VirtualBox Host-Only Ethernet Adapter (driver 7.2.6.22322)
+  - WAN Miniport (IKEv2)
+  - WAN Miniport (IP)
+  - WAN Miniport (IPv6)
+  - WAN Miniport (L2TP)
+  - WAN Miniport (Network Monitor)
+  - WAN Miniport (PPPOE)
+  - WAN Miniport (PPTP)
+  - WAN Miniport (SSTP)
 + {4d36e978-e325-11ce-bfc1-08002be10318}
   - Communications Port (COM1)
   - Standard Serial over Bluetooth link (COM7)
@@ -1675,6 +529,7 @@ hardware:
 + {533c5b84-ec70-11d2-9505-00c04f79deaf}
   - Generic volume shadow copy
   - Generic volume shadow copy
+  - Generic volume shadow copy
 + {5c4c3332-344d-483c-8739-259e934c9cc8}
   - Intel(R) Dynamic Application Loader Host Interface (driver 1.44.2023.710)
   - Intel(R) Graphics Command Center (driver 27.20.100.9664)
@@ -1687,6 +542,7 @@ hardware:
   - Microsoft Device Association Root Enumerator
   - Microsoft GS Wavetable Synth
   - Microsoft Radio Device Enumeration Bus
+  - Microsoft RRAS Root Enumerator
   - Wi-Fi
 + {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
   - Bluetooth HID Device
@@ -1722,50 +578,1311 @@ hardware:
   - System Firmware
 
 cpu registers:
-eax = 04d6fae0
-ebx = 00000000
-ecx = 00000000
-edx = 016af3c8
+eax = 00000000
+ebx = 03431590
+ecx = 04d06ee0
+edx = 04d06e88
 esi = 00000000
-edi = 04dccf18
-eip = 00e79f8b
-esp = 0118f484
-ebp = 0118f52c
+edi = 00000000
+eip = 00d373c9
+esp = 0135f920
+ebp = 0135f98c
 
 stack dump:
-0118f484  8b 9f e7 00 de fa ed 0e - 01 00 00 00 07 00 00 00  ................
-0118f494  98 f4 18 01 8b 9f e7 00 - e0 fa d6 04 00 00 00 00  ................
-0118f4a4  00 00 00 00 18 cf dc 04 - 2c f5 18 01 b4 f4 18 01  ........,.......
-0118f4b4  c0 f4 18 01 d7 a6 a2 00 - 2c f5 18 01 34 f5 18 01  ........,...4...
-0118f4c4  f8 a4 a2 00 2c f5 18 01 - 18 cf dc 04 00 00 00 00  ....,...........
-0118f4d4  00 00 00 00 ad 78 e7 00 - b7 78 e7 00 00 f5 18 01  .....x...x......
-0118f4e4  00 00 00 00 c3 90 a2 00 - 00 97 a2 00 14 f5 18 01  ................
-0118f4f4  0d 97 a2 00 0c f5 18 01 - 18 cf dc 04 e0 fa d6 04  ................
-0118f504  00 00 00 00 00 48 3e 03 - 30 f5 18 01 3c 79 e7 00  .....H>.0...<y..
-0118f514  fa 03 55 00 00 00 00 00 - 30 f5 18 01 00 48 3e 03  ..U.....0....H>.
-0118f524  e0 e3 40 03 00 48 3e 03 - 94 f5 18 01 1f fb e7 00  ..@..H>.........
-0118f534  9c f5 18 01 f8 a4 a2 00 - 94 f5 18 01 00 97 a2 00  ................
-0118f544  68 f5 18 01 0d 97 a2 00 - 60 f5 18 01 18 cf dc 04  h.......`.......
-0118f554  00 00 00 00 00 00 00 00 - 28 dc 44 03 00 97 a2 00  ........(.D.....
-0118f564  88 f5 18 01 28 dc 44 03 - 80 f5 18 01 62 04 00 00  ....(.D.....b...
-0118f574  19 03 00 00 00 00 00 00 - e0 1b 40 03 a0 f5 18 01  ..........@.....
-0118f584  00 48 3e 03 50 b1 36 03 - e0 e3 40 03 e0 1b 40 03  .H>.P.6...@...@.
-0118f594  28 f6 18 01 df 1b f2 00 - a8 f5 18 01 f8 a4 a2 00  (...............
-0118f5a4  28 f6 18 01 b4 f5 18 01 - f8 a4 a2 00 28 f6 18 01  (...........(...
-0118f5b4  30 f6 18 01 f8 a4 a2 00 - 28 f6 18 01 d0 0b 3c 03  0.......(.....<.
+0135f920  40 f9 35 01 b8 ff 90 00 - c0 47 e4 00 0c 6e 9d 03  @.5......G...n..
+0135f930  c0 47 e4 00 80 13 d0 00 - 00 00 00 00 f0 6d 9d 03  .G...........m..
+0135f940  54 f9 35 01 00 97 90 00 - 6c f9 35 01 0d 97 90 00  T.5.....l.5.....
+0135f950  64 f9 35 01 00 00 00 00 - 00 00 00 00 90 15 43 03  d.5...........C.
+0135f960  f0 6d 9d 03 00 97 90 00 - 8c f9 35 01 0d 97 90 00  .m........5.....
+0135f970  ff ff ff ff 00 00 00 00 - 01 00 00 00 88 6e d0 04  .............n..
+0135f980  e0 6e d0 04 00 00 00 00 - e0 6e d0 04 b4 f9 35 01  .n.......n....5.
+0135f990  fc 69 d3 00 bc f9 35 01 - e0 6e d0 04 01 00 00 00  .i....5..n......
+0135f9a0  01 00 00 00 01 00 00 00 - 00 00 00 00 e0 6e d0 04  .............n..
+0135f9b0  48 5b d0 04 c4 f9 35 01 - 3e 9a d3 00 e0 6e d0 04  H[....5.>....n..
+0135f9c0  50 12 47 03 58 fa 35 01 - 87 61 d4 00 94 fa 35 01  P.G.X.5..a....5.
+0135f9d0  f8 a4 90 00 58 fa 35 01 - cc 33 aa 00 20 00 00 00  ....X.5..3.. ...
+0135f9e0  a0 c3 46 03 2b 4b ad 00 - 10 fa 35 01 41 d9 b8 00  ..F.+K....5.A...
+0135f9f0  09 00 00 00 01 00 00 00 - f0 13 43 03 84 fa 35 00  ..........C...5.
+0135fa00  1c fa 35 01 5d d9 b8 00 - 41 d9 b8 00 00 00 00 00  ..5.]...A.......
+0135fa10  00 05 48 03 58 fa 35 01 - dc d8 b8 01 3c fa 35 01  ..H.X.5.....<.5.
+0135fa20  c3 80 b8 00 84 fa 35 00 - 93 93 90 00 00 00 00 00  ......5.........
+0135fa30  90 15 43 03 87 73 de 00 - 1c be b8 00 e0 6e d0 04  ..C..s.......n..
+0135fa40  30 c4 4a 03 01 00 00 00 - 00 00 00 00 00 00 00 00  0.J.............
+0135fa50  00 00 00 00 20 a2 3a 03 - 68 fa 35 01 84 ff e0 00  .... .:.h.5.....
 
 disassembling:
 [...]
-00e79f73        jnz     loc_e79f8b
-00e79f75 0998   mov     ecx, $e7a17c
-00e79f7a        mov     dl, 1
-00e79f7c        mov     eax, [$e73a60]
-00e79f81        call    -$3fcd1e ($a7d268)     ; System.SysUtils.Exception.Create
-00e79f86      > call    -$44f96f ($a2a61c)     ; System.@RaiseExcept
-00e79f8b 1001   mov     eax, [ebp-4]
-00e79f8e        cmp     dword ptr [eax+8], 0
-00e79f92        jnz     loc_e79faa
-00e79f94 1002   mov     ecx, $e7a1d0
-00e79f99        mov     dl, 1
+00d373b8       jb      loc_d373bf
+00d373ba       call    -$42e71b ($908ca4)     ; System.@BoundErr
+00d373bf       mov     eax, [edx+eax*8+4]
+00d373c3       mov     [ebp-$1c], eax
+00d373c6       mov     eax, [ebp-$18]
+00d373c9     > mov     eax, [eax+8]
+00d373cc       cmp     eax, [ebp-$1c]
+00d373cf       ja      loc_d373e3
+00d373d1       mov     eax, [ebp-$18]
+00d373d4       mov     edx, [eax+8]
+00d373d7       dec     edx
+[...]
+
+date/time          : 2026-05-23, 12:50:15, 186ms
+computer name      : RL
+user name          : Admin <admin>
+registered owner   : Windows User
+operating system   : Windows 11 x64 build 26100
+system language    : English
+system up time     : 1 day 2 hours
+program up time    : 7 minutes 16 seconds
+processors         : 12x Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
+physical memory    : 3993/16187 MB (free/total)
+free disk space    : (C:) 114.41 GB (D:) 13.94 GB
+display mode       : 1920x1080, 32 bit
+process id         : $5a78
+allocated memory   : 75.62 MB
+largest free block : 1.36 GB
+executable         : VittixDesigner.exe
+exec. date/time    : 2026-05-23 12:42
+version            : 1.0.0.0
+compiled with      : Delphi 12
+madExcept version  : 5.2.0
+callstack crc      : $85c9918c, $48b49e9f, $48b49e9f
+count              : 4
+exception number   : 13
+exception class    : EAccessViolation
+exception message  : Access violation at address 00D373C9 in module 'VittixDesigner.exe' (offset 4373C9). Read of address 00000008.
+
+main thread ($68c4):
+00d373c9 +075 VittixDesigner.exe Vittix.Report.Undo               357  +4 TDeleteObjectsCommand.Execute
+0090ffb5 +009 VittixDesigner.exe System                           132  +0 @IntfCopy
+00d0137b +01f VittixDesigner.exe Vittix.Report.Bands               47  +0 {System.Generics.Collections}TList<Vittix.Report.Objects.TReportObject>.UpdateComparer
+009096fd +01d VittixDesigner.exe System                           132  +0 @AfterConstruction
+00d369f9 +011 VittixDesigner.exe Vittix.Report.Undo               222  +1 TCommandManager.DoCommand
+00d39a39 +015 VittixDesigner.exe Vittix.Report.CommandDispatcher   43  +1 TCommandDispatcher.DoCommand
+00d46182 +25a VittixDesigner.exe Vittix.Report.DesignerControl    698 +31 TVittixReportDesigner.DeleteSelected
+00e0ff7f +02b VittixDesigner.exe Frm.Main                        1300  +6 TfrmMain.mnuDeleteClick
+00b8c23e +0aa VittixDesigner.exe Vcl.Menus                                TMenuItem.Click
+00b8df5b +0ef VittixDesigner.exe Vcl.Menus                                DoClick
+00b8e047 +087 VittixDesigner.exe Vcl.Menus                                TMenu.IsShortCut
+00b8e068 +0a8 VittixDesigner.exe Vcl.Menus                                TMenu.IsShortCut
+00b8e095 +0d5 VittixDesigner.exe Vcl.Menus                                TMenu.IsShortCut
+00ba95f1 +04d VittixDesigner.exe Vcl.Forms                                TCustomForm.IsShortCut
+00ad7cac +068 VittixDesigner.exe Vcl.Controls                             TWinControl.IsMenuKey
+00ad7cf9 +01d VittixDesigner.exe Vcl.Controls                             TWinControl.CNKeyDown
+00acffae +2be VittixDesigner.exe Vcl.Controls                             TControl.WndProc
+00ad5663 +6a7 VittixDesigner.exe Vcl.Controls                             TWinControl.WndProc
+00ad4b28 +02c VittixDesigner.exe Vcl.Controls                             TWinControl.MainWndProc
+00ad4b43 +047 VittixDesigner.exe Vcl.Controls                             TWinControl.MainWndProc
+00a44848 +014 VittixDesigner.exe System.Classes                           StdWndProc
+75a177d1 +041 USER32.dll                                                  SendMessageW
+00badc88 +084 VittixDesigner.exe Vcl.Forms                                TApplication.IsKeyMsg
+00badf2f +0cf VittixDesigner.exe Vcl.Forms                                TApplication.ProcessMessage
+00badf96 +00a VittixDesigner.exe Vcl.Forms                                TApplication.HandleMessage
+00bae2d5 +0d1 VittixDesigner.exe Vcl.Forms                                TApplication.Run
+00e3c11a +09a VittixDesigner.exe VittixDesigner                    69 +11 initialization
+00e3c19e +11e VittixDesigner.exe VittixDesigner                    78 +20 initialization
+74eb5d47 +017 KERNEL32.DLL                                                BaseThreadInitThunk
+
+thread $6bf0:
+74eb5d47 +17 KERNEL32.DLL  BaseThreadInitThunk
+
+thread $4288:
+74eb5d47 +17 KERNEL32.DLL  BaseThreadInitThunk
+
+modules:
+00900000 VittixDesigner.exe     1.0.0.0         D:\ketan\github\VittixReport\vittixdesigner
+5fee0000 FaultRep.dll           10.0.26100.3624 C:\Windows\SYSTEM32
+60ee0000 TextShaping.dll        10.0.26100.4343 C:\Windows\SYSTEM32
+60f90000 CoreUIComponents.dll   10.0.26100.3912 C:\Windows\SYSTEM32
+61230000 CoreMessaging.dll      10.0.26100.4202 C:\Windows\SYSTEM32
+61610000 textinputframework.dll 10.0.26100.4484 C:\Windows\SYSTEM32
+61800000 SHFolder.dll           10.0.26100.1    C:\Windows\SYSTEM32
+61e40000 apphelp.dll            10.0.26100.4484 C:\Windows\SYSTEM32
+6ee00000 uxtheme.dll            10.0.26100.4484 C:\Windows\system32
+6eeb0000 msimg32.dll            10.0.26100.1882 C:\Windows\SYSTEM32
+6f160000 MSASN1.dll             10.0.26100.4652 C:\Windows\SYSTEM32
+6f950000 ntmarta.dll            10.0.26100.4202 C:\Windows\SYSTEM32
+6fa10000 DEVOBJ.dll             10.0.26100.1    C:\Windows\SYSTEM32
+6faa0000 windows.storage.dll    10.0.26100.4484 C:\Windows\SYSTEM32
+703e0000 DWMAPI.DLL             10.0.26100.4484 C:\Windows\SYSTEM32
+712a0000 kernel.appcore.dll     10.0.26100.4202 C:\Windows\SYSTEM32
+712c0000 CRYPTBASE.DLL          10.0.26100.4652 C:\Windows\SYSTEM32
+712d0000 winmm.dll              10.0.26100.4202 C:\Windows\SYSTEM32
+71370000 SspiCli.dll            10.0.26100.4484 C:\Windows\SYSTEM32
+719b0000 cfgmgr32.dll           10.0.26100.4202 C:\Windows\SYSTEM32
+71a00000 wsock32.dll            10.0.26100.1    C:\Windows\SYSTEM32
+71ae0000 version.dll            10.0.26100.1    C:\Windows\SYSTEM32
+71e50000 oleacc.dll             7.2.26100.4484  C:\Windows\SYSTEM32
+71ec0000 winspool.drv           10.0.26100.4484 C:\Windows\SYSTEM32
+72960000 COMCTL32.dll           6.10.26100.4484 C:\Windows\WinSxS\x86_microsoft.windows.common-controls_6595b64144ccf1df_6.0.26100.4484_none_85bba423f7ab1cb9
+72ca0000 WTSAPI32.DLL           10.0.26100.4484 C:\Windows\SYSTEM32
+74e00000 psapi.dll              10.0.26100.1    C:\Windows\System32
+74e10000 msvcp_win.dll          10.0.26100.4652 C:\Windows\System32
+74ea0000 KERNEL32.DLL           10.0.26100.4652 C:\Windows\System32
+75030000 advapi32.dll           10.0.26100.4652 C:\Windows\System32
+751b0000 WS2_32.dll             10.0.26100.4652 C:\Windows\System32
+75220000 sechost.dll            10.0.26100.4652 C:\Windows\System32
+752b0000 WINTRUST.dll           10.0.26100.4484 C:\Windows\System32
+75780000 win32u.dll             10.0.26100.4652 C:\Windows\System32
+757a0000 oleaut32.dll           10.0.26100.4484 C:\Windows\System32
+75850000 shcore.dll             10.0.26100.4652 C:\Windows\System32
+75930000 RPCRT4.dll             10.0.26100.4652 C:\Windows\System32
+759f0000 USER32.dll             10.0.26100.4652 C:\Windows\System32
+75bc0000 GDI32.dll              10.0.26100.4484 C:\Windows\System32
+75bf0000 msvcrt.dll             7.0.26100.4652  C:\Windows\System32
+75cc0000 gdi32full.dll          10.0.26100.4652 C:\Windows\System32
+75dc0000 comdlg32.dll           10.0.26100.4484 C:\Windows\System32
+75e80000 ole32.dll              10.0.26100.4484 C:\Windows\System32
+75fe0000 SHLWAPI.dll            10.0.26100.4484 C:\Windows\System32
+76040000 IMM32.DLL              10.0.26100.4484 C:\Windows\System32
+76070000 SHELL32.dll            10.0.26100.4484 C:\Windows\System32
+767a0000 wintypes.dll           10.0.26100.4484 C:\Windows\System32
+768b0000 ucrtbase.dll           10.0.26100.4652 C:\Windows\System32
+769e0000 bcryptPrimitives.dll   10.0.26100.4652 C:\Windows\System32
+76a50000 combase.dll            10.0.26100.4652 C:\Windows\System32
+76ce0000 KERNELBASE.dll         10.0.26100.4652 C:\Windows\System32
+76fb0000 MSCTF.dll              10.0.26100.4484 C:\Windows\System32
+77250000 CRYPT32.dll            10.0.26100.3775 C:\Windows\System32
+77370000 ntdll.dll              10.0.26100.4652 C:\Windows\SYSTEM32
+
+processes:
+0000 Idle                                         0 0    0
+0004 System                                       0 0    0
+00bc Secure System                                0 0    0
+00e4 Registry                                     0 0    0
+02f8 smss.exe                                     0 0    0
+0374 csrss.exe                                    0 0    0
+0468 wininit.exe                                  0 0    0
+0470 csrss.exe                                    1 0    0
+04b0 services.exe                                 0 0    0
+04c4 LsaIso.exe                                   0 0    0
+04cc lsass.exe                                    0 0    0
+0514 winlogon.exe                                 1 0    0
+05a0 svchost.exe                                  0 0    0
+05c0 fontdrvhost.exe                              1 0    0
+05c8 fontdrvhost.exe                              0 0    0
+0620 svchost.exe                                  0 0    0
+0674 dwm.exe                                      1 0    0
+06f4 svchost.exe                                  0 0    0
+075c IntelCpHDCPSvc.exe                           0 0    0
+076c svchost.exe                                  0 0    0
+0778 svchost.exe                                  0 0    0
+0780 svchost.exe                                  0 0    0
+07d8 svchost.exe                                  0 0    0
+030c svchost.exe                                  0 0    0
+0824 IntelCpHeciSvc.exe                           0 0    0
+083c svchost.exe                                  0 0    0
+087c svchost.exe                                  0 0    0
+0904 WUDFHost.exe                                 0 0    0
+0910 NVDisplay.Container.exe                      0 0    0
+09e8 svchost.exe                                  0 0    0
+0a30 igfxCUIService.exe                           0 0    0
+0ae4 WUDFHost.exe                                 0 0    0
+0b70 svchost.exe                                  0 0    0
+0b84 svchost.exe                                  0 0    0
+0c1c svchost.exe                                  0 0    0
+0c8c svchost.exe                                  0 0    0
+0c88 svchost.exe                                  0 0    0
+0cc8 svchost.exe                                  0 0    0
+0d50 svchost.exe                                  0 0    0
+0da4 spoolsv.exe                                  0 0    0
+0e54 svchost.exe                                  0 0    0
+0eec svchost.exe                                  0 0    0
+0efc AdminService.exe                             0 0    0
+0f10 OneApp.IGCC.WinService.exe                   0 0    0
+0f18 Licensing.Service.exe                        0 0    0
+0f20 egsissrv.exe                                 0 0    0
+0f34 remoting_host.exe                            0 0    0
+0f3c svchost.exe                                  0 0    0
+0f4c Dell.TechHub.exe                             0 0    0
+0f58 firebird.exe                                 0 0    0
+0f60 FNPLicensingService64.exe                    0 0    0
+0f68 jhi_service.exe                              0 0    0
+0f70 PsiService_2.exe                             0 0    0
+0f7c mqsvc.exe                                    0 0    0
+0f88 QsyncSvc.exe                                 0 0    0
+0f98 rustdesk.exe                                 0 0    0
+0fa8 Everything.exe                               0 0    0
+0fb4 pg_ctl.exe                                   0 0    0
+0fe4 MpDefenderCoreService.exe                    0 0    0
+0c08 svchost.exe                                  0 0    0
+0e38 SMSvcHost.exe                                0 0    0
+100c svchost.exe                                  0 0    0
+101c FNPLicensingService.exe                      0 0    0
+1024 sqlwriter.exe                                0 0    0
+102c UltraViewer_Service.exe                      0 0    0
+1034 sqlbrowser.exe                               0 0    0
+1040 WMIRegistrationService.exe                   0 0    0
+104c wslservice.exe                               0 0    0
+105c ss_conn_service.exe                          0 0    0
+1068 MsMpEng.exe                                  0 0    0
+1078 ss_conn_service2.exe                         0 0    0
+1094 sqlservr.exe                                 0 0    0
+11e0 NVDisplay.Container.exe                      1 0    0
+12c4 svchost.exe                                  0 0    0
+1498 lmgrd.exe                                    0 0    0
+15a4 sqlceip.exe                                  0 0    0   below normal
+1664 svchost.exe                                  0 0    0
+1760 postgres.exe                                 0 0    0
+1778 conhost.exe                                  0 0    0
+17c4 SubscriptionService.exe                      0 0    0
+17f8 EnfocusSubscriptionService.exe               0 0    0
+157c conhost.exe                                  0 0    0
+1554 lmgrd.exe                                    0 0    0
+1974 postgres.exe                                 0 0    0
+19a0 postgres.exe                                 0 0    0
+19a8 postgres.exe                                 0 0    0
+19b4 postgres.exe                                 0 0    0
+19c8 postgres.exe                                 0 0    0
+19d8 postgres.exe                                 0 0    0
+1a58 rustdesk.exe                                 1 0    0
+1a88 postgres.exe                                 0 0    0
+1a90 postgres.exe                                 0 0    0
+1a98 postgres.exe                                 0 0    0
+1ae8 remoting_host.exe                            0 0    0   normal
+1ca4 WmiPrvSE.exe                                 0 0    0
+1cac WmiPrvSE.exe                                 0 0    0
+1e5c BtSystem.Service.exe                         0 0    0
+1fb8 svchost.exe                                  0 0    0
+2228 svchost.exe                                  0 0    0
+24b8 NisSrv.exe                                   0 0    0
+2560 Maestro.Service.exe                          0 0    0
+2628 barco.exe                                    0 0    0
+26a4 esko.exe                                     0 0    0
+26ac sihost.exe                                   1 0    11  normal       C:\Windows\System32
+04e8 svchost.exe                                  1 0    1   normal       C:\Windows\System32
+0edc svchost.exe                                  1 0    4   normal       C:\Windows\System32
+28bc Qsync.exe                                    1 116  84  below normal C:\Program Files (x86)\QNAP\Qsync
+28e0 taskhostw.exe                                1 0    2   normal       C:\Windows\System32
+2aac igfxEM.exe                                   1 10   14  normal       C:\Windows\System32\DriverStore\FileRepository\cui_dch.inf_amd64_7208949846a9b9dc
+2ad0 explorer.exe                                 1 692  663 normal       C:\Windows
+2af8 ShellHost.exe                                1 0    10  normal       C:\Windows\System32
+2b70 CrossDeviceResume.exe                        1 0    10  normal       C:\Windows\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy
+2b50 svchost.exe                                  0 0    0
+2984 PowerToys.exe                                1 18   53  normal       C:\Users\Admin\AppData\Local\PowerToys
+1a10 PowerToys.QuickAccess.exe                    1 44   33  normal       C:\Users\Admin\AppData\Local\PowerToys\WinUI3Apps
+1bc4 svchost.exe                                  1 0    14  normal       C:\Windows\System32
+2f00 PowerToys.AlwaysOnTop.exe                    1 0    39  normal       C:\Users\Admin\AppData\Local\PowerToys
+2f08 PowerToys.Awake.exe                          1 22   14  normal       C:\Users\Admin\AppData\Local\PowerToys
+2f68 PowerToys.ColorPickerUI.exe                  1 27   34  normal       C:\Users\Admin\AppData\Local\PowerToys
+2fa8 PowerToys.CropAndLock.exe                    1 0    5   normal       C:\Users\Admin\AppData\Local\PowerToys
+2fc8 PowerToys.FancyZones.exe                     1 1    18  normal       C:\Users\Admin\AppData\Local\PowerToys
+2c5c Microsoft.CmdPal.UI.exe                      1 142  70  normal       C:\Program Files\WindowsApps\Microsoft.CommandPalette_0.10.11181.0_x64__8wekyb3d8bbwe
+30cc ctfmon.exe                                   1 2    23  high         C:\Windows\System32
+200c PowerToys.Peek.UI.exe                        1 45   43  normal       C:\Users\Admin\AppData\Local\PowerToys\WinUI3Apps
+18ec PowerToys.PowerLauncher.exe                  1 67   39  normal       C:\Users\Admin\AppData\Local\PowerToys
+1868 PowerToys.PowerOCR.exe                       1 0    6   normal       C:\Users\Admin\AppData\Local\PowerToys
+2ee0 WindowsPackageManagerServer.exe              1 0    9   normal       C:\Program Files\WindowsApps\Microsoft.DesktopAppInstaller_1.28.240.0_x64__8wekyb3d8bbwe
+1aa4 Microsoft.CmdPal.Ext.PowerToys.exe           1 0    1   normal       C:\Users\Admin\AppData\Local\PowerToys\WinUI3Apps
+0e94 ShellExperienceHost.exe                      1 11   33  normal       C:\Windows\SystemApps\ShellExperienceHost_cw5n1h2txyewy
+3444 RuntimeBroker.exe                            1 0    3   normal       C:\Windows\System32
+3510 SecurityHealthSystray.exe                    1 7    5   normal       C:\Windows\System32
+3524 SecurityHealthService.exe                    0 0    0
+3558 EnfocusSubscriptionNotifier.exe              1 13   6   normal       C:\Program Files\Common Files\Enfocus\EnfocusSubscriptionService\EnfocusSubscriptionService
+3628 Seagull.Notification.SystemTray.exe          1 7    6   normal       C:\Program Files\Seagull\BarTender 2021
+3650 nextcloud.exe                                1 32   59  normal       C:\Program Files\Nextcloud
+36f0 claude.exe                                   1 2    27  normal       C:\Users\Admin\AppData\Local\AnthropicClaude\app-1.1.4173
+3750 claude.exe                                   1 0    4   normal       C:\Users\Admin\AppData\Local\AnthropicClaude\app-1.1.4173
+34b8 claude.exe                                   1 1    3   above normal C:\Users\Admin\AppData\Local\AnthropicClaude\app-1.1.4173
+3614 claude.exe                                   1 0    3   normal       C:\Users\Admin\AppData\Local\AnthropicClaude\app-1.1.4173
+36e8 VittixIndicKeyboard.exe                      1 46   28  normal       D:\ketan\github\vittix-indic-keyboard\build\Win32
+1fe0 MuMuNxMain.exe                               1 45   73  normal       C:\Program Files\Netease\MuMuPlayer\nx_main
+10e0 crashpad_handler.exe                         1 0    4   normal       C:\Program Files\Netease\MuMuPlayer\nx_main
+373c mscopilot.exe                                1 9    38  normal       C:\Program Files (x86)\Microsoft\Copilot\Application
+1c44 mscopilot.exe                                1 0    3   normal       C:\Program Files (x86)\Microsoft\Copilot\Application
+207c mscopilot.exe                                1 0    5   normal       C:\Program Files (x86)\Microsoft\Copilot\Application
+1f4c mscopilot.exe                                1 1    4   above normal C:\Program Files (x86)\Microsoft\Copilot\Application
+2640 mscopilot.exe                                1 0    0   normal       C:\Program Files (x86)\Microsoft\Copilot\Application
+38b8 WhatsApp.Root.exe                            1 114  60  idle         C:\Program Files\WindowsApps\5319275A.WhatsAppDesktop_2.2616.100.0_x64__cv1g1gvanyjgm
+3960 RuntimeBroker.exe                            1 0    1   normal       C:\Windows\System32
+39bc msedgewebview2.exe                           1 22   38  normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+39d8 msedgewebview2.exe                           1 0    3   normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+3a94 msedgewebview2.exe                           1 5    16  above normal C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+3a9c msedgewebview2.exe                           1 0    5   normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+3af4 msedgewebview2.exe                           1 0    0   normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+3b2c msedgewebview2.exe                           1 0    0   normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+3b9c svchost.exe                                  0 0    0
+3c78 ChatGPT.exe                                  1 84   81  normal       C:\Program Files\WindowsApps\OpenAI.ChatGPT-Desktop_1.2026.133.0_x64__2p2nqsd0c76g0\app
+3d1c ChatGPT.exe                                  1 0    4   normal       C:\Program Files\WindowsApps\OpenAI.ChatGPT-Desktop_1.2026.133.0_x64__2p2nqsd0c76g0\app
+3d7c ChatGPT.exe                                  1 5    13  above normal C:\Program Files\WindowsApps\OpenAI.ChatGPT-Desktop_1.2026.133.0_x64__2p2nqsd0c76g0\app
+3d98 ChatGPT.exe                                  1 0    3   normal       C:\Program Files\WindowsApps\OpenAI.ChatGPT-Desktop_1.2026.133.0_x64__2p2nqsd0c76g0\app
+3e8c rustdesk.exe                                 1 3    8   normal       C:\Program Files\RustDesk
+3edc Everything.exe                               1 86   76  normal       C:\Program Files (x86)\Everything
+3f98 ShareX.exe                                   1 289  199 normal       C:\Program Files\ShareX
+3fac EskoSubscriptionNotifier.exe                 1 13   6   normal       C:\Program Files (x86)\Common Files\Esko\SubscriptionService\SubscriptionService
+3fc0 ChatGPT.exe                                  1 0    0   normal       C:\Program Files\WindowsApps\OpenAI.ChatGPT-Desktop_1.2026.133.0_x64__2p2nqsd0c76g0\app
+3f3c CCXProcess.exe                               1 0    0   normal       C:\Program Files\Adobe\Adobe Creative Cloud Experience
+3f50 node.exe                                     1 0    4   normal       C:\Program Files\Adobe\Adobe Creative Cloud Experience\libs
+3f38 conhost.exe                                  1 10   3   normal       C:\Windows\System32
+11c4 AdobeIPCBroker.exe                           1 0    6   normal       C:\Program Files (x86)\Common Files\Adobe\Adobe Desktop Common\IPCBox
+0df4 Dell.TechHub.Analytics.SubAgent.exe          0 0    0
+314c Dell.CoreServices.Client.exe                 0 0    0
+3f1c conhost.exe                                  0 0    0
+2f10 Dell.TechHub.Diagnostics.SubAgent.exe        0 0    0
+1e70 Dell.Update.SubAgent.exe                     0 0    0
+1e90 conhost.exe                                  0 0    0
+1fe8 Dell.TechHub.DataManager.SubAgent.exe        0 0    0
+1b18 conhost.exe                                  0 0    0
+4004 Dell.TechHub.Instrumentation.SubAgent.exe    0 0    0
+401c conhost.exe                                  0 0    0
+4040 conhost.exe                                  0 0    0
+43f0 Dell.TechHub.Instrumentation.UserProcess.exe 1 0    0
+27f4 jusched.exe                                  1 0    2   normal       C:\Program Files (x86)\Common Files\Java\Java Update
+32b0 aesm_service.exe                             0 0    0
+39e4 Integration.Service.exe                      0 0    0
+47a0 SocketHeciServer.exe                         0 0    0
+3d24 PrintScheduler.Service.exe                   0 0    0
+3e74 elsvc5.exe                                   0 0    0
+0714 ServiceShell.exe                             0 0    0
+032c SupportAssistAgent.exe                       0 0    0
+08a8 svchost.exe                                  0 0    0
+0b40 svchost.exe                                  0 0    0
+1a40 svchost.exe                                  0 0    0
+3454 svchost.exe                                  1 0    3   normal       C:\Windows\System32
+0548 jucheck.exe                                  1 7    6   normal       C:\Program Files (x86)\Common Files\Java\Java Update
+5420 msedgewebview2.exe                           1 0    1   normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+4f90 TabTip.exe                                   1 18   31  high         C:\Program Files\Common Files\microsoft shared\ink
+4dfc TextInputHost.exe                            1 0    64  high         C:\Windows\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy
+5d48 taskhostw.exe                                1 0    2   normal       C:\Windows\System32
+6350 AAM Updates Notifier.exe                     1 8    7   below normal C:\Program Files (x86)\Common Files\Adobe\OOBE\PDApp\UWA
+4cb0 StartMenuExperienceHost.exe                  1 0    8   normal       C:\Windows\SystemApps\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy
+563c ArtPro+.exe                                  1 518  66  normal       C:\Esko\bg_prog_artpro+_v220\ArtPro+.app\Contents\Windows
+0830 Code.exe                                     1 70   55  normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+4900 Code.exe                                     1 0    4   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+2680 Code.exe                                     1 5    10  above normal C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+63e0 Code.exe                                     1 0    3   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+338c Code.exe                                     1 0    0   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+5210 Code.exe                                     1 0    3   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+1cf4 Code.exe                                     1 0    0   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+6340 Code.exe                                     1 0    3   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+3e00 Code.exe                                     1 0    3   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+6034 codex.exe                                    1 0    3   normal       C:\Users\Admin\.vscode\extensions\openai.chatgpt-26.519.32039-win32-x64\bin\windows-x86_64
+5814 conhost.exe                                  1 0    1   normal       C:\Windows\System32
+5f98 Code.exe                                     1 0    1   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+6148 Code.exe                                     1 0    1   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+579c cloudcode_cli.exe                            1 0    0   normal       C:\Users\Admin\AppData\Local\cloud-code\cloudcode_cli\cloudcode_cli\9c9a05d3
+5690 conhost.exe                                  1 0    1   normal       C:\Windows\System32
+4880 notepad.exe                                  1 41   34  normal       C:\Windows\System32
+27b0 chrome.exe                                   1 76   77  normal       C:\Program Files\Google\Chrome\Application
+51bc chrome.exe                                   1 0    3   normal       C:\Program Files\Google\Chrome\Application
+6344 chrome.exe                                   1 14   15  above normal C:\Program Files\Google\Chrome\Application
+5c6c chrome.exe                                   1 0    3   normal       C:\Program Files\Google\Chrome\Application
+5c3c chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+2934 chrome.exe                                   1 0    0   idle         C:\Program Files\Google\Chrome\Application
+50b4 chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+4b9c chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+46b8 chrome.exe                                   1 0    0   idle         C:\Program Files\Google\Chrome\Application
+160c powershell.exe                               1 0    4   normal       C:\Windows\System32\WindowsPowerShell\v1.0
+547c bds.exe                                      1 1586 700 normal       C:\Program Files (x86)\Embarcadero\Studio\23.0\bin
+192c chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+057c chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+3384 chrome.exe                                   1 0    1   normal       C:\Program Files\Google\Chrome\Application
+4ae4 chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+0328 chrome.exe                                   1 0    1   normal       C:\Program Files\Google\Chrome\Application
+4cd0 chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+48ac chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+6348 chrome.exe                                   1 0    0   idle         C:\Program Files\Google\Chrome\Application
+31bc FastReportWOSQLiteDemo.exe                   1 223  208 normal       D:\delphi\vcl\sydney_vcl\FastReport.VCL.2024.2.5.Enterprise\Feature Demos\FastReport FPC Demo
+6094 FSViewer.exe                                 1 720  237 normal       C:\Program Files (x86)\FastStone Image Viewer
+5918 DelphiLSP.exe                                1 0    5   normal       C:\Program Files (x86)\Embarcadero\Studio\23.0\bin
+59d4 conhost.exe                                  1 11   9   normal       C:\Windows\System32
+5be4 DelphiLSP.exe                                1 0    1   normal       C:\Program Files (x86)\Embarcadero\Studio\23.0\bin
+4210 DelphiLSP.exe                                1 0    1   normal       C:\Program Files (x86)\Embarcadero\Studio\23.0\bin
+4cf4 EXCEL.EXE                                    1 329  105 normal       C:\Program Files (x86)\Microsoft Office\Office12
+588c ArtworkFlow.exe                              1 234  182 normal       D:\ketan\github\Artworkflow\vx-printflow-desktop\Win32\Debug
+5ffc CorelDRW.exe                                 1 2140 984 normal       C:\Program Files\Corel\CorelDRAW Graphics Suite 2021\Programs64
+3398 InterprocessController.exe                   1 45   7   normal       C:\Program Files\Corel\CorelDRAW Graphics Suite 2021\Programs64
+5214 conhost.exe                                  1 11   9   normal       C:\Windows\System32
+3530 msedgewebview2.exe                           1 22   38  normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+0d90 msedgewebview2.exe                           1 0    3   normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+46c8 msedgewebview2.exe                           1 0    5   normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+33dc msedgewebview2.exe                           1 2    11  above normal C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+1f74 msedgewebview2.exe                           1 0    0   normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+5f78 msedgewebview2.exe                           1 0    0   idle         C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+58b4 chrome.exe                                   1 0    0   idle         C:\Program Files\Google\Chrome\Application
+1374 chrome.exe                                   1 0    0   idle         C:\Program Files\Google\Chrome\Application
+5cc4 chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+46f4 chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+4930 chrome.exe                                   1 0    0   idle         C:\Program Files\Google\Chrome\Application
+0600 sqlservr.exe                                 0 0    0
+5130 chrome.exe                                   1 0    0   idle         C:\Program Files\Google\Chrome\Application
+082c svchost.exe                                  0 0    0
+2918 backgroundTaskHost.exe                       1 0    4   normal       C:\Windows\System32
+50a4 RuntimeBroker.exe                            1 0    1   normal       C:\Windows\System32
+4770 svchost.exe                                  0 0    0
+5a78 VittixDesigner.exe                           1 86   84  normal       D:\ketan\github\VittixReport\vittixdesigner
+4e8c conhost.exe                                  1 16   21  normal       C:\Windows\System32
+56ec chrome.exe                                   1 0    0   idle         C:\Program Files\Google\Chrome\Application
+6a94 audiodg.exe                                  0 0    0
+
+hardware:
++ {1ed2bbf9-11f0-4084-b21f-ad83a8e6dcdc}
+  - \\radhe1-pc\HP LaserJet Professional P1108 (Copy 1)
+  - Adobe PDF
+  - Microsoft Print to PDF
+  - PDF-XChange Lite
+  - Root Print Queue
+  - TSC TTP-384MT
++ {36fc9e60-c465-11cf-8056-444553540000}
+  - ASMedia USB 3.1 eXtensible Host Controller - 1.10 (Microsoft)
+  - Intel(R) USB 3.0 eXtensible Host Controller - 1.0 (Microsoft)
+  - USB Composite Device
+  - USB Mass Storage Device
+  - USB Root Hub (USB 3.0)
+  - USB Root Hub (USB 3.0)
++ {4d36e966-e325-11ce-bfc1-08002be10318}
+  - ACPI x64-based PC
+  - Dell Inc. XPS 8930
++ {4d36e967-e325-11ce-bfc1-08002be10318}
+  - Multiple Card  Reader USB Device
+  - NVMe PCIe SSD
+  - ST1000DM010-2EP102
+  - WDC WD20EZRX-00D8PB0
++ {4d36e968-e325-11ce-bfc1-08002be10318}
+  - Intel(R) UHD Graphics 630 (driver 27.20.100.9664)
+  - NVIDIA GeForce RTX 3050 (driver 32.0.15.6094)
++ {4d36e96b-e325-11ce-bfc1-08002be10318}
+  - HID Keyboard Device
++ {4d36e96c-e325-11ce-bfc1-08002be10318}
+  - High Definition Audio Device
+  - Intel(R) Display Audio (driver 10.27.0.10)
+  - Nugget
+  - Nugget Hands-Free
+  - NVIDIA High Definition Audio (driver 1.4.0.1)
+  - Portronics Twins S16
+  - Portronics Twins S16 Hands-Free
++ {4d36e96e-e325-11ce-bfc1-08002be10318}
+  - Generic Monitor (LG IPS FULLHD)
++ {4d36e96f-e325-11ce-bfc1-08002be10318}
+  - HID-compliant mouse
++ {4d36e972-e325-11ce-bfc1-08002be10318}
+  - Bluetooth Device (Personal Area Network)
+  - Killer E2400 Gigabit Ethernet Controller
+  - Microsoft Kernel Debug Network Adapter
+  - Microsoft Wi-Fi Direct Virtual Adapter
+  - Microsoft Wi-Fi Direct Virtual Adapter #2
+  - Qualcomm QCA9377 802.11ac Wireless Adapter
+  - VirtualBox Host-Only Ethernet Adapter (driver 7.2.6.22322)
+  - WAN Miniport (IKEv2)
+  - WAN Miniport (IP)
+  - WAN Miniport (IPv6)
+  - WAN Miniport (L2TP)
+  - WAN Miniport (Network Monitor)
+  - WAN Miniport (PPPOE)
+  - WAN Miniport (PPTP)
+  - WAN Miniport (SSTP)
++ {4d36e978-e325-11ce-bfc1-08002be10318}
+  - Communications Port (COM1)
+  - Standard Serial over Bluetooth link (COM7)
+  - Standard Serial over Bluetooth link (COM8)
++ {4d36e97b-e325-11ce-bfc1-08002be10318}
+  - Intel Chipset SATA RAID Controller (driver 15.44.0.1015)
+  - Microsoft Storage Spaces Controller
++ {4d36e97d-e325-11ce-bfc1-08002be10318}
+  - ACPI Fan
+  - ACPI Fan
+  - ACPI Fan
+  - ACPI Fan
+  - ACPI Fan
+  - ACPI Fixed Feature Button
+  - ACPI Power Button
+  - ACPI Processor Aggregator
+  - ACPI Sleep Button
+  - ACPI Thermal Zone
+  - ACPI Thermal Zone
+  - Charge Arbitration Driver
+  - Composite Bus Enumerator
+  - High Definition Audio Controller
+  - High Definition Audio Controller
+  - High precision event timer
+  - Intel(R) 300 Series Chipset Family LPC Controller (Z370) - A2C9 (driver 10.1.11.4)
+  - Intel(R) Gaussian Mixture Model - 1911 (driver 10.1.7.3)
+  - Intel(R) Management Engine Interface #1 (driver 2145.1.42.0)
+  - Intel(R) PCI Express Root Port #2 - A291 (driver 10.1.11.4)
+  - Intel(R) PCI Express Root Port #3 - A292 (driver 10.1.11.4)
+  - Intel(R) PCI Express Root Port #4 - A293 (driver 10.1.11.4)
+  - Intel(R) PCI Express Root Port #5 - A294 (driver 10.1.11.4)
+  - Intel(R) PMC - A2A1 (driver 10.1.11.4)
+  - Intel(R) Power Engine Plug-in
+  - Intel(R) Serial IO GPIO Host Controller - INT3451 (driver 30.100.1816.3)
+  - Intel(R) Serial IO UART Host Controller - A2A7 (driver 30.100.1943.2)
+  - Intel(R) SMBUS - A2A3 (driver 10.1.11.4)
+  - Intel(R) Software Guard Extensions Device (driver 2.25.100.3)
+  - Legacy device
+  - Microsoft ACPI-Compliant System
+  - Microsoft Basic Display Driver
+  - Microsoft Basic Render Driver
+  - Microsoft Hyper-V PCI Server
+  - Microsoft Hyper-V Virtual Disk Server
+  - Microsoft Hyper-V Virtual Machine Bus Provider
+  - Microsoft Hyper-V Virtualization Infrastructure Driver
+  - Microsoft Hypervisor Service
+  - Microsoft System Management BIOS Driver
+  - Microsoft UEFI-Compliant System
+  - Microsoft Virtual Drive Enumerator
+  - Microsoft Windows Management Interface for ACPI
+  - Microsoft Windows Management Interface for ACPI
+  - Microsoft Windows Management Interface for ACPI
+  - Motherboard resources
+  - Motherboard resources
+  - Motherboard resources
+  - Motherboard resources
+  - Motherboard resources
+  - Motherboard resources
+  - Motherboard resources
+  - Motherboard resources
+  - Motherboard resources
+  - Motherboard resources
+  - NDIS Virtual Network Adapter Enumerator
+  - Nugget Hands-Free AG
+  - Numeric data processor
+  - PCI Express Root Complex
+  - PCI standard host CPU bridge
+  - PCI-to-PCI Bridge
+  - Plug and Play Software Device Enumerator
+  - Portronics Twins S16 Hands-Free AG
+  - Programmable interrupt controller
+  - Remote Desktop Device Redirector Bus
+  - System CMOS/real time clock
+  - System timer
+  - UMBus Root Bus Enumerator
+  - Volume Manager
++ {50127dc3-0f36-415e-a6cc-4cb3be910b65}
+  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
+  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
+  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
+  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
+  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
+  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
+  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
+  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
+  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
+  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
+  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
+  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
++ {533c5b84-ec70-11d2-9505-00c04f79deaf}
+  - Generic volume shadow copy
+  - Generic volume shadow copy
+  - Generic volume shadow copy
++ {5c4c3332-344d-483c-8739-259e934c9cc8}
+  - Intel(R) Dynamic Application Loader Host Interface (driver 1.44.2023.710)
+  - Intel(R) Graphics Command Center (driver 27.20.100.9664)
+  - Intel(R) Graphics Control Panel (driver 27.20.100.9664)
+  - Intel(R) iCLS Client (driver 1.63.1155.2)
+  - Intel(R) Management Engine WMI Provider (driver 2130.1.15.0)
+  - Intel(R) Software Guard Extensions Software (driver 2.25.100.3)
++ {62f9c741-b25a-46ce-b54c-9bccce08b6f2}
+  - Bluetooth
+  - Microsoft Device Association Root Enumerator
+  - Microsoft GS Wavetable Synth
+  - Microsoft Radio Device Enumeration Bus
+  - Microsoft RRAS Root Enumerator
+  - Wi-Fi
++ {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+  - Bluetooth HID Device
+  - Bluetooth Low Energy GATT compliant HID device
+  - HID-compliant consumer control device
+  - HID-compliant system controller
+  - USB Input Device
+  - USB Input Device
+  - USB Input Device
++ {c166523c-fe0c-4a94-a586-f1a80cfbbf3e}
+  - LG IPS FULLHD (NVIDIA High Definition Audio)
++ {e0cbf06c-cd8b-4647-bb8a-263b43f0f974}
+  - Bluetooth Device (RFCOMM Protocol TDI)
+  - Bluetooth LE Generic Attribute Service
+  - Device Information Service
+  - Generic Access Profile
+  - Generic Attribute Profile
+  - Lenovo Bluetooth Mouse
+  - Microsoft Bluetooth Enumerator
+  - Microsoft Bluetooth LE Enumerator
+  - Nugget
+  - Nugget Avrcp Transport
+  - Nugget Avrcp Transport
+  - Portronics Twins S16
+  - Portronics Twins S16 Avrcp Transport
+  - Portronics Twins S16 Avrcp Transport
+  - Qualcomm QCA9377 Bluetooth (driver 10.0.0.1238)
++ {e1c7dabe-63de-4630-a4de-a4adc0503be3}
+  - DellInstrumentation Device (driver 2.9.2.0)
++ {eec5ad98-8080-425f-922a-dabf3de3f69a}
+  - N:\
++ {f2e7dd72-6468-4e36-b6f1-6488f42c1b52}
+  - System Firmware
+
+cpu registers:
+eax = 00000000
+ebx = 0342ecf0
+ecx = 04d07030
+edx = 04d06f48
+esi = 00000000
+edi = 04d5cf18
+eip = 00d373c9
+esp = 0135f70c
+ebp = 0135f778
+
+stack dump:
+0135f70c  2c f7 35 01 b8 ff 90 00 - c0 47 e4 00 fc 78 9d 03  ,.5......G...x..
+0135f71c  c0 47 e4 00 80 13 d0 00 - 00 00 00 00 e0 78 9d 03  .G...........x..
+0135f72c  40 f7 35 01 00 97 90 00 - 58 f7 35 01 0d 97 90 00  @.5.....X.5.....
+0135f73c  50 f7 35 01 18 cf d5 04 - 00 00 00 00 f0 ec 42 03  P.5...........B.
+0135f74c  e0 78 9d 03 00 97 90 00 - 78 f7 35 01 0d 97 90 00  .x......x.5.....
+0135f75c  ff ff ff ff 00 00 00 00 - 01 00 00 00 48 6f d0 04  ............Ho..
+0135f76c  30 70 d0 04 00 00 00 00 - 30 70 d0 04 a0 f7 35 01  0p......0p....5.
+0135f77c  fc 69 d3 00 a8 f7 35 01 - 30 70 d0 04 01 00 00 00  .i....5.0p......
+0135f78c  01 00 00 00 01 00 00 00 - 00 00 00 00 30 70 d0 04  ............0p..
+0135f79c  48 5b d0 04 b0 f7 35 01 - 3e 9a d3 00 30 70 d0 04  H[....5.>...0p..
+0135f7ac  50 12 47 03 44 f8 35 01 - 87 61 d4 00 68 f8 35 01  P.G.D.5..a..h.5.
+0135f7bc  f8 a4 90 00 44 f8 35 01 - 00 00 00 00 00 00 00 00  ....D.5.........
+0135f7cc  7f 00 00 00 00 00 30 00 - 26 00 00 00 26 00 00 00  ......0.&...&...
+0135f7dc  26 00 00 00 00 00 00 01 - 41 d9 b8 00 01 00 00 00  &.......A.......
+0135f7ec  01 00 00 00 10 36 43 03 - 98 f8 35 00 14 f8 35 01  .....6C...5...5.
+0135f7fc  00 05 48 03 06 00 00 00 - 20 df 42 03 1c be b8 00  ..H..... .B.....
+0135f80c  06 00 00 00 01 00 00 00 - 93 93 90 00 00 00 00 00  ................
+0135f81c  f0 ec 42 03 87 73 de 00 - 40 e7 42 00 30 70 d0 04  ..B..s..@.B.0p..
+0135f82c  30 c4 4a 03 01 00 00 00 - 00 00 00 00 00 00 00 00  0.J.............
+0135f83c  00 00 00 00 20 a2 3a 03 - 54 f8 35 01 84 ff e0 00  .... .:.T.5.....
+
+disassembling:
+[...]
+00d373b8       jb      loc_d373bf
+00d373ba       call    -$42e71b ($908ca4)     ; System.@BoundErr
+00d373bf       mov     eax, [edx+eax*8+4]
+00d373c3       mov     [ebp-$1c], eax
+00d373c6       mov     eax, [ebp-$18]
+00d373c9     > mov     eax, [eax+8]
+00d373cc       cmp     eax, [ebp-$1c]
+00d373cf       ja      loc_d373e3
+00d373d1       mov     eax, [ebp-$18]
+00d373d4       mov     edx, [eax+8]
+00d373d7       dec     edx
+[...]
+
+date/time          : 2026-05-23, 12:50:20, 442ms
+computer name      : RL
+user name          : Admin <admin>
+registered owner   : Windows User
+operating system   : Windows 11 x64 build 26100
+system language    : English
+system up time     : 1 day 2 hours
+program up time    : 7 minutes 22 seconds
+processors         : 12x Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
+physical memory    : 3822/16187 MB (free/total)
+free disk space    : (C:) 114.41 GB (D:) 13.94 GB
+display mode       : 1920x1080, 32 bit
+process id         : $5a78
+allocated memory   : 75.64 MB
+largest free block : 1.36 GB
+executable         : VittixDesigner.exe
+exec. date/time    : 2026-05-23 12:42
+version            : 1.0.0.0
+compiled with      : Delphi 12
+madExcept version  : 5.2.0
+callstack crc      : $85c9918c, $dda5ae8b, $dda5ae8b
+exception number   : 14
+exception class    : EAccessViolation
+exception message  : Access violation at address 00D373C9 in module 'VittixDesigner.exe' (offset 4373C9). Read of address 00000008.
+
+main thread ($68c4):
+00d373c9 +075 VittixDesigner.exe Vittix.Report.Undo               357  +4 TDeleteObjectsCommand.Execute
+0090ffb5 +009 VittixDesigner.exe System                           132  +0 @IntfCopy
+00d0137b +01f VittixDesigner.exe Vittix.Report.Bands               47  +0 {System.Generics.Collections}TList<Vittix.Report.Objects.TReportObject>.UpdateComparer
+009096fd +01d VittixDesigner.exe System                           132  +0 @AfterConstruction
+00d369f9 +011 VittixDesigner.exe Vittix.Report.Undo               222  +1 TCommandManager.DoCommand
+00d39a39 +015 VittixDesigner.exe Vittix.Report.CommandDispatcher   43  +1 TCommandDispatcher.DoCommand
+00d46182 +25a VittixDesigner.exe Vittix.Report.DesignerControl    698 +31 TVittixReportDesigner.DeleteSelected
+00e0ff7f +02b VittixDesigner.exe Frm.Main                        1300  +6 TfrmMain.mnuDeleteClick
+00b8c23e +0aa VittixDesigner.exe Vcl.Menus                                TMenuItem.Click
+00b8da2b +013 VittixDesigner.exe Vcl.Menus                                TMenu.DispatchCommand
+00ba6b40 +038 VittixDesigner.exe Vcl.Forms                                TCustomForm.WMCommand
+00acffae +2be VittixDesigner.exe Vcl.Controls                             TControl.WndProc
+00ad5663 +6a7 VittixDesigner.exe Vcl.Controls                             TWinControl.WndProc
+00ba2d2b +92f VittixDesigner.exe Vcl.Forms                                TCustomForm.WndProc
+00ad4b28 +02c VittixDesigner.exe Vcl.Controls                             TWinControl.MainWndProc
+00a44848 +014 VittixDesigner.exe System.Classes                           StdWndProc
+75a16ffb +00b USER32.dll                                                  DispatchMessageW
+00badf53 +0f3 VittixDesigner.exe Vcl.Forms                                TApplication.ProcessMessage
+00badf96 +00a VittixDesigner.exe Vcl.Forms                                TApplication.HandleMessage
+00bae2d5 +0d1 VittixDesigner.exe Vcl.Forms                                TApplication.Run
+00e3c11a +09a VittixDesigner.exe VittixDesigner                    69 +11 initialization
+00e3c19e +11e VittixDesigner.exe VittixDesigner                    78 +20 initialization
+74eb5d47 +017 KERNEL32.DLL                                                BaseThreadInitThunk
+
+thread $6bf0:
+74eb5d47 +17 KERNEL32.DLL  BaseThreadInitThunk
+
+thread $4288:
+74eb5d47 +17 KERNEL32.DLL  BaseThreadInitThunk
+
+modules:
+00900000 VittixDesigner.exe     1.0.0.0         D:\ketan\github\VittixReport\vittixdesigner
+5fee0000 FaultRep.dll           10.0.26100.3624 C:\Windows\SYSTEM32
+60ee0000 TextShaping.dll        10.0.26100.4343 C:\Windows\SYSTEM32
+60f90000 CoreUIComponents.dll   10.0.26100.3912 C:\Windows\SYSTEM32
+61230000 CoreMessaging.dll      10.0.26100.4202 C:\Windows\SYSTEM32
+61610000 textinputframework.dll 10.0.26100.4484 C:\Windows\SYSTEM32
+61800000 SHFolder.dll           10.0.26100.1    C:\Windows\SYSTEM32
+61e40000 apphelp.dll            10.0.26100.4484 C:\Windows\SYSTEM32
+6ee00000 uxtheme.dll            10.0.26100.4484 C:\Windows\system32
+6eeb0000 msimg32.dll            10.0.26100.1882 C:\Windows\SYSTEM32
+6f160000 MSASN1.dll             10.0.26100.4652 C:\Windows\SYSTEM32
+6f950000 ntmarta.dll            10.0.26100.4202 C:\Windows\SYSTEM32
+6fa10000 DEVOBJ.dll             10.0.26100.1    C:\Windows\SYSTEM32
+6faa0000 windows.storage.dll    10.0.26100.4484 C:\Windows\SYSTEM32
+703e0000 DWMAPI.DLL             10.0.26100.4484 C:\Windows\SYSTEM32
+712a0000 kernel.appcore.dll     10.0.26100.4202 C:\Windows\SYSTEM32
+712c0000 CRYPTBASE.DLL          10.0.26100.4652 C:\Windows\SYSTEM32
+712d0000 winmm.dll              10.0.26100.4202 C:\Windows\SYSTEM32
+71370000 SspiCli.dll            10.0.26100.4484 C:\Windows\SYSTEM32
+719b0000 cfgmgr32.dll           10.0.26100.4202 C:\Windows\SYSTEM32
+71a00000 wsock32.dll            10.0.26100.1    C:\Windows\SYSTEM32
+71ae0000 version.dll            10.0.26100.1    C:\Windows\SYSTEM32
+71e50000 oleacc.dll             7.2.26100.4484  C:\Windows\SYSTEM32
+71ec0000 winspool.drv           10.0.26100.4484 C:\Windows\SYSTEM32
+72960000 COMCTL32.dll           6.10.26100.4484 C:\Windows\WinSxS\x86_microsoft.windows.common-controls_6595b64144ccf1df_6.0.26100.4484_none_85bba423f7ab1cb9
+72ca0000 WTSAPI32.DLL           10.0.26100.4484 C:\Windows\SYSTEM32
+74e00000 psapi.dll              10.0.26100.1    C:\Windows\System32
+74e10000 msvcp_win.dll          10.0.26100.4652 C:\Windows\System32
+74ea0000 KERNEL32.DLL           10.0.26100.4652 C:\Windows\System32
+75030000 advapi32.dll           10.0.26100.4652 C:\Windows\System32
+751b0000 WS2_32.dll             10.0.26100.4652 C:\Windows\System32
+75220000 sechost.dll            10.0.26100.4652 C:\Windows\System32
+752b0000 WINTRUST.dll           10.0.26100.4484 C:\Windows\System32
+75780000 win32u.dll             10.0.26100.4652 C:\Windows\System32
+757a0000 oleaut32.dll           10.0.26100.4484 C:\Windows\System32
+75850000 shcore.dll             10.0.26100.4652 C:\Windows\System32
+75930000 RPCRT4.dll             10.0.26100.4652 C:\Windows\System32
+759f0000 USER32.dll             10.0.26100.4652 C:\Windows\System32
+75bc0000 GDI32.dll              10.0.26100.4484 C:\Windows\System32
+75bf0000 msvcrt.dll             7.0.26100.4652  C:\Windows\System32
+75cc0000 gdi32full.dll          10.0.26100.4652 C:\Windows\System32
+75dc0000 comdlg32.dll           10.0.26100.4484 C:\Windows\System32
+75e80000 ole32.dll              10.0.26100.4484 C:\Windows\System32
+75fe0000 SHLWAPI.dll            10.0.26100.4484 C:\Windows\System32
+76040000 IMM32.DLL              10.0.26100.4484 C:\Windows\System32
+76070000 SHELL32.dll            10.0.26100.4484 C:\Windows\System32
+767a0000 wintypes.dll           10.0.26100.4484 C:\Windows\System32
+768b0000 ucrtbase.dll           10.0.26100.4652 C:\Windows\System32
+769e0000 bcryptPrimitives.dll   10.0.26100.4652 C:\Windows\System32
+76a50000 combase.dll            10.0.26100.4652 C:\Windows\System32
+76ce0000 KERNELBASE.dll         10.0.26100.4652 C:\Windows\System32
+76fb0000 MSCTF.dll              10.0.26100.4484 C:\Windows\System32
+77250000 CRYPT32.dll            10.0.26100.3775 C:\Windows\System32
+77370000 ntdll.dll              10.0.26100.4652 C:\Windows\SYSTEM32
+
+processes:
+0000 Idle                                         0 0    0
+0004 System                                       0 0    0
+00bc Secure System                                0 0    0
+00e4 Registry                                     0 0    0
+02f8 smss.exe                                     0 0    0
+0374 csrss.exe                                    0 0    0
+0468 wininit.exe                                  0 0    0
+0470 csrss.exe                                    1 0    0
+04b0 services.exe                                 0 0    0
+04c4 LsaIso.exe                                   0 0    0
+04cc lsass.exe                                    0 0    0
+0514 winlogon.exe                                 1 0    0
+05a0 svchost.exe                                  0 0    0
+05c0 fontdrvhost.exe                              1 0    0
+05c8 fontdrvhost.exe                              0 0    0
+0620 svchost.exe                                  0 0    0
+0674 dwm.exe                                      1 0    0
+06f4 svchost.exe                                  0 0    0
+075c IntelCpHDCPSvc.exe                           0 0    0
+076c svchost.exe                                  0 0    0
+0778 svchost.exe                                  0 0    0
+0780 svchost.exe                                  0 0    0
+07d8 svchost.exe                                  0 0    0
+030c svchost.exe                                  0 0    0
+0824 IntelCpHeciSvc.exe                           0 0    0
+083c svchost.exe                                  0 0    0
+087c svchost.exe                                  0 0    0
+0904 WUDFHost.exe                                 0 0    0
+0910 NVDisplay.Container.exe                      0 0    0
+09e8 svchost.exe                                  0 0    0
+0a30 igfxCUIService.exe                           0 0    0
+0ae4 WUDFHost.exe                                 0 0    0
+0b70 svchost.exe                                  0 0    0
+0b84 svchost.exe                                  0 0    0
+0c1c svchost.exe                                  0 0    0
+0c8c svchost.exe                                  0 0    0
+0c88 svchost.exe                                  0 0    0
+0cc8 svchost.exe                                  0 0    0
+0d50 svchost.exe                                  0 0    0
+0da4 spoolsv.exe                                  0 0    0
+0e54 svchost.exe                                  0 0    0
+0eec svchost.exe                                  0 0    0
+0efc AdminService.exe                             0 0    0
+0f10 OneApp.IGCC.WinService.exe                   0 0    0
+0f18 Licensing.Service.exe                        0 0    0
+0f20 egsissrv.exe                                 0 0    0
+0f34 remoting_host.exe                            0 0    0
+0f3c svchost.exe                                  0 0    0
+0f4c Dell.TechHub.exe                             0 0    0
+0f58 firebird.exe                                 0 0    0
+0f60 FNPLicensingService64.exe                    0 0    0
+0f68 jhi_service.exe                              0 0    0
+0f70 PsiService_2.exe                             0 0    0
+0f7c mqsvc.exe                                    0 0    0
+0f88 QsyncSvc.exe                                 0 0    0
+0f98 rustdesk.exe                                 0 0    0
+0fa8 Everything.exe                               0 0    0
+0fb4 pg_ctl.exe                                   0 0    0
+0fe4 MpDefenderCoreService.exe                    0 0    0
+0c08 svchost.exe                                  0 0    0
+0e38 SMSvcHost.exe                                0 0    0
+100c svchost.exe                                  0 0    0
+101c FNPLicensingService.exe                      0 0    0
+1024 sqlwriter.exe                                0 0    0
+102c UltraViewer_Service.exe                      0 0    0
+1034 sqlbrowser.exe                               0 0    0
+1040 WMIRegistrationService.exe                   0 0    0
+104c wslservice.exe                               0 0    0
+105c ss_conn_service.exe                          0 0    0
+1068 MsMpEng.exe                                  0 0    0
+1078 ss_conn_service2.exe                         0 0    0
+1094 sqlservr.exe                                 0 0    0
+11e0 NVDisplay.Container.exe                      1 0    0
+12c4 svchost.exe                                  0 0    0
+1498 lmgrd.exe                                    0 0    0
+15a4 sqlceip.exe                                  0 0    0   below normal
+1664 svchost.exe                                  0 0    0
+1760 postgres.exe                                 0 0    0
+1778 conhost.exe                                  0 0    0
+17c4 SubscriptionService.exe                      0 0    0
+17f8 EnfocusSubscriptionService.exe               0 0    0
+157c conhost.exe                                  0 0    0
+1554 lmgrd.exe                                    0 0    0
+1974 postgres.exe                                 0 0    0
+19a0 postgres.exe                                 0 0    0
+19a8 postgres.exe                                 0 0    0
+19b4 postgres.exe                                 0 0    0
+19c8 postgres.exe                                 0 0    0
+19d8 postgres.exe                                 0 0    0
+1a58 rustdesk.exe                                 1 0    0
+1a88 postgres.exe                                 0 0    0
+1a90 postgres.exe                                 0 0    0
+1a98 postgres.exe                                 0 0    0
+1ae8 remoting_host.exe                            0 0    0   normal
+1ca4 WmiPrvSE.exe                                 0 0    0
+1cac WmiPrvSE.exe                                 0 0    0
+1e5c BtSystem.Service.exe                         0 0    0
+1fb8 svchost.exe                                  0 0    0
+2228 svchost.exe                                  0 0    0
+24b8 NisSrv.exe                                   0 0    0
+2560 Maestro.Service.exe                          0 0    0
+2628 barco.exe                                    0 0    0
+26a4 esko.exe                                     0 0    0
+26ac sihost.exe                                   1 0    11  normal       C:\Windows\System32
+04e8 svchost.exe                                  1 0    1   normal       C:\Windows\System32
+0edc svchost.exe                                  1 0    4   normal       C:\Windows\System32
+28bc Qsync.exe                                    1 116  84  below normal C:\Program Files (x86)\QNAP\Qsync
+28e0 taskhostw.exe                                1 0    2   normal       C:\Windows\System32
+2aac igfxEM.exe                                   1 10   14  normal       C:\Windows\System32\DriverStore\FileRepository\cui_dch.inf_amd64_7208949846a9b9dc
+2ad0 explorer.exe                                 1 692  663 normal       C:\Windows
+2af8 ShellHost.exe                                1 0    10  normal       C:\Windows\System32
+2b70 CrossDeviceResume.exe                        1 0    10  normal       C:\Windows\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy
+2b50 svchost.exe                                  0 0    0
+2984 PowerToys.exe                                1 18   53  normal       C:\Users\Admin\AppData\Local\PowerToys
+1a10 PowerToys.QuickAccess.exe                    1 44   33  normal       C:\Users\Admin\AppData\Local\PowerToys\WinUI3Apps
+1bc4 svchost.exe                                  1 0    14  normal       C:\Windows\System32
+2f00 PowerToys.AlwaysOnTop.exe                    1 0    39  normal       C:\Users\Admin\AppData\Local\PowerToys
+2f08 PowerToys.Awake.exe                          1 22   14  normal       C:\Users\Admin\AppData\Local\PowerToys
+2f68 PowerToys.ColorPickerUI.exe                  1 27   34  normal       C:\Users\Admin\AppData\Local\PowerToys
+2fa8 PowerToys.CropAndLock.exe                    1 0    5   normal       C:\Users\Admin\AppData\Local\PowerToys
+2fc8 PowerToys.FancyZones.exe                     1 1    18  normal       C:\Users\Admin\AppData\Local\PowerToys
+2c5c Microsoft.CmdPal.UI.exe                      1 142  70  normal       C:\Program Files\WindowsApps\Microsoft.CommandPalette_0.10.11181.0_x64__8wekyb3d8bbwe
+30cc ctfmon.exe                                   1 2    23  high         C:\Windows\System32
+200c PowerToys.Peek.UI.exe                        1 45   43  normal       C:\Users\Admin\AppData\Local\PowerToys\WinUI3Apps
+18ec PowerToys.PowerLauncher.exe                  1 67   39  normal       C:\Users\Admin\AppData\Local\PowerToys
+1868 PowerToys.PowerOCR.exe                       1 0    6   normal       C:\Users\Admin\AppData\Local\PowerToys
+2ee0 WindowsPackageManagerServer.exe              1 0    9   normal       C:\Program Files\WindowsApps\Microsoft.DesktopAppInstaller_1.28.240.0_x64__8wekyb3d8bbwe
+1aa4 Microsoft.CmdPal.Ext.PowerToys.exe           1 0    1   normal       C:\Users\Admin\AppData\Local\PowerToys\WinUI3Apps
+0e94 ShellExperienceHost.exe                      1 11   33  normal       C:\Windows\SystemApps\ShellExperienceHost_cw5n1h2txyewy
+3444 RuntimeBroker.exe                            1 0    3   normal       C:\Windows\System32
+3510 SecurityHealthSystray.exe                    1 7    5   normal       C:\Windows\System32
+3524 SecurityHealthService.exe                    0 0    0
+3558 EnfocusSubscriptionNotifier.exe              1 13   6   normal       C:\Program Files\Common Files\Enfocus\EnfocusSubscriptionService\EnfocusSubscriptionService
+3628 Seagull.Notification.SystemTray.exe          1 7    6   normal       C:\Program Files\Seagull\BarTender 2021
+3650 nextcloud.exe                                1 32   59  normal       C:\Program Files\Nextcloud
+36f0 claude.exe                                   1 2    27  normal       C:\Users\Admin\AppData\Local\AnthropicClaude\app-1.1.4173
+3750 claude.exe                                   1 0    4   normal       C:\Users\Admin\AppData\Local\AnthropicClaude\app-1.1.4173
+34b8 claude.exe                                   1 1    3   above normal C:\Users\Admin\AppData\Local\AnthropicClaude\app-1.1.4173
+3614 claude.exe                                   1 0    3   normal       C:\Users\Admin\AppData\Local\AnthropicClaude\app-1.1.4173
+36e8 VittixIndicKeyboard.exe                      1 46   28  normal       D:\ketan\github\vittix-indic-keyboard\build\Win32
+1fe0 MuMuNxMain.exe                               1 45   73  normal       C:\Program Files\Netease\MuMuPlayer\nx_main
+10e0 crashpad_handler.exe                         1 0    4   normal       C:\Program Files\Netease\MuMuPlayer\nx_main
+373c mscopilot.exe                                1 9    38  normal       C:\Program Files (x86)\Microsoft\Copilot\Application
+1c44 mscopilot.exe                                1 0    3   normal       C:\Program Files (x86)\Microsoft\Copilot\Application
+207c mscopilot.exe                                1 0    5   normal       C:\Program Files (x86)\Microsoft\Copilot\Application
+1f4c mscopilot.exe                                1 1    4   above normal C:\Program Files (x86)\Microsoft\Copilot\Application
+2640 mscopilot.exe                                1 0    0   normal       C:\Program Files (x86)\Microsoft\Copilot\Application
+38b8 WhatsApp.Root.exe                            1 114  60  idle         C:\Program Files\WindowsApps\5319275A.WhatsAppDesktop_2.2616.100.0_x64__cv1g1gvanyjgm
+3960 RuntimeBroker.exe                            1 0    1   normal       C:\Windows\System32
+39bc msedgewebview2.exe                           1 22   38  normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+39d8 msedgewebview2.exe                           1 0    3   normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+3a94 msedgewebview2.exe                           1 5    16  above normal C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+3a9c msedgewebview2.exe                           1 0    5   normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+3af4 msedgewebview2.exe                           1 0    0   normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+3b2c msedgewebview2.exe                           1 0    0   normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+3b9c svchost.exe                                  0 0    0
+3c78 ChatGPT.exe                                  1 84   81  normal       C:\Program Files\WindowsApps\OpenAI.ChatGPT-Desktop_1.2026.133.0_x64__2p2nqsd0c76g0\app
+3d1c ChatGPT.exe                                  1 0    4   normal       C:\Program Files\WindowsApps\OpenAI.ChatGPT-Desktop_1.2026.133.0_x64__2p2nqsd0c76g0\app
+3d7c ChatGPT.exe                                  1 5    13  above normal C:\Program Files\WindowsApps\OpenAI.ChatGPT-Desktop_1.2026.133.0_x64__2p2nqsd0c76g0\app
+3d98 ChatGPT.exe                                  1 0    3   normal       C:\Program Files\WindowsApps\OpenAI.ChatGPT-Desktop_1.2026.133.0_x64__2p2nqsd0c76g0\app
+3e8c rustdesk.exe                                 1 3    8   normal       C:\Program Files\RustDesk
+3edc Everything.exe                               1 86   76  normal       C:\Program Files (x86)\Everything
+3f98 ShareX.exe                                   1 289  199 normal       C:\Program Files\ShareX
+3fac EskoSubscriptionNotifier.exe                 1 13   6   normal       C:\Program Files (x86)\Common Files\Esko\SubscriptionService\SubscriptionService
+3fc0 ChatGPT.exe                                  1 0    0   normal       C:\Program Files\WindowsApps\OpenAI.ChatGPT-Desktop_1.2026.133.0_x64__2p2nqsd0c76g0\app
+3f3c CCXProcess.exe                               1 0    0   normal       C:\Program Files\Adobe\Adobe Creative Cloud Experience
+3f50 node.exe                                     1 0    4   normal       C:\Program Files\Adobe\Adobe Creative Cloud Experience\libs
+3f38 conhost.exe                                  1 10   3   normal       C:\Windows\System32
+11c4 AdobeIPCBroker.exe                           1 0    6   normal       C:\Program Files (x86)\Common Files\Adobe\Adobe Desktop Common\IPCBox
+0df4 Dell.TechHub.Analytics.SubAgent.exe          0 0    0
+314c Dell.CoreServices.Client.exe                 0 0    0
+3f1c conhost.exe                                  0 0    0
+2f10 Dell.TechHub.Diagnostics.SubAgent.exe        0 0    0
+1e70 Dell.Update.SubAgent.exe                     0 0    0
+1e90 conhost.exe                                  0 0    0
+1fe8 Dell.TechHub.DataManager.SubAgent.exe        0 0    0
+1b18 conhost.exe                                  0 0    0
+4004 Dell.TechHub.Instrumentation.SubAgent.exe    0 0    0
+401c conhost.exe                                  0 0    0
+4040 conhost.exe                                  0 0    0
+43f0 Dell.TechHub.Instrumentation.UserProcess.exe 1 0    0
+27f4 jusched.exe                                  1 0    2   normal       C:\Program Files (x86)\Common Files\Java\Java Update
+32b0 aesm_service.exe                             0 0    0
+39e4 Integration.Service.exe                      0 0    0
+47a0 SocketHeciServer.exe                         0 0    0
+3d24 PrintScheduler.Service.exe                   0 0    0
+3e74 elsvc5.exe                                   0 0    0
+0714 ServiceShell.exe                             0 0    0
+032c SupportAssistAgent.exe                       0 0    0
+08a8 svchost.exe                                  0 0    0
+0b40 svchost.exe                                  0 0    0
+1a40 svchost.exe                                  0 0    0
+3454 svchost.exe                                  1 0    3   normal       C:\Windows\System32
+0548 jucheck.exe                                  1 7    6   normal       C:\Program Files (x86)\Common Files\Java\Java Update
+5420 msedgewebview2.exe                           1 0    1   normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+4f90 TabTip.exe                                   1 18   31  high         C:\Program Files\Common Files\microsoft shared\ink
+4dfc TextInputHost.exe                            1 0    64  high         C:\Windows\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy
+5d48 taskhostw.exe                                1 0    2   normal       C:\Windows\System32
+6350 AAM Updates Notifier.exe                     1 8    7   below normal C:\Program Files (x86)\Common Files\Adobe\OOBE\PDApp\UWA
+4cb0 StartMenuExperienceHost.exe                  1 0    8   normal       C:\Windows\SystemApps\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy
+563c ArtPro+.exe                                  1 518  66  normal       C:\Esko\bg_prog_artpro+_v220\ArtPro+.app\Contents\Windows
+0830 Code.exe                                     1 70   55  normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+4900 Code.exe                                     1 0    4   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+2680 Code.exe                                     1 5    10  above normal C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+63e0 Code.exe                                     1 0    3   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+338c Code.exe                                     1 0    0   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+5210 Code.exe                                     1 0    3   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+1cf4 Code.exe                                     1 0    0   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+6340 Code.exe                                     1 0    3   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+3e00 Code.exe                                     1 0    3   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+6034 codex.exe                                    1 0    3   normal       C:\Users\Admin\.vscode\extensions\openai.chatgpt-26.519.32039-win32-x64\bin\windows-x86_64
+5814 conhost.exe                                  1 0    1   normal       C:\Windows\System32
+5f98 Code.exe                                     1 0    1   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+6148 Code.exe                                     1 0    1   normal       C:\Users\Admin\AppData\Local\Programs\Microsoft VS Code
+579c cloudcode_cli.exe                            1 0    0   normal       C:\Users\Admin\AppData\Local\cloud-code\cloudcode_cli\cloudcode_cli\9c9a05d3
+5690 conhost.exe                                  1 0    1   normal       C:\Windows\System32
+4880 notepad.exe                                  1 41   34  normal       C:\Windows\System32
+27b0 chrome.exe                                   1 76   77  normal       C:\Program Files\Google\Chrome\Application
+51bc chrome.exe                                   1 0    3   normal       C:\Program Files\Google\Chrome\Application
+6344 chrome.exe                                   1 14   16  above normal C:\Program Files\Google\Chrome\Application
+5c6c chrome.exe                                   1 0    3   normal       C:\Program Files\Google\Chrome\Application
+5c3c chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+2934 chrome.exe                                   1 0    0   idle         C:\Program Files\Google\Chrome\Application
+50b4 chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+4b9c chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+46b8 chrome.exe                                   1 0    0   idle         C:\Program Files\Google\Chrome\Application
+160c powershell.exe                               1 0    4   normal       C:\Windows\System32\WindowsPowerShell\v1.0
+547c bds.exe                                      1 1586 700 normal       C:\Program Files (x86)\Embarcadero\Studio\23.0\bin
+192c chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+057c chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+3384 chrome.exe                                   1 0    1   normal       C:\Program Files\Google\Chrome\Application
+4ae4 chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+0328 chrome.exe                                   1 0    1   normal       C:\Program Files\Google\Chrome\Application
+4cd0 chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+48ac chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+6348 chrome.exe                                   1 0    0   idle         C:\Program Files\Google\Chrome\Application
+31bc FastReportWOSQLiteDemo.exe                   1 223  208 normal       D:\delphi\vcl\sydney_vcl\FastReport.VCL.2024.2.5.Enterprise\Feature Demos\FastReport FPC Demo
+6094 FSViewer.exe                                 1 720  237 normal       C:\Program Files (x86)\FastStone Image Viewer
+5918 DelphiLSP.exe                                1 0    5   normal       C:\Program Files (x86)\Embarcadero\Studio\23.0\bin
+59d4 conhost.exe                                  1 11   9   normal       C:\Windows\System32
+5be4 DelphiLSP.exe                                1 0    1   normal       C:\Program Files (x86)\Embarcadero\Studio\23.0\bin
+4210 DelphiLSP.exe                                1 0    1   normal       C:\Program Files (x86)\Embarcadero\Studio\23.0\bin
+4cf4 EXCEL.EXE                                    1 329  105 normal       C:\Program Files (x86)\Microsoft Office\Office12
+588c ArtworkFlow.exe                              1 234  182 normal       D:\ketan\github\Artworkflow\vx-printflow-desktop\Win32\Debug
+5ffc CorelDRW.exe                                 1 2140 984 normal       C:\Program Files\Corel\CorelDRAW Graphics Suite 2021\Programs64
+3398 InterprocessController.exe                   1 45   7   normal       C:\Program Files\Corel\CorelDRAW Graphics Suite 2021\Programs64
+5214 conhost.exe                                  1 11   9   normal       C:\Windows\System32
+3530 msedgewebview2.exe                           1 22   38  normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+0d90 msedgewebview2.exe                           1 0    3   normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+46c8 msedgewebview2.exe                           1 0    5   normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+33dc msedgewebview2.exe                           1 2    11  above normal C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+1f74 msedgewebview2.exe                           1 0    0   normal       C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+5f78 msedgewebview2.exe                           1 0    0   idle         C:\Program Files (x86)\Microsoft\EdgeWebView\Application\148.0.3967.70
+58b4 chrome.exe                                   1 0    0   idle         C:\Program Files\Google\Chrome\Application
+1374 chrome.exe                                   1 0    0   idle         C:\Program Files\Google\Chrome\Application
+5cc4 chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+46f4 chrome.exe                                   1 0    0   normal       C:\Program Files\Google\Chrome\Application
+4930 chrome.exe                                   1 0    0   idle         C:\Program Files\Google\Chrome\Application
+0600 sqlservr.exe                                 0 0    0
+5130 chrome.exe                                   1 0    0   idle         C:\Program Files\Google\Chrome\Application
+082c svchost.exe                                  0 0    0
+2918 backgroundTaskHost.exe                       1 0    4   normal       C:\Windows\System32
+50a4 RuntimeBroker.exe                            1 0    1   normal       C:\Windows\System32
+4770 svchost.exe                                  0 0    0
+5a78 VittixDesigner.exe                           1 86   85  normal       D:\ketan\github\VittixReport\vittixdesigner
+4e8c conhost.exe                                  1 16   21  normal       C:\Windows\System32
+56ec chrome.exe                                   1 0    0   idle         C:\Program Files\Google\Chrome\Application
+6a94 audiodg.exe                                  0 0    0
+6680 git.exe                                      1 0    1   normal       C:\Program Files\Git\cmd
+4610 git.exe                                      1 0    1   normal       C:\Program Files\Git\mingw64\bin
+
+hardware:
++ {1ed2bbf9-11f0-4084-b21f-ad83a8e6dcdc}
+  - \\radhe1-pc\HP LaserJet Professional P1108 (Copy 1)
+  - Adobe PDF
+  - Microsoft Print to PDF
+  - PDF-XChange Lite
+  - Root Print Queue
+  - TSC TTP-384MT
++ {36fc9e60-c465-11cf-8056-444553540000}
+  - ASMedia USB 3.1 eXtensible Host Controller - 1.10 (Microsoft)
+  - Intel(R) USB 3.0 eXtensible Host Controller - 1.0 (Microsoft)
+  - USB Composite Device
+  - USB Mass Storage Device
+  - USB Root Hub (USB 3.0)
+  - USB Root Hub (USB 3.0)
++ {4d36e966-e325-11ce-bfc1-08002be10318}
+  - ACPI x64-based PC
+  - Dell Inc. XPS 8930
++ {4d36e967-e325-11ce-bfc1-08002be10318}
+  - Multiple Card  Reader USB Device
+  - NVMe PCIe SSD
+  - ST1000DM010-2EP102
+  - WDC WD20EZRX-00D8PB0
++ {4d36e968-e325-11ce-bfc1-08002be10318}
+  - Intel(R) UHD Graphics 630 (driver 27.20.100.9664)
+  - NVIDIA GeForce RTX 3050 (driver 32.0.15.6094)
++ {4d36e96b-e325-11ce-bfc1-08002be10318}
+  - HID Keyboard Device
++ {4d36e96c-e325-11ce-bfc1-08002be10318}
+  - High Definition Audio Device
+  - Intel(R) Display Audio (driver 10.27.0.10)
+  - Nugget
+  - Nugget Hands-Free
+  - NVIDIA High Definition Audio (driver 1.4.0.1)
+  - Portronics Twins S16
+  - Portronics Twins S16 Hands-Free
++ {4d36e96e-e325-11ce-bfc1-08002be10318}
+  - Generic Monitor (LG IPS FULLHD)
++ {4d36e96f-e325-11ce-bfc1-08002be10318}
+  - HID-compliant mouse
++ {4d36e972-e325-11ce-bfc1-08002be10318}
+  - Bluetooth Device (Personal Area Network)
+  - Killer E2400 Gigabit Ethernet Controller
+  - Microsoft Kernel Debug Network Adapter
+  - Microsoft Wi-Fi Direct Virtual Adapter
+  - Microsoft Wi-Fi Direct Virtual Adapter #2
+  - Qualcomm QCA9377 802.11ac Wireless Adapter
+  - VirtualBox Host-Only Ethernet Adapter (driver 7.2.6.22322)
+  - WAN Miniport (IKEv2)
+  - WAN Miniport (IP)
+  - WAN Miniport (IPv6)
+  - WAN Miniport (L2TP)
+  - WAN Miniport (Network Monitor)
+  - WAN Miniport (PPPOE)
+  - WAN Miniport (PPTP)
+  - WAN Miniport (SSTP)
++ {4d36e978-e325-11ce-bfc1-08002be10318}
+  - Communications Port (COM1)
+  - Standard Serial over Bluetooth link (COM7)
+  - Standard Serial over Bluetooth link (COM8)
++ {4d36e97b-e325-11ce-bfc1-08002be10318}
+  - Intel Chipset SATA RAID Controller (driver 15.44.0.1015)
+  - Microsoft Storage Spaces Controller
++ {4d36e97d-e325-11ce-bfc1-08002be10318}
+  - ACPI Fan
+  - ACPI Fan
+  - ACPI Fan
+  - ACPI Fan
+  - ACPI Fan
+  - ACPI Fixed Feature Button
+  - ACPI Power Button
+  - ACPI Processor Aggregator
+  - ACPI Sleep Button
+  - ACPI Thermal Zone
+  - ACPI Thermal Zone
+  - Charge Arbitration Driver
+  - Composite Bus Enumerator
+  - High Definition Audio Controller
+  - High Definition Audio Controller
+  - High precision event timer
+  - Intel(R) 300 Series Chipset Family LPC Controller (Z370) - A2C9 (driver 10.1.11.4)
+  - Intel(R) Gaussian Mixture Model - 1911 (driver 10.1.7.3)
+  - Intel(R) Management Engine Interface #1 (driver 2145.1.42.0)
+  - Intel(R) PCI Express Root Port #2 - A291 (driver 10.1.11.4)
+  - Intel(R) PCI Express Root Port #3 - A292 (driver 10.1.11.4)
+  - Intel(R) PCI Express Root Port #4 - A293 (driver 10.1.11.4)
+  - Intel(R) PCI Express Root Port #5 - A294 (driver 10.1.11.4)
+  - Intel(R) PMC - A2A1 (driver 10.1.11.4)
+  - Intel(R) Power Engine Plug-in
+  - Intel(R) Serial IO GPIO Host Controller - INT3451 (driver 30.100.1816.3)
+  - Intel(R) Serial IO UART Host Controller - A2A7 (driver 30.100.1943.2)
+  - Intel(R) SMBUS - A2A3 (driver 10.1.11.4)
+  - Intel(R) Software Guard Extensions Device (driver 2.25.100.3)
+  - Legacy device
+  - Microsoft ACPI-Compliant System
+  - Microsoft Basic Display Driver
+  - Microsoft Basic Render Driver
+  - Microsoft Hyper-V PCI Server
+  - Microsoft Hyper-V Virtual Disk Server
+  - Microsoft Hyper-V Virtual Machine Bus Provider
+  - Microsoft Hyper-V Virtualization Infrastructure Driver
+  - Microsoft Hypervisor Service
+  - Microsoft System Management BIOS Driver
+  - Microsoft UEFI-Compliant System
+  - Microsoft Virtual Drive Enumerator
+  - Microsoft Windows Management Interface for ACPI
+  - Microsoft Windows Management Interface for ACPI
+  - Microsoft Windows Management Interface for ACPI
+  - Motherboard resources
+  - Motherboard resources
+  - Motherboard resources
+  - Motherboard resources
+  - Motherboard resources
+  - Motherboard resources
+  - Motherboard resources
+  - Motherboard resources
+  - Motherboard resources
+  - Motherboard resources
+  - NDIS Virtual Network Adapter Enumerator
+  - Nugget Hands-Free AG
+  - Numeric data processor
+  - PCI Express Root Complex
+  - PCI standard host CPU bridge
+  - PCI-to-PCI Bridge
+  - Plug and Play Software Device Enumerator
+  - Portronics Twins S16 Hands-Free AG
+  - Programmable interrupt controller
+  - Remote Desktop Device Redirector Bus
+  - System CMOS/real time clock
+  - System timer
+  - UMBus Root Bus Enumerator
+  - Volume Manager
++ {50127dc3-0f36-415e-a6cc-4cb3be910b65}
+  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
+  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
+  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
+  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
+  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
+  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
+  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
+  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
+  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
+  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
+  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
+  - Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
++ {533c5b84-ec70-11d2-9505-00c04f79deaf}
+  - Generic volume shadow copy
+  - Generic volume shadow copy
+  - Generic volume shadow copy
++ {5c4c3332-344d-483c-8739-259e934c9cc8}
+  - Intel(R) Dynamic Application Loader Host Interface (driver 1.44.2023.710)
+  - Intel(R) Graphics Command Center (driver 27.20.100.9664)
+  - Intel(R) Graphics Control Panel (driver 27.20.100.9664)
+  - Intel(R) iCLS Client (driver 1.63.1155.2)
+  - Intel(R) Management Engine WMI Provider (driver 2130.1.15.0)
+  - Intel(R) Software Guard Extensions Software (driver 2.25.100.3)
++ {62f9c741-b25a-46ce-b54c-9bccce08b6f2}
+  - Bluetooth
+  - Microsoft Device Association Root Enumerator
+  - Microsoft GS Wavetable Synth
+  - Microsoft Radio Device Enumeration Bus
+  - Microsoft RRAS Root Enumerator
+  - Wi-Fi
++ {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+  - Bluetooth HID Device
+  - Bluetooth Low Energy GATT compliant HID device
+  - HID-compliant consumer control device
+  - HID-compliant system controller
+  - USB Input Device
+  - USB Input Device
+  - USB Input Device
++ {c166523c-fe0c-4a94-a586-f1a80cfbbf3e}
+  - LG IPS FULLHD (NVIDIA High Definition Audio)
++ {e0cbf06c-cd8b-4647-bb8a-263b43f0f974}
+  - Bluetooth Device (RFCOMM Protocol TDI)
+  - Bluetooth LE Generic Attribute Service
+  - Device Information Service
+  - Generic Access Profile
+  - Generic Attribute Profile
+  - Lenovo Bluetooth Mouse
+  - Microsoft Bluetooth Enumerator
+  - Microsoft Bluetooth LE Enumerator
+  - Nugget
+  - Nugget Avrcp Transport
+  - Nugget Avrcp Transport
+  - Portronics Twins S16
+  - Portronics Twins S16 Avrcp Transport
+  - Portronics Twins S16 Avrcp Transport
+  - Qualcomm QCA9377 Bluetooth (driver 10.0.0.1238)
++ {e1c7dabe-63de-4630-a4de-a4adc0503be3}
+  - DellInstrumentation Device (driver 2.9.2.0)
++ {eec5ad98-8080-425f-922a-dabf3de3f69a}
+  - N:\
++ {f2e7dd72-6468-4e36-b6f1-6488f42c1b52}
+  - System Firmware
+
+cpu registers:
+eax = 00000000
+ebx = 0342ecf0
+ecx = 04d07060
+edx = 04d07020
+esi = 00000000
+edi = 03940fd5
+eip = 00d373c9
+esp = 0135f788
+ebp = 0135f7f4
+
+stack dump:
+0135f788  a8 f7 35 01 b8 ff 90 00 - c0 47 e4 00 14 73 9d 03  ..5......G...s..
+0135f798  c0 47 e4 00 80 13 d0 00 - 00 00 00 00 f8 72 9d 03  .G...........r..
+0135f7a8  bc f7 35 01 00 97 90 00 - d4 f7 35 01 0d 97 90 00  ..5.......5.....
+0135f7b8  cc f7 35 01 d5 0f 94 03 - 00 00 00 00 f0 ec 42 03  ..5...........B.
+0135f7c8  f8 72 9d 03 00 97 90 00 - f4 f7 35 01 0d 97 90 00  .r........5.....
+0135f7d8  ff ff ff ff 00 00 00 00 - 01 00 00 00 20 70 d0 04  ............ p..
+0135f7e8  60 70 d0 04 00 00 00 00 - 60 70 d0 04 1c f8 35 01  `p......`p....5.
+0135f7f8  fc 69 d3 00 24 f8 35 01 - 60 70 d0 04 01 00 00 00  .i..$.5.`p......
+0135f808  01 00 00 00 01 00 00 00 - 00 00 00 00 60 70 d0 04  ............`p..
+0135f818  48 5b d0 04 2c f8 35 01 - 3e 9a d3 00 60 70 d0 04  H[..,.5.>...`p..
+0135f828  50 12 47 03 c0 f8 35 01 - 87 61 d4 00 70 fa 35 01  P.G...5..a..p.5.
+0135f838  f8 a4 90 00 c0 f8 35 01 - 5d d9 b8 00 41 d9 b8 00  ......5.]...A...
+0135f848  06 00 00 00 03 00 00 00 - 40 e7 42 03 dc f8 35 01  ........@.B...5.
+0135f858  74 f8 35 01 5d d9 b8 00 - dc f8 35 01 00 00 00 00  t.5.].....5.....
+0135f868  20 df 42 03 b0 f8 35 01 - dc d8 b8 01 94 f8 35 01   .B...5.......5.
+0135f878  00 05 48 03 dc f8 35 01 - 07 00 00 00 00 00 00 00  ..H...5.........
+0135f888  06 00 00 00 20 df 42 00 - 93 93 90 00 00 00 00 00  .... .B.........
+0135f898  f0 ec 42 03 87 73 de 00 - d5 0f 94 00 60 70 d0 04  ..B..s......`p..
+0135f8a8  30 c4 4a 03 01 00 00 00 - 00 00 00 00 00 00 00 00  0.J.............
+0135f8b8  00 00 00 00 20 a2 3a 03 - d0 f8 35 01 84 ff e0 00  .... .:...5.....
+
+disassembling:
+[...]
+00d373b8       jb      loc_d373bf
+00d373ba       call    -$42e71b ($908ca4)     ; System.@BoundErr
+00d373bf       mov     eax, [edx+eax*8+4]
+00d373c3       mov     [ebp-$1c], eax
+00d373c6       mov     eax, [ebp-$18]
+00d373c9     > mov     eax, [eax+8]
+00d373cc       cmp     eax, [ebp-$1c]
+00d373cf       ja      loc_d373e3
+00d373d1       mov     eax, [ebp-$18]
+00d373d4       mov     edx, [eax+8]
+00d373d7       dec     edx
 [...]
 
