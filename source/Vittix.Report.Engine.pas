@@ -371,6 +371,7 @@ begin
           Ctx2.TotalPages := FTotalPagesForPass;
           Ctx2.ReportTitle := FReport.Title;
           Ctx2.ReportDate  := FReportDate;
+          Ctx2.IsCountingPass := not FIsRenderingPass;
           var CanPrintBand := True;
           if FIsRenderingPass and Assigned(FOnBeforeBand) then
             FOnBeforeBand(Self, Self, FOverlayBand, Ctx2, CanPrintBand);
@@ -431,6 +432,7 @@ begin
   Ctx.TotalPages  := FTotalPagesForPass;
   Ctx.ReportTitle := FReport.Title;
   Ctx.ReportDate  := FReportDate;
+  Ctx.IsCountingPass := not FIsRenderingPass;
 
   MaxBottom := 0;
   for var Child in ABand.Children do
@@ -784,6 +786,7 @@ begin
     Ctx0.TotalPages := FTotalPagesForPass;
     Ctx0.ReportTitle := FReport.Title;
     Ctx0.ReportDate  := FReportDate;
+    Ctx0.IsCountingPass := not FIsRenderingPass;
     var PWResult: Variant;
     var ShouldPrint: Boolean;
     try
@@ -803,6 +806,7 @@ begin
   Ctx.TotalPages  := FTotalPagesForPass;
   Ctx.ReportTitle := FReport.Title;
   Ctx.ReportDate  := FReportDate;
+  Ctx.IsCountingPass := not FIsRenderingPass;
   var CanPrintBand := True;
   if FIsRenderingPass and Assigned(FOnBeforeBand) then
     FOnBeforeBand(Self, Self, ABand, Ctx, CanPrintBand);

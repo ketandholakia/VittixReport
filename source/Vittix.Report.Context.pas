@@ -43,6 +43,9 @@ type
     { Report metadata }
     ReportTitle: string;
     ReportDate:  TDateTime; // set once when Prepare begins
+
+    { Pass metadata }
+    IsCountingPass: Boolean; // True only during the engine page-count pass
   end;
 
 implementation

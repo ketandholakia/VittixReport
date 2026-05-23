@@ -1611,6 +1611,7 @@ var
   SubCtx: TExpressionContext;
 begin
   if not ShouldPrintObject(Self, Context) then Exit;
+  if Context.IsCountingPass then Exit;
 
   R := FBounds;
   if not FTransparent then
@@ -1715,6 +1716,7 @@ var
 begin
   Result := FBounds.Bottom;
   if not ShouldPrintObject(Self, Context) then Exit;
+  if Context.IsCountingPass then Exit;
   if Trim(FReportJSON) = '' then Exit;
 
   Model := nil;
