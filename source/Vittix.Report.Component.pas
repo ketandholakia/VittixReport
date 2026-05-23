@@ -469,8 +469,8 @@ begin
   try
     Renderer := TReportRenderer.Create;
     try
-      Renderer.Render(Model, Primary);
-      InvokePreviewAction(Renderer, 'Print');
+      Renderer.Render(Model, Primary, NamedDS);
+      Renderer.Print;
     finally
       Renderer.Free;
     end;
