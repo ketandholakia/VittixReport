@@ -215,7 +215,7 @@ begin
 
   if Key = 'background' then
   begin
-    if not (AObject is TReportTextObject) and not (AObject is TReportImageObject) then
+    if not (AObject is TReportTextObject) then
     begin
       Result.Unsupported := True;
       Result.UnsupportedCount := 1;
