@@ -361,7 +361,7 @@ begin
   try
     Renderer := TReportRenderer.Create;
     try
-      Renderer.Render(Model, Primary);
+      Renderer.Render(Model, Primary, NamedDS);
 
       NavHelp := TPreviewNavHelper.Create;
       try

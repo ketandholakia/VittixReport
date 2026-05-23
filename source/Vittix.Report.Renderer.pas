@@ -28,7 +28,11 @@ type
     constructor Create;
     destructor Destroy; override;
 
-    procedure Render(AReport: TReportModel; ADataSet: TDataSet);
+    procedure Render(AReport: TReportModel; ADataSet: TDataSet); overload;
+    procedure Render(
+      AReport: TReportModel;
+      ADataSet: TDataSet;
+      ANamedDataSets: TDictionary<string, TDataSet>); overload;
     procedure Print;
 
     property Pages: TObjectList<TRenderPage> read FPages;
@@ -74,6 +78,14 @@ end;
 procedure TReportRenderer.Render(
   AReport: TReportModel;
   ADataSet: TDataSet);
+begin
+  Render(AReport, ADataSet, nil);
+end;
+
+procedure TReportRenderer.Render(
+  AReport: TReportModel;
+  ADataSet: TDataSet;
+  ANamedDataSets: TDictionary<string, TDataSet>);
 var
   Engine: TReportEngine;
   i:      Integer;
@@ -90,7 +102,7 @@ begin
   PW := AReport.PageSettings.PageWidth;
   PH := AReport.PageSettings.PageHeight;
 
-  Engine := TReportEngine.Create(AReport, ADataSet); // AProgress defaults to nil
+  Engine := TReportEngine.Create(AReport, ADataSet, ANamedDataSets, nil);
   try
     Engine.Prepare;
 
