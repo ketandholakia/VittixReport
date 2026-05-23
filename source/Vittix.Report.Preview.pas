@@ -209,10 +209,13 @@ begin
 end;
 
 procedure TVittixReportPreview.SetZoomPercent(const Value: Integer);
+var
+  NewZoom: Integer;
 begin
-  if Value < 10  then Exit;
-  if Value > 400 then Exit;
-  FZoomPercent := Value;
+  NewZoom := EnsureRange(Value, 10, 400);
+  if FZoomPercent = NewZoom then
+    Exit;
+  FZoomPercent := NewZoom;
   Invalidate;
 end;
 
