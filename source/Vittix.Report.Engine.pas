@@ -498,6 +498,10 @@ begin
 
   CacheBands;
 
+  for var Obj in FReport.Objects do
+    if Obj is TReportImageObject then
+      TReportImageObject(Obj).ResetImageCache;
+
   ATotalRows := 0;
   if AReportProgress and Assigned(FProgress) then
   begin

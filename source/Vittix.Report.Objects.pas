@@ -213,6 +213,7 @@ type
     constructor Create; override;
     destructor Destroy; override;
     procedure Draw(C: TCanvas; const Context: TExpressionContext); override;
+    procedure ResetImageCache;
     class function DisplayName: string; override;
     property Picture: TPicture read FPicture;
   published
@@ -986,6 +987,15 @@ begin
   FCachedPicture.Free;
   FPicture.Free;
   inherited;
+end;
+
+procedure TReportImageObject.ResetImageCache;
+begin
+  FCachedImagePath := '';
+  FCachedImageValid := False;
+  FCachedImageAttempted := False;
+  FCachedPicture.Assign(nil);
+  FPicture.Assign(nil);
 end;
 
 procedure TReportImageObject.Draw(C: TCanvas; const Context: TExpressionContext);
