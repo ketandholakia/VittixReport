@@ -23,6 +23,7 @@
 interface
 
 uses
+  Winapi.Messages,
   System.Classes,
   System.Types,
   System.SysUtils,
@@ -36,18 +37,29 @@ uses
 type
   TVittixReportPreview = class(TCustomControl)
   private
-    FPages:      TObjectList<TBitmap>;  // owned; independent of TReportRenderer
+    FPages:      TObjectList<Vcl.Graphics.TBitmap>;  // owned; independent of TReportRenderer
     FPageIndex:  Integer;
     FZoomPercent: Integer;
     FOnPageChanged: TNotifyEvent;
     FMargins: TReportMargins;
     FShowMarginOverlay: Boolean;
+    FScrollX: Integer;
+    FScrollY: Integer;
 
     procedure SetPageIndex(const Value: Integer);
     procedure SetZoomPercent(const Value: Integer);
     function  GetPageCount: Integer;
+    procedure GetContentSize(out AWidth, AHeight: Integer);
+    procedure SetScrollOffset(AX, AY: Integer);
+    procedure UpdateScrollBars;
+    procedure WMHScroll(var Message: TWMHScroll); message WM_HSCROLL;
+    procedure WMVScroll(var Message: TWMVScroll); message WM_VSCROLL;
+    procedure WMSize(var Message: TWMSize); message WM_SIZE;
 
   protected
+    procedure CreateParams(var Params: TCreateParams); override;
+    function DoMouseWheel(Shift: TShiftState; WheelDelta: Integer;
+      MousePos: TPoint): Boolean; override;
     procedure Paint; override;
 
   public
@@ -104,6 +116,7 @@ procedure Register;
 implementation
 
 uses
+  Winapi.Windows,
   System.Math;
 
 { ================= Constructor / Destructor ================= }
@@ -114,7 +127,7 @@ begin
   DoubleBuffered := True;
   Color          := clGray;
   FZoomPercent   := 100;
-  FPages         := TObjectList<TBitmap>.Create(True); // owns bitmaps
+  FPages         := TObjectList<Vcl.Graphics.TBitmap>.Create(True); // owns bitmaps
   FMargins       := TReportMargins.Default;
   FShowMarginOverlay := True;
 end;
@@ -125,19 +138,27 @@ begin
   inherited;
 end;
 
+procedure TVittixReportPreview.CreateParams(var Params: TCreateParams);
+begin
+  inherited;
+  Params.Style := Params.Style or WS_HSCROLL or WS_VSCROLL;
+end;
+
 { ================= LoadFromRenderer ================= }
 
 procedure TVittixReportPreview.LoadFromRenderer(ARenderer: TReportRenderer);
 var
   i:    Integer;
-  Src:  TBitmap;
-  Copy: TBitmap;
+  Src:  Vcl.Graphics.TBitmap;
+  Copy: Vcl.Graphics.TBitmap;
 begin
   FPages.Clear;
   FPageIndex := 0;
 
   if not Assigned(ARenderer) then
   begin
+    SetScrollOffset(0, 0);
+    UpdateScrollBars;
     Invalidate;
     Exit;
   end;
@@ -145,12 +166,14 @@ begin
   for i := 0 to ARenderer.Pages.Count - 1 do
   begin
     Src  := ARenderer.Pages[i].Bitmap;
-    Copy := TBitmap.Create;
+    Copy := Vcl.Graphics.TBitmap.Create;
     Copy.SetSize(Src.Width, Src.Height);
     Copy.Canvas.Draw(0, 0, Src);   // pixel-perfect copy
     FPages.Add(Copy);
   end;
 
+  SetScrollOffset(0, 0);
+  UpdateScrollBars;
   Invalidate;
 end;
 
@@ -166,6 +189,8 @@ procedure TVittixReportPreview.Clear;
 begin
   FPages.Clear;
   FPageIndex := 0;
+  SetScrollOffset(0, 0);
+  UpdateScrollBars;
   Invalidate;
 end;
 
@@ -204,6 +229,8 @@ procedure TVittixReportPreview.SetPageIndex(const Value: Integer);
 begin
   if PageCount = 0 then Exit;
   FPageIndex := EnsureRange(Value, 0, PageCount - 1);
+  SetScrollOffset(0, 0);
+  UpdateScrollBars;
   Invalidate;
   if Assigned(FOnPageChanged) then FOnPageChanged(Self);
 end;
@@ -216,18 +243,150 @@ begin
   if FZoomPercent = NewZoom then
     Exit;
   FZoomPercent := NewZoom;
+  UpdateScrollBars;
   Invalidate;
+end;
+
+procedure TVittixReportPreview.GetContentSize(out AWidth, AHeight: Integer);
+var
+  PageBmp: Vcl.Graphics.TBitmap;
+  Scale: Double;
+begin
+  AWidth := ClientWidth;
+  AHeight := ClientHeight;
+  if (PageCount = 0) or (FPageIndex < 0) or (FPageIndex >= PageCount) then
+    Exit;
+
+  PageBmp := FPages[FPageIndex];
+  Scale := FZoomPercent / 100;
+  AWidth := Max(ClientWidth, Round(PageBmp.Width * Scale) + 20);
+  AHeight := Max(ClientHeight, Round(PageBmp.Height * Scale) + 20);
+end;
+
+procedure TVittixReportPreview.SetScrollOffset(AX, AY: Integer);
+var
+  ContentW, ContentH: Integer;
+begin
+  GetContentSize(ContentW, ContentH);
+  AX := EnsureRange(AX, 0, Max(0, ContentW - ClientWidth));
+  AY := EnsureRange(AY, 0, Max(0, ContentH - ClientHeight));
+  if (FScrollX = AX) and (FScrollY = AY) then
+    Exit;
+
+  FScrollX := AX;
+  FScrollY := AY;
+  UpdateScrollBars;
+  Invalidate;
+end;
+
+procedure TVittixReportPreview.UpdateScrollBars;
+var
+  ContentW, ContentH: Integer;
+  SI: TScrollInfo;
+begin
+  if not HandleAllocated then
+    Exit;
+
+  GetContentSize(ContentW, ContentH);
+  FScrollX := EnsureRange(FScrollX, 0, Max(0, ContentW - ClientWidth));
+  FScrollY := EnsureRange(FScrollY, 0, Max(0, ContentH - ClientHeight));
+
+  ZeroMemory(@SI, SizeOf(SI));
+  SI.cbSize := SizeOf(SI);
+  SI.fMask := SIF_RANGE or SIF_PAGE or SIF_POS;
+  SI.nMin := 0;
+
+  SI.nMax := Max(0, ContentW - 1);
+  SI.nPage := Max(1, ClientWidth);
+  SI.nPos := FScrollX;
+  SetScrollInfo(Handle, SB_HORZ, SI, True);
+  ShowScrollBar(Handle, SB_HORZ, ContentW > ClientWidth);
+
+  SI.nMax := Max(0, ContentH - 1);
+  SI.nPage := Max(1, ClientHeight);
+  SI.nPos := FScrollY;
+  SetScrollInfo(Handle, SB_VERT, SI, True);
+  ShowScrollBar(Handle, SB_VERT, ContentH > ClientHeight);
+end;
+
+procedure TVittixReportPreview.WMHScroll(var Message: TWMHScroll);
+var
+  SI: TScrollInfo;
+  NewPos: Integer;
+begin
+  NewPos := FScrollX;
+  case Message.ScrollCode of
+    SB_LINELEFT: Dec(NewPos, 20);
+    SB_LINERIGHT: Inc(NewPos, 20);
+    SB_PAGELEFT: Dec(NewPos, ClientWidth);
+    SB_PAGERIGHT: Inc(NewPos, ClientWidth);
+    SB_THUMBPOSITION, SB_THUMBTRACK:
+      begin
+        ZeroMemory(@SI, SizeOf(SI));
+        SI.cbSize := SizeOf(SI);
+        SI.fMask := SIF_TRACKPOS;
+        if GetScrollInfo(Handle, SB_HORZ, SI) then
+          NewPos := SI.nTrackPos;
+      end;
+    SB_LEFT: NewPos := 0;
+    SB_RIGHT: NewPos := MaxInt;
+  end;
+  SetScrollOffset(NewPos, FScrollY);
+end;
+
+procedure TVittixReportPreview.WMVScroll(var Message: TWMVScroll);
+var
+  SI: TScrollInfo;
+  NewPos: Integer;
+begin
+  NewPos := FScrollY;
+  case Message.ScrollCode of
+    SB_LINEUP: Dec(NewPos, 20);
+    SB_LINEDOWN: Inc(NewPos, 20);
+    SB_PAGEUP: Dec(NewPos, ClientHeight);
+    SB_PAGEDOWN: Inc(NewPos, ClientHeight);
+    SB_THUMBPOSITION, SB_THUMBTRACK:
+      begin
+        ZeroMemory(@SI, SizeOf(SI));
+        SI.cbSize := SizeOf(SI);
+        SI.fMask := SIF_TRACKPOS;
+        if GetScrollInfo(Handle, SB_VERT, SI) then
+          NewPos := SI.nTrackPos;
+      end;
+    SB_TOP: NewPos := 0;
+    SB_BOTTOM: NewPos := MaxInt;
+  end;
+  SetScrollOffset(FScrollX, NewPos);
+end;
+
+procedure TVittixReportPreview.WMSize(var Message: TWMSize);
+begin
+  inherited;
+  UpdateScrollBars;
+end;
+
+function TVittixReportPreview.DoMouseWheel(Shift: TShiftState; WheelDelta: Integer;
+  MousePos: TPoint): Boolean;
+begin
+  if ssCtrl in Shift then
+    Result := inherited DoMouseWheel(Shift, WheelDelta, MousePos)
+  else
+  begin
+    SetScrollOffset(FScrollX, FScrollY - WheelDelta div 3);
+    Result := True;
+  end;
 end;
 
 { ================= Paint ================= }
 
 procedure TVittixReportPreview.Paint;
 var
-  PageBmp: TBitmap;
+  PageBmp: Vcl.Graphics.TBitmap;
   Scale:   Double;
   W, H:   Integer;
   R:      TRect;
   ContentR: TRect;
+  ContentW, ContentH: Integer;
 begin
   Canvas.Brush.Color := Color;
   Canvas.FillRect(ClientRect);
@@ -240,12 +399,13 @@ begin
   Scale := FZoomPercent / 100;
   W     := Round(PageBmp.Width  * Scale);
   H     := Round(PageBmp.Height * Scale);
+  GetContentSize(ContentW, ContentH);
 
   R := Rect(
-    (ClientWidth - W) div 2,
-    10,
-    (ClientWidth - W) div 2 + W,
-    10 + H
+    ((ContentW - W) div 2) - FScrollX,
+    10 - FScrollY,
+    ((ContentW - W) div 2) - FScrollX + W,
+    10 - FScrollY + H
   );
 
   Canvas.Brush.Style := bsSolid;
@@ -297,7 +457,7 @@ end;
 
 procedure TVittixReportPreview.FitWidth;
 var
-  PageBmp: TBitmap;
+  PageBmp: Vcl.Graphics.TBitmap;
 begin
   if (PageCount = 0) or (ClientWidth <= 0) then Exit;
   PageBmp := FPages[FPageIndex];
@@ -307,7 +467,7 @@ end;
 
 procedure TVittixReportPreview.FitPage;
 var
-  PageBmp: TBitmap;
+  PageBmp: Vcl.Graphics.TBitmap;
   ScaleW, ScaleH: Integer;
 begin
   if (PageCount = 0) or (ClientWidth <= 0) or (ClientHeight <= 0) then Exit;
@@ -329,7 +489,7 @@ end;
 procedure TVittixReportPreview.Print;
 var
   i:    Integer;
-  Bmp:  TBitmap;
+  Bmp:  Vcl.Graphics.TBitmap;
   R:    TRect;
 begin
   if PageCount = 0 then Exit;
