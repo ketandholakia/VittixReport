@@ -579,3 +579,4 @@ The single highest-impact fix is **BUG-C1 + BUG-C6 + MF6**: wiring `TVittixUserD
 - BUG-C6 fixed in commit `d12f962` (`fix(renderer): clear stale object render hooks`).
 - BUG-S1 fixed in commit `0c84e61` (`fix(expressions): handle unary signs in math parser`).
 - BUG-S2 fixed in commit `911b466` (`fix(objects): avoid mutating text bounds during draw`).
+- BUG-S3 fixed in commit `a1a339d` (`fix(serializer): remove invalid utf8 bom checks`).
