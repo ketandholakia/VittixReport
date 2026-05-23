@@ -575,3 +575,4 @@ The single highest-impact fix is **BUG-C1 + BUG-C6 + MF6**: wiring `TVittixUserD
 - BUG-C2 fixed in commit `4e412d7` (`fix(component): forward named datasets during print`).
 - BUG-C3 fixed in commit `ba7104d` (`fix(engine): skip subreport traversal during count pass`).
 - BUG-C4 fixed in commit `8cbab36` (`fix(engine): allow static reports without master data`).
+- BUG-C5 fixed in commit `91ee3ac` (`fix(undo): restore deleted objects by original order`).
