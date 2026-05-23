@@ -1313,22 +1313,15 @@ end;
 procedure TfrmMain.AddBand(ABandType: TReportBandType);
 var
   Band: TReportBand;
-  Cmd: TInsertObjectCommand;
 begin
-  Band := TReportBand.Create;
-  Band.BandType := ABandType;
-  Band.Height   := 40;
-  Cmd := TInsertObjectCommand.Create(FDesigner.Report.Objects, Band);
-  Cmd.ActionName := 'Add Band';
-  if Assigned(FDesigner) and Assigned(FDesigner.Commands) then
-    FDesigner.Commands.DoCommand(Cmd);
   if Assigned(FDesigner) then
   begin
+    Band := FDesigner.AddBand(ABandType);
     FDesigner.RebuildLayout;
     RefreshReportStructure;
     UpdateAll;
+    StatusBar1.Panels[1].Text := 'Band added: ' + BandTypeName(Band.BandType);
   end;
-  StatusBar1.Panels[1].Text := 'Band added: ' + BandTypeName(ABandType);
 end;
 
 function TfrmMain.AddTextObject(ABand: TReportBand; const AText: string; X, Y, W, H: Integer): TReportTextObject;

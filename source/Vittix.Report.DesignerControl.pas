@@ -216,6 +216,7 @@ type
 
     { Insert }
     procedure BeginInsertObject(AClass: TReportObjectClass);
+    function AddBand(ABandType: TReportBandType): TReportBand;
 
     { Selection }
     procedure SelectObject(AObj: TReportObject);
@@ -644,6 +645,23 @@ begin
   FInteractionState.Mode := Ord(dmInsert);
   Cursor       := crCross;
   ClearSelection;
+end;
+
+function TVittixReportDesigner.AddBand(ABandType: TReportBandType): TReportBand;
+var
+  Cmd: TInsertObjectCommand;
+begin
+  Result := TReportBand.Create;
+  Result.BandType := ABandType;
+  Result.Height := 40;
+  Cmd := TInsertObjectCommand.Create(FReport.Objects, Result);
+  Cmd.ActionName := 'Add Band';
+  FCommands.DoCommand(Cmd);
+  ComputeBandLayouts;
+  ClearSelection;
+  AddToSelection(Result);
+  FActiveBand := Result;
+  DoModified;
 end;
 
 procedure TVittixReportDesigner.SelectObject(AObj: TReportObject);
