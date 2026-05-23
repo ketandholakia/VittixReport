@@ -28,6 +28,7 @@ uses
   System.Classes,
   System.SysUtils,
   System.Generics.Collections,
+  System.Generics.Defaults,
   System.Types,
   System.Rtti,
   Vittix.Report.Objects,
@@ -336,6 +337,15 @@ begin
     FEntries[i].OwnerList := AOwnerLists[i];
     FEntries[i].OrigIndex := AIndices[i];
   end;
+  TArray.Sort<TDeleteEntry>(FEntries, TComparer<TDeleteEntry>.Construct(
+    function(const L, R: TDeleteEntry): Integer
+    begin
+      if NativeInt(Pointer(L.OwnerList)) < NativeInt(Pointer(R.OwnerList)) then
+        Exit(-1);
+      if NativeInt(Pointer(L.OwnerList)) > NativeInt(Pointer(R.OwnerList)) then
+        Exit(1);
+      Result := L.OrigIndex - R.OrigIndex;
+    end));
   FBuffer := TObjectList<TReportObject>.Create(True);
   if Length(AObjects) <= 1 then
     ActionName := 'Delete Object'
