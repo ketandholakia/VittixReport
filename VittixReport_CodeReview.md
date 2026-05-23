@@ -597,3 +597,4 @@ The single highest-impact fix is **BUG-C1 + BUG-C6 + MF6**: wiring `TVittixUserD
 - BUG-M9 reviewed; no code change needed because conditional omission of blank event strings is compatible with JSON defaults.
 - BUG-M10 fixed in commit `e6fab79` (`fix(script): reject image background assignment`).
 - MF9 implemented in commit `b88d534` (`fix(preview): add scrolling for zoomed pages`).
+- MF10 implemented in commit `68e6e94` (`feat(designer): expose band insertion API`).
