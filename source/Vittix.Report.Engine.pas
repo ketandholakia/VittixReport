@@ -693,6 +693,8 @@ var
   GH: TReportBand;
   GroupByField: TField;
   OpenedThisBreak: Boolean;
+  ColumnHeaderH: Integer;
+  PageBeforeColumnHeader: Integer;
 begin
   OpenedThisBreak := False;
   for I := ABreakLevel to FGroupHeaders.Count - 1 do
@@ -711,7 +713,13 @@ begin
     OpenedThisBreak := True;
 
     if Assigned(FColumnHeaderBand) then
-      PrintBandWithSpaceCheck(FColumnHeaderBand);
+    begin
+      ColumnHeaderH := ComputeEffectiveBandHeight(FColumnHeaderBand, FDataSet);
+      PageBeforeColumnHeader := FPageNumber;
+      EnsurePageSpaceForBand(ColumnHeaderH, True);
+      if FPageNumber = PageBeforeColumnHeader then
+        PrintBand(FColumnHeaderBand, FDataSet, ColumnHeaderH);
+    end;
 
     GroupByField := nil;
     if TryGetField(FDataSet, GH.GroupField, GroupByField) then
