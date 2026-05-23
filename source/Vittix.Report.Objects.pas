@@ -376,10 +376,8 @@ end;
 
 procedure EnsureRegistryInitialized;
 begin
-  if not Assigned(GRegistryCS) then
-    GRegistryCS := TCriticalSection.Create;
-  if not Assigned(GRegistry) then
-    GRegistry := TList<TReportObjectClass>.Create;
+  if not Assigned(GRegistryCS) or not Assigned(GRegistry) then
+    raise EInvalidOperation.Create('Report object registry is not initialized');
 end;
 
 { ================= Registry ================= }
@@ -1829,7 +1827,8 @@ end;
 { ================= Init ================= }
 
 initialization
-  EnsureRegistryInitialized;
+  GRegistryCS := TCriticalSection.Create;
+  GRegistry := TList<TReportObjectClass>.Create;
   RegisterReportObject(TReportTextObject);
   RegisterReportObject(TReportLabelObject);
   RegisterReportObject(TReportFieldObject);
