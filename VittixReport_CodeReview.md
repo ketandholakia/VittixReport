@@ -581,13 +581,18 @@ The single highest-impact fix is **BUG-C1 + BUG-C6 + MF6**: wiring `TVittixUserD
 - BUG-S2 fixed in commit `911b466` (`fix(objects): avoid mutating text bounds during draw`).
 - BUG-S3 fixed in commit `a1a339d` (`fix(serializer): remove invalid utf8 bom checks`).
 - BUG-S4 fixed in commit `d724f97` (`fix(objects): reset image cache for render passes`).
+- BUG-S5 reviewed; no code change needed because bounds restore already runs before canvas restore.
 - BUG-S6 fixed in commit `99ab2a4` (`fix(preview): draw margin overlay above page bitmap`).
 - BUG-S7 fixed in commit `4c4728e` (`fix(engine): preserve column header on group page breaks`).
 - BUG-S8 fixed in commit `b20d1ac` (`fix(utils): share data field diagnostics`).
 - BUG-S9 fixed in commit `076b5c4` (`fix(objects): initialize registry deterministically`).
+- BUG-M1 reviewed; no code change needed because SUM does not use Count and AVG has a zero-count guard.
 - BUG-M2 fixed in commit `febc622` (`fix(designer): use band header constant for layout`).
+- BUG-M3 reviewed; no code change needed because EnableControls is already protected by finally.
 - BUG-M4 fixed in commit `e17daa0` (`fix(preview): clamp zoom percentage`).
 - BUG-M5 fixed in commit `fc4a7ab` (`fix(serializer): persist barcode and table properties`).
 - BUG-M6 fixed in commit `469956d` (`fix(table): honor PrintWhen during draw`).
+- BUG-M7 reviewed; no code change needed because line objects already call ShouldPrintObject.
 - BUG-M8 fixed in commit `ae96ad2` (`docs(context): document bookmark lifetime`).
+- BUG-M9 reviewed; no code change needed because conditional omission of blank event strings is compatible with JSON defaults.
 - BUG-M10 fixed in commit `e6fab79` (`fix(script): reject image background assignment`).
