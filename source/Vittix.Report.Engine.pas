@@ -1048,17 +1048,16 @@ begin
   try
     CacheBands;
 
-    if not Assigned(FMasterBand) then
-      raise EReportException.Create(
-        'Report must have a MasterData band');
+    if Assigned(FMasterBand) then
+    begin
+      if not Assigned(FDataSet) then
+        raise EReportException.Create(
+          'DataSet must be assigned to the report engine.');
 
-    if not Assigned(FDataSet) then
-      raise EReportException.Create(
-        'DataSet must be assigned to the report engine.');
-
-    if not FDataSet.Active then
-      raise EReportException.Create(
-        'DataSet must be active to generate the report.');
+      if not FDataSet.Active then
+        raise EReportException.Create(
+          'DataSet must be active to generate the report.');
+    end;
 
     FReportDate := Now;
     CancelPrint := False;
