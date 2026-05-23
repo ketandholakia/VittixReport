@@ -154,6 +154,7 @@ type
     procedure DoViewChanged;
 
     { Property setters }
+    procedure PrepareDisplayDataSet;
     procedure SetDataSet(const V: TDataSet);
     procedure SetDataSource(const V: TDataSource);
     function  GetReportJSON: string;
@@ -619,6 +620,7 @@ begin
     FCommands.Clear;
   FBandLayouts := nil;
   FObjectBandMap.Clear;
+  PrepareDisplayDataSet;
   ComputeBandLayouts;
   UpdateSurfaceExtent;
   Invalidate;
@@ -1205,11 +1207,27 @@ begin
   Result := FCommands;
 end;
 
+procedure TVittixReportDesigner.PrepareDisplayDataSet;
+begin
+  if not Assigned(FDataSet) or not FDataSet.Active then
+    Exit;
+
+  try
+    if not FDataSet.IsEmpty and FDataSet.Eof then
+      FDataSet.First;
+  except
+    // Keep designer painting non-fatal for datasets that do not support First
+    // or raise while repositioning.
+  end;
+end;
+
 procedure TVittixReportDesigner.SetDataSet(const V: TDataSet);
 begin
   FDataSet := V;
+  PrepareDisplayDataSet;
   if Assigned(FOnDataSetChanged) then
     FOnDataSetChanged(Self);
+  Invalidate;
 end;
 
 procedure TVittixReportDesigner.SetDataSource(const V: TDataSource);
@@ -1691,34 +1709,6 @@ var
 begin
   if BL.Band.Children.Count = 0 then Exit;
 
-  { Set up DC for zoomed drawing of band children }
-  SaveDC := Winapi.Windows.SaveDC(Canvas.Handle);
-  try
-    { Scale so 1 logical unit = Zoom/100 screen pixels }
-    SetMapMode(Canvas.Handle, MM_ANISOTROPIC);
-    SetWindowExtEx(Canvas.Handle, 100, 100, nil);
-    SetViewportExtEx(Canvas.Handle, FZoom, FZoom, nil);
-    { Viewport origin = printable content origin for the band }
-    SetViewportOrgEx(Canvas.Handle,
-      PageLeft + Scale(FReport.PageSettings.Margins.Left),
-      PageTop + Scale(BL.Y + 14),
-      nil);
-    ClipR := Rect(
-      0,
-      0,
-      FReport.PageSettings.PageWidth - FReport.PageSettings.Margins.Left - FReport.PageSettings.Margins.Right,
-      Max(0, BL.Height));
-    IntersectClipRect(Canvas.Handle, ClipR.Left, ClipR.Top, ClipR.Right, ClipR.Bottom);
-    for Obj in BL.Band.Children do
-    begin
-      Ctx := Default(TExpressionContext);
-      Ctx.DataSet := FDataSet;
-      Obj.Draw(Canvas, Ctx);
-    end;
-  finally
-    Winapi.Windows.RestoreDC(Canvas.Handle, SaveDC);
-  end;
-
   { Draw object borders and selection rectangles in screen-space }
   SaveDC := Winapi.Windows.SaveDC(Canvas.Handle);
   try
@@ -1979,6 +1969,8 @@ end;
 procedure TVittixReportDesigner.Paint;
 var I: Integer;
 begin
+  PrepareDisplayDataSet;
+
   { Background }
   Canvas.Brush.Color := Color;
   Canvas.Brush.Style := bsSolid;
@@ -2131,19 +2123,15 @@ begin
     end;
 
     { ---- EMPTY SPACE = deselect and optionally rubber band ---- }
-    if not (ssCtrl in Shift) then
-    begin
-      if FSelected.Count > 0 then
-      begin
-        FSelected.Clear;
-        FActiveBand := nil;
-        DoSelectionChanged;
-      end;
-
-      if (X < PageLeft) or (Y < PageTop) or
-         (X >= PageLeft + PageWidth) or (Y >= PageTop + PageHeight) then
-        Exit;
-    end;
+    if not DesignerBeginRubberBandSelection(
+      FSelected,
+      FActiveBand,
+      Shift,
+      Point(X, Y),
+      Rect(PageLeft, PageTop, PageLeft + PageWidth, PageTop + PageHeight),
+      FOnSelectionChanged,
+      Self) then
+      Exit;
 
     FInteractionState.Rubbering  := True;
     FInteractionState.RubberRect := Rect(X, Y, X, Y);
@@ -2355,11 +2343,7 @@ end;
 procedure TVittixReportDesigner.MouseUp(Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
 var
-  NormRect : TRect;
-  I        : Integer;
-  BL       : TBandLayout;
   Obj      : TReportObject;
-  OR_      : TRect;
   Cmd      : TMultiMoveCommand;
   Objects  : TArray<TReportObject>;
   OldBounds: TArray<TRect>;
@@ -2448,31 +2432,16 @@ begin
     dmRubberBand:
     begin
       FInteractionState.Rubbering := False;
-      NormRect   := FInteractionState.RubberRect;
-      if NormRect.Right < NormRect.Left then
-      begin
-        var Tmp := NormRect.Left;
-        NormRect.Left  := NormRect.Right;
-        NormRect.Right := Tmp;
-      end;
-      if NormRect.Bottom < NormRect.Top then
-      begin
-        var Tmp := NormRect.Top;
-        NormRect.Top    := NormRect.Bottom;
-        NormRect.Bottom := Tmp;
-      end;
-
-      for I := 0 to High(FBandLayouts) do
-      begin
-        BL := FBandLayouts[I];
-        for Obj in BL.Band.Children do
-        begin
-          OR_ := ObjScreenRect(Obj);
-          var TmpR: TRect;
-          if IntersectRect(TmpR, NormRect, OR_) then
-            AddToSelection(Obj);
-        end;
-      end;
+      if DesignerApplyRubberBandSelection(
+           FSelected,
+           FBandLayouts,
+           FInteractionState.RubberRect,
+           ObjScreenRect,
+           FOnSelectionChanged,
+           Self) then
+        DoSelectionChanged
+      else
+        Invalidate;
     end;
   end;
 
@@ -2496,90 +2465,6 @@ const
   MIN_KEYBOARD_OBJ_SZ = 4;
 var
   Step : Integer;
-  I    : Integer;
-  Obj  : TReportObject;
-  R    : TRect;
-  Objects  : TArray<TReportObject>;
-  OldBounds: TArray<TRect>;
-  NewBounds: TArray<TRect>;
-  Cmd  : TMultiMoveCommand;
-
-  { Snapshot current selection, apply delta, record command }
-  procedure NudgeSelected(DX, DY: Integer);
-  var
-    I: Integer;
-  begin
-    if FSelected.Count = 0 then Exit;
-    SetLength(Objects,   FSelected.Count);
-    SetLength(OldBounds, FSelected.Count);
-    SetLength(NewBounds, FSelected.Count);
-    for I := 0 to FSelected.Count - 1 do
-    begin
-      Obj          := FSelected[I];
-      Objects[I]   := Obj;
-      OldBounds[I] := Obj.Bounds;
-      R := Obj.Bounds;
-      NewBounds[I] := Bounds(R.Left + DX, R.Top + DY, R.Width, R.Height);
-      Obj.Bounds   := NewBounds[I];
-    end;
-    Cmd := TMultiMoveCommand.Create(Objects, OldBounds, NewBounds);
-    if Length(Objects) <= 1 then
-      Cmd.ActionName := 'Move Object'
-    else
-      Cmd.ActionName := 'Move Objects';
-    FCommands.DoCommand(Cmd);
-    DoModified;
-  end;
-
-  procedure ResizeSelected(DW, DH: Integer);
-  var
-    I: Integer;
-    NewW, NewH: Integer;
-    ChangedCount: Integer;
-  begin
-    if FSelected.Count = 0 then Exit;
-
-    SetLength(Objects,   FSelected.Count);
-    SetLength(OldBounds, FSelected.Count);
-    SetLength(NewBounds, FSelected.Count);
-    ChangedCount := 0;
-
-    for I := 0 to FSelected.Count - 1 do
-    begin
-      Obj := FSelected[I];
-      // Keyboard resize is only for regular objects in this phase.
-      if Obj is TReportBand then
-        Continue;
-
-      R := Obj.Bounds;
-      NewW := Max(MIN_KEYBOARD_OBJ_SZ, R.Width + DW);
-      NewH := Max(MIN_KEYBOARD_OBJ_SZ, R.Height + DH);
-
-      if (NewW = R.Width) and (NewH = R.Height) then
-        Continue;
-
-      Objects[ChangedCount]   := Obj;
-      OldBounds[ChangedCount] := R;
-      NewBounds[ChangedCount] := Bounds(R.Left, R.Top, NewW, NewH);
-      Obj.Bounds := NewBounds[ChangedCount];
-      Inc(ChangedCount);
-    end;
-
-    if ChangedCount = 0 then
-      Exit;
-
-    SetLength(Objects, ChangedCount);
-    SetLength(OldBounds, ChangedCount);
-    SetLength(NewBounds, ChangedCount);
-    Cmd := TMultiMoveCommand.Create(Objects, OldBounds, NewBounds);
-    if Length(Objects) <= 1 then
-      Cmd.ActionName := 'Resize Object'
-    else
-      Cmd.ActionName := 'Resize Objects';
-    FCommands.DoCommand(Cmd);
-    DoModified;
-  end;
-
 begin
   // Arrow-key behavior:
   // Ctrl+Arrow       = fine move (1 unit)
@@ -2602,33 +2487,33 @@ begin
     VK_LEFT:
     begin
       if (ssShift in Shift) and not (ssCtrl in Shift) then
-        ResizeSelected(-RESIZE_STEP, 0)
+        DesignerResizeSelected(FSelected, -RESIZE_STEP, 0, MIN_KEYBOARD_OBJ_SZ, FCommands, DoModified, Self)
       else
-        NudgeSelected(-Step, 0);
+        DesignerNudgeSelected(FSelected, -Step, 0, FCommands, DoModified, Self);
       Key := 0;
     end;
     VK_RIGHT:
     begin
       if (ssShift in Shift) and not (ssCtrl in Shift) then
-        ResizeSelected(RESIZE_STEP, 0)
+        DesignerResizeSelected(FSelected, RESIZE_STEP, 0, MIN_KEYBOARD_OBJ_SZ, FCommands, DoModified, Self)
       else
-        NudgeSelected(Step, 0);
+        DesignerNudgeSelected(FSelected, Step, 0, FCommands, DoModified, Self);
       Key := 0;
     end;
     VK_UP:
     begin
       if (ssShift in Shift) and not (ssCtrl in Shift) then
-        ResizeSelected(0, -RESIZE_STEP)
+        DesignerResizeSelected(FSelected, 0, -RESIZE_STEP, MIN_KEYBOARD_OBJ_SZ, FCommands, DoModified, Self)
       else
-        NudgeSelected(0, -Step);
+        DesignerNudgeSelected(FSelected, 0, -Step, FCommands, DoModified, Self);
       Key := 0;
     end;
     VK_DOWN:
     begin
       if (ssShift in Shift) and not (ssCtrl in Shift) then
-        ResizeSelected(0, RESIZE_STEP)
+        DesignerResizeSelected(FSelected, 0, RESIZE_STEP, MIN_KEYBOARD_OBJ_SZ, FCommands, DoModified, Self)
       else
-        NudgeSelected(0, Step);
+        DesignerNudgeSelected(FSelected, 0, Step, FCommands, DoModified, Self);
       Key := 0;
     end;
     VK_ESCAPE:

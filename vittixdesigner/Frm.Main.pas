@@ -1121,6 +1121,7 @@ begin
   RefreshFieldList;
   RefreshReportStructure;
   UpdateAll;
+  FDesigner.Repaint;
   StatusBar1.Panels[1].Text := 'Loaded: ' + ExtractFileName(FCurrentFile);
 end;
 
@@ -1242,15 +1243,15 @@ end;
 
 procedure TfrmMain.mnuUndoClick(Sender: TObject);
 begin
-  if Assigned(FDesigner) and Assigned(FDesigner.Commands) then
-    FDesigner.Commands.Undo;
+  if Assigned(FDesigner) then
+    FDesigner.Undo;
   RefreshAfterUndoRedo;
 end;
 
 procedure TfrmMain.mnuRedoClick(Sender: TObject);
 begin
-  if Assigned(FDesigner) and Assigned(FDesigner.Commands) then
-    FDesigner.Commands.Redo;
+  if Assigned(FDesigner) then
+    FDesigner.Redo;
   RefreshAfterUndoRedo;
 end;
 
@@ -4529,6 +4530,8 @@ begin
     finally
       Frm.Free;
     end;
+    if Assigned(FDesigner) then
+      FDesigner.Repaint;
   except
     on E: Exception do
       ShowMessage('Preview error: ' + E.Message);
@@ -4559,6 +4562,9 @@ begin
         Cmd := TPageSettingsChangeCommand.Create(FDesigner, OldSettings, NewSettings);
         if Assigned(FDesigner) and Assigned(FDesigner.Commands) then
           FDesigner.Commands.DoCommand(Cmd);
+        if Assigned(FDesigner) then
+          FDesigner.RebuildLayout;
+        RefreshAfterReportStateChange;
       end;
     end;
   finally
@@ -4841,6 +4847,9 @@ begin
   Cmd := TReportSnapshotCommand.Create(FDesigner, ABeforeJSON, AAfterJSON);
   if Assigned(FDesigner) and Assigned(FDesigner.Commands) then
     FDesigner.Commands.DoCommand(Cmd);
+  if Assigned(FDesigner) then
+    FDesigner.RebuildLayout;
+  RefreshAfterReportStateChange;
 end;
 
 procedure TfrmMain.ShowReportPropertiesDialog;
