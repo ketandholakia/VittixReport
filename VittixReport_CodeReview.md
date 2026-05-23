@@ -582,3 +582,4 @@ The single highest-impact fix is **BUG-C1 + BUG-C6 + MF6**: wiring `TVittixUserD
 - BUG-S3 fixed in commit `a1a339d` (`fix(serializer): remove invalid utf8 bom checks`).
 - BUG-S4 fixed in commit `d724f97` (`fix(objects): reset image cache for render passes`).
 - BUG-S6 fixed in commit `99ab2a4` (`fix(preview): draw margin overlay above page bitmap`).
+- BUG-S7 fixed in commit `4c4728e` (`fix(engine): preserve column header on group page breaks`).
