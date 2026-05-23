@@ -50,6 +50,7 @@ const
   MIN_OBJ_SZ  = 8;    // minimum object dimension (logical)
   MIN_BAND_H  = 10;   // minimum band height (logical)
   BAND_LBL_W  = 68;   // width of band label strip on page left (logical)
+  BAND_HDR_H  = 14;   // band header height (logical)
   BAND_SEP_HT = 4;    // screen pixels - click zone for band-bottom separator
   MOVE_DRAG_THRESHOLD = 3; // screen pixels before a click becomes a drag
 
@@ -1671,14 +1672,14 @@ begin
       PageLeft + Scale(PM.Left),
       PageTop + Scale(BL.Y),
       PageLeft + Scale(PM.Left) + PrintableW,
-      PageTop + Scale(BL.Y + BL.Height + 14)
+      PageTop + Scale(BL.Y + BL.Height + BAND_HDR_H)
     );
     Canvas.Brush.Color := BAND_COLORS[BL.Band.BandType];
     Canvas.Brush.Style := bsSolid;
     Canvas.FillRect(BR);
 
     { Separator line at bottom }
-    SepY := PageTop + Scale(BL.Y + BL.Height + 14);
+    SepY := PageTop + Scale(BL.Y + BL.Height + BAND_HDR_H);
     Canvas.Pen.Color := $00909090;
     Canvas.Pen.Style := psSolid;
     Canvas.Pen.Width := 1;
@@ -1718,9 +1719,9 @@ begin
     IntersectClipRect(
       Canvas.Handle,
       PageLeft + Scale(FReport.PageSettings.Margins.Left),
-      PageTop + Scale(BL.Y + 14),
+      PageTop + Scale(BL.Y + BAND_HDR_H),
       PageLeft + Scale(FReport.PageSettings.PageWidth - FReport.PageSettings.Margins.Right),
-      PageTop + Scale(BL.Y + BL.Height + 14));
+      PageTop + Scale(BL.Y + BL.Height + BAND_HDR_H));
     for Obj in BL.Band.Children do
     begin
       OR_ := ObjScreenRect(Obj);
@@ -1743,8 +1744,6 @@ begin
 end;
 
 procedure TVittixReportDesigner.DrawBandHeaders;
-const
-  BAND_HDR_H = 14;
 var
   I   : Integer;
   BL  : TBandLayout;
