@@ -39,10 +39,14 @@ uses
   Vittix.Report.Context,
   Vittix.Report.Scripting,
   Vittix.Report.LayoutCache,
+  Vittix.Report.LayoutPagination,
   Vittix.Report.Interfaces;   // IReportProgress
 
 type
   EReportException = class(Exception);
+
+type
+  TBooleanDynArray = array of Boolean;
 
 type
   TReportBeforePrintReportEvent = procedure(
@@ -135,10 +139,28 @@ type
     procedure StartNewPage;
     procedure EndCurrentPage;
     procedure PrintPageHeader;  // prints PageHeader + ColumnHeader together
+    procedure EnsurePageSpaceForBand(RequiredHeight: Integer; PrintColumnHeader: Boolean = False);
+    procedure BeginPass(ATotalPages: Integer; AReportProgress: Boolean; out ATotalRows, ARowNumber: Integer);
+    procedure PrintFirstPageBands;
+    function InitializeActiveGroupHeaders(out AActiveGroupHeader: TBooleanDynArray): Boolean;
+    function DetectGroupBreak(const AActiveGroupHeader: TBooleanDynArray): Integer;
+    function ProcessCurrentMasterRecord(AReportProgress: Boolean; var ARowNumber: Integer): Boolean;
+    procedure ProcessMasterDataLoop(const AActiveGroupHeader: TBooleanDynArray; AReportProgress: Boolean; var ARowNumber: Integer; var AHasOpenedGroups: Boolean);
+    procedure CaptureGroupStartBookmark;
+    procedure CaptureGroupEndBookmark;
+    function IsGroupLevelActive(const AActiveGroupHeader: TBooleanDynArray; ALevel: Integer): Boolean;
+    procedure CloseGroupsForBreak(ABreakLevel: Integer; const AActiveGroupHeader: TBooleanDynArray);
+    procedure OpenGroupsForBreak(ABreakLevel: Integer; const AActiveGroupHeader: TBooleanDynArray; var AHasOpenedGroups: Boolean);
+    procedure CloseRemainingGroups(const AActiveGroupHeader: TBooleanDynArray; AHasAnyActiveGroup: Boolean; AHasOpenedGroups: Boolean);
+    procedure PrintSummaryWithSpaceCheck;
+    function FinalizePass(const AActiveGroupHeader: TBooleanDynArray; AHasAnyActiveGroup, AHasOpenedGroups: Boolean): Integer;
     procedure PrintBand(ABand: TReportBand; ADataSet: TDataSet = nil; AEffectiveHeight: Integer = -1);
     procedure PrintBandWithSpaceCheck(ABand: TReportBand; ADataSet: TDataSet = nil);
     function  ComputeEffectiveBandHeight(ABand: TReportBand; ADataSet: TDataSet): Integer;
     function  ResolveBandDataSet(ABand: TReportBand): TDataSet;
+    function  CaptureDataSetBookmark(ADataSet: TDataSet; out ABookmark: TBookmark): Boolean;
+    procedure RestoreDataSetBookmark(ADataSet: TDataSet; ABookmark: TBookmark; AHasBookmark: Boolean);
+    procedure PrintDetailBandRecords(ABand: TReportBand; ADetailDS: TDataSet);
     procedure PrintDetailBands;
     function  ExecutePass(ATotalPages: Integer; AReportProgress: Boolean): Integer;
     function  CheckSpace(RequiredHeight: Integer): Boolean;
@@ -435,17 +457,302 @@ end;
 
 function TReportEngine.CheckSpace(
   RequiredHeight: Integer): Boolean;
+var
+  FooterH: Integer;
 begin
-  if RequiredHeight <= 0 then
-    RequiredHeight := 1;
+  FooterH := 0;
+  if Assigned(FFooterBand) then
+    FooterH := FFooterBand.Height;
 
-  // Reserve space for the bottom margin and the page footer band
-  var FooterH := 0;
-  if Assigned(FFooterBand) then FooterH := FFooterBand.Height;
+  Result := BandFitsOnPage(
+    FCurrentY,
+    RequiredHeight,
+    FPageHeight,
+    FReport.PageSettings.Margins.Bottom,
+    FooterH);
+end;
 
-  Result :=
-    (FCurrentY + RequiredHeight) <=
-    (FPageHeight - FReport.PageSettings.Margins.Bottom - FooterH);
+procedure TReportEngine.EnsurePageSpaceForBand(
+  RequiredHeight: Integer; PrintColumnHeader: Boolean);
+begin
+  if CheckSpace(RequiredHeight) then
+    Exit;
+
+  StartNewPage;
+  PrintPageHeader;
+  if PrintColumnHeader and Assigned(FColumnHeaderBand) then
+    PrintBandWithSpaceCheck(FColumnHeaderBand, FDataSet);
+end;
+
+procedure TReportEngine.BeginPass(
+  ATotalPages: Integer; AReportProgress: Boolean; out ATotalRows, ARowNumber: Integer);
+begin
+  FPages.Clear;
+  FPageNumber := 0;
+  FTotalPagesForPass := ATotalPages;
+
+  FPageWidth := FReport.PageSettings.PageWidth;
+  FPageHeight := FReport.PageSettings.PageHeight;
+
+  CacheBands;
+
+  ATotalRows := 0;
+  if AReportProgress and Assigned(FProgress) then
+  begin
+    ATotalRows := SafeRecordCount(FDataSet);
+    FProgress.SetTotal(ATotalRows);
+  end;
+  ARowNumber := 0;
+
+  FGroupStartBookmark := nil;
+  FGroupEndBookmark := nil;
+  FHasGroupStartBookmark := False;
+  FHasGroupEndBookmark := False;
+end;
+
+procedure TReportEngine.PrintFirstPageBands;
+begin
+  StartNewPage;
+
+  if Assigned(FTitleBand) then
+    PrintBand(FTitleBand);
+
+  PrintPageHeader;
+  if Assigned(FColumnHeaderBand) then
+    PrintBand(FColumnHeaderBand);
+end;
+
+function TReportEngine.InitializeActiveGroupHeaders(
+  out AActiveGroupHeader: TBooleanDynArray): Boolean;
+var
+  I: Integer;
+  GH: TReportBand;
+  GroupByField: TField;
+begin
+  SetLength(FLastGroupValues, FGroupHeaders.Count);
+  SetLength(AActiveGroupHeader, FGroupHeaders.Count);
+  Result := False;
+  for I := 0 to High(FLastGroupValues) do
+  begin
+    FLastGroupValues[I] := Null;
+    GH := FGroupHeaders[I];
+    GroupByField := nil;
+    AActiveGroupHeader[I] :=
+      Assigned(FDataSet) and FDataSet.Active and
+      (Trim(GH.GroupField) <> '') and
+      TryGetField(FDataSet, GH.GroupField, GroupByField);
+    if AActiveGroupHeader[I] then
+      Result := True;
+  end;
+end;
+
+function TReportEngine.DetectGroupBreak(
+  const AActiveGroupHeader: TBooleanDynArray): Integer;
+var
+  I: Integer;
+  GH: TReportBand;
+  GroupByField: TField;
+  NewValue: Variant;
+begin
+  Result := -1;
+  for I := 0 to FGroupHeaders.Count - 1 do
+  begin
+    if not AActiveGroupHeader[I] then
+      Continue;
+
+    GH := FGroupHeaders[I];
+    GroupByField := nil;
+    if not TryGetField(FDataSet, GH.GroupField, GroupByField) then
+      Continue;
+
+    NewValue := GroupByField.Value;
+    if VarIsNull(FLastGroupValues[I]) or (NewValue <> FLastGroupValues[I]) then
+      Exit(I);
+  end;
+end;
+
+function TReportEngine.ProcessCurrentMasterRecord(
+  AReportProgress: Boolean; var ARowNumber: Integer): Boolean;
+var
+  EffH: Integer;
+begin
+  EffH := ComputeEffectiveBandHeight(FMasterBand, FDataSet);
+  EnsurePageSpaceForBand(EffH, True);
+  PrintBand(FMasterBand, FDataSet, EffH);
+  PrintDetailBands;
+
+  Inc(ARowNumber);
+  Result := True;
+  if AReportProgress and Assigned(FProgress) then
+  begin
+    FProgress.Advance(ARowNumber);
+    Result := not FProgress.IsCancelled;
+  end;
+end;
+
+procedure TReportEngine.ProcessMasterDataLoop(
+  const AActiveGroupHeader: TBooleanDynArray; AReportProgress: Boolean;
+  var ARowNumber: Integer; var AHasOpenedGroups: Boolean);
+var
+  BreakLevel: Integer;
+begin
+  if not (Assigned(FDataSet) and FDataSet.Active) then
+    Exit;
+
+  FDataSet.DisableControls;
+  try
+    FDataSet.First;
+    while not FDataSet.Eof do
+    begin
+      BreakLevel := DetectGroupBreak(AActiveGroupHeader);
+
+      if (BreakLevel >= 0) and AHasOpenedGroups then
+        CloseGroupsForBreak(BreakLevel, AActiveGroupHeader);
+
+      if BreakLevel >= 0 then
+        OpenGroupsForBreak(BreakLevel, AActiveGroupHeader, AHasOpenedGroups);
+
+      if not ProcessCurrentMasterRecord(AReportProgress, ARowNumber) then
+        Break;
+
+      FDataSet.Next;
+    end;
+  finally
+    FDataSet.EnableControls;
+  end;
+end;
+
+procedure TReportEngine.CaptureGroupStartBookmark;
+begin
+  if Assigned(FDataSet) and DataSetSupportsBookmarks(FDataSet) then
+  begin
+    if FHasGroupStartBookmark then
+      FDataSet.FreeBookmark(FGroupStartBookmark);
+    FGroupStartBookmark := FDataSet.GetBookmark;
+    FHasGroupStartBookmark := True;
+  end
+  else
+  begin
+    FGroupStartBookmark := nil;
+    FHasGroupStartBookmark := False;
+  end;
+end;
+
+procedure TReportEngine.CaptureGroupEndBookmark;
+begin
+  if Assigned(FDataSet) and DataSetSupportsBookmarks(FDataSet) then
+  begin
+    if FHasGroupEndBookmark then
+      FDataSet.FreeBookmark(FGroupEndBookmark);
+    FGroupEndBookmark := FDataSet.GetBookmark;
+    FHasGroupEndBookmark := True;
+  end
+  else
+  begin
+    FGroupEndBookmark := nil;
+    FHasGroupEndBookmark := False;
+  end;
+end;
+
+function TReportEngine.IsGroupLevelActive(
+  const AActiveGroupHeader: TBooleanDynArray; ALevel: Integer): Boolean;
+var
+  J: Integer;
+begin
+  Result := False;
+  for J := 0 to FGroupHeaders.Count - 1 do
+    if AActiveGroupHeader[J] and (FGroupHeaders[J].GroupLevel = ALevel) then
+      Exit(True);
+end;
+
+procedure TReportEngine.CloseGroupsForBreak(
+  ABreakLevel: Integer; const AActiveGroupHeader: TBooleanDynArray);
+var
+  I: Integer;
+  GF: TReportBand;
+begin
+  CaptureGroupEndBookmark;
+  for I := 0 to FGroupFooters.Count - 1 do
+  begin
+    GF := FGroupFooters[I];
+    if (GF.GroupLevel >= ABreakLevel) and IsGroupLevelActive(AActiveGroupHeader, GF.GroupLevel) then
+      PrintBandWithSpaceCheck(GF);
+  end;
+end;
+
+procedure TReportEngine.OpenGroupsForBreak(
+  ABreakLevel: Integer; const AActiveGroupHeader: TBooleanDynArray; var AHasOpenedGroups: Boolean);
+var
+  I: Integer;
+  GH: TReportBand;
+  GroupByField: TField;
+  OpenedThisBreak: Boolean;
+begin
+  OpenedThisBreak := False;
+  for I := ABreakLevel to FGroupHeaders.Count - 1 do
+  begin
+    if not AActiveGroupHeader[I] then
+      Continue;
+
+    GH := FGroupHeaders[I];
+    if GH.StartNewPage then
+    begin
+      StartNewPage;
+      PrintPageHeader;
+    end;
+
+    PrintBandWithSpaceCheck(GH);
+    OpenedThisBreak := True;
+
+    if Assigned(FColumnHeaderBand) then
+      PrintBandWithSpaceCheck(FColumnHeaderBand);
+
+    GroupByField := nil;
+    if TryGetField(FDataSet, GH.GroupField, GroupByField) then
+      FLastGroupValues[I] := GroupByField.Value;
+  end;
+
+  if OpenedThisBreak then
+    AHasOpenedGroups := True;
+
+  CaptureGroupStartBookmark;
+end;
+
+procedure TReportEngine.CloseRemainingGroups(
+  const AActiveGroupHeader: TBooleanDynArray; AHasAnyActiveGroup,
+  AHasOpenedGroups: Boolean);
+var
+  GF: TReportBand;
+begin
+  if not (AHasOpenedGroups and AHasAnyActiveGroup) then
+    Exit;
+
+  CaptureGroupEndBookmark;
+  for GF in FGroupFooters do
+    if IsGroupLevelActive(AActiveGroupHeader, GF.GroupLevel) then
+      PrintBandWithSpaceCheck(GF);
+end;
+
+procedure TReportEngine.PrintSummaryWithSpaceCheck;
+var
+  EffH: Integer;
+begin
+  if not Assigned(FSummaryBand) then
+    Exit;
+
+  EffH := ComputeEffectiveBandHeight(FSummaryBand, FDataSet);
+  EnsurePageSpaceForBand(EffH);
+  PrintBand(FSummaryBand, FDataSet, EffH);
+end;
+
+function TReportEngine.FinalizePass(
+  const AActiveGroupHeader: TBooleanDynArray; AHasAnyActiveGroup,
+  AHasOpenedGroups: Boolean): Integer;
+begin
+  CloseRemainingGroups(AActiveGroupHeader, AHasAnyActiveGroup, AHasOpenedGroups);
+  PrintSummaryWithSpaceCheck;
+  EndCurrentPage;
+  Result := FPageNumber;
 end;
 
 { ================= Band Printing ================= }
@@ -590,11 +897,7 @@ begin
     Exit;
 
   EffH := ComputeEffectiveBandHeight(ABand, ADataSet);
-  if not CheckSpace(EffH) then
-  begin
-    StartNewPage;
-    PrintPageHeader;
-  end;
+  EnsurePageSpaceForBand(EffH);
 
   PrintBand(ABand, ADataSet, EffH);
 end;
@@ -615,17 +918,64 @@ begin
   Result := nil;
 end;
 
+function TReportEngine.CaptureDataSetBookmark(
+  ADataSet: TDataSet; out ABookmark: TBookmark): Boolean;
+begin
+  ABookmark := nil;
+  Result := Assigned(ADataSet) and DataSetSupportsBookmarks(ADataSet);
+  if Result then
+    ABookmark := ADataSet.GetBookmark;
+end;
+
+procedure TReportEngine.RestoreDataSetBookmark(
+  ADataSet: TDataSet; ABookmark: TBookmark; AHasBookmark: Boolean);
+begin
+  if not AHasBookmark then
+    Exit;
+  if Assigned(ADataSet) and (ABookmark <> nil) and ADataSet.BookmarkValid(ABookmark) then
+    ADataSet.GotoBookmark(ABookmark);
+  if Assigned(ADataSet) and (ABookmark <> nil) then
+    ADataSet.FreeBookmark(ABookmark);
+end;
+
+procedure TReportEngine.PrintDetailBandRecords(ABand: TReportBand; ADetailDS: TDataSet);
+var
+  MasterValue: Variant;
+  HasMasterField: Boolean;
+  EffH: Integer;
+  MasterFld: TField;
+  DetailFld: TField;
+begin
+  HasMasterField :=
+    Assigned(FDataSet) and FDataSet.Active and
+    (ABand.MasterField <> '') and (ABand.DetailField <> '') and
+    TryGetField(FDataSet, ABand.MasterField, MasterFld) and
+    TryGetField(ADetailDS, ABand.DetailField, DetailFld);
+
+  if HasMasterField then
+    MasterValue := MasterFld.Value
+  else
+    MasterValue := Null;
+
+  ADetailDS.First;
+  while not ADetailDS.Eof do
+  begin
+    if (not HasMasterField) or VarSameValue(DetailFld.Value, MasterValue) then
+    begin
+      EffH := ComputeEffectiveBandHeight(ABand, ADetailDS);
+      EnsurePageSpaceForBand(EffH, True);
+      PrintBand(ABand, ADetailDS, EffH);
+    end;
+    ADetailDS.Next;
+  end;
+end;
+
 procedure TReportEngine.PrintDetailBands;
 var
   Band: TReportBand;
   DetailDS: TDataSet;
   SaveBM: TBookmark;
   HasSaveBM: Boolean;
-  MasterValue: Variant;
-  HasMasterField: Boolean;
-  EffH: Integer;
-  MasterFld: TField;
-  DetailFld: TField;
 begin
   for Band in FDetailBands do
   begin
@@ -633,52 +983,13 @@ begin
     if not Assigned(DetailDS) or not DetailDS.Active then
       Continue;
 
-    SaveBM := nil;
-    HasSaveBM := False;
-    if DataSetSupportsBookmarks(DetailDS) then
-    begin
-      SaveBM := DetailDS.GetBookmark;
-      HasSaveBM := True;
-    end;
+    HasSaveBM := CaptureDataSetBookmark(DetailDS, SaveBM);
 
     DetailDS.DisableControls;
     try
-      HasMasterField :=
-        Assigned(FDataSet) and FDataSet.Active and
-        (Band.MasterField <> '') and (Band.DetailField <> '') and
-        TryGetField(FDataSet, Band.MasterField, MasterFld) and
-        TryGetField(DetailDS, Band.DetailField, DetailFld);
-
-      if HasMasterField then
-        MasterValue := MasterFld.Value
-      else
-        MasterValue := Null;
-
-      DetailDS.First;
-      while not DetailDS.Eof do
-      begin
-        if (not HasMasterField) or
-           VarSameValue(DetailFld.Value, MasterValue) then
-        begin
-          EffH := ComputeEffectiveBandHeight(Band, DetailDS);
-          if not CheckSpace(EffH) then
-          begin
-            StartNewPage;
-            PrintPageHeader;
-            if Assigned(FColumnHeaderBand) then
-              PrintBandWithSpaceCheck(FColumnHeaderBand, FDataSet);
-          end;
-
-          PrintBand(Band, DetailDS, EffH);
-        end;
-
-        DetailDS.Next;
-      end;
+      PrintDetailBandRecords(Band, DetailDS);
     finally
-      if HasSaveBM and (SaveBM <> nil) and DetailDS.BookmarkValid(SaveBM) then
-        DetailDS.GotoBookmark(SaveBM);
-      if HasSaveBM and (SaveBM <> nil) then
-        DetailDS.FreeBookmark(SaveBM);
+      RestoreDataSetBookmark(DetailDS, SaveBM, HasSaveBM);
       DetailDS.EnableControls;
     end;
   end;
@@ -695,25 +1006,10 @@ end;
 
 function TReportEngine.ExecutePass(ATotalPages: Integer; AReportProgress: Boolean): Integer;
 var
-  i, RowNumber, TotalRows: Integer;
-  GH, GF: TReportBand;
-  GroupByField: TField;
-  NewValue: Variant;
-  BreakLevel: Integer;
+  RowNumber, TotalRows: Integer;
   HasOpenedGroups: Boolean;
-  EffH: Integer;
-  ActiveGroupHeader: array of Boolean;
+  ActiveGroupHeader: TBooleanDynArray;
   HasAnyActiveGroup: Boolean;
-  OpenedThisBreak: Boolean;
-  function IsGroupLevelActive(ALevel: Integer): Boolean;
-  var
-    J: Integer;
-  begin
-    Result := False;
-    for J := 0 to FGroupHeaders.Count - 1 do
-      if ActiveGroupHeader[J] and (FGroupHeaders[J].GroupLevel = ALevel) then
-        Exit(True);
-  end;
 begin
   FIsRenderingPass := AReportProgress;
   SetReportNamedDataSets(FNamedDataSets);
@@ -722,224 +1018,12 @@ begin
   else
     ClearReportObjectRenderHooks;
   try
-    FPages.Clear;
-    FPageNumber := 0;
-    FTotalPagesForPass := ATotalPages;
-
-  // Snapshot page dimensions from the model's PageSettings
-  FPageWidth  := FReport.PageSettings.PageWidth;
-  FPageHeight := FReport.PageSettings.PageHeight;
-
-  CacheBands;
-
-  if AReportProgress and Assigned(FProgress) then
-  begin
-    TotalRows := SafeRecordCount(FDataSet);
-    FProgress.SetTotal(TotalRows);
-  end;
-  RowNumber := 0;
-
-  StartNewPage;
-
-  { Title once }
-  if Assigned(FTitleBand) then
-    PrintBand(FTitleBand);
-
-  { Page header on first page }
-  PrintPageHeader;
-  { Column header on first page (before first group break or first data row) }
-  if Assigned(FColumnHeaderBand) then
-    PrintBand(FColumnHeaderBand);
-
-  SetLength(FLastGroupValues, FGroupHeaders.Count);
-  SetLength(ActiveGroupHeader, FGroupHeaders.Count);
-  HasAnyActiveGroup := False;
-  for i := 0 to High(FLastGroupValues) do
-  begin
-    FLastGroupValues[i] := Null;
-    GH := FGroupHeaders[i];
-    GroupByField := nil;
-    ActiveGroupHeader[i] :=
-      Assigned(FDataSet) and FDataSet.Active and
-      (Trim(GH.GroupField) <> '') and
-      TryGetField(FDataSet, GH.GroupField, GroupByField);
-    if ActiveGroupHeader[i] then
-      HasAnyActiveGroup := True;
-  end;
-
-  FGroupStartBookmark := nil; // Initialize
-  FGroupEndBookmark := nil;   // Initialize
-  FHasGroupStartBookmark := False;
-  FHasGroupEndBookmark := False;
-  HasOpenedGroups := False;
-
-  { Master data loop }
-  if Assigned(FDataSet) and FDataSet.Active then
-  begin
-    FDataSet.DisableControls;
-    try
-      FDataSet.First;
-
-      while not FDataSet.Eof do
-      begin
-        { -------- GROUP SUPPORT -------- }
-        // Detect break level
-        BreakLevel := -1;
-        for i := 0 to FGroupHeaders.Count-1 do
-        begin
-          if not ActiveGroupHeader[i] then
-            Continue;
-
-          GH := FGroupHeaders[i];
-          GroupByField := nil;
-          if not TryGetField(FDataSet, GH.GroupField, GroupByField) then
-            Continue;
-
-          NewValue := GroupByField.Value;
-
-          if VarIsNull(FLastGroupValues[i]) or
-             (NewValue <> FLastGroupValues[i]) then
-          begin
-            BreakLevel := i;
-            Break;
-          end;
-        end;
-
-        // Close lower groups first (from lowest level up to BreakLevel)
-        if (BreakLevel >= 0) and HasOpenedGroups then
-        begin
-          if DataSetSupportsBookmarks(FDataSet) then
-          begin
-            if FHasGroupEndBookmark then
-              FDataSet.FreeBookmark(FGroupEndBookmark);
-            FGroupEndBookmark := FDataSet.GetBookmark;
-            FHasGroupEndBookmark := True;
-          end
-          else
-          begin
-            FGroupEndBookmark := nil;
-            FHasGroupEndBookmark := False;
-          end;
-
-          for i := 0 to FGroupFooters.Count-1 do
-          begin
-            GF := FGroupFooters[i];
-            if (GF.GroupLevel >= BreakLevel) and IsGroupLevelActive(GF.GroupLevel) then
-              PrintBandWithSpaceCheck(GF);
-          end;
-        end;
-
-        // Open new groups top-down (from BreakLevel down to lowest level)
-        if BreakLevel >= 0 then
-        begin
-          OpenedThisBreak := False;
-          for i := BreakLevel to FGroupHeaders.Count-1 do
-          begin
-            if not ActiveGroupHeader[i] then
-              Continue;
-
-            GH := FGroupHeaders[i];
-
-            if GH.StartNewPage then
-            begin
-              StartNewPage;
-              PrintPageHeader;
-            end;
-
-            PrintBandWithSpaceCheck(GH);
-            OpenedThisBreak := True;
-
-            // Print column header below each group header
-            if Assigned(FColumnHeaderBand) then
-              PrintBandWithSpaceCheck(FColumnHeaderBand);
-
-            GroupByField := nil;
-            if TryGetField(FDataSet, GH.GroupField, GroupByField) then
-              FLastGroupValues[i] := GroupByField.Value;
-          end;
-
-          if OpenedThisBreak then
-            HasOpenedGroups := True;
-
-          if DataSetSupportsBookmarks(FDataSet) then
-          begin
-            if FHasGroupStartBookmark then
-              FDataSet.FreeBookmark(FGroupStartBookmark);
-            FGroupStartBookmark := FDataSet.GetBookmark;
-            FHasGroupStartBookmark := True;
-          end
-          else
-          begin
-            FGroupStartBookmark := nil;
-            FHasGroupStartBookmark := False;
-          end;
-        end;
-
-        { -------- PAGE BREAK -------- }
-        EffH := ComputeEffectiveBandHeight(FMasterBand, FDataSet);
-        if not CheckSpace(EffH) then
-        begin
-          StartNewPage;
-          PrintPageHeader;
-          // Column header always repeats on each page (with or without groups)
-          if Assigned(FColumnHeaderBand) then
-            PrintBandWithSpaceCheck(FColumnHeaderBand);
-        end;
-        { -------- PRINT RECORD -------- }
-        PrintBand(FMasterBand, FDataSet, EffH);
-        PrintDetailBands;
-
-        // Report progress and check for cancellation
-        Inc(RowNumber);
-        if AReportProgress and Assigned(FProgress) then
-        begin
-          FProgress.Advance(RowNumber);
-          if FProgress.IsCancelled then
-            Break;
-        end;
-
-        FDataSet.Next;
-      end;
-    finally
-      FDataSet.EnableControls;
-    end;
-  end;
-
-  { close last group }
-  // After the loop, FDataSet is at EOF. The FGroupEndBookmark for the LAST group is set if supported.
-  if HasOpenedGroups and HasAnyActiveGroup then
-  begin
-    if DataSetSupportsBookmarks(FDataSet) then
-    begin
-      if FHasGroupEndBookmark then
-        FDataSet.FreeBookmark(FGroupEndBookmark);
-      FGroupEndBookmark := FDataSet.GetBookmark;
-      FHasGroupEndBookmark := True;
-    end
-    else
-    begin
-      FGroupEndBookmark := nil;
-      FHasGroupEndBookmark := False;
-    end;
-    for GF in FGroupFooters do
-      if IsGroupLevelActive(GF.GroupLevel) then
-        PrintBandWithSpaceCheck(GF);
-  end;
-
-  if Assigned(FSummaryBand) then
-  begin
-    EffH := ComputeEffectiveBandHeight(FSummaryBand, FDataSet);
-    if not CheckSpace(EffH) then
-    begin
-      StartNewPage;
-      PrintPageHeader;
-    end;
-
-    PrintBand(FSummaryBand, FDataSet, EffH);
-  end;
-
-    EndCurrentPage;
-    Result := FPageNumber;
+    BeginPass(ATotalPages, AReportProgress, TotalRows, RowNumber);
+    PrintFirstPageBands;
+    HasAnyActiveGroup := InitializeActiveGroupHeaders(ActiveGroupHeader);
+    HasOpenedGroups := False;
+    ProcessMasterDataLoop(ActiveGroupHeader, AReportProgress, RowNumber, HasOpenedGroups);
+    Result := FinalizePass(ActiveGroupHeader, HasAnyActiveGroup, HasOpenedGroups);
   finally
     ClearReportObjectRenderHooks;
     FIsRenderingPass := False;

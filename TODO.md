@@ -7,7 +7,7 @@
 | 2 | Selection manager | In progress | Tree sync and core selection mutators are extracted; drag selection and keyboard selection remain in the designer control. |
 | 3 | Surface interaction controller | In progress | Hit-test/geometry helpers are split; interaction state container is added and mouse event migration is next. |
 | 4 | Command dispatcher | Complete | A wrapper around `TCommandManager` has been added, the designer control exposes it, and the main form routes undo/redo and command execution through it. |
-| 5 | Layout/render tree | In progress | Layout helpers now cover designer band ordering and engine band cache classification. |
+| 5 | Layout/render tree | In progress | Layout helpers now cover designer band ordering, engine band cache classification, shared pagination/group-flow helpers, pass setup/group-break initialization, per-record master/detail print flow, the dataset-loop wrapper around the master pass, detail-band bookmark/traversal helpers, and pass finalization. |
 
 ## 🟠 Important — Commonly Needed
 | # | Feature | Detail | Dev Status |
