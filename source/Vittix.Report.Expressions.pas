@@ -214,39 +214,60 @@ end;
 
 function EvalSimpleMath(const S: string): Double;
 var
-  Parts: TArray<string>;
-  i: Integer;
+  I: Integer;
   Acc: Double;
   Op: Char;
-begin
-  Parts := S.Replace('+',' + ')
-            .Replace('-',' - ')
-            .Replace('*',' * ')
-            .Replace('/',' / ')
-            .Split([' '], TStringSplitOptions.ExcludeEmpty);
+  Value: Double;
 
-  if Length(Parts) = 0 then
-    Exit(0);
-
-  Acc := StrToFloatDef(Parts[0], 0);
-  i   := 1;
-
-  while i < Length(Parts) - 1 do
+  procedure SkipSpaces;
   begin
-    Op := Parts[i][1];
-
-    case Op of
-      '+': Acc := Acc + StrToFloatDef(Parts[i + 1], 0);
-      '-': Acc := Acc - StrToFloatDef(Parts[i + 1], 0);
-      '*': Acc := Acc * StrToFloatDef(Parts[i + 1], 0);
-      '/':
-        if StrToFloatDef(Parts[i + 1], 0) <> 0 then
-          Acc := Acc / StrToFloatDef(Parts[i + 1], 1);
-    end;
-
-    Inc(i, 2);
+    while (I <= Length(S)) and CharInSet(S[I], [#9, #10, #13, ' ']) do
+      Inc(I);
   end;
 
+  function ReadNumber(out AValue: Double): Boolean;
+  var
+    Start: Integer;
+  begin
+    SkipSpaces;
+    Start := I;
+    if (I <= Length(S)) and CharInSet(S[I], ['+', '-']) then
+      Inc(I);
+    while (I <= Length(S)) and CharInSet(S[I], ['0'..'9', '.', ',']) do
+      Inc(I);
+    Result := TryStrToFloat(Copy(S, Start, I - Start), AValue);
+    if not Result then
+      AValue := 0;
+  end;
+
+  function ReadOperator(out AOp: Char): Boolean;
+  begin
+    SkipSpaces;
+    Result := (I <= Length(S)) and CharInSet(S[I], ['+', '-', '*', '/']);
+    if Result then
+    begin
+      AOp := S[I];
+      Inc(I);
+    end;
+  end;
+
+begin
+  I := 1;
+  if not ReadNumber(Acc) then
+    Exit(0);
+
+  while ReadOperator(Op) do
+  begin
+    if not ReadNumber(Value) then
+      Break;
+
+    case Op of
+      '+': Acc := Acc + Value;
+      '-': Acc := Acc - Value;
+      '*': Acc := Acc * Value;
+      '/': if Value <> 0 then Acc := Acc / Value;
+    end;
+  end;
   Result := Acc;
 end;
 
