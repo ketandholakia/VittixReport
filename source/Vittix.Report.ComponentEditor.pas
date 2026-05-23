@@ -179,9 +179,6 @@ begin
         JsonOut := TFile.ReadAllText(OutFile, TEncoding.UTF8);
         if (JsonOut <> '') and (JsonOut[1] = #$FEFF) then
           Delete(JsonOut, 1, 1);
-        if (Length(JsonOut) >= 3) and
-           (JsonOut[1] = #$00EF) and (JsonOut[2] = #$00BB) and (JsonOut[3] = #$00BF) then
-          Delete(JsonOut, 1, 3);
         if (JsonOut <> '') and (JsonOut <> JsonIn) then
         begin
           Comp.ReportJSON := JsonOut;

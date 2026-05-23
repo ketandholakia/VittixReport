@@ -585,15 +585,9 @@ begin
   // Strip any leading BOM
   if (JsonText <> '') and (JsonText[1] = #$FEFF) then
     Delete(JsonText, 1, 1);
-  if (Length(JsonText) >= 3) and
-     (JsonText[1] = #$00EF) and (JsonText[2] = #$00BB) and (JsonText[3] = #$00BF) then
-    Delete(JsonText, 1, 3);
   JsonText := TrimLeft(JsonText);
   if (JsonText <> '') and (JsonText[1] = #$FEFF) then
     Delete(JsonText, 1, 1);
-  if (Length(JsonText) >= 3) and
-     (JsonText[1] = #$00EF) and (JsonText[2] = #$00BB) and (JsonText[3] = #$00BF) then
-    Delete(JsonText, 1, 3);
 
   Root := nil;
   try
