@@ -61,7 +61,9 @@ uses
   Vcl.Graphics,
   Vcl.Controls,
   Vcl.Imaging.pngimage,
-  Vcl.Imaging.Jpeg;
+  Vcl.Imaging.Jpeg,
+  Vittix.Report.Objects.Barcode,
+  Vittix.Report.Objects.Table;
 
 // ---------------------------------------------------------------------------
 // Rect helpers
@@ -115,6 +117,8 @@ var
   Fld:       TReportFieldObject;
   SubRep:    TReportSubReportObject;
   Ln:        TReportLineObject;
+  Barcode:   TReportBarcodeObject;
+  Table:     TReportTableObject;
   Band:      TReportBand;
   ChildArr:  TJSONArray;
   Child:     TReportObject;
@@ -244,6 +248,26 @@ begin
     Result.AddPair('LineStyle',   TJSONNumber.Create(Ord(Ln.LineStyle)));
   end;
 
+  if Obj is TReportBarcodeObject then
+  begin
+    Barcode := TReportBarcodeObject(Obj);
+    Result.AddPair('Value',           Barcode.Value);
+    Result.AddPair('DataField',       Barcode.DataField);
+    Result.AddPair('ShowText',        TJSONBool.Create(Barcode.ShowText));
+    Result.AddPair('BarColor',        TJSONNumber.Create(Barcode.BarColor));
+    Result.AddPair('BackgroundColor', TJSONNumber.Create(Barcode.BackgroundColor));
+  end;
+
+  if Obj is TReportTableObject then
+  begin
+    Table := TReportTableObject(Obj);
+    Result.AddPair('Rows',        TJSONNumber.Create(Table.Rows));
+    Result.AddPair('Cols',        TJSONNumber.Create(Table.Cols));
+    Result.AddPair('HeaderRows',  TJSONNumber.Create(Table.HeaderRows));
+    Result.AddPair('GridColor',   TJSONNumber.Create(Table.GridColor));
+    Result.AddPair('HeaderColor', TJSONNumber.Create(Table.HeaderColor));
+  end;
+
   if Obj is TReportBand then
   begin
     Band := TReportBand(Obj);
@@ -280,6 +304,8 @@ var
   Fld:        TReportFieldObject;
   SubRep:     TReportSubReportObject;
   Ln:         TReportLineObject;
+  Barcode:    TReportBarcodeObject;
+  Table:      TReportTableObject;
   Band:       TReportBand;
   ChildArr:   TJSONArray;
   i:          Integer;
@@ -430,6 +456,26 @@ begin
       Ln.LineColor   := O.GetValue<Integer>('LineColor', Integer(clBlack));
       Ln.LineWidth   := O.GetValue<Integer>('LineWidth', 1);
       Ln.LineStyle   := TPenStyle(O.GetValue<Integer>('LineStyle', 0));
+    end;
+
+    if Obj is TReportBarcodeObject then
+    begin
+      Barcode := TReportBarcodeObject(Obj);
+      Barcode.Value           := O.GetValue<string>('Value', '1234567890');
+      Barcode.DataField       := O.GetValue<string>('DataField', '');
+      Barcode.ShowText        := O.GetValue<Boolean>('ShowText', True);
+      Barcode.BarColor        := O.GetValue<Integer>('BarColor', Integer(clBlack));
+      Barcode.BackgroundColor := O.GetValue<Integer>('BackgroundColor', Integer(clWhite));
+    end;
+
+    if Obj is TReportTableObject then
+    begin
+      Table := TReportTableObject(Obj);
+      Table.Rows        := O.GetValue<Integer>('Rows', 4);
+      Table.Cols        := O.GetValue<Integer>('Cols', 4);
+      Table.HeaderRows  := O.GetValue<Integer>('HeaderRows', 1);
+      Table.GridColor   := O.GetValue<Integer>('GridColor', Integer(clGray));
+      Table.HeaderColor := O.GetValue<Integer>('HeaderColor', $00F0F0F0);
     end;
 
     if Obj is TReportBand then
