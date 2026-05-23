@@ -576,3 +576,4 @@ The single highest-impact fix is **BUG-C1 + BUG-C6 + MF6**: wiring `TVittixUserD
 - BUG-C3 fixed in commit `ba7104d` (`fix(engine): skip subreport traversal during count pass`).
 - BUG-C4 fixed in commit `8cbab36` (`fix(engine): allow static reports without master data`).
 - BUG-C5 fixed in commit `91ee3ac` (`fix(undo): restore deleted objects by original order`).
+- BUG-C6 fixed in commit `d12f962` (`fix(renderer): clear stale object render hooks`).
