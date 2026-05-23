@@ -585,3 +585,4 @@ The single highest-impact fix is **BUG-C1 + BUG-C6 + MF6**: wiring `TVittixUserD
 - BUG-S7 fixed in commit `4c4728e` (`fix(engine): preserve column header on group page breaks`).
 - BUG-S8 fixed in commit `b20d1ac` (`fix(utils): share data field diagnostics`).
 - BUG-S9 fixed in commit `076b5c4` (`fix(objects): initialize registry deterministically`).
+- BUG-M2 fixed in commit `febc622` (`fix(designer): use band header constant for layout`).
