@@ -569,3 +569,7 @@ The barcode renderer iterates character bytes and draws vertical lines based on 
 | **New features** (functionality) | 14 | MF1 through MF14 |
 
 The single highest-impact fix is **BUG-C1 + BUG-C6 + MF6**: wiring `TVittixUserDataSet` through to the engine and passing `NamedDS` correctly. Without this, multi-dataset reports and all custom data sources are silently broken.
+# Fixed Bugs
+
+- BUG-C1 fixed in commit `0d49ea9` (`fix(renderer): forward named datasets to preview engine`).
+- BUG-C2 fixed in commit `4e412d7` (`fix(component): forward named datasets during print`).
