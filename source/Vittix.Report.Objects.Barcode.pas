@@ -38,58 +38,12 @@ type
 implementation
 
 {$IFDEF DEBUG}
-uses
-  Winapi.Windows;
-
-const
-  CDataFieldDiagMaxMessages = 200;
-
-var
-  GDataFieldDiagSeen: TStringList;
-  GDataFieldDiagCount: Integer;
-
-function DataSetStateText(ADataSet: TDataSet): string;
-begin
-  if not Assigned(ADataSet) then
-    Exit('dataset nil');
-  if not ADataSet.Active then
-    Exit('dataset inactive');
-  Result := 'dataset active';
-end;
-
 procedure DebugLogDataFieldIssue(AObj: TReportObject; const ADataField, AReason: string;
   ADataSet: TDataSet);
-var
-  ObjName: string;
-  ObjClass: string;
-  Key: string;
-  Msg: string;
 begin
-  if GDataFieldDiagCount >= CDataFieldDiagMaxMessages then
-    Exit;
   if not Assigned(AObj) then
     Exit;
-
-  if not Assigned(GDataFieldDiagSeen) then
-  begin
-    GDataFieldDiagSeen := TStringList.Create;
-    GDataFieldDiagSeen.Sorted := True;
-    GDataFieldDiagSeen.Duplicates := dupIgnore;
-  end;
-
-  ObjClass := AObj.ClassName;
-  ObjName := AObj.Name;
-  Key := ObjClass + '|' + ObjName + '|' + ADataField + '|' + AReason;
-  if GDataFieldDiagSeen.IndexOf(Key) >= 0 then
-    Exit;
-
-  GDataFieldDiagSeen.Add(Key);
-  Inc(GDataFieldDiagCount);
-
-  Msg := Format(
-    '[VittixReport][DataField] %s "%s" DataField="%s": %s (%s); rendering fallback',
-    [ObjClass, ObjName, ADataField, AReason, DataSetStateText(ADataSet)]);
-  OutputDebugString(PChar(Msg));
+  Vittix.Report.Utils.DebugLogDataFieldIssue(AObj.ClassName, AObj.Name, ADataField, AReason, ADataSet);
 end;
 {$ENDIF}
 
@@ -233,10 +187,5 @@ end;
 
 initialization
   RegisterReportObject(TReportBarcodeObject);
-
-{$IFDEF DEBUG}
-finalization
-  GDataFieldDiagSeen.Free;
-{$ENDIF}
 
 end.

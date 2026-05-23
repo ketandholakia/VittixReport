@@ -58,6 +58,11 @@ function SafeFieldValue(ADataSet: TDataSet; const AFieldName: string): Variant;
 /// </summary>
 function SafeFieldAsString(ADataSet: TDataSet; const AFieldName: string): string;
 
+{$IFDEF DEBUG}
+procedure DebugLogDataFieldIssue(const AObjClass, AObjName, ADataField, AReason: string;
+  ADataSet: TDataSet);
+{$ENDIF}
+
 // ---------------------------------------------------------------------------
 // Variant helpers
 // ---------------------------------------------------------------------------
@@ -87,6 +92,59 @@ function ConditionVariantToBool(const V: Variant): Boolean;
 function CollapseWhitespace(const S: string): string;
 
 implementation
+
+uses
+  System.Classes
+{$IFDEF DEBUG}
+  , Winapi.Windows
+{$ENDIF};
+
+{$IFDEF DEBUG}
+const
+  CDataFieldDiagMaxMessages = 200;
+
+var
+  GDataFieldDiagSeen: TStringList;
+  GDataFieldDiagCount: Integer;
+
+function DataSetStateText(ADataSet: TDataSet): string;
+begin
+  if not Assigned(ADataSet) then
+    Exit('dataset nil');
+  if not ADataSet.Active then
+    Exit('dataset inactive');
+  Result := 'dataset active';
+end;
+
+procedure DebugLogDataFieldIssue(const AObjClass, AObjName, ADataField, AReason: string;
+  ADataSet: TDataSet);
+var
+  Key: string;
+  Msg: string;
+begin
+  if GDataFieldDiagCount >= CDataFieldDiagMaxMessages then
+    Exit;
+
+  if not Assigned(GDataFieldDiagSeen) then
+  begin
+    GDataFieldDiagSeen := TStringList.Create;
+    GDataFieldDiagSeen.Sorted := True;
+    GDataFieldDiagSeen.Duplicates := dupIgnore;
+  end;
+
+  Key := AObjClass + '|' + AObjName + '|' + ADataField + '|' + AReason;
+  if GDataFieldDiagSeen.IndexOf(Key) >= 0 then
+    Exit;
+
+  GDataFieldDiagSeen.Add(Key);
+  Inc(GDataFieldDiagCount);
+
+  Msg := Format(
+    '[VittixReport][DataField] %s "%s" DataField="%s": %s (%s); rendering fallback',
+    [AObjClass, AObjName, ADataField, AReason, DataSetStateText(ADataSet)]);
+  OutputDebugString(PChar(Msg));
+end;
+{$ENDIF}
 
 // ---------------------------------------------------------------------------
 // Dataset helpers
@@ -264,5 +322,12 @@ begin
 
   Result := Trim(Result);
 end;
+
+{$IFDEF DEBUG}
+initialization
+
+finalization
+  GDataFieldDiagSeen.Free;
+{$ENDIF}
 
 end.
