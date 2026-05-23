@@ -31,7 +31,41 @@ type
 implementation
 
 uses
-  System.Math;
+  System.Math,
+  System.SysUtils,
+  System.Variants,
+  Vittix.Report.Expressions,
+  Vittix.Report.Utils;
+
+function ShouldPrintTableObject(AObj: TReportObject;
+  const Context: TExpressionContext): Boolean;
+var
+  PWResult: Variant;
+begin
+  Result := False;
+  if not Assigned(AObj) then
+    Exit;
+
+  if not AObj.Visible then
+    Exit;
+
+  if Trim(AObj.PrintWhen) = '' then
+  begin
+    Result := True;
+    Exit;
+  end;
+
+  try
+    PWResult := TReportExpression.Evaluate(AObj.PrintWhen, Context);
+  except
+    Exit(False);
+  end;
+
+  if VarIsNull(PWResult) or VarIsEmpty(PWResult) then
+    Exit(False);
+
+  Result := ConditionVariantToBool(PWResult);
+end;
 
 constructor TReportTableObject.Create;
 begin
@@ -50,7 +84,7 @@ var
   RowHeight, ColWidth: Integer;
   RowIndex, ColIndex, YPos, XPos: Integer;
 begin
-  if not Visible then
+  if not ShouldPrintTableObject(Self, Context) then
     Exit;
 
   R := Bounds;
