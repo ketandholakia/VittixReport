@@ -587,3 +587,4 @@ The single highest-impact fix is **BUG-C1 + BUG-C6 + MF6**: wiring `TVittixUserD
 - BUG-S9 fixed in commit `076b5c4` (`fix(objects): initialize registry deterministically`).
 - BUG-M2 fixed in commit `febc622` (`fix(designer): use band header constant for layout`).
 - BUG-M4 fixed in commit `e17daa0` (`fix(preview): clamp zoom percentage`).
+- BUG-M5 fixed in commit `fc4a7ab` (`fix(serializer): persist barcode and table properties`).
