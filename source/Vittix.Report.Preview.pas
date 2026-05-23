@@ -245,6 +245,11 @@ begin
     10 + H
   );
 
+  Canvas.Brush.Style := bsSolid;
+  Canvas.Brush.Color := clWhite;
+  Canvas.Rectangle(R);
+  Canvas.StretchDraw(R, PageBmp);
+
   if FShowMarginOverlay then
   begin
     ContentR := Rect(
@@ -262,11 +267,6 @@ begin
       Canvas.Rectangle(ContentR);
     end;
   end;
-
-  Canvas.Brush.Style := bsSolid;
-  Canvas.Brush.Color := clWhite;
-  Canvas.Rectangle(R);
-  Canvas.StretchDraw(R, PageBmp);
 
   Canvas.Pen.Color   := clSilver;
   Canvas.Brush.Style := bsClear;
