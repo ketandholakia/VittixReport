@@ -573,3 +573,4 @@ The single highest-impact fix is **BUG-C1 + BUG-C6 + MF6**: wiring `TVittixUserD
 
 - BUG-C1 fixed in commit `0d49ea9` (`fix(renderer): forward named datasets to preview engine`).
 - BUG-C2 fixed in commit `4e412d7` (`fix(component): forward named datasets during print`).
+- BUG-C4 fixed in commit `8cbab36` (`fix(engine): allow static reports without master data`).
