@@ -115,6 +115,7 @@ type
     constructor Create; override;
     destructor Destroy; override;
     procedure Draw(C: TCanvas; const Context: TExpressionContext); override;
+    function MeasuredBottom(C: TCanvas; const Context: TExpressionContext): Integer; override;
     class function DisplayName: string; override;
   published
     property Text:          string             read FText          write FText;
@@ -791,8 +792,7 @@ begin
     TxtH := DrawText(C.Handle, PChar(S), Length(S), TR, Fmt or DT_CALCRECT);
     if TxtH > 0 then
     begin
-      FBounds.Bottom := FBounds.Top + TxtH + FPaddingTop + FPaddingBottom;
-      R  := FBounds;
+      R.Bottom := R.Top + TxtH + FPaddingTop + FPaddingBottom;
       TR := Rect(R.Left + FPaddingLeft, R.Top + FPaddingTop,
                  R.Right - FPaddingRight, R.Bottom - FPaddingBottom);
     end;
@@ -828,6 +828,52 @@ end;
 class function TReportTextObject.DisplayName: string;
 begin
   Result := 'Text';
+end;
+
+function TReportTextObject.MeasuredBottom(C: TCanvas;
+  const Context: TExpressionContext): Integer;
+var
+  S: string;
+  R: TRect;
+  Fmt: UINT;
+  TxtH: Integer;
+begin
+  Result := FBounds.Bottom;
+  if not ShouldPrintObject(Self, Context) then Exit;
+  if not (FAutoSize and FWordWrap) then Exit;
+  if not Assigned(C) then Exit;
+
+  if FExpression <> '' then
+    S := VarToStr(TReportExpression.Evaluate(FExpression, Context))
+  else if (FDataField <> '') and Assigned(Context.DataSet) and Context.DataSet.Active then
+  begin
+    if Self is TReportFieldObject then
+      S := FormatFieldDisplayValue(
+        SafeFieldValue(Context.DataSet, FDataField),
+        TReportFieldObject(Self).FDisplayFormat,
+        TReportFieldObject(Self).FEditMask)
+    else
+      S := SafeFieldAsString(Context.DataSet, FDataField);
+  end
+  else
+    S := FText;
+
+  R := Rect(FBounds.Left + FPaddingLeft, FBounds.Top + FPaddingTop,
+            FBounds.Right - FPaddingRight, FBounds.Bottom - FPaddingBottom);
+
+  case FHAlign of
+    taLeftJustify:  Fmt := DT_LEFT;
+    taRightJustify: Fmt := DT_RIGHT;
+    taCenter:       Fmt := DT_CENTER;
+  else
+    Fmt := DT_LEFT;
+  end;
+  Fmt := Fmt or DT_WORDBREAK;
+
+  C.Font.Assign(FFont);
+  TxtH := DrawText(C.Handle, PChar(S), Length(S), R, Fmt or DT_CALCRECT);
+  if TxtH > 0 then
+    Result := FBounds.Top + TxtH + FPaddingTop + FPaddingBottom;
 end;
 
 { ================= Label Object ================= }
