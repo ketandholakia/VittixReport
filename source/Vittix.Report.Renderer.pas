@@ -95,6 +95,7 @@ var
   PW, PH: Integer;
 begin
   FPages.Clear;
+  ClearReportObjectRenderHooks;
 
   if not Assigned(AReport) then Exit;
 
