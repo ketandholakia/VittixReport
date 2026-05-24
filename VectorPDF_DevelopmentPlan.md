@@ -138,22 +138,28 @@ Safe commit condition:
 
 ### M3 - Minimal Vector PDF Writer
 
-Status: Pending
+Status: In Progress
 
 Goal:
 Create a direct PDF writer for simple vector content.
 
 Possible new unit:
-- `Vittix.Report.Export.VectorPDF.pas`
+- [x] `Vittix.Report.Export.VectorPDF.pas`
 
 Initial support:
-- PDF header
-- Page tree
-- Content streams
-- Cross-reference table
-- Trailer
-- Page size mapping
-- Basic coordinate conversion
+- [x] PDF header
+- [x] Page tree
+- [x] Empty content streams
+- [x] Cross-reference table
+- [x] Trailer
+- [x] Page size mapping
+- [ ] Basic coordinate conversion
+
+Initial implementation:
+- Added standalone `TReportVectorPDFExporter`.
+- Exporter writes a valid PDF from `TReportExportDocument` pages.
+- Current writer emits blank page content streams only.
+- Existing printer-based `TReportPDFExporter` remains unchanged.
 
 Safe commit condition:
 - Exports a valid blank PDF with correct page count and page size.

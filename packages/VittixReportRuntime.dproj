@@ -126,6 +126,8 @@
         <DCCReference Include="..\source\Vittix.Report.PropertyBridge.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Preview.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Undo.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Export.Commands.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Export.VectorPDF.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Export.PDF.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Component.pas"/>
         <BuildConfiguration Include="Base">
