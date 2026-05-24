@@ -22,11 +22,20 @@ Use this checklist before releases or major engine changes.
 - Confirm all automatic reports pass.
 - Confirm manual-only report `16_large_preview_warning.vrt` is not auto-run.
 - Run `RunTests.bat` for the full regression suite.
+- Confirm `RunTests.bat` also validates vector PDF command page counts and `%PDF-` smoke output.
 - Run `RunTests-Scripts.bat` to build and run only script-bearing regression reports.
 - Run `RunTests-ScriptTrace.bat` to build and run trace-only script diagnostics.
 - Run `VittixRunner --scripts` if you want the script-bearing filter without the batch wrapper.
 - Run `VittixRunner --script-trace` to inspect script-only traces without pagination checks.
 - Use `VittixRunner <reportfile.vrt>` to target a specific script case while developing object event handling.
+
+## 3.1) Vector PDF checks
+- Export a simple report with `Export to Vector PDF...`.
+- Confirm text and lines are sharp/selectable compared with printer-based PDF output.
+- Confirm page count matches preview.
+- Confirm PNG and JPEG report images render.
+- Confirm unsupported EMF/WMF/SVG images fail gracefully without breaking text or lines.
+- Keep `Export PDF` behavior unchanged; it remains the printer-based exporter.
 
 ## 4) Manual key reports
 - Preview:

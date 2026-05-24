@@ -273,6 +273,7 @@ Test cases:
 
 Initial implementation:
 - Headless regression runner now validates vector PDF command page count and `%PDF-` smoke output for each automatic regression report.
+- `TESTING.md` documents automated vector PDF smoke coverage and manual vector PDF visual checks.
 
 Safe commit condition:
 - No regression in preview.
