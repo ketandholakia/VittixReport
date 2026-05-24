@@ -86,9 +86,46 @@ var
     Result := APage.Height - AY;
   end;
 
+  function PdfText(const S: string): AnsiString;
+  var
+    Ch: AnsiChar;
+  begin
+    Result := '';
+    for Ch in AnsiString(S) do
+    begin
+      case Ch of
+        '(', ')', '\': Result := Result + '\' + Ch;
+        #13, #10: Result := Result + ' ';
+      else
+        Result := Result + Ch;
+      end;
+    end;
+  end;
+
+  function PdfTextX(AText: TReportExportTextCommand): Double;
+  var
+    EstimatedWidth: Double;
+  begin
+    Result := AText.Bounds.Left;
+    if AText.HAlign = taLeftJustify then
+      Exit;
+
+    EstimatedWidth := Length(AText.Text) * AText.FontSize * 0.5;
+    case AText.HAlign of
+      taRightJustify:
+        Result := AText.Bounds.Right - EstimatedWidth;
+      taCenter:
+        Result := AText.Bounds.Left + ((AText.Bounds.Width - EstimatedWidth) / 2);
+    end;
+
+    if Result < AText.Bounds.Left then
+      Result := AText.Bounds.Left;
+  end;
+
   function BuildPageContent(APage: TReportExportPage): AnsiString;
   var
     Command: TReportExportCommand;
+    TextCmd: TReportExportTextCommand;
     LineCmd: TReportExportLineCommand;
     RectCmd: TReportExportRectangleCommand;
     FillCmd: TReportExportFillRectangleCommand;
@@ -98,6 +135,25 @@ var
     for Command in APage.Commands do
     begin
       case Command.Kind of
+        eckText:
+        begin
+          TextCmd := TReportExportTextCommand(Command);
+          if TextCmd.Text <> '' then
+          begin
+            Result := Result +
+              'q' + #10 +
+              'BT' + #10 +
+              PdfColor(TextCmd.FontColor) + ' rg' + #10 +
+              '/F1 ' + PdfNumber(TextCmd.FontSize) + ' Tf' + #10 +
+              PdfNumber(PdfTextX(TextCmd)) + ' ' +
+              PdfNumber(PdfY(APage, TextCmd.Bounds.Top + TextCmd.FontSize)) +
+              ' Td' + #10 +
+              '(' + PdfText(TextCmd.Text) + ') Tj' + #10 +
+              'ET' + #10 +
+              'Q' + #10;
+          end;
+        end;
+
         eckLine:
         begin
           LineCmd := TReportExportLineCommand(Command);
@@ -175,7 +231,8 @@ begin
       WriteAnsi('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' +
         AnsiString(IntToStr(ADocument.Pages[PageIndex].Width)) + ' ' +
         AnsiString(IntToStr(ADocument.Pages[PageIndex].Height)) +
-        '] /Contents ' + AnsiString(IntToStr(ContentObjNo)) + ' 0 R >>' + #10);
+        '] /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >>' +
+        ' /Contents ' + AnsiString(IntToStr(ContentObjNo)) + ' 0 R >>' + #10);
       EndObject;
 
       BeginObject(ContentObjNo);

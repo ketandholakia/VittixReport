@@ -159,7 +159,9 @@ Initial implementation:
 - Added standalone `TReportVectorPDFExporter`.
 - Exporter writes a valid PDF from `TReportExportDocument` pages.
 - Writer emits line, rectangle border, and filled rectangle content streams.
-- Text and image commands are still ignored by the writer.
+- Writer emits basic single-line text commands using built-in Helvetica.
+- Image commands are still ignored by the writer.
+- Text font embedding, Unicode shaping, and full word-wrap layout are deferred.
 - Existing printer-based `TReportPDFExporter` remains unchanged.
 
 Safe commit condition:
