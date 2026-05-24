@@ -25,7 +25,7 @@ Add a sharp, vector-friendly PDF export path while preserving the existing print
 
 ### M1 - Planning and Architecture
 
-Status: In Progress
+Status: Complete
 
 Tasks:
 - [x] Document current PDF export limitations.
@@ -83,7 +83,7 @@ M1 risks:
 - Object draw code currently combines value resolution and drawing.
 - Capturing text values may require small helper extraction from draw methods.
 - Image objects may need path/source tracking separate from cached `TPicture`.
-- Barcode/table/memo export should be deferred until text/line MVP works.
+- Barcode, table, and memo export were deferred until after the text/line MVP.
 
 Safe commit condition:
 - Documentation only.
@@ -94,7 +94,7 @@ Status result:
 
 ### M2 - Export Command Model
 
-Status: In Progress
+Status: Complete
 
 Goal:
 Capture report output as semantic drawing commands without changing pagination.
@@ -124,7 +124,7 @@ Initial implementation:
 - Added basic barcode command capture for legacy and Code39 bars plus optional text.
 - Added basic memo command capture through the existing text export command path.
 - Added basic table command capture for background, header fill, border, and grid lines.
-- Embedded image byte capture is deferred to the image export milestone.
+- Embedded image byte capture remains deferred.
 - RoundRect and ellipse shape capture are deferred until the command model supports them.
 - No runtime behavior changes yet.
 
@@ -140,7 +140,7 @@ Safe commit condition:
 
 ### M3 - Minimal Vector PDF Writer
 
-Status: In Progress
+Status: Complete
 
 Goal:
 Create a direct PDF writer for simple vector content.
@@ -163,7 +163,7 @@ Initial implementation:
 - Writer emits line, rectangle border, and filled rectangle content streams.
 - Writer emits basic single-line text commands using built-in Helvetica.
 - Regression runner writes a temporary vector PDF and validates the `%PDF-` header.
-- Image commands are still ignored by the writer.
+- Image commands are handled for file-path JPEG and PNG images.
 - Text font embedding, Unicode shaping, and full word-wrap layout are deferred.
 - Existing printer-based `TReportPDFExporter` remains unchanged.
 
@@ -173,7 +173,7 @@ Safe commit condition:
 
 ### M4 - Text and Line Export
 
-Status: In Progress
+Status: Complete
 
 Goal:
 Export the most important report primitives as vector PDF commands.
@@ -199,7 +199,7 @@ Safe commit condition:
 
 ### M5 - Image Export
 
-Status: In Progress
+Status: Complete
 
 Goal:
 Support common raster images while keeping vector report primitives sharp.
@@ -232,7 +232,7 @@ Safe commit condition:
 
 ### M6 - API and Designer Integration
 
-Status: In Progress
+Status: Complete
 
 Goal:
 Expose vector PDF export without breaking existing workflows.
@@ -256,7 +256,7 @@ Initial implementation:
 
 ### M7 - Regression and Quality Pass
 
-Status: Pending
+Status: Next
 
 Test cases:
 - Static text
@@ -289,7 +289,7 @@ Safe commit condition:
 
 ## Recommended Next Step
 
-Complete M1:
-- Review and document affected units.
-- Decide on command-capture architecture.
-- Commit this planning file only.
+Start M7:
+- Run vector PDF exports for simple reports and existing demo reports.
+- Compare vector PDF output against preview and current printer-based PDF output.
+- Fix only regressions found during that pass.
