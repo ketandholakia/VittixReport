@@ -8,6 +8,7 @@ uses
   Data.DB,
   Vittix.Report.Engine,
   Vittix.Report.Export.Commands,
+  Vittix.Report.Export.VectorPDF,
   Vittix.Report.Model,
   Vittix.Report.Renderer,
   Vittix.Report.Serializer;
@@ -58,6 +59,8 @@ var
   FailedCount: Integer;
   PageSuffix: string;
   CaptureOk: Boolean;
+  VectorPdfFile: string;
+  Header: TBytes;
 begin
   if Assigned(AUseSampleDataSet) then
     AUseSampleDataSet;
@@ -81,6 +84,7 @@ begin
       Engine := nil;
       ExportDoc := nil;
       Renderer := nil;
+      VectorPdfFile := '';
       try
         ReportModel := TReportSerializer.LoadFromFile(FN);
         Renderer := TReportRenderer.Create;
@@ -106,6 +110,17 @@ begin
             'Export command page capture mismatch: engine=%d command=%d',
             [Engine.Pages.Count, ExportDoc.Pages.Count]);
 
+        VectorPdfFile := TPath.Combine(
+          TPath.GetTempPath,
+          TPath.GetFileNameWithoutExtension(ReportFiles[I]) + '_vector_smoke.pdf');
+        TReportVectorPDFExporter.ExportDocument(ExportDoc, VectorPdfFile);
+        if not TFile.Exists(VectorPdfFile) then
+          raise Exception.Create('Vector PDF smoke output was not created');
+        Header := TFile.ReadAllBytes(VectorPdfFile);
+        if (Length(Header) < 5) or
+           (TEncoding.ASCII.GetString(Header, 0, 5) <> '%PDF-') then
+          raise Exception.Create('Vector PDF smoke output has invalid header');
+
         Inc(PassedCount);
         if Renderer.Pages.Count = 1 then
           PageSuffix := ''
@@ -120,6 +135,8 @@ begin
           Lines.Add('FAIL ' + ReportFiles[I] + ' - ' + E.Message);
         end;
       end;
+      if (VectorPdfFile <> '') and TFile.Exists(VectorPdfFile) then
+        TFile.Delete(VectorPdfFile);
       Renderer.Free;
       Engine.Free;
       ExportDoc.Free;

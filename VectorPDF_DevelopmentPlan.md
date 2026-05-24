@@ -160,6 +160,7 @@ Initial implementation:
 - Exporter writes a valid PDF from `TReportExportDocument` pages.
 - Writer emits line, rectangle border, and filled rectangle content streams.
 - Writer emits basic single-line text commands using built-in Helvetica.
+- Regression runner writes a temporary vector PDF and validates the `%PDF-` header.
 - Image commands are still ignored by the writer.
 - Text font embedding, Unicode shaping, and full word-wrap layout are deferred.
 - Existing printer-based `TReportPDFExporter` remains unchanged.
