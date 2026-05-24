@@ -134,6 +134,8 @@ begin
   Result.AddPair('PrintWhen',    Obj.PrintWhen);
   Result.AddPair('AnchorRight',  TJSONBool.Create(Obj.AnchorRight));
   Result.AddPair('AnchorBottom', TJSONBool.Create(Obj.AnchorBottom));
+  Result.AddPair('PageBreakBefore', TJSONBool.Create(Obj.PageBreakBefore));
+  Result.AddPair('PageBreakAfter',  TJSONBool.Create(Obj.PageBreakAfter));
   if not (Obj is TReportBand) then
   begin
     if Trim(Obj.OnBeforePrint) <> '' then
@@ -336,6 +338,8 @@ begin
     Obj.OnAfterPrint := O.GetValue<string>('OnAfterPrint',  '');
     Obj.AnchorRight  := O.GetValue<Boolean>('AnchorRight',  False);
     Obj.AnchorBottom := O.GetValue<Boolean>('AnchorBottom', False);
+    Obj.PageBreakBefore := O.GetValue<Boolean>('PageBreakBefore', False);
+    Obj.PageBreakAfter  := O.GetValue<Boolean>('PageBreakAfter',  False);
 
     if Obj is TReportTextObject then
     begin

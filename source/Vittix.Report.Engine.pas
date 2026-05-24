@@ -160,6 +160,7 @@ type
     procedure PrintBand(ABand: TReportBand; ADataSet: TDataSet = nil; AEffectiveHeight: Integer = -1);
     procedure PrintBandWithSpaceCheck(ABand: TReportBand; ADataSet: TDataSet = nil);
     function  ComputeEffectiveBandHeight(ABand: TReportBand; ADataSet: TDataSet): Integer;
+    function  BandHasChildPageBreak(ABand: TReportBand; ABefore: Boolean): Boolean;
     function  ResolveBandDataSet(ABand: TReportBand): TDataSet;
     function  CaptureDataSetBookmark(ADataSet: TDataSet; out ABookmark: TBookmark): Boolean;
     procedure RestoreDataSetBookmark(ADataSet: TDataSet; ABookmark: TBookmark; AHasBookmark: Boolean);
@@ -466,6 +467,20 @@ begin
   end;
   if Result <= 0 then
     Result := 1;
+end;
+
+function TReportEngine.BandHasChildPageBreak(ABand: TReportBand;
+  ABefore: Boolean): Boolean;
+begin
+  Result := False;
+  if not Assigned(ABand) then
+    Exit;
+
+  for var Child in ABand.Children do
+    if Assigned(Child) and Child.Visible then
+      if (ABefore and Child.PageBreakBefore) or
+         ((not ABefore) and Child.PageBreakAfter) then
+        Exit(True);
 end;
 
 { ================= Space Check ================= }
@@ -806,6 +821,13 @@ begin
   // Respect Visible flag
   if not ABand.Visible then Exit;
 
+  if BandHasChildPageBreak(ABand, True) and
+     (FCurrentY > FReport.PageSettings.Margins.Top) then
+  begin
+    StartNewPage;
+    PrintPageHeader;
+  end;
+
   // Evaluate PrintWhen expression — skip band if result is falsy
   if ABand.PrintWhen <> '' then
   begin
@@ -924,6 +946,12 @@ begin
   end;
 
   Inc(FCurrentY, EffectiveH);
+
+  if BandHasChildPageBreak(ABand, False) then
+  begin
+    StartNewPage;
+    PrintPageHeader;
+  end;
 end;
 
 procedure TReportEngine.PrintBandWithSpaceCheck(ABand: TReportBand; ADataSet: TDataSet);

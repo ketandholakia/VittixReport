@@ -27,6 +27,8 @@ type
     FOnAfterPrint:  string;
     FAnchorRight: Boolean;
     FAnchorBottom:Boolean;
+    FPageBreakBefore: Boolean;
+    FPageBreakAfter: Boolean;
   protected
     procedure DrawSelection(C: TCanvas);
   public
@@ -50,6 +52,8 @@ type
     property OnAfterPrint:  string read FOnAfterPrint  write FOnAfterPrint;
     property AnchorRight:  Boolean read FAnchorRight  write FAnchorRight  default False;
     property AnchorBottom: Boolean read FAnchorBottom write FAnchorBottom default False;
+    property PageBreakBefore: Boolean read FPageBreakBefore write FPageBreakBefore default False;
+    property PageBreakAfter:  Boolean read FPageBreakAfter  write FPageBreakAfter  default False;
   end;
 
   TReportObjectClass = class of TReportObject;
@@ -416,6 +420,8 @@ begin
   FOnAfterPrint := '';
   FAnchorRight  := False;
   FAnchorBottom := False;
+  FPageBreakBefore := False;
+  FPageBreakAfter  := False;
 end;
  
 procedure TReportObject.Draw(C: TCanvas; const Context: TExpressionContext);

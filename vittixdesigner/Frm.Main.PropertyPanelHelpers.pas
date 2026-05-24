@@ -40,6 +40,10 @@ begin
     Exit('Input/output mask for field values')
   else if SameText(AKey, 'PrintWhen') then
     Exit('Condition that controls whether object/band prints')
+  else if SameText(AKey, 'PageBreakBefore') then
+    Exit('Start a new page before the owning band is printed')
+  else if SameText(AKey, 'PageBreakAfter') then
+    Exit('Start a new page after the owning band is printed')
   else if SameText(AKey, 'FontColor') then
     Exit('Text color')
   else if SameText(AKey, 'BackgroundColor') then
@@ -100,21 +104,24 @@ const
     'BackColor', 'BackColorTransparent', 'BackColorCondition',
     'OnBeforePrint', 'OnAfterPrint'
   );
-  TextKeys: array[0..22] of string = (
+  TextKeys: array[0..24] of string = (
     'Text', 'DataField', 'Expression', 'DisplayFormat', 'EditMask',
     'Bounds', 'Left', 'Top', 'Width', 'Height',
     'FontName', 'FontSize', 'FontBold', 'FontItalic', 'FontColor',
     'WordWrap', 'AutoSize', 'Transparent', 'Background',
-    'BorderVisible', 'BorderColor', 'BorderWidth', 'PrintWhen'
+    'BorderVisible', 'BorderColor', 'BorderWidth', 'PrintWhen',
+    'PageBreakBefore', 'PageBreakAfter'
   );
-  ImageKeys: array[0..14] of string = (
+  ImageKeys: array[0..16] of string = (
     'DataField', 'ImagePath', 'Picture', 'Stretch', 'Proportional', 'Center',
     'Bounds', 'Left', 'Top', 'Width', 'Height',
-    'BorderVisible', 'BorderColor', 'Visible', 'PrintWhen'
+    'BorderVisible', 'BorderColor', 'Visible', 'PrintWhen',
+    'PageBreakBefore', 'PageBreakAfter'
   );
-  BarcodeKeys: array[0..12] of string = (
+  BarcodeKeys: array[0..14] of string = (
     'Value', 'DataField', 'Symbology', 'BarcodeType', 'ShowText',
-    'Bounds', 'Left', 'Top', 'Width', 'Height', 'Visible', 'PrintWhen', 'BarColor'
+    'Bounds', 'Left', 'Top', 'Width', 'Height', 'Visible', 'PrintWhen',
+    'PageBreakBefore', 'PageBreakAfter', 'BarColor'
   );
 var
   Keys: TArray<string>;
