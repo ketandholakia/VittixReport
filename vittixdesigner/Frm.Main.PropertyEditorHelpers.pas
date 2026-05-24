@@ -48,7 +48,11 @@ begin
       if IsVisualGroupRow(KeyName) then
         Continue;
 
-      if SameText(KeyName, 'DataField') then
+      if SameText(KeyName, 'Text') then
+      begin
+        APropEditor.ItemProps[KeyName].EditStyle := esEllipsis;
+      end
+      else if SameText(KeyName, 'DataField') then
       begin
         APropEditor.ItemProps[KeyName].EditStyle := esPickList;
         APropEditor.ItemProps[KeyName].PickList.BeginUpdate;

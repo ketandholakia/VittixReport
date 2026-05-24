@@ -84,7 +84,7 @@ Commit:
 
 ## Milestone M3 - Property Grid Integration
 
-Status: Pending
+Status: Completed
 
 Goal:
 

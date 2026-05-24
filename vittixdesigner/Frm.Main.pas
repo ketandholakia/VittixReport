@@ -88,6 +88,7 @@ uses
   DesignerPreferences,
   Frm.DesignerOptions,
   Frm.ScriptEditor,
+  Frm.TextExpressionEditor,
   Frm.ExpressionHelper,
   Vittix.Designer.Commands,
   // Vittix.Designer.RuntimeDemo,
@@ -423,6 +424,7 @@ type
     function  IsColorPropertyKey(const AKey: string): Boolean;
     function  IsExpressionPropertyKey(const AKey: string): Boolean;
     function  IsBandEventScriptRowKey(const AKey: string): Boolean;
+    function  EditTextExpressionPropertyRow(ARow: Integer): Boolean;
     function  EditExpressionPropertyRow(ARow: Integer): Boolean;
     function  EditBandEventScriptRow(ARow: Integer): Boolean;
     function  EditColorPropertyRow(ARow: Integer): Boolean;
@@ -5131,13 +5133,15 @@ end;
 
 procedure TfrmMain.PropEditorDblClick(Sender: TObject);
 begin
-  HandlePropEditorDblClick(PropEditor, EditFontPropertyRow);
+  if not EditTextExpressionPropertyRow(PropEditor.Row) then
+    HandlePropEditorDblClick(PropEditor, EditFontPropertyRow);
 end;
 
 procedure TfrmMain.PropEditorEditButtonClick(Sender: TObject);
 begin
-  HandlePropEditorEditButtonClick(PropEditor, EditBandEventScriptRow,
-    EditExpressionPropertyRow, EditColorPropertyRow);
+  if not EditTextExpressionPropertyRow(PropEditor.Row) then
+    HandlePropEditorEditButtonClick(PropEditor, EditBandEventScriptRow,
+      EditExpressionPropertyRow, EditColorPropertyRow);
 end;
 
 { =========================================================================== }
@@ -5583,6 +5587,38 @@ end;
 function TfrmMain.IsBandEventScriptRowKey(const AKey: string): Boolean;
 begin
   Result := Frm.Main.PropertyHelpers.IsBandEventScriptRowKey(AKey);
+end;
+
+function TfrmMain.EditTextExpressionPropertyRow(ARow: Integer): Boolean;
+var
+  KeyName: string;
+  CurrentValue: string;
+  EditedValue: string;
+begin
+  Result := False;
+  if (ARow <= 0) or (ARow >= PropEditor.RowCount) then
+    Exit;
+
+  KeyName := Trim(PropEditor.Keys[ARow]);
+  if IsVisualGroupRow(KeyName) then
+    Exit;
+
+  if not (SameText(KeyName, 'Text') or SameText(KeyName, 'DataField') or
+          SameText(KeyName, 'Expression') or SameText(KeyName, 'PrintWhen')) then
+    Exit;
+
+  CurrentValue := PropEditor.Values[KeyName];
+  EditedValue := CurrentValue;
+  if not TfrmTextExpressionEditor.EditValue(KeyName + ' Editor', EditedValue) then
+    Exit;
+
+  if EditedValue = CurrentValue then
+    Exit(True);
+
+  PropEditor.Values[KeyName] := EditedValue;
+  SetPropertyPanelDirty(True);
+  ApplyPropertyPanel;
+  Result := True;
 end;
 
 function TfrmMain.EditExpressionPropertyRow(ARow: Integer): Boolean;
