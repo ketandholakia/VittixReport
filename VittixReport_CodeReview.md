@@ -598,3 +598,4 @@ The single highest-impact fix is **BUG-C1 + BUG-C6 + MF6**: wiring `TVittixUserD
 - BUG-M10 fixed in commit `e6fab79` (`fix(script): reject image background assignment`).
 - MF9 implemented in commit `b88d534` (`fix(preview): add scrolling for zoomed pages`).
 - MF10 implemented in commit `68e6e94` (`feat(designer): expose band insertion API`).
+- MF11 implemented in commit `52577db` (`feat(preview): add go to page navigation`).
