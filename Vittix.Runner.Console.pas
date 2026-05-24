@@ -436,6 +436,10 @@ begin
               raise Exception.CreateFmt(
                 'Vector PDF MediaBox mismatch: expected %d page(s) sized %dx%d',
                 [PageCount, ExportDoc.Pages[0].Width, ExportDoc.Pages[0].Height]);
+            if CountAsciiOccurrences(Header, '/Contents ') <> PageCount then
+              raise Exception.CreateFmt(
+                'Vector PDF page content mismatch: engine=%d pdf=%d',
+                [PageCount, CountAsciiOccurrences(Header, '/Contents ')]);
 
             if ScriptOnly and Assigned(Report) and ((ScriptBeforeCount > 0) or (ScriptAfterCount > 0)) then
             begin
