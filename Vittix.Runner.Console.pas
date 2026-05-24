@@ -401,7 +401,7 @@ begin
         // Small GDI increases (< 25) during the first few reports are just normal cache allocations.
         if (TestEndGDI - TestStartGDI) < 25 then
         begin
-          Writeln(Format('[PASS] %-40s | %3d pgs | %4d ms | VCL Cache: +%d', [JustName, PageCount, ElapsedMs, TestEndGDI - TestStartGDI]));
+          Writeln(Format('[PASS] %-40s | %3d pgs | %4d ms | Vector PDF OK | VCL Cache: +%d', [JustName, PageCount, ElapsedMs, TestEndGDI - TestStartGDI]));
           Inc(PassCount);
         end
         else
@@ -412,7 +412,7 @@ begin
       end
       else
       begin
-        Writeln(Format('[PASS] %-40s | %3d pgs | %4d ms', [JustName, PageCount, ElapsedMs]));
+        Writeln(Format('[PASS] %-40s | %3d pgs | %4d ms | Vector PDF OK', [JustName, PageCount, ElapsedMs]));
         Inc(PassCount);
       end;
     end;
