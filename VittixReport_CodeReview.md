@@ -599,6 +599,7 @@ The single highest-impact fix is **BUG-C1 + BUG-C6 + MF6**: wiring `TVittixUserD
 - MF1 implemented in commit `2aeca01` (`feat(engine): add single pass rendering option`).
 - MF2 implemented in commit `3f0a01e` (`feat(engine): preflight master detail block height`).
 - MF3 implemented in commit `eec3b02` (`feat(engine): add object page break flags`).
+- MF4 implemented in commit `8babe22` (`feat(export): expose custom exporter pipeline`).
 - MF5 implemented in commit `5f72475` (`feat(export): add plain text export`).
 - MF7 implemented in commit `1d29211` (`feat(expressions): add row number token`).
 - MF8 implemented in commit `01e8a3d` (`feat(bands): add conditional background fill`).
