@@ -287,6 +287,7 @@ type
     FLineColor:   TColor;
     FLineWidth:   Integer;
     FLineStyle:   TPenStyle;
+    FExtendToPageBottom: Boolean;
   public
     constructor Create; override;
     procedure Draw(C: TCanvas; const Context: TExpressionContext); override;
@@ -296,6 +297,7 @@ type
     property LineColor:   TColor           read FLineColor   write FLineColor;
     property LineWidth:   Integer          read FLineWidth   write FLineWidth   default 1;
     property LineStyle:   TPenStyle        read FLineStyle   write FLineStyle   default psSolid;
+    property ExtendToPageBottom: Boolean   read FExtendToPageBottom write FExtendToPageBottom default False;
   end;
 
 implementation
@@ -1792,6 +1794,7 @@ begin
   FLineColor   := clBlack;
   FLineWidth   := 1;
   FLineStyle   := psSolid;
+  FExtendToPageBottom := False;
   FBounds      := Rect(10, 10, 200, 12);  // thin horizontal rule
 end;
 
@@ -1802,6 +1805,9 @@ var
 begin
   if not ShouldPrintObject(Self, Context) then Exit;
   R  := FBounds;
+  if FExtendToPageBottom and (FOrientation = loVertical) and
+     (Context.PageBottom > R.Top) then
+    R.Bottom := Context.PageBottom;
   CX := (R.Left + R.Right)  div 2;
   CY := (R.Top  + R.Bottom) div 2;
 

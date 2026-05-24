@@ -417,6 +417,7 @@ begin
           Ctx2.PageNumber := FPageNumber;
           Ctx2.TotalPages := FTotalPagesForPass;
           Ctx2.RowNumber  := FRowNumber;
+          Ctx2.PageBottom := FPageHeight - FReport.PageSettings.Margins.Bottom;
           Ctx2.ReportTitle := FReport.Title;
           Ctx2.ReportDate  := FReportDate;
           Ctx2.Parameters  := FParameters;
@@ -483,6 +484,7 @@ begin
   Ctx.PageNumber  := FPageNumber;
   Ctx.TotalPages  := FTotalPagesForPass;
   Ctx.RowNumber   := FRowNumber;
+  Ctx.PageBottom  := FPageHeight - FReport.PageSettings.Margins.Bottom - FCurrentY;
   Ctx.ReportTitle := FReport.Title;
   Ctx.ReportDate  := FReportDate;
   Ctx.Parameters  := FParameters;
@@ -902,6 +904,7 @@ begin
     Ctx0.PageNumber := FPageNumber;
     Ctx0.TotalPages := FTotalPagesForPass;
     Ctx0.RowNumber := FRowNumber;
+    Ctx0.PageBottom := FPageHeight - FReport.PageSettings.Margins.Bottom - FCurrentY;
     Ctx0.ReportTitle := FReport.Title;
     Ctx0.ReportDate  := FReportDate;
     Ctx0.Parameters  := FParameters;
@@ -925,6 +928,7 @@ begin
   Ctx.PageNumber  := FPageNumber;
   Ctx.TotalPages  := FTotalPagesForPass;
   Ctx.RowNumber   := FRowNumber;
+  Ctx.PageBottom  := FPageHeight - FReport.PageSettings.Margins.Bottom - FCurrentY;
   Ctx.ReportTitle := FReport.Title;
   Ctx.ReportDate  := FReportDate;
   Ctx.Parameters  := FParameters;

@@ -46,6 +46,7 @@ type
     PageNumber:  Integer;   // 1-based current page number
     TotalPages:  Integer;   // 0 until the engine finishes (two-pass becomes possible later)
     RowNumber:   Integer;   // 1-based master row number; 0 outside data rows
+    PageBottom:   Integer;   // printable page bottom in the current canvas coordinate space
 
     { Report metadata }
     ReportTitle: string;

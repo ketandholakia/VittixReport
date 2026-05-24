@@ -248,6 +248,7 @@ begin
     Result.AddPair('LineColor',   TJSONNumber.Create(Ln.LineColor));
     Result.AddPair('LineWidth',   TJSONNumber.Create(Ln.LineWidth));
     Result.AddPair('LineStyle',   TJSONNumber.Create(Ord(Ln.LineStyle)));
+    Result.AddPair('ExtendToPageBottom', TJSONBool.Create(Ln.ExtendToPageBottom));
   end;
 
   if Obj is TReportBarcodeObject then
@@ -462,6 +463,7 @@ begin
       Ln.LineColor   := O.GetValue<Integer>('LineColor', Integer(clBlack));
       Ln.LineWidth   := O.GetValue<Integer>('LineWidth', 1);
       Ln.LineStyle   := TPenStyle(O.GetValue<Integer>('LineStyle', 0));
+      Ln.ExtendToPageBottom := O.GetValue<Boolean>('ExtendToPageBottom', False);
     end;
 
     if Obj is TReportBarcodeObject then
