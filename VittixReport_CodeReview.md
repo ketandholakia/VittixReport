@@ -596,6 +596,7 @@ The single highest-impact fix is **BUG-C1 + BUG-C6 + MF6**: wiring `TVittixUserD
 - BUG-M8 fixed in commit `ae96ad2` (`docs(context): document bookmark lifetime`).
 - BUG-M9 reviewed; no code change needed because conditional omission of blank event strings is compatible with JSON defaults.
 - BUG-M10 fixed in commit `e6fab79` (`fix(script): reject image background assignment`).
+- MF7 implemented in commit `1d29211` (`feat(expressions): add row number token`).
 - MF9 implemented in commit `b88d534` (`fix(preview): add scrolling for zoomed pages`).
 - MF10 implemented in commit `68e6e94` (`feat(designer): expose band insertion API`).
 - MF11 implemented in commit `52577db` (`feat(preview): add go to page navigation`).
