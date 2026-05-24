@@ -47,7 +47,9 @@ uses
   Vittix.Report.Serializer,
   Vittix.Report.Engine,
   Vittix.Report.Renderer,
+  Vittix.Report.Export.Commands,
   Vittix.Report.Export.PDF,
+  Vittix.Report.Export.VectorPDF,
   Vittix.Report.Export.Text,
   Vittix.Report.Interfaces,
   Vittix.Report.UserDataSet;
@@ -111,6 +113,7 @@ type
     procedure Execute;
     procedure Print;
     procedure ExportToPDF(const AFileName: string);
+    procedure ExportToVectorPDF(const AFileName: string);
     procedure ExportToText(const AFileName: string);
     procedure ExportWith(const AExporter: IReportExporter; const AFileName: string);
 
@@ -579,6 +582,45 @@ begin
       Engine.Free;
     end;
   finally
+    NamedUDS.Free;
+    NamedDS.Free;
+    Model.Free;
+  end;
+end;
+
+procedure TVittixReport.ExportToVectorPDF(const AFileName: string);
+var
+  Model  : TReportModel;
+  Primary: TDataSet;
+  NamedDS: TDictionary<string, TDataSet>;
+  PrimaryUDS: TVittixUserDataSet;
+  NamedUDS: TDictionary<string, TVittixUserDataSet>;
+  Engine : TReportEngine;
+  ExportDoc: TReportExportDocument;
+begin
+  if FReportJSON = '' then
+    raise Exception.Create('No report design loaded.');
+
+  Model := TReportSerializer.LoadFromJSON(FReportJSON);
+  BuildNamedDataSets(Primary, NamedDS);
+  BuildNamedUserDataSets(PrimaryUDS, NamedUDS);
+  ExportDoc := TReportExportDocument.Create;
+  try
+    if Assigned(PrimaryUDS) then
+      Engine := TReportEngine.Create(Model, PrimaryUDS, NamedUDS, nil)
+    else
+      Engine := TReportEngine.Create(Model, Primary, NamedDS, nil);
+    try
+      Engine.Parameters.Assign(FParameters);
+      Engine.TwoPassRendering := FTwoPassRendering;
+      Engine.ExportDocument := ExportDoc;
+      Engine.Prepare;
+      TReportVectorPDFExporter.ExportDocument(ExportDoc, AFileName);
+    finally
+      Engine.Free;
+    end;
+  finally
+    ExportDoc.Free;
     NamedUDS.Free;
     NamedDS.Free;
     Model.Free;

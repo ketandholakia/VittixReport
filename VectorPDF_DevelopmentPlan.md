@@ -211,13 +211,13 @@ Safe commit condition:
 
 ### M6 - API and Designer Integration
 
-Status: Pending
+Status: In Progress
 
 Goal:
 Expose vector PDF export without breaking existing workflows.
 
 Possible API:
-- `ExportToVectorPDF(const AFileName: string)`
+- [x] `ExportToVectorPDF(const AFileName: string)`
 
 Designer UI:
 - Keep current `Export PDF`
@@ -227,6 +227,11 @@ Safe commit condition:
 - Existing `ExportToPDF` behavior unchanged.
 - New menu/API is clearly separate.
 - Runtime and designer packages compile.
+
+Initial implementation:
+- Added separate `TVittixReport.ExportToVectorPDF`.
+- Existing `TVittixReport.ExportToPDF` remains printer-based and unchanged.
+- Designer UI integration is still pending.
 
 ### M7 - Regression and Quality Pass
 
