@@ -601,6 +601,7 @@ The single highest-impact fix is **BUG-C1 + BUG-C6 + MF6**: wiring `TVittixUserD
 - MF3 implemented in commit `eec3b02` (`feat(engine): add object page break flags`).
 - MF4 implemented in commit `8babe22` (`feat(export): expose custom exporter pipeline`).
 - MF5 implemented in commit `5f72475` (`feat(export): add plain text export`).
+- MF6 implemented in commit `610fcb5` (`feat(engine): render user dataset sources`).
 - MF7 implemented in commit `1d29211` (`feat(expressions): add row number token`).
 - MF8 implemented in commit `01e8a3d` (`feat(bands): add conditional background fill`).
 - MF9 implemented in commit `b88d534` (`fix(preview): add scrolling for zoomed pages`).
