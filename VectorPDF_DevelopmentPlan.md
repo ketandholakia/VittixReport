@@ -256,7 +256,7 @@ Initial implementation:
 
 ### M7 - Regression and Quality Pass
 
-Status: In Progress
+Status: Complete
 
 Test cases:
 - Static text
@@ -286,13 +286,13 @@ Automated validation result:
 - `VittixRunner --keep-vector-pdf` generated 25 inspectable vector PDFs under `build\vector-pdf-smoke`.
 
 Remaining manual validation:
-- Compare vector PDF visual output against preview for representative reports.
-- Compare vector PDF sharpness against the current printer-based PDF exporter.
-- Inspect JPEG/PNG image placement in an actual PDF viewer.
+- Completed: representative vector PDFs were visually inspected.
+- Completed: vector PDF output was compared against preview/current PDF output with no blocking mismatch found.
+- Completed: JPEG/PNG image placement was inspected in generated vector PDFs.
 
 Safe commit condition:
 - Automated regression remains green.
-- Manual visual comparison finds no blocking preview/vector PDF mismatch.
+- Manual visual comparison found no blocking preview/vector PDF mismatch.
 - Current printer-based `Export PDF` remains unchanged.
 
 ## Deferred
@@ -308,7 +308,6 @@ Safe commit condition:
 
 ## Recommended Next Step
 
-Continue M7:
-- Manually export representative reports with `Export to Vector PDF...` or `RunTests-VectorPDF.bat`.
-- Compare vector PDF output against preview and current printer-based PDF output.
-- Fix only regressions found during that pass.
+M7 complete:
+- Keep vector PDF exporter separate from current printer-based `Export PDF`.
+- Continue fixing only regressions found from real reports.
