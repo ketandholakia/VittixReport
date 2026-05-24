@@ -256,7 +256,7 @@ Initial implementation:
 
 ### M7 - Regression and Quality Pass
 
-Status: Next
+Status: In Progress
 
 Test cases:
 - Static text
@@ -276,10 +276,19 @@ Initial implementation:
 - Headless regression output marks passing reports with `Vector PDF OK` when the smoke check succeeds.
 - `TESTING.md` documents automated vector PDF smoke coverage and manual vector PDF visual checks.
 
+Automated validation result:
+- Headless regression passed with `25 Passed, 0 Failed, 7 Skipped`.
+- Each automatic regression report completed vector PDF page-count and `%PDF-` smoke validation.
+
+Remaining manual validation:
+- Compare vector PDF visual output against preview for representative reports.
+- Compare vector PDF sharpness against the current printer-based PDF exporter.
+- Inspect JPEG/PNG image placement in an actual PDF viewer.
+
 Safe commit condition:
-- No regression in preview.
-- No regression in current PDF exporter.
-- New vector PDF output is sharper for text/lines than printer-based output.
+- Automated regression remains green.
+- Manual visual comparison finds no blocking preview/vector PDF mismatch.
+- Current printer-based `Export PDF` remains unchanged.
 
 ## Deferred
 
@@ -294,7 +303,7 @@ Safe commit condition:
 
 ## Recommended Next Step
 
-Start M7:
-- Run vector PDF exports for simple reports and existing demo reports.
+Continue M7:
+- Manually export representative reports with `Export to Vector PDF...`.
 - Compare vector PDF output against preview and current printer-based PDF output.
 - Fix only regressions found during that pass.
