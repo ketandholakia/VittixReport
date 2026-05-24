@@ -41,6 +41,7 @@ uses
   Vittix.Report.LayoutCache,
   Vittix.Report.LayoutPagination,
   Vittix.Report.UserDataSet,
+  Vittix.Report.Export.Commands,
   Vittix.Report.Interfaces;   // IReportProgress
 
 type
@@ -99,6 +100,8 @@ type
     FProgress: IReportProgress;   // optional; nil = no progress feedback
     FParameters: TStrings;
     FPages:    TObjectList<TMetafile>;
+    FExportDocument: TReportExportDocument;
+    FCurrentExportPage: TReportExportPage;
 
     FCurrentPage: TMetafile;
     FCanvas:      TMetafileCanvas;
@@ -144,6 +147,7 @@ type
       ANamedUserDataSets: TDictionary<string, TVittixUserDataSet>;
       AProgress:      IReportProgress);
     procedure CacheBands;
+    function IsCapturingExportCommands: Boolean;
     procedure StartNewPage;
     procedure EndCurrentPage;
     procedure PrintPageHeader;  // prints PageHeader + ColumnHeader together
@@ -220,6 +224,7 @@ type
     property NamedDataSets: TDictionary<string, TDataSet> read FNamedDataSets;
     property ScriptEngine: TReportScriptEngine read FScriptEngine;
     property Parameters: TStrings read FParameters;
+    property ExportDocument: TReportExportDocument read FExportDocument write FExportDocument;
     property TwoPassRendering: Boolean read FTwoPassRendering write FTwoPassRendering;
     property OnBeforePrintReport: TReportBeforePrintReportEvent
       read FOnBeforePrintReport write FOnBeforePrintReport;
@@ -357,6 +362,11 @@ begin
     FDetailBands);
 end;
 
+function TReportEngine.IsCapturingExportCommands: Boolean;
+begin
+  Result := FIsRenderingPass and Assigned(FExportDocument);
+end;
+
 { ================= Page Lifecycle ================= }
 
 procedure TReportEngine.StartNewPage;
@@ -376,6 +386,10 @@ begin
     FCurrentPage := nil;
     raise;
   end;
+  if IsCapturingExportCommands then
+    FCurrentExportPage := FExportDocument.AddPage(FPageWidth, FPageHeight)
+  else
+    FCurrentExportPage := nil;
   FCurrentY := FReport.PageSettings.Margins.Top;
 end;
 
@@ -452,6 +466,7 @@ begin
         FCurrentPage.Free;
       FCurrentPage := nil;
     end;
+    FCurrentExportPage := nil;
   end;
 end;
 

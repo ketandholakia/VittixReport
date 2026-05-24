@@ -114,7 +114,9 @@ Initial implementation:
 - Added a standalone command document/page model.
 - Added typed command classes for text, line, rectangle, fill rectangle, and image.
 - Registered the unit in the runtime package.
-- No engine integration yet.
+- Added optional engine page capture plumbing.
+- Engine records export pages only during the final render pass and only when `ExportDocument` is assigned.
+- No object command capture yet.
 - No runtime behavior changes yet.
 
 Rules:
