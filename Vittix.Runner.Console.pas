@@ -423,6 +423,10 @@ begin
               raise Exception.CreateFmt(
                 'Vector PDF page object mismatch: engine=%d pdf=%d',
                 [PageCount, CountAsciiOccurrences(Header, '/Type /Page ')]);
+            if not BytesContainAscii(Header, AnsiString('/Count ' + IntToStr(PageCount))) then
+              raise Exception.CreateFmt(
+                'Vector PDF page tree count mismatch: expected /Count %d',
+                [PageCount]);
 
             if ScriptOnly and Assigned(Report) and ((ScriptBeforeCount > 0) or (ScriptAfterCount > 0)) then
             begin
