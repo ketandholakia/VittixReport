@@ -6,6 +6,8 @@ uses
   System.SysUtils, System.Classes, System.Generics.Collections, System.IOUtils,
   Vcl.Dialogs,
   Data.DB,
+  Vittix.Report.Engine,
+  Vittix.Report.Export.Commands,
   Vittix.Report.Model,
   Vittix.Report.Renderer,
   Vittix.Report.Serializer;
@@ -49,10 +51,13 @@ var
   I: Integer;
   FN: string;
   ReportModel: TReportModel;
+  Engine: TReportEngine;
+  ExportDoc: TReportExportDocument;
   Renderer: TReportRenderer;
   PassedCount: Integer;
   FailedCount: Integer;
   PageSuffix: string;
+  CaptureOk: Boolean;
 begin
   if Assigned(AUseSampleDataSet) then
     AUseSampleDataSet;
@@ -73,6 +78,8 @@ begin
       end;
 
       ReportModel := nil;
+      Engine := nil;
+      ExportDoc := nil;
       Renderer := nil;
       try
         ReportModel := TReportSerializer.LoadFromFile(FN);
@@ -81,6 +88,24 @@ begin
           Renderer.Render(ReportModel, AGetSampleDataSet)
         else
           Renderer.Render(ReportModel, nil);
+
+        ExportDoc := TReportExportDocument.Create;
+        if Assigned(AGetSampleDataSet) then
+          Engine := TReportEngine.Create(ReportModel, AGetSampleDataSet)
+        else
+          Engine := TReportEngine.Create(ReportModel, TDataSet(nil));
+        Engine.ExportDocument := ExportDoc;
+        Engine.Prepare;
+
+        CaptureOk := (ExportDoc.Pages.Count = Engine.Pages.Count);
+        if CaptureOk and (Engine.Pages.Count > 0) then
+          CaptureOk := (ExportDoc.Pages[0].Width = Engine.Pages[0].Width) and
+                       (ExportDoc.Pages[0].Height = Engine.Pages[0].Height);
+        if not CaptureOk then
+          raise Exception.CreateFmt(
+            'Export command page capture mismatch: engine=%d command=%d',
+            [Engine.Pages.Count, ExportDoc.Pages.Count]);
+
         Inc(PassedCount);
         if Renderer.Pages.Count = 1 then
           PageSuffix := ''
@@ -96,6 +121,8 @@ begin
         end;
       end;
       Renderer.Free;
+      Engine.Free;
+      ExportDoc.Free;
       ReportModel.Free;
     end;
 
