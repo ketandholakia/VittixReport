@@ -390,6 +390,10 @@ begin
               raise Exception.Create('Vector PDF smoke output has invalid header');
             if not BytesContainAscii(Header, '%%EOF') then
               raise Exception.Create('Vector PDF smoke output has invalid EOF marker');
+            if not BytesContainAscii(Header, 'xref') then
+              raise Exception.Create('Vector PDF smoke output has no xref table');
+            if not BytesContainAscii(Header, 'trailer') then
+              raise Exception.Create('Vector PDF smoke output has no trailer');
 
             if ScriptOnly and Assigned(Report) and ((ScriptBeforeCount > 0) or (ScriptAfterCount > 0)) then
             begin
