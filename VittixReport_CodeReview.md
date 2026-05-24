@@ -609,3 +609,4 @@ The single highest-impact fix is **BUG-C1 + BUG-C6 + MF6**: wiring `TVittixUserD
 - MF11 implemented in commit `52577db` (`feat(preview): add go to page navigation`).
 - MF12 implemented in commit `bd0e853` (`feat(expressions): add runtime report parameters`).
 - MF13 implemented in commit `5e44714` (`feat(barcode): add code39 symbology`).
+- MF14 implemented in commit `68f4f75` (`feat(objects): extend vertical lines to page bottom`).
