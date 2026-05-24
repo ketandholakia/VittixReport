@@ -1441,18 +1441,66 @@ procedure TReportEngine.CaptureExportObjectCommand(
   AObject: TReportObject;
   const Context: TExpressionContext);
 var
+  TextObj: TReportTextObject;
   LineObj: TReportLineObject;
   ShapeObj: TReportShapeObject;
+  TextCmd: TReportExportTextCommand;
   LineCmd: TReportExportLineCommand;
   RectCmd: TReportExportRectangleCommand;
   FillCmd: TReportExportFillRectangleCommand;
   R: TRect;
+  TextR: TRect;
   CX: Integer;
   CY: Integer;
+  DrawFontColor: TColor;
+  DrawBackground: TColor;
+  DrawBorderColor: TColor;
 begin
   if not IsCapturingExportCommands or not Assigned(FCurrentExportPage) or
      not Assigned(AObject) then
     Exit;
+
+  if (AObject is TReportTextObject) and not (AObject is TReportMemoObject) then
+  begin
+    TextObj := TReportTextObject(AObject);
+    R := TextObj.Bounds;
+    OffsetRect(R, FExportOriginX, FExportOriginY);
+    TextObj.ResolveTextStyle(Context, DrawFontColor, DrawBackground, DrawBorderColor);
+
+    if not TextObj.Transparent then
+    begin
+      FillCmd := TReportExportFillRectangleCommand.Create;
+      FillCmd.Bounds := R;
+      FillCmd.FillColor := DrawBackground;
+      FCurrentExportPage.Commands.Add(FillCmd);
+    end;
+
+    if TextObj.BorderVisible then
+    begin
+      RectCmd := TReportExportRectangleCommand.Create;
+      RectCmd.Bounds := R;
+      RectCmd.BorderColor := DrawBorderColor;
+      RectCmd.BorderWidth := TextObj.BorderWidth;
+      FCurrentExportPage.Commands.Add(RectCmd);
+    end;
+
+    TextR := Rect(
+      R.Left + TextObj.PaddingLeft,
+      R.Top + TextObj.PaddingTop,
+      R.Right - TextObj.PaddingRight,
+      R.Bottom - TextObj.PaddingBottom);
+
+    TextCmd := TReportExportTextCommand.Create;
+    TextCmd.Bounds := TextR;
+    TextCmd.Text := TextObj.ResolveDisplayText(Context);
+    TextCmd.FontName := TextObj.Font.Name;
+    TextCmd.FontSize := TextObj.Font.Size;
+    TextCmd.FontStyle := TextObj.Font.Style;
+    TextCmd.FontColor := DrawFontColor;
+    TextCmd.HAlign := TextObj.HAlign;
+    TextCmd.WordWrap := TextObj.WordWrap;
+    FCurrentExportPage.Commands.Add(TextCmd);
+  end;
 
   if AObject is TReportLineObject then
   begin

@@ -122,6 +122,12 @@ type
     constructor Create; override;
     destructor Destroy; override;
     procedure Draw(C: TCanvas; const Context: TExpressionContext); override;
+    function ResolveDisplayText(const Context: TExpressionContext): string;
+    procedure ResolveTextStyle(
+      const Context: TExpressionContext;
+      out AFontColor: TColor;
+      out ABackground: TColor;
+      out ABorderColor: TColor);
     function MeasuredBottom(C: TCanvas; const Context: TExpressionContext): Integer; override;
     class function DisplayName: string; override;
   published
@@ -569,6 +575,11 @@ begin
   Result := ConditionVariantToBool(PWResult);
 end;
 
+function FormatFieldDisplayValue(
+  const AValue: Variant;
+  const ADisplayFormat: string;
+  const AEditMask: string): string; forward;
+
 procedure TReportTextObject.ResolveConditionalStyle(
   const Context: TExpressionContext;
   out AFontColor: TColor;
@@ -585,6 +596,34 @@ begin
     ABackground := FBackgroundOnTrue;
   if EvaluateConditionExpression(FBorderColorCondition, Context) then
     ABorderColor := FBorderColorOnTrue;
+end;
+
+function TReportTextObject.ResolveDisplayText(
+  const Context: TExpressionContext): string;
+begin
+  if FExpression <> '' then
+    Result := VarToStr(TReportExpression.Evaluate(FExpression, Context))
+  else if (FDataField <> '') and SourceActive(Context.DataSet, Context.UserDataSet) then
+  begin
+    if Self is TReportFieldObject then
+      Result := FormatFieldDisplayValue(
+        SafeSourceFieldValue(Context.DataSet, Context.UserDataSet, FDataField),
+        TReportFieldObject(Self).FDisplayFormat,
+        TReportFieldObject(Self).FEditMask)
+    else
+      Result := SafeSourceFieldAsString(Context.DataSet, Context.UserDataSet, FDataField);
+  end
+  else
+    Result := FText;
+end;
+
+procedure TReportTextObject.ResolveTextStyle(
+  const Context: TExpressionContext;
+  out AFontColor: TColor;
+  out ABackground: TColor;
+  out ABorderColor: TColor);
+begin
+  ResolveConditionalStyle(Context, AFontColor, ABackground, ABorderColor);
 end;
 
 function FormatFieldDisplayValue(
