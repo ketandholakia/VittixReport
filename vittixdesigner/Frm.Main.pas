@@ -50,7 +50,9 @@ uses
   Vittix.Report.Undo,
   Vittix.Report.Engine,
   Vittix.Report.Renderer,
+  Vittix.Report.Export.Commands,
   Vittix.Report.Export.PDF,
+  Vittix.Report.Export.VectorPDF,
   Vittix.Report.Objects.Barcode,
   Vittix.Report.Objects.Table, Vcl.Grids,  Vcl.CheckLst,
   Vittix.Report.ScriptHost.Adapter,
@@ -103,6 +105,7 @@ type
       mnuSaveAs    : TMenuItem;
       mnuSep1      : TMenuItem;
       mnuExportPDF : TMenuItem;
+      mnuExportVectorPDF: TMenuItem;
       mnuSep2      : TMenuItem;
       mnuExit      : TMenuItem;
     mnuEdit        : TMenuItem;
@@ -250,6 +253,7 @@ type
     procedure mnuSaveClick(Sender: TObject);
     procedure mnuSaveAsClick(Sender: TObject);
     procedure mnuExportPDFClick(Sender: TObject);
+    procedure mnuExportVectorPDFClick(Sender: TObject);
     procedure mnuExitClick(Sender: TObject);
 
     { Edit }
@@ -1223,6 +1227,67 @@ begin
         TReportPDFExporter.ExportToFile(Eng.Pages, dlgPDF.FileName);
       finally
         Eng.Free;
+      end;
+    finally
+      Screen.Cursor := crDefault;
+    end;
+  finally
+    dlgPDF.Free;
+  end;
+end;
+
+procedure TfrmMain.mnuExportVectorPDFClick(Sender: TObject);
+var
+  dlgPDF: TSaveDialog;
+  Eng   : TReportEngine;
+  DS    : TDataSet;
+  ExportDoc: TReportExportDocument;
+begin
+  CommitReportMetadataChanges(True);
+
+  dlgPDF := TSaveDialog.Create(nil);
+  try
+    dlgPDF.Filter     := 'PDF Files (*.pdf)|*.pdf|All Files (*.*)|*.*';
+    dlgPDF.DefaultExt := 'pdf';
+    dlgPDF.Title      := 'Export Report to Vector PDF';
+    if FCurrentFile <> '' then
+      dlgPDF.FileName := ChangeFileExt(FCurrentFile, '.vector.pdf');
+    if not dlgPDF.Execute then Exit;
+
+    Screen.Cursor := crHourGlass;
+    try
+      DS := nil;
+      if Assigned(FDataSource1) then
+        DS := FDataSource1.DataSet;
+      if not Assigned(DS) then
+      begin
+        UseSampleDataSet;
+        if Assigned(FDataSource1) then
+          DS := FDataSource1.DataSet;
+      end;
+      if not Assigned(DS) then
+      begin
+        ShowMessage('Vector PDF export requires a dataset for report preparation.');
+        Exit;
+      end;
+
+      ExportDoc := TReportExportDocument.Create;
+      try
+        Eng := TReportEngine.Create(FDesigner.Report, DS);
+        try
+          Eng.ExportDocument := ExportDoc;
+          Eng.Prepare;
+          if ExportDoc.Pages.Count = 0 then
+          begin
+            ShowMessage('No pages were generated. Add a MasterData band with objects and ensure a DataSet is assigned.');
+            Exit;
+          end;
+          TReportVectorPDFExporter.ExportDocument(ExportDoc, dlgPDF.FileName);
+        finally
+          Eng.Free;
+        end;
+      finally
+        ExportDoc.Free;
       end;
     finally
       Screen.Cursor := crDefault;

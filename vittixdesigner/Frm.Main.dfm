@@ -629,6 +629,10 @@ object frmMain: TfrmMain
         Caption = 'Export to &PDF...'
         OnClick = mnuExportPDFClick
       end
+      object mnuExportVectorPDF: TMenuItem
+        Caption = 'Export to &Vector PDF...'
+        OnClick = mnuExportVectorPDFClick
+      end
       object mnuSep2: TMenuItem
         Caption = '-'
       end

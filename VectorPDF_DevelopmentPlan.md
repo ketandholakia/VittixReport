@@ -221,7 +221,7 @@ Possible API:
 
 Designer UI:
 - Keep current `Export PDF`
-- Add separate `Export Vector PDF` action
+- [x] Add separate `Export Vector PDF` action
 
 Safe commit condition:
 - Existing `ExportToPDF` behavior unchanged.
@@ -231,7 +231,7 @@ Safe commit condition:
 Initial implementation:
 - Added separate `TVittixReport.ExportToVectorPDF`.
 - Existing `TVittixReport.ExportToPDF` remains printer-based and unchanged.
-- Designer UI integration is still pending.
+- Added separate designer File menu action `Export to Vector PDF...`.
 
 ### M7 - Regression and Quality Pass
 
