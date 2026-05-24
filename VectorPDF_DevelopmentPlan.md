@@ -274,6 +274,7 @@ Test cases:
 Initial implementation:
 - Headless regression runner now validates vector PDF command page count and `%PDF-` smoke output for each automatic regression report.
 - Headless regression output marks passing reports with `Vector PDF OK` when the smoke check succeeds.
+- `VittixRunner --keep-vector-pdf` keeps generated vector PDF smoke files under `build\vector-pdf-smoke` for manual inspection.
 - `TESTING.md` documents automated vector PDF smoke coverage and manual vector PDF visual checks.
 
 Automated validation result:
@@ -304,6 +305,6 @@ Safe commit condition:
 ## Recommended Next Step
 
 Continue M7:
-- Manually export representative reports with `Export to Vector PDF...`.
+- Manually export representative reports with `Export to Vector PDF...` or `VittixRunner --keep-vector-pdf`.
 - Compare vector PDF output against preview and current printer-based PDF output.
 - Fix only regressions found during that pass.

@@ -169,6 +169,8 @@ var
   ScriptAdapter: TReportScriptHostAdapter;
   ScriptOnly: Boolean;
   ScriptTraceOnly: Boolean;
+  KeepVectorPDF: Boolean;
+  VectorPdfOutputPath: string;
   ReportText: string;
   HasObjectScript: Boolean;
   ScriptBeforeCount: Integer;
@@ -219,10 +221,20 @@ begin
 
   ScriptOnly := HasExactSwitch('--scripts');
   ScriptTraceOnly := HasExactSwitch('--script-trace');
+  KeepVectorPDF := HasExactSwitch('--keep-vector-pdf');
   if ScriptOnly then
     Writeln('Mode: script-focused reports only');
   if ScriptTraceOnly then
     Writeln('Mode: script trace only');
+  if KeepVectorPDF then
+  begin
+    VectorPdfOutputPath := TPath.GetFullPath(TPath.Combine(
+      ExtractFilePath(ParamStr(0)), '..\vector-pdf-smoke'));
+    TDirectory.CreateDirectory(VectorPdfOutputPath);
+    Writeln('Vector PDF output: ', VectorPdfOutputPath);
+  end
+  else
+    VectorPdfOutputPath := '';
 
   Files := TDirectory.GetFiles(ReportsPath, '*.vrt');
   TArray.Sort<string>(Files); // Ensure deterministic execution order
@@ -321,8 +333,12 @@ begin
                 'Vector PDF command page mismatch: engine=%d command=%d',
                 [PageCount, ExportDoc.Pages.Count]);
 
-            VectorPdfFile := TPath.Combine(TPath.GetTempPath,
-              TPath.GetFileNameWithoutExtension(JustName) + '_headless_vector_smoke.pdf');
+            if KeepVectorPDF then
+              VectorPdfFile := TPath.Combine(VectorPdfOutputPath,
+                TPath.GetFileNameWithoutExtension(JustName) + '_vector.pdf')
+            else
+              VectorPdfFile := TPath.Combine(TPath.GetTempPath,
+                TPath.GetFileNameWithoutExtension(JustName) + '_headless_vector_smoke.pdf');
             TReportVectorPDFExporter.ExportDocument(ExportDoc, VectorPdfFile);
             if not TFile.Exists(VectorPdfFile) then
               raise Exception.Create('Vector PDF smoke output was not created');
@@ -385,7 +401,7 @@ begin
           ErrorMsg := Format('%s: %s', [E.ClassName, E.Message]);
         end;
       end;
-      if (VectorPdfFile <> '') and TFile.Exists(VectorPdfFile) then
+      if not KeepVectorPDF and (VectorPdfFile <> '') and TFile.Exists(VectorPdfFile) then
         TFile.Delete(VectorPdfFile);
 
       TestEndGDI := GetGuiResources(GetCurrentProcess, GR_GDIOBJECTS);

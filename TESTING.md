@@ -28,9 +28,11 @@ Use this checklist before releases or major engine changes.
 - Run `VittixRunner --scripts` if you want the script-bearing filter without the batch wrapper.
 - Run `VittixRunner --script-trace` to inspect script-only traces without pagination checks.
 - Use `VittixRunner <reportfile.vrt>` to target a specific script case while developing object event handling.
+- Use `VittixRunner --keep-vector-pdf` to keep generated vector PDF smoke files under `build\vector-pdf-smoke` for manual inspection.
 
 ## 3.1) Vector PDF checks
 - Export a simple report with `Export to Vector PDF...`.
+- Or run `VittixRunner --keep-vector-pdf` and open the generated PDFs from `build\vector-pdf-smoke`.
 - Confirm text and lines are sharp/selectable compared with printer-based PDF output.
 - Confirm page count matches preview.
 - Confirm PNG and JPEG report images render.

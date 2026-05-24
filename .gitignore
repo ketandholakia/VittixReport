@@ -31,6 +31,7 @@
 # Most of the time, files here have not there place in a code repository.
 Win32/
 Win64/
+build/
 #OSX64/
 #OSXARM64/
 #Android/
