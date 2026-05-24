@@ -102,6 +102,8 @@ type
     FPages:    TObjectList<TMetafile>;
     FExportDocument: TReportExportDocument;
     FCurrentExportPage: TReportExportPage;
+    FExportOriginX: Integer;
+    FExportOriginY: Integer;
 
     FCurrentPage: TMetafile;
     FCanvas:      TMetafileCanvas;
@@ -191,6 +193,9 @@ type
       const Context: TExpressionContext;
       var ACanPrint: Boolean);
     procedure HandleAfterObjectPrint(
+      AObject: TReportObject;
+      const Context: TExpressionContext);
+    procedure CaptureExportObjectCommand(
       AObject: TReportObject;
       const Context: TExpressionContext);
 
@@ -1009,6 +1014,8 @@ begin
   // The top margin is tracked via FCurrentY; the left margin applies to all bands.
   SaveDC(FCanvas.Handle);
   try
+    FExportOriginX := FReport.PageSettings.Margins.Left;
+    FExportOriginY := FCurrentY;
     SetViewportOrgEx(
       FCanvas.Handle,
       FReport.PageSettings.Margins.Left,
@@ -1026,6 +1033,8 @@ begin
     if (ABand.OnAfterPrint <> '') and Assigned(FScriptEngine) then
       FScriptEngine.ExecuteAfterPrint(ABand.OnAfterPrint, Ctx);
   finally
+    FExportOriginX := 0;
+    FExportOriginY := 0;
     for var I := AdjustedCount - 1 downto 0 do
       AdjustedObjs[I].Bounds := OriginalBounds[I];
     RestoreDC(FCanvas.Handle, -1);
@@ -1415,6 +1424,8 @@ procedure TReportEngine.HandleAfterObjectPrint(
   AObject: TReportObject;
   const Context: TExpressionContext);
 begin
+  CaptureExportObjectCommand(AObject, Context);
+
   if FIsRenderingPass and Assigned(AObject) and Assigned(FScriptEngine) and
      (AObject.OnAfterPrint <> '') then
   begin
@@ -1424,6 +1435,52 @@ begin
 
   if Assigned(FOnAfterObject) then
     FOnAfterObject(Self, Self, AObject, Context);
+end;
+
+procedure TReportEngine.CaptureExportObjectCommand(
+  AObject: TReportObject;
+  const Context: TExpressionContext);
+var
+  LineObj: TReportLineObject;
+  LineCmd: TReportExportLineCommand;
+  R: TRect;
+  CX: Integer;
+  CY: Integer;
+begin
+  if not IsCapturingExportCommands or not Assigned(FCurrentExportPage) or
+     not Assigned(AObject) then
+    Exit;
+
+  if AObject is TReportLineObject then
+  begin
+    LineObj := TReportLineObject(AObject);
+    R := LineObj.Bounds;
+    if LineObj.ExtendToPageBottom and (LineObj.Orientation = loVertical) and
+       (Context.PageBottom > R.Top) then
+      R.Bottom := Context.PageBottom;
+    OffsetRect(R, FExportOriginX, FExportOriginY);
+    CX := (R.Left + R.Right) div 2;
+    CY := (R.Top + R.Bottom) div 2;
+
+    LineCmd := TReportExportLineCommand.Create;
+    LineCmd.Color := LineObj.LineColor;
+    LineCmd.Width := LineObj.LineWidth;
+    if LineObj.Orientation = loHorizontal then
+    begin
+      LineCmd.X1 := R.Left;
+      LineCmd.Y1 := CY;
+      LineCmd.X2 := R.Right;
+      LineCmd.Y2 := CY;
+    end
+    else
+    begin
+      LineCmd.X1 := CX;
+      LineCmd.Y1 := R.Top;
+      LineCmd.X2 := CX;
+      LineCmd.Y2 := R.Bottom;
+    end;
+    FCurrentExportPage.Commands.Add(LineCmd);
+  end;
 end;
 
 end.

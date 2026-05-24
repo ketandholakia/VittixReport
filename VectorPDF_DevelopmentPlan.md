@@ -116,7 +116,8 @@ Initial implementation:
 - Registered the unit in the runtime package.
 - Added optional engine page capture plumbing.
 - Engine records export pages only during the final render pass and only when `ExportDocument` is assigned.
-- No object command capture yet.
+- Added first object command capture for `TReportLineObject`.
+- Text, shape, image, barcode, table, and memo command capture are still pending.
 - No runtime behavior changes yet.
 
 Rules:
