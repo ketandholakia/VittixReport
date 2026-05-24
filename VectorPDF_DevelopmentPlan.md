@@ -271,6 +271,9 @@ Test cases:
 - Large dataset
 - Existing sample reports
 
+Initial implementation:
+- Headless regression runner now validates vector PDF command page count and `%PDF-` smoke output for each automatic regression report.
+
 Safe commit condition:
 - No regression in preview.
 - No regression in current PDF exporter.

@@ -30,6 +30,8 @@ uses
   Vittix.Report.Context,
   Vittix.Report.Scripting,
   Vittix.Report.Engine,
+  Vittix.Report.Export.Commands,
+  Vittix.Report.Export.VectorPDF,
   Vittix.Report.Serializer,
   Vittix.Report.Objects.Barcode,
   Vittix.Report.Objects.Table,
@@ -129,6 +131,21 @@ begin
   end;
 end;
 
+procedure RegisterBuiltInReportObjects;
+begin
+  RegisterReportObject(TReportBand);
+  RegisterReportObject(TReportTextObject);
+  RegisterReportObject(TReportLabelObject);
+  RegisterReportObject(TReportFieldObject);
+  RegisterReportObject(TReportShapeObject);
+  RegisterReportObject(TReportImageObject);
+  RegisterReportObject(TReportMemoObject);
+  RegisterReportObject(TReportSubReportObject);
+  RegisterReportObject(TReportLineObject);
+  RegisterReportObject(TReportBarcodeObject);
+  RegisterReportObject(TReportTableObject);
+end;
+
 { TVittixConsoleRunner }
 
 class procedure TVittixConsoleRunner.Run;
@@ -138,6 +155,7 @@ var
   FileName, JustName, TargetFile: string;
   Report: TReportModel;
   Engine: TReportEngine;
+  ExportDoc: TReportExportDocument;
   MemTable: TFDMemTable;
   Stopwatch: TStopwatch;
   PassCount, FailCount, SkipCount, I: Integer;
@@ -156,10 +174,14 @@ var
   ScriptBeforeCount: Integer;
   ScriptAfterCount: Integer;
   Obj: TReportObject;
+  VectorPdfFile: string;
+  Header: TBytes;
 begin
   Writeln('================================================');
   Writeln(' VittixReport Headless Regression Runner');
   Writeln('================================================');
+
+  RegisterBuiltInReportObjects;
 
   // Locate the reports directory dynamically based on executable location
   ReportsPath := TPath.GetFullPath(TPath.Combine(ExtractFilePath(ParamStr(0)), '..\reports'));
@@ -274,12 +296,16 @@ begin
       ErrorMsg := '';
       PageCount := 0;
       ElapsedMs := 0;
+      VectorPdfFile := '';
 
       try
         Report := TReportSerializer.LoadFromFile(FileName);
         try
+          ExportDoc := nil;
           Engine := TReportEngine.Create(Report, MemTable);
           try
+            ExportDoc := TReportExportDocument.Create;
+            Engine.ExportDocument := ExportDoc;
             // Wire up the Script Adapter so object events execute during regression tests!
             Engine.ScriptEngine.OnObjectBeforePrint := ScriptAdapter.EngineObjectBeforePrint;
             Engine.ScriptEngine.OnObjectAfterPrint := ScriptAdapter.EngineObjectAfterPrint;
@@ -289,6 +315,21 @@ begin
             Stopwatch.Stop;
             PageCount := Engine.Pages.Count;
             ElapsedMs := Stopwatch.ElapsedMilliseconds;
+
+            if ExportDoc.Pages.Count <> PageCount then
+              raise Exception.CreateFmt(
+                'Vector PDF command page mismatch: engine=%d command=%d',
+                [PageCount, ExportDoc.Pages.Count]);
+
+            VectorPdfFile := TPath.Combine(TPath.GetTempPath,
+              TPath.GetFileNameWithoutExtension(JustName) + '_headless_vector_smoke.pdf');
+            TReportVectorPDFExporter.ExportDocument(ExportDoc, VectorPdfFile);
+            if not TFile.Exists(VectorPdfFile) then
+              raise Exception.Create('Vector PDF smoke output was not created');
+            Header := TFile.ReadAllBytes(VectorPdfFile);
+            if (Length(Header) < 5) or
+               (TEncoding.ASCII.GetString(Header, 0, 5) <> '%PDF-') then
+              raise Exception.Create('Vector PDF smoke output has invalid header');
 
             if ScriptOnly and Assigned(Report) and ((ScriptBeforeCount > 0) or (ScriptAfterCount > 0)) then
             begin
@@ -331,6 +372,7 @@ begin
               ErrorMsg := '';
             end;
           finally
+            ExportDoc.Free;
             Engine.Free;
           end;
         finally
@@ -343,6 +385,8 @@ begin
           ErrorMsg := Format('%s: %s', [E.ClassName, E.Message]);
         end;
       end;
+      if (VectorPdfFile <> '') and TFile.Exists(VectorPdfFile) then
+        TFile.Delete(VectorPdfFile);
 
       TestEndGDI := GetGuiResources(GetCurrentProcess, GR_GDIOBJECTS);
 
