@@ -171,20 +171,24 @@ Safe commit condition:
 
 ### M4 - Text and Line Export
 
-Status: Pending
+Status: In Progress
 
 Goal:
 Export the most important report primitives as vector PDF commands.
 
 Initial support:
-- Static text
-- DataField text after engine resolution
-- Font size
-- Basic font style mapping
-- Font color
-- Lines
-- Rectangles
-- Borders
+- [x] Static text
+- [x] DataField text after engine resolution
+- [x] Font size
+- [x] Basic font style mapping
+- [x] Font color
+- [x] Lines
+- [x] Rectangles
+- [x] Borders
+
+Initial implementation:
+- Vector PDF writer maps regular, bold, italic, and bold italic text to built-in Helvetica variants.
+- Font embedding and exact font family matching remain deferred.
 
 Safe commit condition:
 - Simple sample report exports with selectable/sharp text.

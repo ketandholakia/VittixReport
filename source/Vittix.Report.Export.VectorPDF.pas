@@ -122,6 +122,18 @@ var
       Result := AText.Bounds.Left;
   end;
 
+  function PdfFontName(AText: TReportExportTextCommand): AnsiString;
+  begin
+    if (fsBold in AText.FontStyle) and (fsItalic in AText.FontStyle) then
+      Result := '/F4'
+    else if fsItalic in AText.FontStyle then
+      Result := '/F3'
+    else if fsBold in AText.FontStyle then
+      Result := '/F2'
+    else
+      Result := '/F1';
+  end;
+
   function BuildPageContent(APage: TReportExportPage): AnsiString;
   var
     Command: TReportExportCommand;
@@ -144,7 +156,7 @@ var
               'q' + #10 +
               'BT' + #10 +
               PdfColor(TextCmd.FontColor) + ' rg' + #10 +
-              '/F1 ' + PdfNumber(TextCmd.FontSize) + ' Tf' + #10 +
+              PdfFontName(TextCmd) + ' ' + PdfNumber(TextCmd.FontSize) + ' Tf' + #10 +
               PdfNumber(PdfTextX(TextCmd)) + ' ' +
               PdfNumber(PdfY(APage, TextCmd.Bounds.Top + TextCmd.FontSize)) +
               ' Td' + #10 +
@@ -231,7 +243,12 @@ begin
       WriteAnsi('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' +
         AnsiString(IntToStr(ADocument.Pages[PageIndex].Width)) + ' ' +
         AnsiString(IntToStr(ADocument.Pages[PageIndex].Height)) +
-        '] /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >>' +
+        '] /Resources << /Font << ' +
+        '/F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> ' +
+        '/F2 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> ' +
+        '/F3 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique >> ' +
+        '/F4 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-BoldOblique >> ' +
+        '>> >>' +
         ' /Contents ' + AnsiString(IntToStr(ContentObjNo)) + ' 0 R >>' + #10);
       EndObject;
 
