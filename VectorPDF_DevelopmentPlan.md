@@ -282,6 +282,7 @@ Initial implementation:
 Automated validation result:
 - Headless regression passed with `25 Passed, 0 Failed, 7 Skipped`.
 - Each automatic regression report completed vector PDF page-count and `%PDF-` smoke validation.
+- `VittixRunner --keep-vector-pdf` generated 25 inspectable vector PDFs under `build\vector-pdf-smoke`.
 
 Remaining manual validation:
 - Compare vector PDF visual output against preview for representative reports.
