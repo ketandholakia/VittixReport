@@ -35,7 +35,7 @@ Scripts should continue using the existing script editor until the unified edito
 
 ## Milestone M1 - Planning and Tracking
 
-Status: Pending
+Status: Completed
 
 Tasks:
 
@@ -54,7 +54,7 @@ Commit:
 
 ## Milestone M2 - Basic Editor Dialog
 
-Status: Pending
+Status: Completed
 
 Goal:
 

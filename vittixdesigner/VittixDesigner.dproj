@@ -118,6 +118,7 @@
         <DCCReference Include="Frm.ScriptEditor.pas">
             <Form>frmScriptEditor</Form>
         </DCCReference>
+        <DCCReference Include="Frm.TextExpressionEditor.pas"/>
         <DCCReference Include="Frm.BandManager.pas">
             <Form>frmBandManager</Form>
         </DCCReference>
