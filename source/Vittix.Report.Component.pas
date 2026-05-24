@@ -55,6 +55,7 @@ type
   private
     FDataSource   : TDataSource;
     FReportJSON   : string;
+    FTwoPassRendering: Boolean;
     // Ordered list — first entry is the primary dataset
     FUserDataSets : TList<TVittixUserDataSet>;
 
@@ -114,6 +115,9 @@ type
 
     property ReportJSON: string
       read GetReportJSON write SetReportJSON;
+
+    property TwoPassRendering: Boolean
+      read FTwoPassRendering write FTwoPassRendering default True;
   end;
 
 // procedure Register;  // registration moved to Vittix.Report.Reg
@@ -135,6 +139,7 @@ constructor TVittixReport.Create(AOwner: TComponent);
 begin
   inherited;
   FUserDataSets := TList<TVittixUserDataSet>.Create;
+  FTwoPassRendering := True;
 end;
 
 destructor TVittixReport.Destroy;
@@ -361,6 +366,7 @@ begin
   try
     Renderer := TReportRenderer.Create;
     try
+      Renderer.TwoPassRendering := FTwoPassRendering;
       Renderer.Render(Model, Primary, NamedDS);
 
       NavHelp := TPreviewNavHelper.Create;
@@ -469,6 +475,7 @@ begin
   try
     Renderer := TReportRenderer.Create;
     try
+      Renderer.TwoPassRendering := FTwoPassRendering;
       Renderer.Render(Model, Primary, NamedDS);
       Renderer.Print;
     finally
@@ -499,6 +506,7 @@ begin
   try
     Engine := TReportEngine.Create(Model, Primary, NamedDS, nil);
     try
+      Engine.TwoPassRendering := FTwoPassRendering;
       Engine.Prepare;
       TReportPDFExporter.ExportToFile(Engine.Pages, AFileName);
     finally

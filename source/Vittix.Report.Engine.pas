@@ -105,6 +105,7 @@ type
     FRowNumber:   Integer;   // 1-based current master row counter
     FReportDate:  TDateTime; // set once when Prepare begins
     FTotalPagesForPass: Integer;
+    FTwoPassRendering: Boolean;
 
     FTitleBand:         TReportBand;
     FHeaderBand:        TReportBand;
@@ -197,6 +198,7 @@ type
     property GroupEndBookmark:   TBookmark      read FGroupEndBookmark;
     property NamedDataSets: TDictionary<string, TDataSet> read FNamedDataSets;
     property ScriptEngine: TReportScriptEngine read FScriptEngine;
+    property TwoPassRendering: Boolean read FTwoPassRendering write FTwoPassRendering;
     property OnBeforePrintReport: TReportBeforePrintReportEvent
       read FOnBeforePrintReport write FOnBeforePrintReport;
     property OnAfterPrintReport: TReportAfterPrintReportEvent
@@ -247,6 +249,7 @@ begin
   FPageWidth  := 793;
   FPageHeight := 1122;
   FTotalPagesForPass := 0;
+  FTwoPassRendering := True;
 end;
 
 constructor TReportEngine.Create(
@@ -1095,11 +1098,16 @@ begin
       Exit;
     end;
 
-    // Pass 1: count pages with TotalPages unresolved.
-    CountedPages := ExecutePass(0, False);
+    if FTwoPassRendering then
+    begin
+      // Pass 1: count pages with TotalPages unresolved.
+      CountedPages := ExecutePass(0, False);
 
-    // Pass 2: final render with resolved TotalPages available to expressions.
-    ExecutePass(CountedPages, True);
+      // Pass 2: final render with resolved TotalPages available to expressions.
+      ExecutePass(CountedPages, True);
+    end
+    else
+      ExecutePass(0, True);
 
     if Assigned(FOnAfterPrintReport) then
       FOnAfterPrintReport(Self, Self, FReport);
