@@ -153,12 +153,13 @@ Initial support:
 - [x] Cross-reference table
 - [x] Trailer
 - [x] Page size mapping
-- [ ] Basic coordinate conversion
+- [x] Basic coordinate conversion
 
 Initial implementation:
 - Added standalone `TReportVectorPDFExporter`.
 - Exporter writes a valid PDF from `TReportExportDocument` pages.
-- Current writer emits blank page content streams only.
+- Writer emits line, rectangle border, and filled rectangle content streams.
+- Text and image commands are still ignored by the writer.
 - Existing printer-based `TReportPDFExporter` remains unchanged.
 
 Safe commit condition:

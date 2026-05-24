@@ -5,6 +5,9 @@ interface
 uses
   System.Classes,
   System.SysUtils,
+  System.Types,
+  Winapi.Windows,
+  Vcl.Graphics,
   Vittix.Report.Export.Commands;
 
 type
@@ -29,6 +32,7 @@ var
   ObjNo: Integer;
   ContentObjNo: Integer;
   XRefOffset: Int64;
+  Content: AnsiString;
 
   procedure WriteAnsi(const S: AnsiString);
   begin
@@ -55,6 +59,86 @@ var
   function PageContentObjectNo(APageIndex: Integer): Integer;
   begin
     Result := PageObjectNo(APageIndex) + 1;
+  end;
+
+  function PdfNumber(AValue: Double): AnsiString;
+  begin
+    Result := AnsiString(StringReplace(
+      FormatFloat('0.###', AValue),
+      FormatSettings.DecimalSeparator,
+      '.',
+      []));
+  end;
+
+  function PdfColor(AColor: TColor): AnsiString;
+  var
+    RGBColor: LongInt;
+  begin
+    RGBColor := ColorToRGB(AColor);
+    Result :=
+      PdfNumber(GetRValue(RGBColor) / 255) + ' ' +
+      PdfNumber(GetGValue(RGBColor) / 255) + ' ' +
+      PdfNumber(GetBValue(RGBColor) / 255);
+  end;
+
+  function PdfY(APage: TReportExportPage; AY: Integer): Double;
+  begin
+    Result := APage.Height - AY;
+  end;
+
+  function BuildPageContent(APage: TReportExportPage): AnsiString;
+  var
+    Command: TReportExportCommand;
+    LineCmd: TReportExportLineCommand;
+    RectCmd: TReportExportRectangleCommand;
+    FillCmd: TReportExportFillRectangleCommand;
+    R: TRect;
+  begin
+    Result := '';
+    for Command in APage.Commands do
+    begin
+      case Command.Kind of
+        eckLine:
+        begin
+          LineCmd := TReportExportLineCommand(Command);
+          Result := Result +
+            'q' + #10 +
+            PdfColor(LineCmd.Color) + ' RG' + #10 +
+            PdfNumber(LineCmd.Width) + ' w' + #10 +
+            PdfNumber(LineCmd.X1) + ' ' + PdfNumber(PdfY(APage, LineCmd.Y1)) + ' m' + #10 +
+            PdfNumber(LineCmd.X2) + ' ' + PdfNumber(PdfY(APage, LineCmd.Y2)) + ' l' + #10 +
+            'S' + #10 +
+            'Q' + #10;
+        end;
+
+        eckRectangle:
+        begin
+          RectCmd := TReportExportRectangleCommand(Command);
+          R := RectCmd.Bounds;
+          Result := Result +
+            'q' + #10 +
+            PdfColor(RectCmd.BorderColor) + ' RG' + #10 +
+            PdfNumber(RectCmd.BorderWidth) + ' w' + #10 +
+            PdfNumber(R.Left) + ' ' + PdfNumber(PdfY(APage, R.Bottom)) + ' ' +
+            PdfNumber(R.Width) + ' ' + PdfNumber(R.Height) + ' re' + #10 +
+            'S' + #10 +
+            'Q' + #10;
+        end;
+
+        eckFillRectangle:
+        begin
+          FillCmd := TReportExportFillRectangleCommand(Command);
+          R := FillCmd.Bounds;
+          Result := Result +
+            'q' + #10 +
+            PdfColor(FillCmd.FillColor) + ' rg' + #10 +
+            PdfNumber(R.Left) + ' ' + PdfNumber(PdfY(APage, R.Bottom)) + ' ' +
+            PdfNumber(R.Width) + ' ' + PdfNumber(R.Height) + ' re' + #10 +
+            'f' + #10 +
+            'Q' + #10;
+        end;
+      end;
+    end;
   end;
 
 begin
@@ -95,8 +179,10 @@ begin
       EndObject;
 
       BeginObject(ContentObjNo);
-      WriteAnsi('<< /Length 0 >>' + #10);
+      Content := BuildPageContent(ADocument.Pages[PageIndex]);
+      WriteAnsi(AnsiString('<< /Length ' + IntToStr(Length(Content)) + ' >>' + #10));
       WriteAnsi('stream' + #10);
+      WriteAnsi(Content);
       WriteAnsi('endstream' + #10);
       EndObject;
     end;
