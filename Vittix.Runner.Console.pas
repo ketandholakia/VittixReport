@@ -428,13 +428,14 @@ begin
               raise Exception.CreateFmt(
                 'Vector PDF page tree count mismatch: expected /Count %d',
                 [PageCount]);
-            if (PageCount > 0) and not BytesContainAscii(Header,
-              AnsiString('/MediaBox [0 0 ' +
-                IntToStr(ExportDoc.Pages[0].Width) + ' ' +
-                IntToStr(ExportDoc.Pages[0].Height) + ']')) then
+            if (PageCount > 0) and
+               (CountAsciiOccurrences(Header,
+                  AnsiString('/MediaBox [0 0 ' +
+                    IntToStr(ExportDoc.Pages[0].Width) + ' ' +
+                    IntToStr(ExportDoc.Pages[0].Height) + ']')) <> PageCount) then
               raise Exception.CreateFmt(
-                'Vector PDF MediaBox mismatch: expected %dx%d',
-                [ExportDoc.Pages[0].Width, ExportDoc.Pages[0].Height]);
+                'Vector PDF MediaBox mismatch: expected %d page(s) sized %dx%d',
+                [PageCount, ExportDoc.Pages[0].Width, ExportDoc.Pages[0].Height]);
 
             if ScriptOnly and Assigned(Report) and ((ScriptBeforeCount > 0) or (ScriptAfterCount > 0)) then
             begin
