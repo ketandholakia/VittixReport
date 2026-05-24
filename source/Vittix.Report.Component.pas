@@ -48,6 +48,7 @@ uses
   Vittix.Report.Engine,
   Vittix.Report.Renderer,
   Vittix.Report.Export.PDF,
+  Vittix.Report.Export.Text,
   Vittix.Report.UserDataSet;
 
 type
@@ -106,6 +107,7 @@ type
     procedure Execute;
     procedure Print;
     procedure ExportToPDF(const AFileName: string);
+    procedure ExportToText(const AFileName: string);
 
     { Returns a freshly deserialised model — caller must free }
     function  GetModel: TReportModel;
@@ -529,6 +531,25 @@ begin
     finally
       Engine.Free;
     end;
+  finally
+    NamedDS.Free;
+    Model.Free;
+  end;
+end;
+
+procedure TVittixReport.ExportToText(const AFileName: string);
+var
+  Model  : TReportModel;
+  Primary: TDataSet;
+  NamedDS: TDictionary<string, TDataSet>;
+begin
+  if FReportJSON = '' then
+    raise Exception.Create('No report design loaded.');
+
+  Model := TReportSerializer.LoadFromJSON(FReportJSON);
+  BuildNamedDataSets(Primary, NamedDS);
+  try
+    TReportTextExporter.ExportToFile(Model, Primary, NamedDS, FParameters, AFileName);
   finally
     NamedDS.Free;
     Model.Free;
