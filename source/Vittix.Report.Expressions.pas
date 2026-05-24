@@ -9,7 +9,7 @@
   Evaluation order
   ----------------
   1. Aggregate functions  SUM(…), COUNT(…), AVG(…), MIN(…), MAX(…)
-  2. System tokens        [PageNo], [TotalPages], [ReportTitle], [ReportDate]
+  2. System tokens        [PageNo], [TotalPages], [RowNumber], [ReportTitle], [ReportDate]
   3. Dataset field tokens [FieldName]   → current field value as string
   4. Quoted string literal 'text'
   5. Arithmetic           +, -, *, /    on resolved tokens
@@ -20,6 +20,7 @@
   ---------------------------------
     [PageNo]       Current page number (1-based)
     [TotalPages]   Total page count (0 while engine is running)
+    [RowNumber]    Current master row number (1-based)
     [ReportTitle]  TReportModel.Title
     [ReportDate]   Date the report was generated (ShortDateStr format)
     [DateTime]     Date + time the report was generated
@@ -117,10 +118,13 @@ begin
   else if SameText(Token, 'Time') then
     Value := TimeToStr(Context.ReportDate)
   else if SameText(Token, 'RecNo') or
+          SameText(Token, 'RowNumber') or
           SameText(Token, 'Line') or
           SameText(Token, 'Line#') then
   begin
-    if Assigned(Context.DataSet) and Context.DataSet.Active then
+    if Context.RowNumber > 0 then
+      Value := IntToStr(Context.RowNumber)
+    else if Assigned(Context.DataSet) and Context.DataSet.Active then
       Value := IntToStr(Context.DataSet.RecNo)
     else
       Value := '0';

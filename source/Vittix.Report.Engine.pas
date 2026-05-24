@@ -102,6 +102,7 @@ type
     FPageWidth:   Integer;   // cached from PageSettings at Prepare time
     FPageHeight:  Integer;
     FPageNumber:  Integer;   // 1-based current page counter
+    FRowNumber:   Integer;   // 1-based current master row counter
     FReportDate:  TDateTime; // set once when Prepare begins
     FTotalPagesForPass: Integer;
 
@@ -369,6 +370,7 @@ begin
           Ctx2.DataSet    := FDataSet;
           Ctx2.PageNumber := FPageNumber;
           Ctx2.TotalPages := FTotalPagesForPass;
+          Ctx2.RowNumber  := FRowNumber;
           Ctx2.ReportTitle := FReport.Title;
           Ctx2.ReportDate  := FReportDate;
           Ctx2.IsCountingPass := not FIsRenderingPass;
@@ -430,6 +432,7 @@ begin
   Ctx.GroupEnd    := FGroupEndBookmark;
   Ctx.PageNumber  := FPageNumber;
   Ctx.TotalPages  := FTotalPagesForPass;
+  Ctx.RowNumber   := FRowNumber;
   Ctx.ReportTitle := FReport.Title;
   Ctx.ReportDate  := FReportDate;
   Ctx.IsCountingPass := not FIsRenderingPass;
@@ -491,6 +494,7 @@ procedure TReportEngine.BeginPass(
 begin
   FPages.Clear;
   FPageNumber := 0;
+  FRowNumber := 0;
   FTotalPagesForPass := ATotalPages;
 
   FPageWidth := FReport.PageSettings.PageWidth;
@@ -582,12 +586,14 @@ function TReportEngine.ProcessCurrentMasterRecord(
 var
   EffH: Integer;
 begin
+  Inc(ARowNumber);
+  FRowNumber := ARowNumber;
+
   EffH := ComputeEffectiveBandHeight(FMasterBand, FDataSet);
   EnsurePageSpaceForBand(EffH, True);
   PrintBand(FMasterBand, FDataSet, EffH);
   PrintDetailBands;
 
-  Inc(ARowNumber);
   Result := True;
   if AReportProgress and Assigned(FProgress) then
   begin
@@ -610,6 +616,7 @@ begin
     FDataSet.First;
     while not FDataSet.Eof do
     begin
+      FRowNumber := ARowNumber + 1;
       BreakLevel := DetectGroupBreak(AActiveGroupHeader);
 
       if (BreakLevel >= 0) and AHasOpenedGroups then
@@ -796,6 +803,7 @@ begin
     Ctx0.DataSet     := ADataSet;
     Ctx0.PageNumber := FPageNumber;
     Ctx0.TotalPages := FTotalPagesForPass;
+    Ctx0.RowNumber := FRowNumber;
     Ctx0.ReportTitle := FReport.Title;
     Ctx0.ReportDate  := FReportDate;
     Ctx0.IsCountingPass := not FIsRenderingPass;
@@ -816,6 +824,7 @@ begin
   Ctx.GroupEnd    := FGroupEndBookmark;
   Ctx.PageNumber  := FPageNumber;
   Ctx.TotalPages  := FTotalPagesForPass;
+  Ctx.RowNumber   := FRowNumber;
   Ctx.ReportTitle := FReport.Title;
   Ctx.ReportDate  := FReportDate;
   Ctx.IsCountingPass := not FIsRenderingPass;

@@ -12,6 +12,7 @@ unit Vittix.Report.Context;
   -----------------------------------------------------------
     [PageNo]        Current page number (1-based)
     [TotalPages]    Total page count after engine Prepare
+    [RowNumber]     Current master row number (1-based)
     [ReportTitle]   TReportModel.Title
     [ReportDate]    Date the report was generated (formatted by engine)
     [FieldName]     Value of a dataset field
@@ -41,6 +42,7 @@ type
     { Page metadata — filled by the engine before each PrintBand call }
     PageNumber:  Integer;   // 1-based current page number
     TotalPages:  Integer;   // 0 until the engine finishes (two-pass becomes possible later)
+    RowNumber:   Integer;   // 1-based master row number; 0 outside data rows
 
     { Report metadata }
     ReportTitle: string;
