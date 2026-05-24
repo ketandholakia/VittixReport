@@ -121,7 +121,8 @@ Initial implementation:
 - Added basic image command capture for file-path images resolved from image `DataField`.
 - Added first object command capture for `TReportLineObject`.
 - Added basic shape command capture for rectangles, horizontal lines, and diagonal lines.
-- Barcode, table, and memo command capture are still pending.
+- Barcode and memo command capture are still pending.
+- Added basic table command capture for background, header fill, border, and grid lines.
 - Embedded image byte capture is deferred to the image export milestone.
 - RoundRect and ellipse shape capture are deferred until the command model supports them.
 - No runtime behavior changes yet.

@@ -249,8 +249,10 @@ implementation
 
 uses
   Winapi.Windows,
+  System.Math,
   Vittix.Report.Expressions,    // TReportExpression.Evaluate — for PrintWhen
   Vittix.Report.Utils,          // DataSetSupportsBookmarks, SafeRecordCount
+  Vittix.Report.Objects.Table,
   System.Types,
   System.Generics.Defaults;
 
@@ -1445,6 +1447,7 @@ var
   ImageObj: TReportImageObject;
   LineObj: TReportLineObject;
   ShapeObj: TReportShapeObject;
+  TableObj: TReportTableObject;
   TextCmd: TReportExportTextCommand;
   ImageCmd: TReportExportImageCommand;
   LineCmd: TReportExportLineCommand;
@@ -1452,6 +1455,12 @@ var
   FillCmd: TReportExportFillRectangleCommand;
   R: TRect;
   TextR: TRect;
+  RowHeight: Integer;
+  ColWidth: Integer;
+  RowIndex: Integer;
+  ColIndex: Integer;
+  YPos: Integer;
+  XPos: Integer;
   ImageSource: string;
   PW: Integer;
   PH: Integer;
@@ -1660,6 +1669,64 @@ begin
           FCurrentExportPage.Commands.Add(LineCmd);
         end;
       end;
+    end;
+  end;
+
+  if AObject is TReportTableObject then
+  begin
+    TableObj := TReportTableObject(AObject);
+    R := TableObj.Bounds;
+    OffsetRect(R, FExportOriginX, FExportOriginY);
+    if (TableObj.Rows <= 0) or (TableObj.Cols <= 0) then
+      Exit;
+
+    RowHeight := Max(1, R.Height div TableObj.Rows);
+    ColWidth := Max(1, R.Width div TableObj.Cols);
+
+    FillCmd := TReportExportFillRectangleCommand.Create;
+    FillCmd.Bounds := R;
+    FillCmd.FillColor := clWhite;
+    FCurrentExportPage.Commands.Add(FillCmd);
+
+    if TableObj.HeaderRows > 0 then
+    begin
+      FillCmd := TReportExportFillRectangleCommand.Create;
+      FillCmd.Bounds := Rect(R.Left + 1, R.Top + 1, R.Right - 1,
+        Min(R.Bottom - 1, R.Top + (RowHeight * TableObj.HeaderRows)));
+      FillCmd.FillColor := TableObj.HeaderColor;
+      FCurrentExportPage.Commands.Add(FillCmd);
+    end;
+
+    RectCmd := TReportExportRectangleCommand.Create;
+    RectCmd.Bounds := R;
+    RectCmd.BorderColor := TableObj.GridColor;
+    RectCmd.BorderWidth := 1;
+    FCurrentExportPage.Commands.Add(RectCmd);
+
+    for RowIndex := 1 to TableObj.Rows - 1 do
+    begin
+      YPos := R.Top + (RowHeight * RowIndex);
+      LineCmd := TReportExportLineCommand.Create;
+      LineCmd.Color := TableObj.GridColor;
+      LineCmd.Width := 1;
+      LineCmd.X1 := R.Left;
+      LineCmd.Y1 := YPos;
+      LineCmd.X2 := R.Right;
+      LineCmd.Y2 := YPos;
+      FCurrentExportPage.Commands.Add(LineCmd);
+    end;
+
+    for ColIndex := 1 to TableObj.Cols - 1 do
+    begin
+      XPos := R.Left + (ColWidth * ColIndex);
+      LineCmd := TReportExportLineCommand.Create;
+      LineCmd.Color := TableObj.GridColor;
+      LineCmd.Width := 1;
+      LineCmd.X1 := XPos;
+      LineCmd.Y1 := R.Top;
+      LineCmd.X2 := XPos;
+      LineCmd.Y2 := R.Bottom;
+      FCurrentExportPage.Commands.Add(LineCmd);
     end;
   end;
 end;
