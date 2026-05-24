@@ -90,6 +90,31 @@ begin
   end;
 end;
 
+function CountAsciiOccurrences(const ABytes: TBytes; const AText: AnsiString): Integer;
+var
+  I: Integer;
+  J: Integer;
+  Match: Boolean;
+begin
+  Result := 0;
+  if (Length(ABytes) = 0) or (Length(AText) = 0) or
+     (Length(ABytes) < Length(AText)) then
+    Exit;
+
+  for I := 0 to Length(ABytes) - Length(AText) do
+  begin
+    Match := True;
+    for J := 1 to Length(AText) do
+      if ABytes[I + J - 1] <> Ord(AText[J]) then
+      begin
+        Match := False;
+        Break;
+      end;
+    if Match then
+      Inc(Result);
+  end;
+end;
+
 procedure WriteUsage;
 begin
   Writeln('Usage: VittixRunner [options] [reportfile.vrt]');
@@ -394,6 +419,10 @@ begin
               raise Exception.Create('Vector PDF smoke output has no xref table');
             if not BytesContainAscii(Header, 'trailer') then
               raise Exception.Create('Vector PDF smoke output has no trailer');
+            if CountAsciiOccurrences(Header, '/Type /Page ') <> PageCount then
+              raise Exception.CreateFmt(
+                'Vector PDF page object mismatch: engine=%d pdf=%d',
+                [PageCount, CountAsciiOccurrences(Header, '/Type /Page ')]);
 
             if ScriptOnly and Assigned(Report) and ((ScriptBeforeCount > 0) or (ScriptAfterCount > 0)) then
             begin
