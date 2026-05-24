@@ -226,6 +226,7 @@ type
     constructor Create; override;
     destructor Destroy; override;
     procedure Draw(C: TCanvas; const Context: TExpressionContext); override;
+    function ResolveImageSource(const Context: TExpressionContext): string;
     procedure ResetImageCache;
     class function DisplayName: string; override;
     property Picture: TPicture read FPicture;
@@ -1003,6 +1004,16 @@ begin
   FCachedImageAttempted := False;
   FCachedPicture.Assign(nil);
   FPicture.Assign(nil);
+end;
+
+function TReportImageObject.ResolveImageSource(
+  const Context: TExpressionContext): string;
+begin
+  Result := '';
+  if FDataField = '' then
+    Exit;
+
+  Result := SafeSourceFieldAsString(Context.DataSet, Context.UserDataSet, FDataField);
 end;
 
 function TryLoadPictureFromFile(APicture: TPicture; const AFileName: string): Boolean;

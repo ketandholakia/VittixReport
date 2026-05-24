@@ -118,9 +118,11 @@ Initial implementation:
 - Engine records export pages only during the final render pass and only when `ExportDocument` is assigned.
 - Added text value/style resolution helpers for export command capture.
 - Added basic text command capture for text, label, and data field objects.
+- Added basic image command capture for file-path images resolved from image `DataField`.
 - Added first object command capture for `TReportLineObject`.
 - Added basic shape command capture for rectangles, horizontal lines, and diagonal lines.
-- Image, barcode, table, and memo command capture are still pending.
+- Barcode, table, and memo command capture are still pending.
+- Embedded image byte capture is deferred to the image export milestone.
 - RoundRect and ellipse shape capture are deferred until the command model supports them.
 - No runtime behavior changes yet.
 

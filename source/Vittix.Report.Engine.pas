@@ -1442,14 +1442,24 @@ procedure TReportEngine.CaptureExportObjectCommand(
   const Context: TExpressionContext);
 var
   TextObj: TReportTextObject;
+  ImageObj: TReportImageObject;
   LineObj: TReportLineObject;
   ShapeObj: TReportShapeObject;
   TextCmd: TReportExportTextCommand;
+  ImageCmd: TReportExportImageCommand;
   LineCmd: TReportExportLineCommand;
   RectCmd: TReportExportRectangleCommand;
   FillCmd: TReportExportFillRectangleCommand;
   R: TRect;
   TextR: TRect;
+  ImageSource: string;
+  PW: Integer;
+  PH: Integer;
+  BW: Integer;
+  BH: Integer;
+  ScaleX: Double;
+  ScaleY: Double;
+  Scale: Double;
   CX: Integer;
   CY: Integer;
   DrawFontColor: TColor;
@@ -1500,6 +1510,72 @@ begin
     TextCmd.HAlign := TextObj.HAlign;
     TextCmd.WordWrap := TextObj.WordWrap;
     FCurrentExportPage.Commands.Add(TextCmd);
+  end;
+
+  if AObject is TReportImageObject then
+  begin
+    ImageObj := TReportImageObject(AObject);
+    R := ImageObj.Bounds;
+    OffsetRect(R, FExportOriginX, FExportOriginY);
+
+    if ImageObj.BorderVisible then
+    begin
+      RectCmd := TReportExportRectangleCommand.Create;
+      RectCmd.Bounds := R;
+      RectCmd.BorderColor := ImageObj.BorderColor;
+      RectCmd.BorderWidth := ImageObj.BorderWidth;
+      FCurrentExportPage.Commands.Add(RectCmd);
+    end;
+
+    ImageSource := ImageObj.ResolveImageSource(Context);
+    if (ImageSource <> '') and FileExists(ImageSource) and
+       Assigned(ImageObj.Picture.Graphic) and not ImageObj.Picture.Graphic.Empty then
+    begin
+      if ImageObj.Stretch then
+      begin
+        if ImageObj.Proportional then
+        begin
+          PW := ImageObj.Picture.Width;
+          PH := ImageObj.Picture.Height;
+          BW := R.Width;
+          BH := R.Height;
+          if (PW > 0) and (PH > 0) and (BW > 0) and (BH > 0) then
+          begin
+            ScaleX := BW / PW;
+            ScaleY := BH / PH;
+            if ScaleX < ScaleY then Scale := ScaleX else Scale := ScaleY;
+            R := Rect(R.Left, R.Top,
+                      R.Left + Round(PW * Scale),
+                      R.Top + Round(PH * Scale));
+            if ImageObj.Center then
+              OffsetRect(R, (BW - R.Width) div 2, (BH - R.Height) div 2);
+          end;
+        end;
+      end
+      else if ImageObj.Center then
+      begin
+        PW := ImageObj.Picture.Width;
+        PH := ImageObj.Picture.Height;
+        BW := R.Width;
+        BH := R.Height;
+        R := Rect(R.Left + (BW - PW) div 2,
+                  R.Top + (BH - PH) div 2,
+                  R.Left + (BW - PW) div 2 + PW,
+                  R.Top + (BH - PH) div 2 + PH);
+      end
+      else
+        R := Rect(R.Left, R.Top,
+                  R.Left + ImageObj.Picture.Width,
+                  R.Top + ImageObj.Picture.Height);
+
+      ImageCmd := TReportExportImageCommand.Create;
+      ImageCmd.Bounds := R;
+      ImageCmd.Source := ImageSource;
+      ImageCmd.Stretch := ImageObj.Stretch;
+      ImageCmd.Center := ImageObj.Center;
+      ImageCmd.Proportional := ImageObj.Proportional;
+      FCurrentExportPage.Commands.Add(ImageCmd);
+    end;
   end;
 
   if AObject is TReportLineObject then
