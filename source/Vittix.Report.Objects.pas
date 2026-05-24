@@ -10,6 +10,9 @@ uses
   System.MaskUtils,
   Vcl.Graphics,
   Vcl.Controls,
+  Vcl.Imaging.GIFImg,
+  Vcl.Imaging.jpeg,
+  Vcl.Imaging.pngimage,
   Data.DB,
   Vittix.Report.Context;
 
@@ -963,6 +966,65 @@ begin
   FPicture.Assign(nil);
 end;
 
+function TryLoadPictureFromFile(APicture: TPicture; const AFileName: string): Boolean;
+var
+  Ext: string;
+  Meta: TMetafile;
+  Wic: TWICImage;
+begin
+  Result := False;
+  if not Assigned(APicture) then
+    Exit;
+
+  Ext := LowerCase(ExtractFileExt(AFileName));
+  if (Ext = '.emf') or (Ext = '.wmf') then
+  begin
+    Meta := TMetafile.Create;
+    try
+      try
+        Meta.LoadFromFile(AFileName);
+        if not Meta.Empty then
+        begin
+          APicture.Assign(Meta);
+          Result := Assigned(APicture.Graphic) and (not APicture.Graphic.Empty);
+        end;
+      except
+        APicture.Assign(nil);
+        Result := False;
+      end;
+    finally
+      Meta.Free;
+    end;
+    Exit;
+  end;
+
+  try
+    APicture.LoadFromFile(AFileName);
+    Result := Assigned(APicture.Graphic) and (not APicture.Graphic.Empty);
+    if Result then
+      Exit;
+  except
+    APicture.Assign(nil);
+  end;
+
+  Wic := TWICImage.Create;
+  try
+    try
+      Wic.LoadFromFile(AFileName);
+      if not Wic.Empty then
+      begin
+        APicture.Assign(Wic);
+        Result := Assigned(APicture.Graphic) and (not APicture.Graphic.Empty);
+      end;
+    except
+      APicture.Assign(nil);
+      Result := False;
+    end;
+  finally
+    Wic.Free;
+  end;
+end;
+
 procedure TReportImageObject.Draw(C: TCanvas; const Context: TExpressionContext);
 var
   R:              TRect;
@@ -1018,9 +1080,7 @@ begin
       if FileExists(PathOrBase64) then
       begin
         try
-          FCachedPicture.LoadFromFile(PathOrBase64);
-          FCachedImageValid := Assigned(FCachedPicture.Graphic) and
-                               (not FCachedPicture.Graphic.Empty);
+          FCachedImageValid := TryLoadPictureFromFile(FCachedPicture, PathOrBase64);
           if FCachedImageValid then
             FPicture.Assign(FCachedPicture);
         except
