@@ -40,6 +40,7 @@ uses
   Vittix.Report.Scripting,
   Vittix.Report.LayoutCache,
   Vittix.Report.LayoutPagination,
+  Vittix.Report.UserDataSet,
   Vittix.Report.Interfaces;   // IReportProgress
 
 type
@@ -91,7 +92,9 @@ type
   private
     FReport:   TReportModel;
     FDataSet:  TDataSet;
+    FUserDataSet: TVittixUserDataSet;
     FNamedDataSets: TDictionary<string, TDataSet>;
+    FNamedUserDataSets: TDictionary<string, TVittixUserDataSet>;
     FScriptEngine: TReportScriptEngine;
     FProgress: IReportProgress;   // optional; nil = no progress feedback
     FParameters: TStrings;
@@ -137,6 +140,8 @@ type
       AReport:        TReportModel;
       ADataSet:       TDataSet;
       ANamedDataSets: TDictionary<string, TDataSet>;
+      AUserDataSet:   TVittixUserDataSet;
+      ANamedUserDataSets: TDictionary<string, TVittixUserDataSet>;
       AProgress:      IReportProgress);
     procedure CacheBands;
     procedure StartNewPage;
@@ -157,15 +162,23 @@ type
     procedure CloseRemainingGroups(const AActiveGroupHeader: TBooleanDynArray; AHasAnyActiveGroup: Boolean; AHasOpenedGroups: Boolean);
     procedure PrintSummaryWithSpaceCheck;
     function FinalizePass(const AActiveGroupHeader: TBooleanDynArray; AHasAnyActiveGroup, AHasOpenedGroups: Boolean): Integer;
-    procedure PrintBand(ABand: TReportBand; ADataSet: TDataSet = nil; AEffectiveHeight: Integer = -1);
-    procedure PrintBandWithSpaceCheck(ABand: TReportBand; ADataSet: TDataSet = nil);
-    function  ComputeEffectiveBandHeight(ABand: TReportBand; ADataSet: TDataSet): Integer;
+    procedure PrintBand(ABand: TReportBand; ADataSet: TDataSet = nil;
+      AEffectiveHeight: Integer = -1; AUserDataSet: TVittixUserDataSet = nil);
+    procedure PrintBandWithSpaceCheck(ABand: TReportBand; ADataSet: TDataSet = nil;
+      AUserDataSet: TVittixUserDataSet = nil);
+    function  ComputeEffectiveBandHeight(ABand: TReportBand; ADataSet: TDataSet;
+      AUserDataSet: TVittixUserDataSet = nil): Integer;
     function  BandHasChildPageBreak(ABand: TReportBand; ABefore: Boolean): Boolean;
     function  ResolveBandDataSet(ABand: TReportBand): TDataSet;
+    function  ResolveBandUserDataSet(ABand: TReportBand): TVittixUserDataSet;
+    function  PrimarySourceActive: Boolean;
+    function  SourceFieldValue(ADataSet: TDataSet; AUserDataSet: TVittixUserDataSet;
+      const AFieldName: string): Variant;
     function  CaptureDataSetBookmark(ADataSet: TDataSet; out ABookmark: TBookmark): Boolean;
     procedure RestoreDataSetBookmark(ADataSet: TDataSet; ABookmark: TBookmark; AHasBookmark: Boolean);
     function  ComputeFirstDetailRowsHeight: Integer;
-    procedure PrintDetailBandRecords(ABand: TReportBand; ADetailDS: TDataSet);
+    procedure PrintDetailBandRecords(ABand: TReportBand; ADetailDS: TDataSet;
+      ADetailUDS: TVittixUserDataSet);
     procedure PrintDetailBands;
     function  ExecutePass(ATotalPages: Integer; AReportProgress: Boolean): Integer;
     function  CheckSpace(RequiredHeight: Integer): Boolean;
@@ -189,6 +202,11 @@ type
       AReport:        TReportModel;
       ADataSet:       TDataSet;
       ANamedDataSets: TDictionary<string, TDataSet>;
+      AProgress:      IReportProgress); overload;
+    constructor Create(
+      AReport:        TReportModel;
+      AUserDataSet:   TVittixUserDataSet;
+      ANamedUserDataSets: TDictionary<string, TVittixUserDataSet>;
       AProgress:      IReportProgress); overload;
     destructor Destroy; override;
 
@@ -232,16 +250,23 @@ procedure TReportEngine.Initialize(
   AReport:        TReportModel;
   ADataSet:       TDataSet;
   ANamedDataSets: TDictionary<string, TDataSet>;
+  AUserDataSet:   TVittixUserDataSet;
+  ANamedUserDataSets: TDictionary<string, TVittixUserDataSet>;
   AProgress:      IReportProgress);
 begin
   FReport   := AReport;
   FDataSet  := ADataSet;
+  FUserDataSet := AUserDataSet;
   FNamedDataSets := TDictionary<string, TDataSet>.Create;
+  FNamedUserDataSets := TDictionary<string, TVittixUserDataSet>.Create;
   FScriptEngine := TReportScriptEngine.Create(nil);
   FParameters := TStringList.Create;
   if Assigned(ANamedDataSets) then
     for var Pair in ANamedDataSets do
       FNamedDataSets.AddOrSetValue(Pair.Key, Pair.Value);
+  if Assigned(ANamedUserDataSets) then
+    for var UserPair in ANamedUserDataSets do
+      FNamedUserDataSets.AddOrSetValue(UserPair.Key, UserPair.Value);
   FProgress := AProgress;
   FPages    := TObjectList<TMetafile>.Create(True);
 
@@ -263,7 +288,7 @@ constructor TReportEngine.Create(
   AProgress: IReportProgress);
 begin
   inherited Create;
-  Initialize(AReport, ADataSet, nil, AProgress);
+  Initialize(AReport, ADataSet, nil, nil, nil, AProgress);
 end;
 
 constructor TReportEngine.Create(
@@ -273,7 +298,17 @@ constructor TReportEngine.Create(
   AProgress:      IReportProgress);
 begin
   inherited Create;
-  Initialize(AReport, ADataSet, ANamedDataSets, AProgress);
+  Initialize(AReport, ADataSet, ANamedDataSets, nil, nil, AProgress);
+end;
+
+constructor TReportEngine.Create(
+  AReport:        TReportModel;
+  AUserDataSet:   TVittixUserDataSet;
+  ANamedUserDataSets: TDictionary<string, TVittixUserDataSet>;
+  AProgress:      IReportProgress);
+begin
+  inherited Create;
+  Initialize(AReport, nil, nil, AUserDataSet, ANamedUserDataSets, AProgress);
 end;
 
 destructor TReportEngine.Destroy;
@@ -295,6 +330,7 @@ begin
 
   FPages.Free;
   FNamedDataSets.Free;
+  FNamedUserDataSets.Free;
   FParameters.Free;
   FScriptEngine.Free;
   FGroupHeaders.Free;
@@ -377,6 +413,7 @@ begin
           FOverlayBand.Bounds := Rect(0, 0, FPageWidth, FPageHeight);
           var Ctx2: TExpressionContext := Default(TExpressionContext);
           Ctx2.DataSet    := FDataSet;
+          Ctx2.UserDataSet := FUserDataSet;
           Ctx2.PageNumber := FPageNumber;
           Ctx2.TotalPages := FTotalPagesForPass;
           Ctx2.RowNumber  := FRowNumber;
@@ -418,7 +455,7 @@ begin
 end;
 
 function TReportEngine.ComputeEffectiveBandHeight(ABand: TReportBand;
-  ADataSet: TDataSet): Integer;
+  ADataSet: TDataSet; AUserDataSet: TVittixUserDataSet): Integer;
 var
   Ctx: TExpressionContext;
   MaxBottom: Integer;
@@ -435,9 +472,12 @@ begin
 
   if not Assigned(ADataSet) then
     ADataSet := FDataSet;
+  if not Assigned(AUserDataSet) then
+    AUserDataSet := FUserDataSet;
 
   Ctx := Default(TExpressionContext);
   Ctx.DataSet     := ADataSet;
+  Ctx.UserDataSet := AUserDataSet;
   Ctx.GroupStart  := FGroupStartBookmark;
   Ctx.GroupEnd    := FGroupEndBookmark;
   Ctx.PageNumber  := FPageNumber;
@@ -573,9 +613,8 @@ begin
     GH := FGroupHeaders[I];
     GroupByField := nil;
     AActiveGroupHeader[I] :=
-      Assigned(FDataSet) and FDataSet.Active and
-      (Trim(GH.GroupField) <> '') and
-      TryGetField(FDataSet, GH.GroupField, GroupByField);
+      PrimarySourceActive and (Trim(GH.GroupField) <> '') and
+      (Assigned(FUserDataSet) or TryGetField(FDataSet, GH.GroupField, GroupByField));
     if AActiveGroupHeader[I] then
       Result := True;
   end;
@@ -597,10 +636,10 @@ begin
 
     GH := FGroupHeaders[I];
     GroupByField := nil;
-    if not TryGetField(FDataSet, GH.GroupField, GroupByField) then
+    if not Assigned(FUserDataSet) and not TryGetField(FDataSet, GH.GroupField, GroupByField) then
       Continue;
 
-    NewValue := GroupByField.Value;
+    NewValue := SourceFieldValue(FDataSet, FUserDataSet, GH.GroupField);
     if VarIsNull(FLastGroupValues[I]) or (NewValue <> FLastGroupValues[I]) then
       Exit(I);
   end;
@@ -614,9 +653,9 @@ begin
   Inc(ARowNumber);
   FRowNumber := ARowNumber;
 
-  EffH := ComputeEffectiveBandHeight(FMasterBand, FDataSet);
+  EffH := ComputeEffectiveBandHeight(FMasterBand, FDataSet, FUserDataSet);
   EnsurePageSpaceForBand(EffH + ComputeFirstDetailRowsHeight, True);
-  PrintBand(FMasterBand, FDataSet, EffH);
+  PrintBand(FMasterBand, FDataSet, EffH, FUserDataSet);
   PrintDetailBands;
 
   Result := True;
@@ -633,7 +672,30 @@ procedure TReportEngine.ProcessMasterDataLoop(
 var
   BreakLevel: Integer;
 begin
-  if not (Assigned(FDataSet) and FDataSet.Active) then
+  if not PrimarySourceActive then
+    Exit;
+
+  if Assigned(FUserDataSet) then
+  begin
+    FUserDataSet.First;
+    while not FUserDataSet.Eof do
+    begin
+      FRowNumber := ARowNumber + 1;
+      BreakLevel := DetectGroupBreak(AActiveGroupHeader);
+
+      if (BreakLevel >= 0) and AHasOpenedGroups then
+        CloseGroupsForBreak(BreakLevel, AActiveGroupHeader);
+
+      if BreakLevel >= 0 then
+        OpenGroupsForBreak(BreakLevel, AActiveGroupHeader, AHasOpenedGroups);
+
+      if not ProcessCurrentMasterRecord(AReportProgress, ARowNumber) then
+        Break;
+
+      FUserDataSet.Next;
+    end;
+  end;
+  if not Assigned(FDataSet) or not FDataSet.Active then
     Exit;
 
   FDataSet.DisableControls;
@@ -754,8 +816,8 @@ begin
     end;
 
     GroupByField := nil;
-    if TryGetField(FDataSet, GH.GroupField, GroupByField) then
-      FLastGroupValues[I] := GroupByField.Value;
+    if Assigned(FUserDataSet) or TryGetField(FDataSet, GH.GroupField, GroupByField) then
+      FLastGroupValues[I] := SourceFieldValue(FDataSet, FUserDataSet, GH.GroupField);
   end;
 
   if OpenedThisBreak then
@@ -803,7 +865,8 @@ end;
 
 { ================= Band Printing ================= }
 
-procedure TReportEngine.PrintBand(ABand: TReportBand; ADataSet: TDataSet; AEffectiveHeight: Integer);
+procedure TReportEngine.PrintBand(ABand: TReportBand; ADataSet: TDataSet;
+  AEffectiveHeight: Integer; AUserDataSet: TVittixUserDataSet);
 var
   Ctx: TExpressionContext;
   AdjustedObjs: array of TReportObject;
@@ -813,6 +876,8 @@ var
 begin
   if not Assigned(ADataSet) then
     ADataSet := FDataSet;
+  if not Assigned(AUserDataSet) then
+    AUserDataSet := FUserDataSet;
 
   if not Assigned(ABand) then Exit;
   if not Assigned(FCanvas) then Exit;
@@ -833,6 +898,7 @@ begin
   begin
     var Ctx0: TExpressionContext := Default(TExpressionContext);
     Ctx0.DataSet     := ADataSet;
+    Ctx0.UserDataSet := AUserDataSet;
     Ctx0.PageNumber := FPageNumber;
     Ctx0.TotalPages := FTotalPagesForPass;
     Ctx0.RowNumber := FRowNumber;
@@ -853,6 +919,7 @@ begin
 
   // Build render context early — needed for CanGrow MeasuredBottom calls
   Ctx.DataSet     := ADataSet;
+  Ctx.UserDataSet := AUserDataSet;
   Ctx.GroupStart  := FGroupStartBookmark;
   Ctx.GroupEnd    := FGroupEndBookmark;
   Ctx.PageNumber  := FPageNumber;
@@ -954,17 +1021,18 @@ begin
   end;
 end;
 
-procedure TReportEngine.PrintBandWithSpaceCheck(ABand: TReportBand; ADataSet: TDataSet);
+procedure TReportEngine.PrintBandWithSpaceCheck(ABand: TReportBand;
+  ADataSet: TDataSet; AUserDataSet: TVittixUserDataSet);
 var
   EffH: Integer;
 begin
   if not Assigned(ABand) then
     Exit;
 
-  EffH := ComputeEffectiveBandHeight(ABand, ADataSet);
+  EffH := ComputeEffectiveBandHeight(ABand, ADataSet, AUserDataSet);
   EnsurePageSpaceForBand(EffH);
 
-  PrintBand(ABand, ADataSet, EffH);
+  PrintBand(ABand, ADataSet, EffH, AUserDataSet);
 end;
 
 function TReportEngine.ResolveBandDataSet(ABand: TReportBand): TDataSet;
@@ -981,6 +1049,34 @@ begin
 
   // Unknown dataset name: no data for this band.
   Result := nil;
+end;
+
+function TReportEngine.ResolveBandUserDataSet(
+  ABand: TReportBand): TVittixUserDataSet;
+begin
+  Result := FUserDataSet;
+  if not Assigned(ABand) then
+    Exit;
+
+  if Trim(ABand.DataSetName) = '' then
+    Exit;
+
+  if Assigned(FNamedUserDataSets) and
+     FNamedUserDataSets.TryGetValue(ABand.DataSetName, Result) then
+    Exit;
+
+  Result := nil;
+end;
+
+function TReportEngine.PrimarySourceActive: Boolean;
+begin
+  Result := SourceActive(FDataSet, FUserDataSet);
+end;
+
+function TReportEngine.SourceFieldValue(ADataSet: TDataSet;
+  AUserDataSet: TVittixUserDataSet; const AFieldName: string): Variant;
+begin
+  Result := SafeSourceFieldValue(ADataSet, AUserDataSet, AFieldName);
 end;
 
 function TReportEngine.CaptureDataSetBookmark(
@@ -1007,6 +1103,7 @@ function TReportEngine.ComputeFirstDetailRowsHeight: Integer;
 var
   Band: TReportBand;
   DetailDS: TDataSet;
+  DetailUDS: TVittixUserDataSet;
   SaveBM: TBookmark;
   HasSaveBM: Boolean;
   MasterValue: Variant;
@@ -1019,20 +1116,46 @@ begin
   for Band in FDetailBands do
   begin
     DetailDS := ResolveBandDataSet(Band);
-    if not Assigned(DetailDS) or not DetailDS.Active then
+    DetailUDS := ResolveBandUserDataSet(Band);
+    if not SourceActive(DetailDS, DetailUDS) then
       Continue;
+
+    if Assigned(DetailUDS) then
+    begin
+      HasMasterField :=
+        (Band.MasterField <> '') and (Band.DetailField <> '') and
+        PrimarySourceActive;
+
+      if HasMasterField then
+        MasterValue := SourceFieldValue(FDataSet, FUserDataSet, Band.MasterField)
+      else
+        MasterValue := Null;
+
+      DetailUDS.First;
+      while not DetailUDS.Eof do
+      begin
+        if (not HasMasterField) or
+           VarSameValue(SourceFieldValue(nil, DetailUDS, Band.DetailField), MasterValue) then
+        begin
+          Inc(Result, ComputeEffectiveBandHeight(Band, nil, DetailUDS));
+          Break;
+        end;
+        DetailUDS.Next;
+      end;
+      Continue;
+    end;
 
     HasSaveBM := CaptureDataSetBookmark(DetailDS, SaveBM);
     DetailDS.DisableControls;
     try
       HasMasterField :=
-        Assigned(FDataSet) and FDataSet.Active and
+        PrimarySourceActive and
         (Band.MasterField <> '') and (Band.DetailField <> '') and
-        TryGetField(FDataSet, Band.MasterField, MasterFld) and
+        (Assigned(FUserDataSet) or TryGetField(FDataSet, Band.MasterField, MasterFld)) and
         TryGetField(DetailDS, Band.DetailField, DetailFld);
 
       if HasMasterField then
-        MasterValue := MasterFld.Value
+        MasterValue := SourceFieldValue(FDataSet, FUserDataSet, Band.MasterField)
       else
         MasterValue := Null;
 
@@ -1053,7 +1176,8 @@ begin
   end;
 end;
 
-procedure TReportEngine.PrintDetailBandRecords(ABand: TReportBand; ADetailDS: TDataSet);
+procedure TReportEngine.PrintDetailBandRecords(ABand: TReportBand;
+  ADetailDS: TDataSet; ADetailUDS: TVittixUserDataSet);
 var
   MasterValue: Variant;
   HasMasterField: Boolean;
@@ -1061,14 +1185,40 @@ var
   MasterFld: TField;
   DetailFld: TField;
 begin
+  if Assigned(ADetailUDS) then
+  begin
+    HasMasterField :=
+      (ABand.MasterField <> '') and (ABand.DetailField <> '') and
+      PrimarySourceActive;
+
+    if HasMasterField then
+      MasterValue := SourceFieldValue(FDataSet, FUserDataSet, ABand.MasterField)
+    else
+      MasterValue := Null;
+
+    ADetailUDS.First;
+    while not ADetailUDS.Eof do
+    begin
+      if (not HasMasterField) or
+         VarSameValue(SourceFieldValue(nil, ADetailUDS, ABand.DetailField), MasterValue) then
+      begin
+        EffH := ComputeEffectiveBandHeight(ABand, nil, ADetailUDS);
+        EnsurePageSpaceForBand(EffH, True);
+        PrintBand(ABand, nil, EffH, ADetailUDS);
+      end;
+      ADetailUDS.Next;
+    end;
+    Exit;
+  end;
+
   HasMasterField :=
-    Assigned(FDataSet) and FDataSet.Active and
+    PrimarySourceActive and
     (ABand.MasterField <> '') and (ABand.DetailField <> '') and
-    TryGetField(FDataSet, ABand.MasterField, MasterFld) and
+    (Assigned(FUserDataSet) or TryGetField(FDataSet, ABand.MasterField, MasterFld)) and
     TryGetField(ADetailDS, ABand.DetailField, DetailFld);
 
   if HasMasterField then
-    MasterValue := MasterFld.Value
+    MasterValue := SourceFieldValue(FDataSet, FUserDataSet, ABand.MasterField)
   else
     MasterValue := Null;
 
@@ -1089,20 +1239,28 @@ procedure TReportEngine.PrintDetailBands;
 var
   Band: TReportBand;
   DetailDS: TDataSet;
+  DetailUDS: TVittixUserDataSet;
   SaveBM: TBookmark;
   HasSaveBM: Boolean;
 begin
   for Band in FDetailBands do
   begin
     DetailDS := ResolveBandDataSet(Band);
-    if not Assigned(DetailDS) or not DetailDS.Active then
+    DetailUDS := ResolveBandUserDataSet(Band);
+    if not SourceActive(DetailDS, DetailUDS) then
       Continue;
+
+    if Assigned(DetailUDS) then
+    begin
+      PrintDetailBandRecords(Band, nil, DetailUDS);
+      Continue;
+    end;
 
     HasSaveBM := CaptureDataSetBookmark(DetailDS, SaveBM);
 
     DetailDS.DisableControls;
     try
-      PrintDetailBandRecords(Band, DetailDS);
+      PrintDetailBandRecords(Band, DetailDS, nil);
     finally
       RestoreDataSetBookmark(DetailDS, SaveBM, HasSaveBM);
       DetailDS.EnableControls;
@@ -1165,11 +1323,11 @@ begin
 
     if Assigned(FMasterBand) then
     begin
-      if not Assigned(FDataSet) then
+      if not Assigned(FDataSet) and not Assigned(FUserDataSet) then
         raise EReportException.Create(
           'DataSet must be assigned to the report engine.');
 
-      if not FDataSet.Active then
+      if not PrimarySourceActive then
         raise EReportException.Create(
           'DataSet must be active to generate the report.');
     end;

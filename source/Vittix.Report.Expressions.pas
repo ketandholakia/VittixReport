@@ -202,19 +202,30 @@ begin
         Result := Result + '0';
       end
       // 2. Then dataset fields
-      else if not Assigned(ADataSet) then
+      else if not Assigned(ADataSet) and not Assigned(Context.UserDataSet) then
       begin
 {$IFDEF DEBUG}
         DebugLogUnresolvedToken(S, TokenName, 'dataset nil');
 {$ENDIF}
         Result := Result + '0';
       end
-      else if not ADataSet.Active then
+      else if not SourceActive(ADataSet, Context.UserDataSet) then
       begin
 {$IFDEF DEBUG}
         DebugLogUnresolvedToken(S, TokenName, 'dataset inactive');
 {$ENDIF}
         Result := Result + '0';
+      end
+      else if Assigned(Context.UserDataSet) then
+      begin
+        try
+          Result := Result + SafeSourceFieldAsString(ADataSet, Context.UserDataSet, TokenName);
+        except
+{$IFDEF DEBUG}
+          DebugLogUnresolvedToken(S, TokenName, 'field conversion error');
+{$ENDIF}
+          Result := Result + '0';
+        end;
       end
       else if TryGetField(ADataSet, TokenName, F) then
       begin

@@ -58,6 +58,21 @@ function SafeFieldValue(ADataSet: TDataSet; const AFieldName: string): Variant;
 /// </summary>
 function SafeFieldAsString(ADataSet: TDataSet; const AFieldName: string): string;
 
+/// <summary>
+///   Returns True when either a TVittixUserDataSet source or TDataSet source
+///   is active. AUserDataSet is TObject to keep Context decoupled.
+/// </summary>
+function SourceActive(ADataSet: TDataSet; AUserDataSet: TObject): Boolean;
+
+/// <summary>
+///   Reads from TVittixUserDataSet.GetValue when present, otherwise TDataSet.
+/// </summary>
+function SafeSourceFieldValue(ADataSet: TDataSet; AUserDataSet: TObject;
+  const AFieldName: string): Variant;
+
+function SafeSourceFieldAsString(ADataSet: TDataSet; AUserDataSet: TObject;
+  const AFieldName: string): string;
+
 {$IFDEF DEBUG}
 procedure DebugLogDataFieldIssue(const AObjClass, AObjName, ADataField, AReason: string;
   ADataSet: TDataSet);
@@ -94,7 +109,8 @@ function CollapseWhitespace(const S: string): string;
 implementation
 
 uses
-  System.Classes
+  System.Classes,
+  Vittix.Report.UserDataSet
 {$IFDEF DEBUG}
   , Winapi.Windows
 {$ENDIF};
@@ -228,6 +244,53 @@ var
 begin
   Result := '';
   V := SafeFieldValue(ADataSet, AFieldName);
+  if VarIsNull(V) or System.Variants.VarIsEmpty(V) then
+    Exit;
+
+  try
+    Result := VarToStr(V);
+  except
+    Result := '';
+  end;
+end;
+
+function SourceActive(ADataSet: TDataSet; AUserDataSet: TObject): Boolean;
+begin
+  if AUserDataSet is TVittixUserDataSet then
+    Exit(TVittixUserDataSet(AUserDataSet).Active);
+
+  Result := Assigned(ADataSet) and ADataSet.Active;
+end;
+
+function SafeSourceFieldValue(ADataSet: TDataSet; AUserDataSet: TObject;
+  const AFieldName: string): Variant;
+begin
+  Result := Null;
+  if Trim(AFieldName) = '' then
+    Exit;
+
+  if AUserDataSet is TVittixUserDataSet then
+  begin
+    try
+      Result := TVittixUserDataSet(AUserDataSet).GetValue(AFieldName);
+      if VarIsNull(Result) or System.Variants.VarIsEmpty(Result) then
+        Result := Null;
+    except
+      Result := Null;
+    end;
+    Exit;
+  end;
+
+  Result := SafeFieldValue(ADataSet, AFieldName);
+end;
+
+function SafeSourceFieldAsString(ADataSet: TDataSet; AUserDataSet: TObject;
+  const AFieldName: string): string;
+var
+  V: Variant;
+begin
+  Result := '';
+  V := SafeSourceFieldValue(ADataSet, AUserDataSet, AFieldName);
   if VarIsNull(V) or System.Variants.VarIsEmpty(V) then
     Exit;
 

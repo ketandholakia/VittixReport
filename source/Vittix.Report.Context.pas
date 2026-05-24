@@ -36,6 +36,7 @@ type
   TExpressionContext = record
     { Dataset access }
     DataSet:    TDataSet;
+    UserDataSet: TObject;   // optional TVittixUserDataSet, kept as TObject to avoid unit cycles
     // Borrowed bookmarks owned by the report engine. Do not store context
     // copies beyond the current Draw/PrintBand call.
     GroupStart: TBookmark;  // nil = full dataset

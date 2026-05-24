@@ -678,10 +678,10 @@ begin
   // Resolve text value
   if FExpression <> '' then
     S := VarToStr(TReportExpression.Evaluate(FExpression, Context))
-  else if (FDataField <> '') and Assigned(Context.DataSet) and Context.DataSet.Active then
+  else if (FDataField <> '') and SourceActive(Context.DataSet, Context.UserDataSet) then
   begin
 {$IFDEF DEBUG}
-    if not TryGetField(Context.DataSet, FDataField, Fld) then
+    if not Assigned(Context.UserDataSet) and not TryGetField(Context.DataSet, FDataField, Fld) then
       DebugLogDataFieldIssue(Self, FDataField, 'field missing', Context.DataSet);
     if Assigned(Fld) then
       try
@@ -695,18 +695,18 @@ begin
 {$ENDIF}
     if Self is TReportFieldObject then
       S := FormatFieldDisplayValue(
-        SafeFieldValue(Context.DataSet, FDataField),
+        SafeSourceFieldValue(Context.DataSet, Context.UserDataSet, FDataField),
         TReportFieldObject(Self).FDisplayFormat,
         TReportFieldObject(Self).FEditMask)
     else
-      S := SafeFieldAsString(Context.DataSet, FDataField);
+      S := SafeSourceFieldAsString(Context.DataSet, Context.UserDataSet, FDataField);
   end
 {$IFDEF DEBUG}
   else if FDataField <> '' then
   begin
-    if not Assigned(Context.DataSet) then
+    if not Assigned(Context.DataSet) and not Assigned(Context.UserDataSet) then
       DebugLogDataFieldIssue(Self, FDataField, 'dataset nil', Context.DataSet)
-    else if not Context.DataSet.Active then
+    else if not SourceActive(Context.DataSet, Context.UserDataSet) then
       DebugLogDataFieldIssue(Self, FDataField, 'dataset inactive', Context.DataSet);
     S := FText;
   end
@@ -807,15 +807,15 @@ begin
 
   if FExpression <> '' then
     S := VarToStr(TReportExpression.Evaluate(FExpression, Context))
-  else if (FDataField <> '') and Assigned(Context.DataSet) and Context.DataSet.Active then
+  else if (FDataField <> '') and SourceActive(Context.DataSet, Context.UserDataSet) then
   begin
     if Self is TReportFieldObject then
       S := FormatFieldDisplayValue(
-        SafeFieldValue(Context.DataSet, FDataField),
+        SafeSourceFieldValue(Context.DataSet, Context.UserDataSet, FDataField),
         TReportFieldObject(Self).FDisplayFormat,
         TReportFieldObject(Self).FEditMask)
     else
-      S := SafeFieldAsString(Context.DataSet, FDataField);
+      S := SafeSourceFieldAsString(Context.DataSet, Context.UserDataSet, FDataField);
   end
   else
     S := FText;
@@ -978,11 +978,11 @@ begin
   if FDataField <> '' then
   begin
 {$IFDEF DEBUG}
-    if not Assigned(Context.DataSet) then
+    if not Assigned(Context.DataSet) and not Assigned(Context.UserDataSet) then
       DebugLogDataFieldIssue(Self, FDataField, 'dataset nil', Context.DataSet)
-    else if not Context.DataSet.Active then
+    else if not SourceActive(Context.DataSet, Context.UserDataSet) then
       DebugLogDataFieldIssue(Self, FDataField, 'dataset inactive', Context.DataSet)
-    else if not TryGetField(Context.DataSet, FDataField, Fld) then
+    else if not Assigned(Context.UserDataSet) and not TryGetField(Context.DataSet, FDataField, Fld) then
       DebugLogDataFieldIssue(Self, FDataField, 'field missing', Context.DataSet);
     if Assigned(Fld) then
       try
@@ -991,7 +991,7 @@ begin
         DebugLogDataFieldIssue(Self, FDataField, 'field value conversion/read error', Context.DataSet);
       end;
 {$ENDIF}
-    PathOrBase64 := SafeFieldAsString(Context.DataSet, FDataField);
+    PathOrBase64 := SafeSourceFieldAsString(Context.DataSet, Context.UserDataSet, FDataField);
     FPicture.Assign(nil); // avoid stale image reuse when field is blank/missing/null
 
     if PathOrBase64 = '' then
@@ -1142,11 +1142,10 @@ var
 begin
   if AMemo.FExpression <> '' then
     Result := VarToStr(TReportExpression.Evaluate(AMemo.FExpression, Context))
-  else if (AMemo.FDataField <> '') and Assigned(Context.DataSet)
-       and Context.DataSet.Active then
+  else if (AMemo.FDataField <> '') and SourceActive(Context.DataSet, Context.UserDataSet) then
   begin
 {$IFDEF DEBUG}
-    if not TryGetField(Context.DataSet, AMemo.FDataField, Fld) then
+    if not Assigned(Context.UserDataSet) and not TryGetField(Context.DataSet, AMemo.FDataField, Fld) then
       DebugLogDataFieldIssue(AMemo, AMemo.FDataField, 'field missing', Context.DataSet);
     if Assigned(Fld) then
       try
@@ -1155,14 +1154,14 @@ begin
         DebugLogDataFieldIssue(AMemo, AMemo.FDataField, 'field value conversion/read error', Context.DataSet);
       end;
 {$ENDIF}
-    Result := SafeFieldAsString(Context.DataSet, AMemo.FDataField)
+    Result := SafeSourceFieldAsString(Context.DataSet, Context.UserDataSet, AMemo.FDataField)
   end
 {$IFDEF DEBUG}
   else if AMemo.FDataField <> '' then
   begin
-    if not Assigned(Context.DataSet) then
+    if not Assigned(Context.DataSet) and not Assigned(Context.UserDataSet) then
       DebugLogDataFieldIssue(AMemo, AMemo.FDataField, 'dataset nil', Context.DataSet)
-    else if not Context.DataSet.Active then
+    else if not SourceActive(Context.DataSet, Context.UserDataSet) then
       DebugLogDataFieldIssue(AMemo, AMemo.FDataField, 'dataset inactive', Context.DataSet);
     Result := AMemo.FText;
   end

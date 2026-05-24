@@ -72,6 +72,9 @@ type
     procedure BuildNamedDataSets(
       out APrimary: TDataSet;
       out ANamedDS: TDictionary<string, TDataSet>);
+    procedure BuildNamedUserDataSets(
+      out APrimary: TVittixUserDataSet;
+      out ANamedDS: TDictionary<string, TVittixUserDataSet>);
 
   protected
     procedure Notification(AComponent: TComponent;
@@ -281,6 +284,28 @@ begin
   end;
 end;
 
+procedure TVittixReport.BuildNamedUserDataSets(
+  out APrimary: TVittixUserDataSet;
+  out ANamedDS: TDictionary<string, TVittixUserDataSet>);
+var
+  I: Integer;
+  UDS: TVittixUserDataSet;
+begin
+  APrimary := nil;
+  ANamedDS := TDictionary<string, TVittixUserDataSet>.Create;
+
+  if FUserDataSets.Count = 0 then
+    Exit;
+
+  APrimary := FUserDataSets[0];
+  for I := 0 to FUserDataSets.Count - 1 do
+  begin
+    UDS := FUserDataSets[I];
+    if UDS.Name <> '' then
+      ANamedDS.AddOrSetValue(UDS.Name, UDS);
+  end;
+end;
+
 // ---------------------------------------------------------------------------
 //  Report file I/O
 // ---------------------------------------------------------------------------
@@ -366,6 +391,8 @@ var
   Model    : TReportModel;
   Primary  : TDataSet;
   NamedDS  : TDictionary<string, TDataSet>;
+  PrimaryUDS: TVittixUserDataSet;
+  NamedUDS : TDictionary<string, TVittixUserDataSet>;
   Renderer : TReportRenderer;
   Frm      : TForm;
   Preview  : TVittixReportPreview;
@@ -381,12 +408,16 @@ begin
 
   Model := TReportSerializer.LoadFromJSON(FReportJSON);
   BuildNamedDataSets(Primary, NamedDS);
+  BuildNamedUserDataSets(PrimaryUDS, NamedUDS);
   try
     Renderer := TReportRenderer.Create;
     try
       Renderer.Parameters.Assign(FParameters);
       Renderer.TwoPassRendering := FTwoPassRendering;
-      Renderer.Render(Model, Primary, NamedDS);
+      if Assigned(PrimaryUDS) then
+        Renderer.Render(Model, PrimaryUDS, NamedUDS)
+      else
+        Renderer.Render(Model, Primary, NamedDS);
 
       NavHelp := TPreviewNavHelper.Create;
       try
@@ -470,6 +501,7 @@ begin
       Renderer.Free;
     end;
   finally
+    NamedUDS.Free;
     NamedDS.Free;
     Model.Free;
   end;
@@ -484,6 +516,8 @@ var
   Model  : TReportModel;
   Primary: TDataSet;
   NamedDS: TDictionary<string, TDataSet>;
+  PrimaryUDS: TVittixUserDataSet;
+  NamedUDS: TDictionary<string, TVittixUserDataSet>;
   Renderer: TReportRenderer;
 begin
   if FReportJSON = '' then
@@ -491,17 +525,22 @@ begin
 
   Model := TReportSerializer.LoadFromJSON(FReportJSON);
   BuildNamedDataSets(Primary, NamedDS);
+  BuildNamedUserDataSets(PrimaryUDS, NamedUDS);
   try
     Renderer := TReportRenderer.Create;
     try
       Renderer.Parameters.Assign(FParameters);
       Renderer.TwoPassRendering := FTwoPassRendering;
-      Renderer.Render(Model, Primary, NamedDS);
+      if Assigned(PrimaryUDS) then
+        Renderer.Render(Model, PrimaryUDS, NamedUDS)
+      else
+        Renderer.Render(Model, Primary, NamedDS);
       Renderer.Print;
-    finally
-      Renderer.Free;
-    end;
   finally
+    Renderer.Free;
+  end;
+  finally
+    NamedUDS.Free;
     NamedDS.Free;
     Model.Free;
   end;
@@ -516,6 +555,8 @@ var
   Model  : TReportModel;
   Primary: TDataSet;
   NamedDS: TDictionary<string, TDataSet>;
+  PrimaryUDS: TVittixUserDataSet;
+  NamedUDS: TDictionary<string, TVittixUserDataSet>;
   Engine : TReportEngine;
 begin
   if FReportJSON = '' then
@@ -523,8 +564,12 @@ begin
 
   Model := TReportSerializer.LoadFromJSON(FReportJSON);
   BuildNamedDataSets(Primary, NamedDS);
+  BuildNamedUserDataSets(PrimaryUDS, NamedUDS);
   try
-    Engine := TReportEngine.Create(Model, Primary, NamedDS, nil);
+    if Assigned(PrimaryUDS) then
+      Engine := TReportEngine.Create(Model, PrimaryUDS, NamedUDS, nil)
+    else
+      Engine := TReportEngine.Create(Model, Primary, NamedDS, nil);
     try
       Engine.Parameters.Assign(FParameters);
       Engine.TwoPassRendering := FTwoPassRendering;
@@ -534,6 +579,7 @@ begin
       Engine.Free;
     end;
   finally
+    NamedUDS.Free;
     NamedDS.Free;
     Model.Free;
   end;
@@ -564,6 +610,8 @@ var
   Model  : TReportModel;
   Primary: TDataSet;
   NamedDS: TDictionary<string, TDataSet>;
+  PrimaryUDS: TVittixUserDataSet;
+  NamedUDS: TDictionary<string, TVittixUserDataSet>;
   Engine : TReportEngine;
 begin
   if not Assigned(AExporter) then
@@ -574,8 +622,12 @@ begin
 
   Model := TReportSerializer.LoadFromJSON(FReportJSON);
   BuildNamedDataSets(Primary, NamedDS);
+  BuildNamedUserDataSets(PrimaryUDS, NamedUDS);
   try
-    Engine := TReportEngine.Create(Model, Primary, NamedDS, nil);
+    if Assigned(PrimaryUDS) then
+      Engine := TReportEngine.Create(Model, PrimaryUDS, NamedUDS, nil)
+    else
+      Engine := TReportEngine.Create(Model, Primary, NamedDS, nil);
     try
       Engine.Parameters.Assign(FParameters);
       Engine.TwoPassRendering := FTwoPassRendering;
@@ -585,6 +637,7 @@ begin
       Engine.Free;
     end;
   finally
+    NamedUDS.Free;
     NamedDS.Free;
     Model.Free;
   end;

@@ -248,13 +248,15 @@ begin
   if Trim(FDataField) <> '' then
   begin
 {$IFDEF DEBUG}
-    if not Assigned(Context.DataSet) then
+    if not Assigned(Context.DataSet) and not Assigned(Context.UserDataSet) then
       DebugLogDataFieldIssue(Self, FDataField, 'dataset nil', Context.DataSet)
-    else if not Context.DataSet.Active then
+    else if not SourceActive(Context.DataSet, Context.UserDataSet) then
       DebugLogDataFieldIssue(Self, FDataField, 'dataset inactive', Context.DataSet);
 {$ENDIF}
     Fld := nil;
-    if TryGetField(Context.DataSet, FDataField, Fld) then
+    if Assigned(Context.UserDataSet) then
+      S := SafeSourceFieldAsString(Context.DataSet, Context.UserDataSet, FDataField)
+    else if TryGetField(Context.DataSet, FDataField, Fld) then
     begin
       try
         S := Fld.AsString; // preserve empty-string field values
@@ -266,7 +268,8 @@ begin
       end;
     end;
 {$IFDEF DEBUG}
-    if Assigned(Context.DataSet) and Context.DataSet.Active and (Fld = nil) then
+    if SourceActive(Context.DataSet, Context.UserDataSet) and
+       not Assigned(Context.UserDataSet) and (Fld = nil) then
       DebugLogDataFieldIssue(Self, FDataField, 'field missing', Context.DataSet);
 {$ENDIF}
   end;
