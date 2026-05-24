@@ -1442,7 +1442,10 @@ procedure TReportEngine.CaptureExportObjectCommand(
   const Context: TExpressionContext);
 var
   LineObj: TReportLineObject;
+  ShapeObj: TReportShapeObject;
   LineCmd: TReportExportLineCommand;
+  RectCmd: TReportExportRectangleCommand;
+  FillCmd: TReportExportFillRectangleCommand;
   R: TRect;
   CX: Integer;
   CY: Integer;
@@ -1480,6 +1483,60 @@ begin
       LineCmd.Y2 := R.Bottom;
     end;
     FCurrentExportPage.Commands.Add(LineCmd);
+  end;
+
+  if AObject is TReportShapeObject then
+  begin
+    ShapeObj := TReportShapeObject(AObject);
+    R := ShapeObj.Bounds;
+    OffsetRect(R, FExportOriginX, FExportOriginY);
+
+    case ShapeObj.ShapeType of
+      stRectangle:
+      begin
+        if ShapeObj.BrushStyle = bsSolid then
+        begin
+          FillCmd := TReportExportFillRectangleCommand.Create;
+          FillCmd.Bounds := R;
+          FillCmd.FillColor := ShapeObj.BrushColor;
+          FCurrentExportPage.Commands.Add(FillCmd);
+        end;
+
+        if ShapeObj.PenStyle <> psClear then
+        begin
+          RectCmd := TReportExportRectangleCommand.Create;
+          RectCmd.Bounds := R;
+          RectCmd.BorderColor := ShapeObj.PenColor;
+          RectCmd.BorderWidth := ShapeObj.PenWidth;
+          FCurrentExportPage.Commands.Add(RectCmd);
+        end;
+      end;
+
+      stLine, stDiagLine:
+      begin
+        if ShapeObj.PenStyle <> psClear then
+        begin
+          LineCmd := TReportExportLineCommand.Create;
+          LineCmd.Color := ShapeObj.PenColor;
+          LineCmd.Width := ShapeObj.PenWidth;
+          if ShapeObj.ShapeType = stLine then
+          begin
+            LineCmd.X1 := R.Left;
+            LineCmd.Y1 := (R.Top + R.Bottom) div 2;
+            LineCmd.X2 := R.Right;
+            LineCmd.Y2 := LineCmd.Y1;
+          end
+          else
+          begin
+            LineCmd.X1 := R.Left;
+            LineCmd.Y1 := R.Top;
+            LineCmd.X2 := R.Right;
+            LineCmd.Y2 := R.Bottom;
+          end;
+          FCurrentExportPage.Commands.Add(LineCmd);
+        end;
+      end;
+    end;
   end;
 end;
 

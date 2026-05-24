@@ -117,7 +117,9 @@ Initial implementation:
 - Added optional engine page capture plumbing.
 - Engine records export pages only during the final render pass and only when `ExportDocument` is assigned.
 - Added first object command capture for `TReportLineObject`.
-- Text, shape, image, barcode, table, and memo command capture are still pending.
+- Added basic shape command capture for rectangles, horizontal lines, and diagonal lines.
+- Text, image, barcode, table, and memo command capture are still pending.
+- RoundRect and ellipse shape capture are deferred until the command model supports them.
 - No runtime behavior changes yet.
 
 Rules:
