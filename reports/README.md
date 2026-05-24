@@ -40,6 +40,7 @@ These reports are intentionally not part of automatic regression and should be r
 - `VittixRunner` can be used with `--scripts` to focus on reports that contain object event text.
 - `VittixRunner --script-trace` prints script diagnostics without pagination checks.
 - `RunTests.bat` runs the full regression suite.
+- `RunTests-VectorPDF.bat` runs vector PDF smoke checks and keeps generated PDFs for manual inspection.
 - `RunTests-Scripts.bat` runs only script-bearing regression reports.
 - `RunTests-ScriptTrace.bat` runs trace-only diagnostics for script-bearing reports.
 

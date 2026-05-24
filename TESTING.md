@@ -23,6 +23,7 @@ Use this checklist before releases or major engine changes.
 - Confirm manual-only report `16_large_preview_warning.vrt` is not auto-run.
 - Run `RunTests.bat` for the full regression suite.
 - Confirm `RunTests.bat` also validates vector PDF command page counts and `%PDF-` smoke output.
+- Run `RunTests-VectorPDF.bat` to build, run vector PDF smoke checks, and keep generated PDFs for inspection.
 - Run `RunTests-Scripts.bat` to build and run only script-bearing regression reports.
 - Run `RunTests-ScriptTrace.bat` to build and run trace-only script diagnostics.
 - Run `VittixRunner --scripts` if you want the script-bearing filter without the batch wrapper.
