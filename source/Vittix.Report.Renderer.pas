@@ -110,7 +110,6 @@ var
   Engine: TReportEngine;
   i:      Integer;
   Page:   TRenderPage;
-  DC:     HDC;
   R:      TRect;
   PW, PH: Integer;
 begin
@@ -133,10 +132,9 @@ begin
     begin
       Page := TRenderPage.Create(PW, PH);
       try
-        DC := Page.Bitmap.Canvas.Handle;
         R  := Rect(0, 0, PW, PH);
 
-        PlayEnhMetaFile(DC, Engine.Pages[i].Handle, R);
+        Page.Bitmap.Canvas.StretchDraw(R, Engine.Pages[i]);
 
         FPages.Add(Page);
         Page := nil; // owned by FPages after Add
@@ -157,7 +155,6 @@ var
   Engine: TReportEngine;
   i:      Integer;
   Page:   TRenderPage;
-  DC:     HDC;
   R:      TRect;
   PW, PH: Integer;
 begin
@@ -179,10 +176,9 @@ begin
     begin
       Page := TRenderPage.Create(PW, PH);
       try
-        DC := Page.Bitmap.Canvas.Handle;
         R  := Rect(0, 0, PW, PH);
 
-        PlayEnhMetaFile(DC, Engine.Pages[i].Handle, R);
+        Page.Bitmap.Canvas.StretchDraw(R, Engine.Pages[i]);
 
         FPages.Add(Page);
         Page := nil;

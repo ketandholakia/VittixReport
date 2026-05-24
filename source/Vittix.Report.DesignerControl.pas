@@ -1758,6 +1758,14 @@ begin
     for Obj in BL.Band.Children do
     begin
       OR_ := ObjScreenRect(Obj);
+
+      if not FSelected.Contains(Obj) then
+      begin
+        Canvas.Brush.Style := bsClear;
+        Canvas.Pen.Color := $00C0C0C0;
+        Canvas.Rectangle(OR_);
+      end;
+
       OldBounds := Obj.Bounds;
       try
         Obj.Bounds := OR_;
@@ -1767,16 +1775,12 @@ begin
       end;
 
       { Object border }
+      Canvas.Brush.Style := bsClear;
       if FSelected.Contains(Obj) then
       begin
         Canvas.Pen.Color := $000080FF;   // bright selection color
         Canvas.Rectangle(OR_);
       end
-      else
-      begin
-        Canvas.Pen.Color := $00C0C0C0;
-        Canvas.Rectangle(OR_);
-      end;
     end;
   finally
     Winapi.Windows.RestoreDC(Canvas.Handle, SaveDC);

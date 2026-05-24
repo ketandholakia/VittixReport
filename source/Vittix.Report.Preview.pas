@@ -422,8 +422,6 @@ begin
       R.Bottom - Round(FMargins.Bottom * Scale));
     if (ContentR.Right > ContentR.Left) and (ContentR.Bottom > ContentR.Top) then
     begin
-      Canvas.Brush.Color := $00FAFAF0;
-      Canvas.FillRect(ContentR);
       Canvas.Brush.Style := bsClear;
       Canvas.Pen.Color := $00D0A060;
       Canvas.Pen.Style := psSolid;
