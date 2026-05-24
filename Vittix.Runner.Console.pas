@@ -66,6 +66,18 @@ begin
       Exit(True);
 end;
 
+procedure WriteUsage;
+begin
+  Writeln('Usage: VittixRunner [options] [reportfile.vrt]');
+  Writeln('');
+  Writeln('Options:');
+  Writeln('  --scripts          Run only script-bearing regression reports.');
+  Writeln('  --script-trace     Print script trace diagnostics without pagination checks.');
+  Writeln('  --keep-vector-pdf  Keep vector PDF smoke outputs under build\vector-pdf-smoke.');
+  Writeln('  -pause             Keep console open after completion.');
+  Writeln('  -h, --help         Show this help.');
+end;
+
 procedure TraceScriptObject(const AAdapter: TReportScriptHostAdapter; const AObject: TReportObject;
   const ALevel: Integer);
 var
@@ -182,6 +194,12 @@ begin
   Writeln('================================================');
   Writeln(' VittixReport Headless Regression Runner');
   Writeln('================================================');
+
+  if HasExactSwitch('--help') or HasExactSwitch('-h') then
+  begin
+    WriteUsage;
+    Halt(0);
+  end;
 
   RegisterBuiltInReportObjects;
 
