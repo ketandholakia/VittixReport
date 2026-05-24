@@ -283,6 +283,7 @@ begin
     Result.AddPair('CanShrink',           TJSONBool.Create(Band.CanShrink));
     Result.AddPair('BackColor',           TJSONNumber.Create(Band.BackColor));
     Result.AddPair('BackColorTransparent',TJSONBool.Create(Band.BackColorTransparent));
+    Result.AddPair('BackColorCondition',  Band.BackColorCondition);
     Result.AddPair('OnBeforePrint',       Band.OnBeforePrint);
     Result.AddPair('OnAfterPrint',        Band.OnAfterPrint);
 
@@ -493,6 +494,7 @@ begin
       Band.CanShrink            := O.GetValue<Boolean>('CanShrink',    False);
       Band.BackColor            := O.GetValue<Integer>('BackColor',    Integer(clWhite));
       Band.BackColorTransparent := O.GetValue<Boolean>('BackColorTransparent', True);
+      Band.BackColorCondition   := O.GetValue<string>('BackColorCondition', '');
       Band.OnBeforePrint        := O.GetValue<string>('OnBeforePrint', '');
       Band.OnAfterPrint         := O.GetValue<string>('OnAfterPrint',  '');
 

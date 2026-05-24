@@ -94,10 +94,10 @@ end;
 
 procedure PromoteImportantProperties(APropEditor: TValueListEditor; AObj: TReportObject);
 const
-  BandKeys: array[0..13] of string = (
+  BandKeys: array[0..14] of string = (
     'BandType', 'Height', 'DataSetName', 'GroupField', 'GroupLevel',
     'CanGrow', 'CanShrink', 'StartNewPage', 'Visible', 'PrintWhen',
-    'BackColor', 'BackColorTransparent',
+    'BackColor', 'BackColorTransparent', 'BackColorCondition',
     'OnBeforePrint', 'OnAfterPrint'
   );
   TextKeys: array[0..22] of string = (

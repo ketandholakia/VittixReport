@@ -48,7 +48,7 @@ function IsExpressionPropertyKey(const AKey: string): Boolean;
 begin
   Result := SameText(AKey, 'Expression') or SameText(AKey, 'PrintWhen') or
     SameText(AKey, 'FontColorCondition') or SameText(AKey, 'BackgroundCondition') or
-    SameText(AKey, 'BorderColorCondition');
+    SameText(AKey, 'BorderColorCondition') or SameText(AKey, 'BackColorCondition');
 end;
 
 function IsBandEventScriptRowKey(const AKey: string): Boolean;
@@ -63,6 +63,7 @@ begin
   if SameText(APropertyKey, 'BackgroundCondition') then Exit('backgroundcondition');
   if SameText(APropertyKey, 'FontColorCondition') then Exit('fontcolorcondition');
   if SameText(APropertyKey, 'BorderColorCondition') then Exit('bordercolorcondition');
+  if SameText(APropertyKey, 'BackColorCondition') then Exit('backcolorcondition');
   Result := '';
 end;
 

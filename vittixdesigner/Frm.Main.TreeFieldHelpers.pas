@@ -94,7 +94,8 @@ begin
   if (Length(AKey) >= 3) and (AKey[1] = '[') and (AKey[Length(AKey)] = ']') then
     Exit;
   Result := SameText(AKey, 'Text') or SameText(AKey, 'Expression') or SameText(AKey, 'PrintWhen') or
-    SameText(AKey, 'BackgroundCondition') or SameText(AKey, 'FontColorCondition') or SameText(AKey, 'BorderColorCondition');
+    SameText(AKey, 'BackgroundCondition') or SameText(AKey, 'FontColorCondition') or
+    SameText(AKey, 'BorderColorCondition') or SameText(AKey, 'BackColorCondition');
 end;
 
 procedure InsertVariableToken(APropEditor: TValueListEditor; APropEditorDirty: TProc<Boolean>; AUpdateHint: TProc<Integer>; const AToken: string);

@@ -183,6 +183,8 @@ begin
     Exit('fontcolorcondition');
   if SameText(APropertyKey, 'BorderColorCondition') then
     Exit('bordercolorcondition');
+  if SameText(APropertyKey, 'BackColorCondition') then
+    Exit('backcolorcondition');
   Result := '';
 end;
 

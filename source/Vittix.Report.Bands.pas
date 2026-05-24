@@ -42,6 +42,7 @@ type
     FCanShrink:          Boolean;
     FBackColor:          TColor;
     FBackColorTransparent: Boolean;
+    FBackColorCondition: string;
     FOnBeforePrint:      string;
     FOnAfterPrint:       string;
     FChildren: TObjectList<TReportObject>;
@@ -67,6 +68,7 @@ type
     property BackColorTransparent: Boolean
                                         read FBackColorTransparent
                                         write FBackColorTransparent default True;
+    property BackColorCondition: string read FBackColorCondition write FBackColorCondition;
     property OnBeforePrint: string read FOnBeforePrint write FOnBeforePrint;
     property OnAfterPrint:  string read FOnAfterPrint  write FOnAfterPrint;
   end;
@@ -74,7 +76,9 @@ type
 implementation
 
 uses
-  Winapi.Windows;
+  Winapi.Windows,
+  Vittix.Report.Expressions,
+  Vittix.Report.Utils;
 
 constructor TReportBand.Create;
 begin
@@ -97,11 +101,23 @@ procedure TReportBand.Draw(C: TCanvas; const Context: TExpressionContext);
 var
   Obj:    TReportObject;
   BandR:  TRect;
+  FillBackColor: Boolean;
+  ConditionResult: Variant;
 begin
   BandR := Rect(Bounds.Left, Bounds.Top, Bounds.Right, Bounds.Top + FHeight);
 
   // Background fill
-  if not FBackColorTransparent then
+  FillBackColor := not FBackColorTransparent;
+  if FBackColorCondition <> '' then
+  begin
+    try
+      ConditionResult := TReportExpression.Evaluate(FBackColorCondition, Context);
+      FillBackColor := ConditionVariantToBool(ConditionResult);
+    except
+      FillBackColor := False;
+    end;
+  end;
+  if FillBackColor then
   begin
     C.Brush.Color := FBackColor;
     C.Brush.Style := bsSolid;
