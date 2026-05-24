@@ -163,6 +163,7 @@ type
     function  ResolveBandDataSet(ABand: TReportBand): TDataSet;
     function  CaptureDataSetBookmark(ADataSet: TDataSet; out ABookmark: TBookmark): Boolean;
     procedure RestoreDataSetBookmark(ADataSet: TDataSet; ABookmark: TBookmark; AHasBookmark: Boolean);
+    function  ComputeFirstDetailRowsHeight: Integer;
     procedure PrintDetailBandRecords(ABand: TReportBand; ADetailDS: TDataSet);
     procedure PrintDetailBands;
     function  ExecutePass(ATotalPages: Integer; AReportProgress: Boolean): Integer;
@@ -599,7 +600,7 @@ begin
   FRowNumber := ARowNumber;
 
   EffH := ComputeEffectiveBandHeight(FMasterBand, FDataSet);
-  EnsurePageSpaceForBand(EffH, True);
+  EnsurePageSpaceForBand(EffH + ComputeFirstDetailRowsHeight, True);
   PrintBand(FMasterBand, FDataSet, EffH);
   PrintDetailBands;
 
@@ -972,6 +973,56 @@ begin
     ADataSet.GotoBookmark(ABookmark);
   if Assigned(ADataSet) and (ABookmark <> nil) then
     ADataSet.FreeBookmark(ABookmark);
+end;
+
+function TReportEngine.ComputeFirstDetailRowsHeight: Integer;
+var
+  Band: TReportBand;
+  DetailDS: TDataSet;
+  SaveBM: TBookmark;
+  HasSaveBM: Boolean;
+  MasterValue: Variant;
+  HasMasterField: Boolean;
+  MasterFld: TField;
+  DetailFld: TField;
+begin
+  Result := 0;
+
+  for Band in FDetailBands do
+  begin
+    DetailDS := ResolveBandDataSet(Band);
+    if not Assigned(DetailDS) or not DetailDS.Active then
+      Continue;
+
+    HasSaveBM := CaptureDataSetBookmark(DetailDS, SaveBM);
+    DetailDS.DisableControls;
+    try
+      HasMasterField :=
+        Assigned(FDataSet) and FDataSet.Active and
+        (Band.MasterField <> '') and (Band.DetailField <> '') and
+        TryGetField(FDataSet, Band.MasterField, MasterFld) and
+        TryGetField(DetailDS, Band.DetailField, DetailFld);
+
+      if HasMasterField then
+        MasterValue := MasterFld.Value
+      else
+        MasterValue := Null;
+
+      DetailDS.First;
+      while not DetailDS.Eof do
+      begin
+        if (not HasMasterField) or VarSameValue(DetailFld.Value, MasterValue) then
+        begin
+          Inc(Result, ComputeEffectiveBandHeight(Band, DetailDS));
+          Break;
+        end;
+        DetailDS.Next;
+      end;
+    finally
+      RestoreDataSetBookmark(DetailDS, SaveBM, HasSaveBM);
+      DetailDS.EnableControls;
+    end;
+  end;
 end;
 
 procedure TReportEngine.PrintDetailBandRecords(ABand: TReportBand; ADetailDS: TDataSet);
