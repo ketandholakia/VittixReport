@@ -43,6 +43,7 @@ object frmPreview: TfrmPreview
     object btnPrev:     TToolButton  Caption = 'Prev'     Hint = 'Previous Page' OnClick = btnPrevClick     end
     object btnNext:     TToolButton  Caption = 'Next'     Hint = 'Next Page'     OnClick = btnNextClick     end
     object btnLast:     TToolButton  Caption = 'Last'     Hint = 'Last Page'     OnClick = btnLastClick     end
+    object btnGoToPage: TToolButton  Caption = 'Go To'    Hint = 'Go To Page'    OnClick = btnGoToPageClick end
     object tbSep1:      TToolButton  Style = tbsSeparator  end
     object btnZoomIn:   TToolButton  Caption = 'Zoom In'   Hint = 'Zoom In'       OnClick = btnZoomInClick   end
     object btnZoomOut:  TToolButton  Caption = 'Zoom Out'  Hint = 'Zoom Out'      OnClick = btnZoomOutClick  end

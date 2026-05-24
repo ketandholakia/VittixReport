@@ -35,6 +35,7 @@ type
     btnPrev     : TToolButton;
     btnNext     : TToolButton;
     btnLast     : TToolButton;
+    btnGoToPage : TToolButton;
     tbSep1      : TToolButton;
     btnZoomIn   : TToolButton;
     btnZoomOut  : TToolButton;
@@ -53,6 +54,7 @@ type
     procedure btnPrevClick(Sender: TObject);
     procedure btnNextClick(Sender: TObject);
     procedure btnLastClick(Sender: TObject);
+    procedure btnGoToPageClick(Sender: TObject);
     procedure btnZoomInClick(Sender: TObject);
     procedure btnZoomOutClick(Sender: TObject);
     procedure btnFitWidthClick(Sender: TObject);
@@ -197,6 +199,24 @@ end;
 procedure TfrmPreview.btnLastClick(Sender: TObject);
 begin
   Preview.GoLast;
+end;
+
+procedure TfrmPreview.btnGoToPageClick(Sender: TObject);
+var
+  S: string;
+  PageNo: Integer;
+begin
+  if Preview.PageCount = 0 then
+    Exit;
+
+  S := IntToStr(Preview.CurrentPage + 1);
+  if not InputQuery('Go To Page', 'Page number:', S) then
+    Exit;
+  if not TryStrToInt(Trim(S), PageNo) then
+    Exit;
+
+  Preview.PageIndex := PageNo - 1;
+  UpdateNav;
 end;
 
 procedure TfrmPreview.btnZoomInClick(Sender: TObject);
