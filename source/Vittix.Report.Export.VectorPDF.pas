@@ -7,9 +7,11 @@ uses
   System.IOUtils,
   System.SysUtils,
   System.Types,
+  System.ZLib,
   Winapi.Windows,
   Vcl.Graphics,
   Vcl.Imaging.jpeg,
+  Vcl.Imaging.pngimage,
   Vittix.Report.Export.Commands;
 
 type
@@ -151,6 +153,44 @@ var
     Result := (Ext = '.jpg') or (Ext = '.jpeg');
   end;
 
+  function IsPNGFile(const AFileName: string): Boolean;
+  begin
+    Result := SameText(ExtractFileExt(AFileName), '.png');
+  end;
+
+  function CompressBytes(const ABytes: TBytes): TBytes;
+  var
+    Input: TMemoryStream;
+    Output: TMemoryStream;
+    Compressor: TCompressionStream;
+  begin
+    Input := TMemoryStream.Create;
+    try
+      if Length(ABytes) > 0 then
+        Input.WriteBuffer(ABytes[0], Length(ABytes));
+      Input.Position := 0;
+      Output := TMemoryStream.Create;
+      try
+        Compressor := TCompressionStream.Create(System.ZLib.clDefault, Output);
+        try
+          Compressor.CopyFrom(Input, 0);
+        finally
+          Compressor.Free;
+        end;
+        SetLength(Result, Output.Size);
+        if Output.Size > 0 then
+        begin
+          Output.Position := 0;
+          Output.ReadBuffer(Result[0], Output.Size);
+        end;
+      finally
+        Output.Free;
+      end;
+    finally
+      Input.Free;
+    end;
+  end;
+
   function BuildJPEGImageContent(
     APage: TReportExportPage;
     AImage: TReportExportImageCommand): AnsiString;
@@ -198,6 +238,85 @@ var
       BytesToAnsiString(ImageBytes) + #10 +
       'EI' + #10 +
       'Q' + #10;
+  end;
+
+  function BuildPNGImageContent(
+    APage: TReportExportPage;
+    AImage: TReportExportImageCommand): AnsiString;
+  var
+    PNG: TPngImage;
+    Bitmap: TBitmap;
+    RawBytes: TBytes;
+    CompressedBytes: TBytes;
+    X: Integer;
+    Y: Integer;
+    Offset: Integer;
+    PixelColor: TColor;
+    RGBColor: LongInt;
+    W: Integer;
+    H: Integer;
+  begin
+    Result := '';
+    if (AImage.Source = '') or not FileExists(AImage.Source) or
+       not IsPNGFile(AImage.Source) then
+      Exit;
+
+    PNG := TPngImage.Create;
+    try
+      PNG.LoadFromFile(AImage.Source);
+      if (PNG.Width <= 0) or (PNG.Height <= 0) or
+         (AImage.Bounds.Width <= 0) or (AImage.Bounds.Height <= 0) then
+        Exit;
+
+      Bitmap := TBitmap.Create;
+      try
+        Bitmap.PixelFormat := pf24bit;
+        Bitmap.SetSize(PNG.Width, PNG.Height);
+        W := Bitmap.Width;
+        H := Bitmap.Height;
+        Bitmap.Canvas.Brush.Color := clWhite;
+        Bitmap.Canvas.FillRect(Rect(0, 0, W, H));
+        Bitmap.Canvas.Draw(0, 0, PNG);
+
+        SetLength(RawBytes, W * H * 3);
+        Offset := 0;
+        for Y := 0 to H - 1 do
+          for X := 0 to W - 1 do
+          begin
+            PixelColor := Bitmap.Canvas.Pixels[X, Y];
+            RGBColor := ColorToRGB(PixelColor);
+            RawBytes[Offset] := GetRValue(RGBColor);
+            RawBytes[Offset + 1] := GetGValue(RGBColor);
+            RawBytes[Offset + 2] := GetBValue(RGBColor);
+            Inc(Offset, 3);
+          end;
+      finally
+        Bitmap.Free;
+      end;
+
+      CompressedBytes := CompressBytes(RawBytes);
+      if Length(CompressedBytes) = 0 then
+        Exit;
+
+      Result :=
+        'q' + #10 +
+        PdfNumber(AImage.Bounds.Width) + ' 0 0 ' +
+        PdfNumber(AImage.Bounds.Height) + ' ' +
+        PdfNumber(AImage.Bounds.Left) + ' ' +
+        PdfNumber(PdfY(APage, AImage.Bounds.Bottom)) + ' cm' + #10 +
+        'BI' + #10 +
+        '/W ' + AnsiString(IntToStr(W)) + #10 +
+        '/H ' + AnsiString(IntToStr(H)) + #10 +
+        '/CS /RGB' + #10 +
+        '/BPC 8' + #10 +
+        '/F /FlateDecode' + #10 +
+        'ID' + #10 +
+        BytesToAnsiString(CompressedBytes) + #10 +
+        'EI' + #10 +
+        'Q' + #10;
+    finally
+      PNG.Free;
+    end;
   end;
 
   function BuildPageContent(APage: TReportExportPage): AnsiString;
@@ -277,6 +396,7 @@ var
         begin
           ImageCmd := TReportExportImageCommand(Command);
           Result := Result + BuildJPEGImageContent(APage, ImageCmd);
+          Result := Result + BuildPNGImageContent(APage, ImageCmd);
         end;
       end;
     end;
