@@ -61,6 +61,7 @@ contains
   Vittix.Report.PropertyBridge  in '..\source\Vittix.Report.PropertyBridge.pas',
   Vittix.Report.Preview         in '..\source\Vittix.Report.Preview.pas',
   Vittix.Report.Undo            in '..\source\Vittix.Report.Undo.pas',
+  Vittix.Report.Export.Commands in '..\source\Vittix.Report.Export.Commands.pas',
   Vittix.Report.Export.PDF      in '..\source\Vittix.Report.Export.PDF.pas',
   Vittix.Report.Export.Text     in '..\source\Vittix.Report.Export.Text.pas',
   Vittix.Report.Component       in '..\source\Vittix.Report.Component.pas';  // NEW: non-visual component

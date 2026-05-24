@@ -94,21 +94,28 @@ Status result:
 
 ### M2 - Export Command Model
 
-Status: Pending
+Status: In Progress
 
 Goal:
 Capture report output as semantic drawing commands without changing pagination.
 
 Possible new unit:
-- `Vittix.Report.Export.Commands.pas`
+- [x] `Vittix.Report.Export.Commands.pas`
 
 Possible command types:
-- Page begin/end
-- Text
-- Line
-- Rectangle
-- Fill rectangle
-- Image
+- [x] Page begin/end
+- [x] Text
+- [x] Line
+- [x] Rectangle
+- [x] Fill rectangle
+- [x] Image
+
+Initial implementation:
+- Added a standalone command document/page model.
+- Added typed command classes for text, line, rectangle, fill rectangle, and image.
+- Registered the unit in the runtime package.
+- No engine integration yet.
+- No runtime behavior changes yet.
 
 Rules:
 - Commands must be page-local.
