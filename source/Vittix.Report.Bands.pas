@@ -104,7 +104,7 @@ var
   FillBackColor: Boolean;
   ConditionResult: Variant;
 begin
-  BandR := Rect(Bounds.Left, Bounds.Top, Bounds.Right, Bounds.Top + FHeight);
+  BandR := Rect(0, 0, Bounds.Right - Bounds.Left, FHeight);
 
   // Background fill
   FillBackColor := not FBackColorTransparent;
@@ -134,7 +134,6 @@ begin
   // Draw children with DC offset so child Bounds are band-relative
   SaveDC(C.Handle);
   try
-    OffsetViewportOrgEx(C.Handle, Bounds.Left, Bounds.Top, nil);
     for Obj in FChildren do
       if Obj.Visible then
         DrawReportObjectWithHooks(Obj, C, Context);

@@ -1730,7 +1730,7 @@ var
   OR_ : TRect;
   Ctx : TExpressionContext;
   SaveDC: Integer;
-  ClipR: TRect;
+  OldBounds: TRect;
 begin
   if BL.Band.Children.Count = 0 then Exit;
 
@@ -1746,9 +1746,25 @@ begin
       PageTop + Scale(BL.Y + BAND_HDR_H),
       PageLeft + Scale(FReport.PageSettings.PageWidth - FReport.PageSettings.Margins.Right),
       PageTop + Scale(BL.Y + BL.Height + BAND_HDR_H));
+
+    Ctx := Default(TExpressionContext);
+    Ctx.DataSet := FDataSet;
+    Ctx.PageNumber := 1;
+    Ctx.TotalPages := 1;
+    Ctx.ReportTitle := FReport.Title;
+    Ctx.ReportDate := Now;
+    Ctx.PageBottom := PageTop + Scale(BL.Y + BL.Height + BAND_HDR_H);
+
     for Obj in BL.Band.Children do
     begin
       OR_ := ObjScreenRect(Obj);
+      OldBounds := Obj.Bounds;
+      try
+        Obj.Bounds := OR_;
+        Obj.Draw(Canvas, Ctx);
+      finally
+        Obj.Bounds := OldBounds;
+      end;
 
       { Object border }
       if FSelected.Contains(Obj) then
