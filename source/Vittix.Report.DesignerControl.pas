@@ -430,12 +430,18 @@ end;
 
 function TVittixReportDesigner.PageLeft: Integer;
 begin
-  Result := 0;
+  if FShowRulers then
+    Result := RULER_W
+  else
+    Result := 0;
 end;
 
 function TVittixReportDesigner.PageTop: Integer;
 begin
-  Result := 0;
+  if FShowRulers then
+    Result := RULER_W
+  else
+    Result := 0;
 end;
 
 function TVittixReportDesigner.PageWidth: Integer;
