@@ -1479,7 +1479,7 @@ begin
      not Assigned(AObject) then
     Exit;
 
-  if (AObject is TReportTextObject) and not (AObject is TReportMemoObject) then
+  if AObject is TReportTextObject then
   begin
     TextObj := TReportTextObject(AObject);
     R := TextObj.Bounds;
