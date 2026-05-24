@@ -17,6 +17,7 @@ type
   TRenderPage = class
   public
     Bitmap: TBitmap;
+    Metafile: TMetafile;
     constructor Create(AWidth, AHeight: Integer);
     destructor Destroy; override;
   end;
@@ -60,6 +61,7 @@ uses
 
 constructor TRenderPage.Create(AWidth, AHeight: Integer);
 begin
+  Metafile := Vcl.Graphics.TMetafile.Create;
   Bitmap := Vcl.Graphics.TBitmap.Create;
   Bitmap.SetSize(AWidth, AHeight);
   Bitmap.Canvas.Brush.Color := clWhite;
@@ -69,6 +71,7 @@ end;
 destructor TRenderPage.Destroy;
 begin
   Bitmap.Free;
+  Metafile.Free;
   inherited;
 end;
 
@@ -134,6 +137,7 @@ begin
       try
         R  := Rect(0, 0, PW, PH);
 
+        Page.Metafile.Assign(Engine.Pages[i]);
         Page.Bitmap.Canvas.StretchDraw(R, Engine.Pages[i]);
 
         FPages.Add(Page);
@@ -178,6 +182,7 @@ begin
       try
         R  := Rect(0, 0, PW, PH);
 
+        Page.Metafile.Assign(Engine.Pages[i]);
         Page.Bitmap.Canvas.StretchDraw(R, Engine.Pages[i]);
 
         FPages.Add(Page);

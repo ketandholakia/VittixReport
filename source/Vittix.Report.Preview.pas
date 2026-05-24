@@ -38,6 +38,7 @@ type
   TVittixReportPreview = class(TCustomControl)
   private
     FPages:      TObjectList<Vcl.Graphics.TBitmap>;  // owned; independent of TReportRenderer
+    FMetafilePages: TObjectList<Vcl.Graphics.TMetafile>;
     FPageIndex:  Integer;
     FZoomPercent: Integer;
     FOnPageChanged: TNotifyEvent;
@@ -52,6 +53,8 @@ type
     procedure GetContentSize(out AWidth, AHeight: Integer);
     procedure SetScrollOffset(AX, AY: Integer);
     procedure UpdateScrollBars;
+    function CurrentPageWidth: Integer;
+    function CurrentPageHeight: Integer;
     procedure WMHScroll(var Message: TWMHScroll); message WM_HSCROLL;
     procedure WMVScroll(var Message: TWMVScroll); message WM_VSCROLL;
     procedure WMSize(var Message: TWMSize); message WM_SIZE;
@@ -128,12 +131,14 @@ begin
   Color          := clGray;
   FZoomPercent   := 100;
   FPages         := TObjectList<Vcl.Graphics.TBitmap>.Create(True); // owns bitmaps
+  FMetafilePages := TObjectList<Vcl.Graphics.TMetafile>.Create(True);
   FMargins       := TReportMargins.Default;
   FShowMarginOverlay := True;
 end;
 
 destructor TVittixReportPreview.Destroy;
 begin
+  FMetafilePages.Free;
   FPages.Free;
   inherited;
 end;
@@ -151,8 +156,10 @@ var
   i:    Integer;
   Src:  Vcl.Graphics.TBitmap;
   Copy: Vcl.Graphics.TBitmap;
+  MetaCopy: Vcl.Graphics.TMetafile;
 begin
   FPages.Clear;
+  FMetafilePages.Clear;
   FPageIndex := 0;
 
   if not Assigned(ARenderer) then
@@ -170,6 +177,10 @@ begin
     Copy.SetSize(Src.Width, Src.Height);
     Copy.Canvas.Draw(0, 0, Src);   // pixel-perfect copy
     FPages.Add(Copy);
+
+    MetaCopy := Vcl.Graphics.TMetafile.Create;
+    MetaCopy.Assign(ARenderer.Pages[i].Metafile);
+    FMetafilePages.Add(MetaCopy);
   end;
 
   SetScrollOffset(0, 0);
@@ -188,6 +199,7 @@ end;
 procedure TVittixReportPreview.Clear;
 begin
   FPages.Clear;
+  FMetafilePages.Clear;
   FPageIndex := 0;
   SetScrollOffset(0, 0);
   UpdateScrollBars;
@@ -199,6 +211,32 @@ end;
 function TVittixReportPreview.GetPageCount: Integer;
 begin
   Result := FPages.Count;
+end;
+
+function TVittixReportPreview.CurrentPageWidth: Integer;
+begin
+  Result := 0;
+  if (FPageIndex < 0) or (FPageIndex >= PageCount) then
+    Exit;
+
+  if (FPageIndex < FMetafilePages.Count) and
+     (FMetafilePages[FPageIndex].Width > 0) then
+    Result := FMetafilePages[FPageIndex].Width
+  else
+    Result := FPages[FPageIndex].Width;
+end;
+
+function TVittixReportPreview.CurrentPageHeight: Integer;
+begin
+  Result := 0;
+  if (FPageIndex < 0) or (FPageIndex >= PageCount) then
+    Exit;
+
+  if (FPageIndex < FMetafilePages.Count) and
+     (FMetafilePages[FPageIndex].Height > 0) then
+    Result := FMetafilePages[FPageIndex].Height
+  else
+    Result := FPages[FPageIndex].Height;
 end;
 
 { ================= Navigation ================= }
@@ -249,7 +287,6 @@ end;
 
 procedure TVittixReportPreview.GetContentSize(out AWidth, AHeight: Integer);
 var
-  PageBmp: Vcl.Graphics.TBitmap;
   Scale: Double;
 begin
   AWidth := ClientWidth;
@@ -257,10 +294,9 @@ begin
   if (PageCount = 0) or (FPageIndex < 0) or (FPageIndex >= PageCount) then
     Exit;
 
-  PageBmp := FPages[FPageIndex];
   Scale := FZoomPercent / 100;
-  AWidth := Max(ClientWidth, Round(PageBmp.Width * Scale) + 20);
-  AHeight := Max(ClientHeight, Round(PageBmp.Height * Scale) + 20);
+  AWidth := Max(ClientWidth, Round(CurrentPageWidth * Scale) + 20);
+  AHeight := Max(ClientHeight, Round(CurrentPageHeight * Scale) + 20);
 end;
 
 procedure TVittixReportPreview.SetScrollOffset(AX, AY: Integer);
@@ -382,6 +418,7 @@ end;
 procedure TVittixReportPreview.Paint;
 var
   PageBmp: Vcl.Graphics.TBitmap;
+  PageMeta: Vcl.Graphics.TMetafile;
   Scale:   Double;
   W, H:   Integer;
   R:      TRect;
@@ -395,10 +432,13 @@ begin
   if (FPageIndex < 0) or (FPageIndex >= PageCount) then Exit;
 
   PageBmp := FPages[FPageIndex];
+  PageMeta := nil;
+  if FPageIndex < FMetafilePages.Count then
+    PageMeta := FMetafilePages[FPageIndex];
 
   Scale := FZoomPercent / 100;
-  W     := Round(PageBmp.Width  * Scale);
-  H     := Round(PageBmp.Height * Scale);
+  W     := Round(CurrentPageWidth  * Scale);
+  H     := Round(CurrentPageHeight * Scale);
   GetContentSize(ContentW, ContentH);
 
   R := Rect(
@@ -411,7 +451,10 @@ begin
   Canvas.Brush.Style := bsSolid;
   Canvas.Brush.Color := clWhite;
   Canvas.Rectangle(R);
-  Canvas.StretchDraw(R, PageBmp);
+  if Assigned(PageMeta) and (PageMeta.Width > 0) and (PageMeta.Height > 0) then
+    Canvas.StretchDraw(R, PageMeta)
+  else
+    Canvas.StretchDraw(R, PageBmp);
 
   if FShowMarginOverlay then
   begin
@@ -454,27 +497,22 @@ begin
 end;
 
 procedure TVittixReportPreview.FitWidth;
-var
-  PageBmp: Vcl.Graphics.TBitmap;
 begin
   if (PageCount = 0) or (ClientWidth <= 0) then Exit;
-  PageBmp := FPages[FPageIndex];
-  if PageBmp.Width <= 0 then Exit;
-  SetZoomPercent(((ClientWidth - 20) * 100) div PageBmp.Width);
+  if CurrentPageWidth <= 0 then Exit;
+  SetZoomPercent(((ClientWidth - 20) * 100) div CurrentPageWidth);
 end;
 
 procedure TVittixReportPreview.FitPage;
 var
-  PageBmp: Vcl.Graphics.TBitmap;
   ScaleW, ScaleH: Integer;
 begin
   if (PageCount = 0) or (ClientWidth <= 0) or (ClientHeight <= 0) then Exit;
 
-  PageBmp := FPages[FPageIndex];
-  if (PageBmp.Width <= 0) or (PageBmp.Height <= 0) then Exit;
+  if (CurrentPageWidth <= 0) or (CurrentPageHeight <= 0) then Exit;
 
-  ScaleW := ((ClientWidth - 20) * 100) div PageBmp.Width;
-  ScaleH := ((ClientHeight - 20) * 100) div PageBmp.Height;
+  ScaleW := ((ClientWidth - 20) * 100) div CurrentPageWidth;
+  ScaleH := ((ClientHeight - 20) * 100) div CurrentPageHeight;
 
   if ScaleW < ScaleH then
     SetZoomPercent(ScaleW)
@@ -488,6 +526,7 @@ procedure TVittixReportPreview.Print;
 var
   i:    Integer;
   Bmp:  Vcl.Graphics.TBitmap;
+  Meta: Vcl.Graphics.TMetafile;
   R:    TRect;
 begin
   if PageCount = 0 then Exit;
@@ -496,8 +535,14 @@ begin
     for i := 0 to FPages.Count - 1 do
     begin
       Bmp := FPages[i];
+      Meta := nil;
+      if i < FMetafilePages.Count then
+        Meta := FMetafilePages[i];
       R   := Rect(0, 0, Printer.PageWidth, Printer.PageHeight);
-      Printer.Canvas.StretchDraw(R, Bmp);
+      if Assigned(Meta) and (Meta.Width > 0) and (Meta.Height > 0) then
+        Printer.Canvas.StretchDraw(R, Meta)
+      else
+        Printer.Canvas.StretchDraw(R, Bmp);
       if i < FPages.Count - 1 then
         Printer.NewPage;
     end;
