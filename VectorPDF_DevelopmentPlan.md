@@ -205,13 +205,23 @@ Support common raster images while keeping vector report primitives sharp.
 Initial support:
 - [x] PNG image embedding or raster fallback
 - [x] JPEG image embedding or raster fallback
-- [ ] EMF/WMF fallback policy documented
-- [ ] SVG deferred unless a runtime-safe renderer is selected
+- [x] EMF/WMF fallback policy documented
+- [x] SVG deferred unless a runtime-safe renderer is selected
 
 Initial implementation:
 - Vector PDF writer embeds file-path JPEG image commands as inline DCTDecode images.
 - Vector PDF writer embeds file-path PNG image commands as flattened RGB inline FlateDecode images.
 - EMF/WMF, SVG, and embedded serialized image data remain deferred.
+
+EMF/WMF policy:
+- Do not parse EMF/WMF records in the first vector PDF implementation.
+- Treat EMF/WMF as unsupported by the direct vector writer until a safe raster fallback or dedicated vector conversion layer is added.
+- Unsupported EMF/WMF image commands must fail gracefully and must not affect text, line, shape, JPEG, or PNG output.
+
+SVG policy:
+- SVG support remains deferred.
+- Do not add a runtime dependency only for SVG until licensing, deployment, rendering quality, and thread-safety are reviewed.
+- Future SVG support should use either a controlled raster fallback or a dedicated vector conversion layer without changing existing report files.
 
 Safe commit condition:
 - Reports with images export without crashing.
