@@ -253,6 +253,7 @@ begin
     Barcode := TReportBarcodeObject(Obj);
     Result.AddPair('Value',           Barcode.Value);
     Result.AddPair('DataField',       Barcode.DataField);
+    Result.AddPair('Symbology',       TJSONNumber.Create(Ord(Barcode.Symbology)));
     Result.AddPair('ShowText',        TJSONBool.Create(Barcode.ShowText));
     Result.AddPair('BarColor',        TJSONNumber.Create(Barcode.BarColor));
     Result.AddPair('BackgroundColor', TJSONNumber.Create(Barcode.BackgroundColor));
@@ -464,6 +465,7 @@ begin
       Barcode := TReportBarcodeObject(Obj);
       Barcode.Value           := O.GetValue<string>('Value', '1234567890');
       Barcode.DataField       := O.GetValue<string>('DataField', '');
+      Barcode.Symbology       := TReportBarcodeSymbology(O.GetValue<Integer>('Symbology', 0));
       Barcode.ShowText        := O.GetValue<Boolean>('ShowText', True);
       Barcode.BarColor        := O.GetValue<Integer>('BarColor', Integer(clBlack));
       Barcode.BackgroundColor := O.GetValue<Integer>('BackgroundColor', Integer(clWhite));
