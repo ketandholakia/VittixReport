@@ -197,16 +197,20 @@ Safe commit condition:
 
 ### M5 - Image Export
 
-Status: Pending
+Status: In Progress
 
 Goal:
 Support common raster images while keeping vector report primitives sharp.
 
 Initial support:
-- PNG image embedding or raster fallback
-- JPEG image embedding or raster fallback
-- EMF/WMF fallback policy documented
-- SVG deferred unless a runtime-safe renderer is selected
+- [ ] PNG image embedding or raster fallback
+- [x] JPEG image embedding or raster fallback
+- [ ] EMF/WMF fallback policy documented
+- [ ] SVG deferred unless a runtime-safe renderer is selected
+
+Initial implementation:
+- Vector PDF writer embeds file-path JPEG image commands as inline DCTDecode images.
+- PNG, EMF/WMF, SVG, and embedded serialized image data remain deferred.
 
 Safe commit condition:
 - Reports with images export without crashing.

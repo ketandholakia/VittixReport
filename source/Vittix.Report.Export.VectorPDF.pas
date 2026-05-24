@@ -4,10 +4,12 @@ interface
 
 uses
   System.Classes,
+  System.IOUtils,
   System.SysUtils,
   System.Types,
   Winapi.Windows,
   Vcl.Graphics,
+  Vcl.Imaging.jpeg,
   Vittix.Report.Export.Commands;
 
 type
@@ -134,10 +136,75 @@ var
       Result := '/F1';
   end;
 
+  function BytesToAnsiString(const ABytes: TBytes): AnsiString;
+  begin
+    SetLength(Result, Length(ABytes));
+    if Length(ABytes) > 0 then
+      Move(ABytes[0], PAnsiChar(Result)^, Length(ABytes));
+  end;
+
+  function IsJPEGFile(const AFileName: string): Boolean;
+  var
+    Ext: string;
+  begin
+    Ext := LowerCase(ExtractFileExt(AFileName));
+    Result := (Ext = '.jpg') or (Ext = '.jpeg');
+  end;
+
+  function BuildJPEGImageContent(
+    APage: TReportExportPage;
+    AImage: TReportExportImageCommand): AnsiString;
+  var
+    JPEG: TJPEGImage;
+    ImageBytes: TBytes;
+    W: Integer;
+    H: Integer;
+  begin
+    Result := '';
+    if (AImage.Source = '') or not FileExists(AImage.Source) or
+       not IsJPEGFile(AImage.Source) then
+      Exit;
+
+    JPEG := TJPEGImage.Create;
+    try
+      JPEG.LoadFromFile(AImage.Source);
+      W := JPEG.Width;
+      H := JPEG.Height;
+    finally
+      JPEG.Free;
+    end;
+
+    if (W <= 0) or (H <= 0) or (AImage.Bounds.Width <= 0) or
+       (AImage.Bounds.Height <= 0) then
+      Exit;
+
+    ImageBytes := TFile.ReadAllBytes(AImage.Source);
+    if Length(ImageBytes) = 0 then
+      Exit;
+
+    Result :=
+      'q' + #10 +
+      PdfNumber(AImage.Bounds.Width) + ' 0 0 ' +
+      PdfNumber(AImage.Bounds.Height) + ' ' +
+      PdfNumber(AImage.Bounds.Left) + ' ' +
+      PdfNumber(PdfY(APage, AImage.Bounds.Bottom)) + ' cm' + #10 +
+      'BI' + #10 +
+      '/W ' + AnsiString(IntToStr(W)) + #10 +
+      '/H ' + AnsiString(IntToStr(H)) + #10 +
+      '/CS /RGB' + #10 +
+      '/BPC 8' + #10 +
+      '/F /DCTDecode' + #10 +
+      'ID' + #10 +
+      BytesToAnsiString(ImageBytes) + #10 +
+      'EI' + #10 +
+      'Q' + #10;
+  end;
+
   function BuildPageContent(APage: TReportExportPage): AnsiString;
   var
     Command: TReportExportCommand;
     TextCmd: TReportExportTextCommand;
+    ImageCmd: TReportExportImageCommand;
     LineCmd: TReportExportLineCommand;
     RectCmd: TReportExportRectangleCommand;
     FillCmd: TReportExportFillRectangleCommand;
@@ -204,6 +271,12 @@ var
             PdfNumber(R.Width) + ' ' + PdfNumber(R.Height) + ' re' + #10 +
             'f' + #10 +
             'Q' + #10;
+        end;
+
+        eckImage:
+        begin
+          ImageCmd := TReportExportImageCommand(Command);
+          Result := Result + BuildJPEGImageContent(APage, ImageCmd);
         end;
       end;
     end;
