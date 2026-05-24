@@ -94,6 +94,7 @@ type
     FNamedDataSets: TDictionary<string, TDataSet>;
     FScriptEngine: TReportScriptEngine;
     FProgress: IReportProgress;   // optional; nil = no progress feedback
+    FParameters: TStrings;
     FPages:    TObjectList<TMetafile>;
 
     FCurrentPage: TMetafile;
@@ -198,6 +199,7 @@ type
     property GroupEndBookmark:   TBookmark      read FGroupEndBookmark;
     property NamedDataSets: TDictionary<string, TDataSet> read FNamedDataSets;
     property ScriptEngine: TReportScriptEngine read FScriptEngine;
+    property Parameters: TStrings read FParameters;
     property TwoPassRendering: Boolean read FTwoPassRendering write FTwoPassRendering;
     property OnBeforePrintReport: TReportBeforePrintReportEvent
       read FOnBeforePrintReport write FOnBeforePrintReport;
@@ -234,6 +236,7 @@ begin
   FDataSet  := ADataSet;
   FNamedDataSets := TDictionary<string, TDataSet>.Create;
   FScriptEngine := TReportScriptEngine.Create(nil);
+  FParameters := TStringList.Create;
   if Assigned(ANamedDataSets) then
     for var Pair in ANamedDataSets do
       FNamedDataSets.AddOrSetValue(Pair.Key, Pair.Value);
@@ -290,6 +293,7 @@ begin
 
   FPages.Free;
   FNamedDataSets.Free;
+  FParameters.Free;
   FScriptEngine.Free;
   FGroupHeaders.Free;
   FGroupFooters.Free;
@@ -376,6 +380,7 @@ begin
           Ctx2.RowNumber  := FRowNumber;
           Ctx2.ReportTitle := FReport.Title;
           Ctx2.ReportDate  := FReportDate;
+          Ctx2.Parameters  := FParameters;
           Ctx2.IsCountingPass := not FIsRenderingPass;
           var CanPrintBand := True;
           if FIsRenderingPass and Assigned(FOnBeforeBand) then
@@ -438,6 +443,7 @@ begin
   Ctx.RowNumber   := FRowNumber;
   Ctx.ReportTitle := FReport.Title;
   Ctx.ReportDate  := FReportDate;
+  Ctx.Parameters  := FParameters;
   Ctx.IsCountingPass := not FIsRenderingPass;
 
   MaxBottom := 0;
@@ -809,6 +815,7 @@ begin
     Ctx0.RowNumber := FRowNumber;
     Ctx0.ReportTitle := FReport.Title;
     Ctx0.ReportDate  := FReportDate;
+    Ctx0.Parameters  := FParameters;
     Ctx0.IsCountingPass := not FIsRenderingPass;
     var PWResult: Variant;
     var ShouldPrint: Boolean;
@@ -830,6 +837,7 @@ begin
   Ctx.RowNumber   := FRowNumber;
   Ctx.ReportTitle := FReport.Title;
   Ctx.ReportDate  := FReportDate;
+  Ctx.Parameters  := FParameters;
   Ctx.IsCountingPass := not FIsRenderingPass;
   var CanPrintBand := True;
   if FIsRenderingPass and Assigned(FOnBeforeBand) then

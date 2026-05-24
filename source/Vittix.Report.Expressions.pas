@@ -9,7 +9,7 @@
   Evaluation order
   ----------------
   1. Aggregate functions  SUM(…), COUNT(…), AVG(…), MIN(…), MAX(…)
-  2. System tokens        [PageNo], [TotalPages], [RowNumber], [ReportTitle], [ReportDate]
+  2. System tokens        [PageNo], [TotalPages], [RowNumber], [Param.Name], [ReportTitle]
   3. Dataset field tokens [FieldName]   → current field value as string
   4. Quoted string literal 'text'
   5. Arithmetic           +, -, *, /    on resolved tokens
@@ -21,6 +21,7 @@
     [PageNo]       Current page number (1-based)
     [TotalPages]   Total page count (0 while engine is running)
     [RowNumber]    Current master row number (1-based)
+    [Param.Name]   Runtime report parameter value
     [ReportTitle]  TReportModel.Title
     [ReportDate]   Date the report was generated (ShortDateStr format)
     [DateTime]     Date + time the report was generated
@@ -99,6 +100,24 @@ function ResolveSystemToken(
   const Token: string;
   const Context: TExpressionContext;
   out Value: string): Boolean;
+var
+  ParamName: string;
+
+  function TryResolveParameter(const AName: string; out AValue: string): Boolean;
+  var
+    I: Integer;
+  begin
+    Result := False;
+    if not Assigned(Context.Parameters) then
+      Exit;
+
+    for I := 0 to Context.Parameters.Count - 1 do
+      if SameText(Context.Parameters.Names[I], AName) then
+      begin
+        AValue := Context.Parameters.ValueFromIndex[I];
+        Exit(True);
+      end;
+  end;
 begin
   Result := True;
   if SameText(Token, 'PageNo') or
@@ -128,6 +147,20 @@ begin
       Value := IntToStr(Context.DataSet.RecNo)
     else
       Value := '0';
+  end
+  else if SameText(Copy(Token, 1, 6), 'Param.') or
+          SameText(Copy(Token, 1, 10), 'Parameter.') or
+          SameText(Copy(Token, 1, 11), 'Parameters.') then
+  begin
+    if SameText(Copy(Token, 1, 6), 'Param.') then
+      ParamName := Copy(Token, 7, MaxInt)
+    else if SameText(Copy(Token, 1, 10), 'Parameter.') then
+      ParamName := Copy(Token, 11, MaxInt)
+    else
+      ParamName := Copy(Token, 12, MaxInt);
+
+    if not TryResolveParameter(ParamName, Value) then
+      Value := '';
   end
   else
     Result := False;  // not a system token

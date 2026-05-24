@@ -24,7 +24,9 @@ type
   TReportRenderer = class
   private
     FPages: TObjectList<TRenderPage>;
+    FParameters: TStrings;
     FTwoPassRendering: Boolean;
+    procedure SetParameters(const Value: TStrings);
   public
     constructor Create;
     destructor Destroy; override;
@@ -37,6 +39,7 @@ type
     procedure Print;
 
     property Pages: TObjectList<TRenderPage> read FPages;
+    property Parameters: TStrings read FParameters write SetParameters;
     property TwoPassRendering: Boolean read FTwoPassRendering write FTwoPassRendering;
   end;
 
@@ -69,13 +72,22 @@ end;
 constructor TReportRenderer.Create;
 begin
   FPages := TObjectList<TRenderPage>.Create(True);
+  FParameters := TStringList.Create;
   FTwoPassRendering := True;
 end;
 
 destructor TReportRenderer.Destroy;
 begin
+  FParameters.Free;
   FPages.Free;
   inherited;
+end;
+
+procedure TReportRenderer.SetParameters(const Value: TStrings);
+begin
+  FParameters.Clear;
+  if Assigned(Value) then
+    FParameters.Assign(Value);
 end;
 
 procedure TReportRenderer.Render(
@@ -108,6 +120,7 @@ begin
 
   Engine := TReportEngine.Create(AReport, ADataSet, ANamedDataSets, nil);
   try
+    Engine.Parameters.Assign(FParameters);
     Engine.TwoPassRendering := FTwoPassRendering;
     Engine.Prepare;
 

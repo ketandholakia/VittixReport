@@ -13,6 +13,7 @@ unit Vittix.Report.Context;
     [PageNo]        Current page number (1-based)
     [TotalPages]    Total page count after engine Prepare
     [RowNumber]     Current master row number (1-based)
+    [Param.Name]    Runtime report parameter value
     [ReportTitle]   TReportModel.Title
     [ReportDate]    Date the report was generated (formatted by engine)
     [FieldName]     Value of a dataset field
@@ -28,6 +29,7 @@ interface
 
 uses
   Data.DB,
+  System.Classes,
   System.SysUtils;
 
 type
@@ -47,6 +49,7 @@ type
     { Report metadata }
     ReportTitle: string;
     ReportDate:  TDateTime; // set once when Prepare begins
+    Parameters:  TStrings;  // borrowed runtime parameter name/value pairs
 
     { Pass metadata }
     IsCountingPass: Boolean; // True only during the engine page-count pass

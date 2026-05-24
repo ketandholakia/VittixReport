@@ -55,6 +55,7 @@ type
   private
     FDataSource   : TDataSource;
     FReportJSON   : string;
+    FParameters   : TStrings;
     FTwoPassRendering: Boolean;
     // Ordered list — first entry is the primary dataset
     FUserDataSets : TList<TVittixUserDataSet>;
@@ -62,6 +63,7 @@ type
     function  GetReportJSON: string;
     procedure SetReportJSON(const V: string);
     procedure SetDataSource(const V: TDataSource);
+    procedure SetParameters(const V: TStrings);
 
     // Build the TDataSet / named-dataset map consumed by the engine
     function  ResolvePrimaryDataSet: TDataSet;
@@ -116,6 +118,9 @@ type
     property ReportJSON: string
       read GetReportJSON write SetReportJSON;
 
+    property Parameters: TStrings
+      read FParameters write SetParameters;
+
     property TwoPassRendering: Boolean
       read FTwoPassRendering write FTwoPassRendering default True;
   end;
@@ -138,6 +143,7 @@ uses
 constructor TVittixReport.Create(AOwner: TComponent);
 begin
   inherited;
+  FParameters := TStringList.Create;
   FUserDataSets := TList<TVittixUserDataSet>.Create;
   FTwoPassRendering := True;
 end;
@@ -145,6 +151,7 @@ end;
 destructor TVittixReport.Destroy;
 begin
   FUserDataSets.Free;
+  FParameters.Free;
   inherited;
 end;
 
@@ -187,6 +194,13 @@ end;
 procedure TVittixReport.SetReportJSON(const V: string);
 begin
   FReportJSON := V;
+end;
+
+procedure TVittixReport.SetParameters(const V: TStrings);
+begin
+  FParameters.Clear;
+  if Assigned(V) then
+    FParameters.Assign(V);
 end;
 
 // ---------------------------------------------------------------------------
@@ -366,6 +380,7 @@ begin
   try
     Renderer := TReportRenderer.Create;
     try
+      Renderer.Parameters.Assign(FParameters);
       Renderer.TwoPassRendering := FTwoPassRendering;
       Renderer.Render(Model, Primary, NamedDS);
 
@@ -475,6 +490,7 @@ begin
   try
     Renderer := TReportRenderer.Create;
     try
+      Renderer.Parameters.Assign(FParameters);
       Renderer.TwoPassRendering := FTwoPassRendering;
       Renderer.Render(Model, Primary, NamedDS);
       Renderer.Print;
@@ -506,6 +522,7 @@ begin
   try
     Engine := TReportEngine.Create(Model, Primary, NamedDS, nil);
     try
+      Engine.Parameters.Assign(FParameters);
       Engine.TwoPassRendering := FTwoPassRendering;
       Engine.Prepare;
       TReportPDFExporter.ExportToFile(Engine.Pages, AFileName);
