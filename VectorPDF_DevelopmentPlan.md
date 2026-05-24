@@ -272,11 +272,12 @@ Test cases:
 - Existing sample reports
 
 Initial implementation:
-- Headless regression runner now validates vector PDF command page count, emitted PDF page object count, page-tree `/Count`, `%PDF-` header, `xref`, `trailer`, and `%%EOF` marker for each automatic regression report.
+- Headless regression runner now validates vector PDF command page count, emitted PDF page object count, page-tree `/Count`, first-page `/MediaBox`, `%PDF-` header, `xref`, `trailer`, and `%%EOF` marker for each automatic regression report.
 - Headless regression output marks passing reports with `Vector PDF OK` when the smoke check succeeds.
 - `VittixRunner --keep-vector-pdf` keeps generated vector PDF smoke files under `build\vector-pdf-smoke` for manual inspection.
 - `VittixRunner --help` documents the vector PDF smoke-output switch.
 - `RunTests-VectorPDF.bat` builds the runner, runs vector PDF smoke checks, and keeps generated PDFs for manual inspection.
+- Temporary vector PDF smoke filenames are process-specific to avoid collisions during concurrent runner invocations.
 - `TESTING.md` documents automated vector PDF smoke coverage and manual vector PDF visual checks.
 
 Automated validation result:

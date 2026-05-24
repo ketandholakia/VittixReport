@@ -405,7 +405,8 @@ begin
                 TPath.GetFileNameWithoutExtension(JustName) + '_vector.pdf')
             else
               VectorPdfFile := TPath.Combine(TPath.GetTempPath,
-                TPath.GetFileNameWithoutExtension(JustName) + '_headless_vector_smoke.pdf');
+                TPath.GetFileNameWithoutExtension(JustName) + '_' +
+                IntToStr(GetCurrentProcessId) + '_headless_vector_smoke.pdf');
             TReportVectorPDFExporter.ExportDocument(ExportDoc, VectorPdfFile);
             if not TFile.Exists(VectorPdfFile) then
               raise Exception.Create('Vector PDF smoke output was not created');
@@ -427,6 +428,13 @@ begin
               raise Exception.CreateFmt(
                 'Vector PDF page tree count mismatch: expected /Count %d',
                 [PageCount]);
+            if (PageCount > 0) and not BytesContainAscii(Header,
+              AnsiString('/MediaBox [0 0 ' +
+                IntToStr(ExportDoc.Pages[0].Width) + ' ' +
+                IntToStr(ExportDoc.Pages[0].Height) + ']')) then
+              raise Exception.CreateFmt(
+                'Vector PDF MediaBox mismatch: expected %dx%d',
+                [ExportDoc.Pages[0].Width, ExportDoc.Pages[0].Height]);
 
             if ScriptOnly and Assigned(Report) and ((ScriptBeforeCount > 0) or (ScriptAfterCount > 0)) then
             begin
