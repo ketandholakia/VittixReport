@@ -66,6 +66,30 @@ begin
       Exit(True);
 end;
 
+function BytesContainAscii(const ABytes: TBytes; const AText: AnsiString): Boolean;
+var
+  I: Integer;
+  J: Integer;
+begin
+  Result := False;
+  if (Length(ABytes) = 0) or (Length(AText) = 0) or
+     (Length(ABytes) < Length(AText)) then
+    Exit;
+
+  for I := 0 to Length(ABytes) - Length(AText) do
+  begin
+    Result := True;
+    for J := 1 to Length(AText) do
+      if ABytes[I + J - 1] <> Ord(AText[J]) then
+      begin
+        Result := False;
+        Break;
+      end;
+    if Result then
+      Exit;
+  end;
+end;
+
 procedure WriteUsage;
 begin
   Writeln('Usage: VittixRunner [options] [reportfile.vrt]');
@@ -364,6 +388,8 @@ begin
             if (Length(Header) < 5) or
                (TEncoding.ASCII.GetString(Header, 0, 5) <> '%PDF-') then
               raise Exception.Create('Vector PDF smoke output has invalid header');
+            if not BytesContainAscii(Header, '%%EOF') then
+              raise Exception.Create('Vector PDF smoke output has invalid EOF marker');
 
             if ScriptOnly and Assigned(Report) and ((ScriptBeforeCount > 0) or (ScriptAfterCount > 0)) then
             begin
