@@ -49,6 +49,7 @@ uses
   Vittix.Report.Renderer,
   Vittix.Report.Export.PDF,
   Vittix.Report.Export.Text,
+  Vittix.Report.Interfaces,
   Vittix.Report.UserDataSet;
 
 type
@@ -108,6 +109,7 @@ type
     procedure Print;
     procedure ExportToPDF(const AFileName: string);
     procedure ExportToText(const AFileName: string);
+    procedure ExportWith(const AExporter: IReportExporter; const AFileName: string);
 
     { Returns a freshly deserialised model — caller must free }
     function  GetModel: TReportModel;
@@ -550,6 +552,38 @@ begin
   BuildNamedDataSets(Primary, NamedDS);
   try
     TReportTextExporter.ExportToFile(Model, Primary, NamedDS, FParameters, AFileName);
+  finally
+    NamedDS.Free;
+    Model.Free;
+  end;
+end;
+
+procedure TVittixReport.ExportWith(const AExporter: IReportExporter;
+  const AFileName: string);
+var
+  Model  : TReportModel;
+  Primary: TDataSet;
+  NamedDS: TDictionary<string, TDataSet>;
+  Engine : TReportEngine;
+begin
+  if not Assigned(AExporter) then
+    raise Exception.Create('Report exporter is not assigned.');
+
+  if FReportJSON = '' then
+    raise Exception.Create('No report design loaded.');
+
+  Model := TReportSerializer.LoadFromJSON(FReportJSON);
+  BuildNamedDataSets(Primary, NamedDS);
+  try
+    Engine := TReportEngine.Create(Model, Primary, NamedDS, nil);
+    try
+      Engine.Parameters.Assign(FParameters);
+      Engine.TwoPassRendering := FTwoPassRendering;
+      Engine.Prepare;
+      AExporter.ExportPages(Engine.Pages, AFileName);
+    finally
+      Engine.Free;
+    end;
   finally
     NamedDS.Free;
     Model.Free;
