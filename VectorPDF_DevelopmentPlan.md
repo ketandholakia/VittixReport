@@ -121,7 +121,7 @@ Initial implementation:
 - Added basic image command capture for file-path images resolved from image `DataField`.
 - Added first object command capture for `TReportLineObject`.
 - Added basic shape command capture for rectangles, horizontal lines, and diagonal lines.
-- Barcode command capture is still pending.
+- Added basic barcode command capture for legacy and Code39 bars plus optional text.
 - Added basic memo command capture through the existing text export command path.
 - Added basic table command capture for background, header fill, border, and grid lines.
 - Embedded image byte capture is deferred to the image export milestone.

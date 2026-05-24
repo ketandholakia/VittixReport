@@ -252,6 +252,7 @@ uses
   System.Math,
   Vittix.Report.Expressions,    // TReportExpression.Evaluate — for PrintWhen
   Vittix.Report.Utils,          // DataSetSupportsBookmarks, SafeRecordCount
+  Vittix.Report.Objects.Barcode,
   Vittix.Report.Objects.Table,
   System.Types,
   System.Generics.Defaults;
@@ -1447,6 +1448,7 @@ var
   ImageObj: TReportImageObject;
   LineObj: TReportLineObject;
   ShapeObj: TReportShapeObject;
+  BarcodeObj: TReportBarcodeObject;
   TableObj: TReportTableObject;
   TextCmd: TReportExportTextCommand;
   ImageCmd: TReportExportImageCommand;
@@ -1461,7 +1463,12 @@ var
   ColIndex: Integer;
   YPos: Integer;
   XPos: Integer;
+  BarTop: Integer;
+  BarBottom: Integer;
+  DrawW: Integer;
   ImageSource: string;
+  BarcodeText: string;
+  Fld: TField;
   PW: Integer;
   PH: Integer;
   BW: Integer;
@@ -1474,6 +1481,169 @@ var
   DrawFontColor: TColor;
   DrawBackground: TColor;
   DrawBorderColor: TColor;
+
+  function ExportCode39Pattern(Ch: Char): string;
+  begin
+    case Ch of
+      '0': Result := 'nnnwwnwnn';
+      '1': Result := 'wnnwnnnnw';
+      '2': Result := 'nnwwnnnnw';
+      '3': Result := 'wnwwnnnnn';
+      '4': Result := 'nnnwwnnnw';
+      '5': Result := 'wnnwwnnnn';
+      '6': Result := 'nnwwwnnnn';
+      '7': Result := 'nnnwnnwnw';
+      '8': Result := 'wnnwnnwnn';
+      '9': Result := 'nnwwnnwnn';
+      'A': Result := 'wnnnnwnnw';
+      'B': Result := 'nnwnnwnnw';
+      'C': Result := 'wnwnnwnnn';
+      'D': Result := 'nnnnwwnnw';
+      'E': Result := 'wnnnwwnnn';
+      'F': Result := 'nnwnwwnnn';
+      'G': Result := 'nnnnnwwnw';
+      'H': Result := 'wnnnnwwnn';
+      'I': Result := 'nnwnnwwnn';
+      'J': Result := 'nnnnwwwnn';
+      'K': Result := 'wnnnnnnww';
+      'L': Result := 'nnwnnnnww';
+      'M': Result := 'wnwnnnnwn';
+      'N': Result := 'nnnnwnnww';
+      'O': Result := 'wnnnwnnwn';
+      'P': Result := 'nnwnwnnwn';
+      'Q': Result := 'nnnnnnwww';
+      'R': Result := 'wnnnnnwwn';
+      'S': Result := 'nnwnnnwwn';
+      'T': Result := 'nnnnwnwwn';
+      'U': Result := 'wwnnnnnnw';
+      'V': Result := 'nwwnnnnnw';
+      'W': Result := 'wwwnnnnnn';
+      'X': Result := 'nwnnwnnnw';
+      'Y': Result := 'wwnnwnnnn';
+      'Z': Result := 'nwwnwnnnn';
+      '-': Result := 'nwnnnnwnw';
+      '.': Result := 'wwnnnnwnn';
+      ' ': Result := 'nwwnnnwnn';
+      '$': Result := 'nwnwnwnnn';
+      '/': Result := 'nwnwnnnwn';
+      '+': Result := 'nwnnnwnwn';
+      '%': Result := 'nnnwnwnwn';
+      '*': Result := 'nwnnwnwnn';
+    else
+      Result := '';
+    end;
+  end;
+
+  function ExportNormalizeCode39Text(const S: string): string;
+  var
+    I: Integer;
+    Ch: Char;
+  begin
+    Result := '';
+    for I := 1 to Length(S) do
+    begin
+      Ch := UpCase(S[I]);
+      if (Ch <> '*') and (ExportCode39Pattern(Ch) <> '') then
+        Result := Result + Ch;
+    end;
+    Result := '*' + Result + '*';
+  end;
+
+  procedure AddBarcodeBar(const ARect: TRect; AColor: TColor);
+  begin
+    if (ARect.Right <= ARect.Left) or (ARect.Bottom <= ARect.Top) then
+      Exit;
+
+    FillCmd := TReportExportFillRectangleCommand.Create;
+    FillCmd.Bounds := ARect;
+    FillCmd.FillColor := AColor;
+    FCurrentExportPage.Commands.Add(FillCmd);
+  end;
+
+  procedure CaptureLegacyBarcodeBars(
+    const S: string;
+    const ARect: TRect;
+    ABarTop: Integer;
+    ABarBottom: Integer;
+    ADrawWidth: Integer;
+    ABarColor: TColor);
+  var
+    I: Integer;
+    B: Integer;
+    XBar: Integer;
+  begin
+    XBar := ARect.Left + 4;
+    for I := 1 to Length(S) do
+    begin
+      for B := 0 to 6 do
+      begin
+        if XBar >= ARect.Left + 4 + ADrawWidth then
+          Break;
+
+        if ((Ord(S[I]) shr B) and 1) = 1 then
+          AddBarcodeBar(Rect(XBar, ABarTop, XBar + 1, ABarBottom), ABarColor);
+        Inc(XBar);
+      end;
+      Inc(XBar);
+      if XBar >= ARect.Left + 4 + ADrawWidth then
+        Break;
+    end;
+  end;
+
+  procedure CaptureCode39BarcodeBars(
+    const S: string;
+    const ARect: TRect;
+    ABarTop: Integer;
+    ABarBottom: Integer;
+    ADrawWidth: Integer;
+    ABarColor: TColor);
+  var
+    Encoded: string;
+    Pattern: string;
+    I: Integer;
+    J: Integer;
+    UnitW: Integer;
+    ModuleUnits: Integer;
+    TotalUnits: Integer;
+    XBar: Integer;
+    BarWidth: Integer;
+  begin
+    Encoded := ExportNormalizeCode39Text(S);
+    TotalUnits := 0;
+    for I := 1 to Length(Encoded) do
+    begin
+      Pattern := ExportCode39Pattern(Encoded[I]);
+      for J := 1 to Length(Pattern) do
+        if Pattern[J] = 'w' then
+          Inc(TotalUnits, 3)
+        else
+          Inc(TotalUnits);
+      if I < Length(Encoded) then
+        Inc(TotalUnits);
+    end;
+
+    UnitW := Max(1, ADrawWidth div Max(1, TotalUnits));
+    XBar := ARect.Left + 4;
+    for I := 1 to Length(Encoded) do
+    begin
+      Pattern := ExportCode39Pattern(Encoded[I]);
+      for J := 1 to Length(Pattern) do
+      begin
+        if Pattern[J] = 'w' then
+          ModuleUnits := 3
+        else
+          ModuleUnits := 1;
+        BarWidth := UnitW * ModuleUnits;
+        if Odd(J) then
+          AddBarcodeBar(Rect(XBar, ABarTop,
+            Min(XBar + BarWidth, ARect.Left + 4 + ADrawWidth), ABarBottom), ABarColor);
+        Inc(XBar, BarWidth);
+        if XBar >= ARect.Left + 4 + ADrawWidth then
+          Exit;
+      end;
+      Inc(XBar, UnitW);
+    end;
+  end;
 begin
   if not IsCapturingExportCommands or not Assigned(FCurrentExportPage) or
      not Assigned(AObject) then
@@ -1669,6 +1839,69 @@ begin
           FCurrentExportPage.Commands.Add(LineCmd);
         end;
       end;
+    end;
+  end;
+
+  if AObject is TReportBarcodeObject then
+  begin
+    BarcodeObj := TReportBarcodeObject(AObject);
+    R := BarcodeObj.Bounds;
+    OffsetRect(R, FExportOriginX, FExportOriginY);
+
+    BarcodeText := BarcodeObj.Value;
+    if Trim(BarcodeObj.DataField) <> '' then
+    begin
+      Fld := nil;
+      if Assigned(Context.UserDataSet) then
+        BarcodeText := SafeSourceFieldAsString(Context.DataSet, Context.UserDataSet, BarcodeObj.DataField)
+      else if TryGetField(Context.DataSet, BarcodeObj.DataField, Fld) then
+      begin
+        try
+          BarcodeText := Fld.AsString;
+        except
+          // Keep fallback static value if provider raises.
+        end;
+      end;
+    end;
+
+    FillCmd := TReportExportFillRectangleCommand.Create;
+    FillCmd.Bounds := R;
+    FillCmd.FillColor := BarcodeObj.BackgroundColor;
+    FCurrentExportPage.Commands.Add(FillCmd);
+
+    RectCmd := TReportExportRectangleCommand.Create;
+    RectCmd.Bounds := R;
+    RectCmd.BorderColor := clSilver;
+    RectCmd.BorderWidth := 1;
+    FCurrentExportPage.Commands.Add(RectCmd);
+
+    BarTop := R.Top + 4;
+    if BarcodeObj.ShowText then
+      BarBottom := R.Bottom - 16
+    else
+      BarBottom := R.Bottom - 4;
+
+    if BarBottom <= BarTop then
+      BarBottom := R.Bottom - 4;
+
+    DrawW := Max(1, R.Right - R.Left - 8);
+    if BarcodeObj.Symbology = bsCode39 then
+      CaptureCode39BarcodeBars(BarcodeText, R, BarTop, BarBottom, DrawW, BarcodeObj.BarColor)
+    else
+      CaptureLegacyBarcodeBars(BarcodeText, R, BarTop, BarBottom, DrawW, BarcodeObj.BarColor);
+
+    if BarcodeObj.ShowText then
+    begin
+      TextCmd := TReportExportTextCommand.Create;
+      TextCmd.Bounds := Rect(R.Left + 2, R.Bottom - 14, R.Right - 2, R.Bottom - 2);
+      TextCmd.Text := BarcodeText;
+      TextCmd.FontName := 'Arial';
+      TextCmd.FontSize := 8;
+      TextCmd.FontStyle := [];
+      TextCmd.FontColor := clBlack;
+      TextCmd.HAlign := taCenter;
+      TextCmd.WordWrap := False;
+      FCurrentExportPage.Commands.Add(TextCmd);
     end;
   end;
 
