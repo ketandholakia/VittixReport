@@ -211,11 +211,19 @@ Commit:
 
 ## Milestone M7 - Named Dataset Tree
 
-Status: Pending
+Status: Deferred
 
 Goal:
 
 Improve the Data tab to show named datasets when available.
+
+Decision:
+
+- Deferred after implementation review.
+- The report model currently stores `DataSetNames`, but field metadata is a single global `FieldNames` list.
+- The designer cannot reliably show child fields for each named dataset.
+- Expressions currently resolve `[FieldName]` in the active band dataset context; `Dataset.FieldName` syntax is not supported.
+- Adding a dataset tree now would imply unsupported field selection behavior.
 
 Implementation:
 
@@ -233,6 +241,12 @@ Validation:
 - Single dataset reports still work.
 - Named dataset reports show available datasets.
 - Inserted tokens are supported by preview/export.
+
+Prerequisites before implementation:
+
+- Define per-dataset field metadata for standalone report files, preserving old files.
+- Expose named dataset field discovery from hosted/designtime components.
+- Decide whether fields remain band-contextual only or add and test explicit dataset-qualified expression syntax.
 
 Commit:
 
