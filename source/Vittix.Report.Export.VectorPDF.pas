@@ -19,7 +19,10 @@ type
   public
     class procedure ExportDocument(
       ADocument: TReportExportDocument;
-      const AFileName: string); static;
+      const AFileName: string); overload; static;
+    class procedure ExportDocument(
+      ADocument: TReportExportDocument;
+      AStream: TStream); overload; static;
   end;
 
 implementation
@@ -29,6 +32,24 @@ class procedure TReportVectorPDFExporter.ExportDocument(
   const AFileName: string);
 var
   Stream: TFileStream;
+begin
+  if not Assigned(ADocument) then
+    raise EArgumentNilException.Create('ADocument');
+  if AFileName = '' then
+    raise EArgumentException.Create('AFileName is required');
+
+  Stream := TFileStream.Create(AFileName, fmCreate);
+  try
+    ExportDocument(ADocument, Stream);
+  finally
+    Stream.Free;
+  end;
+end;
+
+class procedure TReportVectorPDFExporter.ExportDocument(
+  ADocument: TReportExportDocument;
+  AStream: TStream);
+var
   Offsets: TArray<Int64>;
   ObjectCount: Integer;
   I: Integer;
@@ -41,12 +62,12 @@ var
   procedure WriteAnsi(const S: AnsiString);
   begin
     if S <> '' then
-      Stream.WriteBuffer(PAnsiChar(S)^, Length(S));
+      AStream.WriteBuffer(PAnsiChar(S)^, Length(S));
   end;
 
   procedure BeginObject(AObjectNo: Integer);
   begin
-    Offsets[AObjectNo] := Stream.Position;
+    Offsets[AObjectNo] := AStream.Position;
     WriteAnsi(AnsiString(IntToStr(AObjectNo) + ' 0 obj' + #10));
   end;
 
@@ -405,70 +426,65 @@ var
 begin
   if not Assigned(ADocument) then
     raise EArgumentNilException.Create('ADocument');
-  if AFileName = '' then
-    raise EArgumentException.Create('AFileName is required');
+  if not Assigned(AStream) then
+    raise EArgumentNilException.Create('AStream');
 
   ObjectCount := 2 + (ADocument.Pages.Count * 2);
   SetLength(Offsets, ObjectCount + 1);
 
-  Stream := TFileStream.Create(AFileName, fmCreate);
-  try
-    WriteAnsi('%PDF-1.4' + #10);
+  WriteAnsi('%PDF-1.4' + #10);
 
-    BeginObject(1);
-    WriteAnsi('<< /Type /Catalog /Pages 2 0 R >>' + #10);
+  BeginObject(1);
+  WriteAnsi('<< /Type /Catalog /Pages 2 0 R >>' + #10);
+  EndObject;
+
+  BeginObject(2);
+  WriteAnsi('<< /Type /Pages /Count ' +
+    AnsiString(IntToStr(ADocument.Pages.Count)) + ' /Kids [');
+  for PageIndex := 0 to ADocument.Pages.Count - 1 do
+    WriteAnsi(AnsiString(IntToStr(PageObjectNo(PageIndex)) + ' 0 R '));
+  WriteAnsi('] >>' + #10);
+  EndObject;
+
+  for PageIndex := 0 to ADocument.Pages.Count - 1 do
+  begin
+    ObjNo := PageObjectNo(PageIndex);
+    ContentObjNo := PageContentObjectNo(PageIndex);
+
+    BeginObject(ObjNo);
+    WriteAnsi('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' +
+      AnsiString(IntToStr(ADocument.Pages[PageIndex].Width)) + ' ' +
+      AnsiString(IntToStr(ADocument.Pages[PageIndex].Height)) +
+      '] /Resources << /Font << ' +
+      '/F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> ' +
+      '/F2 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> ' +
+      '/F3 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique >> ' +
+      '/F4 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-BoldOblique >> ' +
+      '>> >>' +
+      ' /Contents ' + AnsiString(IntToStr(ContentObjNo)) + ' 0 R >>' + #10);
     EndObject;
 
-    BeginObject(2);
-    WriteAnsi('<< /Type /Pages /Count ' +
-      AnsiString(IntToStr(ADocument.Pages.Count)) + ' /Kids [');
-    for PageIndex := 0 to ADocument.Pages.Count - 1 do
-      WriteAnsi(AnsiString(IntToStr(PageObjectNo(PageIndex)) + ' 0 R '));
-    WriteAnsi('] >>' + #10);
+    BeginObject(ContentObjNo);
+    Content := BuildPageContent(ADocument.Pages[PageIndex]);
+    WriteAnsi(AnsiString('<< /Length ' + IntToStr(Length(Content)) + ' >>' + #10));
+    WriteAnsi('stream' + #10);
+    WriteAnsi(Content);
+    WriteAnsi('endstream' + #10);
     EndObject;
-
-    for PageIndex := 0 to ADocument.Pages.Count - 1 do
-    begin
-      ObjNo := PageObjectNo(PageIndex);
-      ContentObjNo := PageContentObjectNo(PageIndex);
-
-      BeginObject(ObjNo);
-      WriteAnsi('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' +
-        AnsiString(IntToStr(ADocument.Pages[PageIndex].Width)) + ' ' +
-        AnsiString(IntToStr(ADocument.Pages[PageIndex].Height)) +
-        '] /Resources << /Font << ' +
-        '/F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> ' +
-        '/F2 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> ' +
-        '/F3 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique >> ' +
-        '/F4 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-BoldOblique >> ' +
-        '>> >>' +
-        ' /Contents ' + AnsiString(IntToStr(ContentObjNo)) + ' 0 R >>' + #10);
-      EndObject;
-
-      BeginObject(ContentObjNo);
-      Content := BuildPageContent(ADocument.Pages[PageIndex]);
-      WriteAnsi(AnsiString('<< /Length ' + IntToStr(Length(Content)) + ' >>' + #10));
-      WriteAnsi('stream' + #10);
-      WriteAnsi(Content);
-      WriteAnsi('endstream' + #10);
-      EndObject;
-    end;
-
-    XRefOffset := Stream.Position;
-    WriteAnsi('xref' + #10);
-    WriteAnsi(AnsiString('0 ' + IntToStr(ObjectCount + 1) + #10));
-    WriteAnsi('0000000000 65535 f ' + #10);
-    for I := 1 to ObjectCount do
-      WriteAnsi(AnsiString(Format('%.10d 00000 n ', [Offsets[I]]) + #10));
-    WriteAnsi('trailer' + #10);
-    WriteAnsi(AnsiString('<< /Size ' + IntToStr(ObjectCount + 1) +
-      ' /Root 1 0 R >>' + #10));
-    WriteAnsi('startxref' + #10);
-    WriteAnsi(AnsiString(IntToStr(XRefOffset) + #10));
-    WriteAnsi('%%EOF' + #10);
-  finally
-    Stream.Free;
   end;
+
+  XRefOffset := AStream.Position;
+  WriteAnsi('xref' + #10);
+  WriteAnsi(AnsiString('0 ' + IntToStr(ObjectCount + 1) + #10));
+  WriteAnsi('0000000000 65535 f ' + #10);
+  for I := 1 to ObjectCount do
+    WriteAnsi(AnsiString(Format('%.10d 00000 n ', [Offsets[I]]) + #10));
+  WriteAnsi('trailer' + #10);
+  WriteAnsi(AnsiString('<< /Size ' + IntToStr(ObjectCount + 1) +
+    ' /Root 1 0 R >>' + #10));
+  WriteAnsi('startxref' + #10);
+  WriteAnsi(AnsiString(IntToStr(XRefOffset) + #10));
+  WriteAnsi('%%EOF' + #10);
 end;
 
 end.

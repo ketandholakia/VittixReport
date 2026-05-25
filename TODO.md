@@ -14,7 +14,7 @@
 |---|---------|--------|------------|
 | 1 | SaveToJSON / LoadFromJSON | The Serializer only has SaveToFile/LoadFromFile. TVittixReport.ReportJSON and the component editor both call these � they don't exist yet, which means the component and component editor will fail to compile. | ? |
 | 2 | TReportRenderer.Print | The renderer has no Print method. TVittixReport.Print works around it via TVittixReportPreview but that's a roundabout path. | ? |
-| 3 | Native PDF Export (Stream-based) | **CRITICAL**. Currently uses "Microsoft Print to PDF". Need a native `TReportPDFWriter` class that generates PDF syntax directly to TStream. Allows silent export and server-side usage. | |
+| 3 | Native PDF Export (Stream-based) | Native vector PDF now supports file and `TStream` output for silent/server-side use. The printer-based `Export PDF` path remains available for compatibility. | Complete |
 | 4 | Two-pass rendering for [TotalPages] | TotalPages is always 0 while the engine runs. FastReport renders twice � first pass counts pages, second pass fills in the total. | ? |
 
 ## ?? Designer Gaps

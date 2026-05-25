@@ -113,7 +113,8 @@ type
     procedure Execute;
     procedure Print;
     procedure ExportToPDF(const AFileName: string);
-    procedure ExportToVectorPDF(const AFileName: string);
+    procedure ExportToVectorPDF(const AFileName: string); overload;
+    procedure ExportToVectorPDF(AStream: TStream); overload;
     procedure ExportToText(const AFileName: string);
     procedure ExportWith(const AExporter: IReportExporter; const AFileName: string);
 
@@ -616,6 +617,47 @@ begin
       Engine.ExportDocument := ExportDoc;
       Engine.Prepare;
       TReportVectorPDFExporter.ExportDocument(ExportDoc, AFileName);
+    finally
+      Engine.Free;
+    end;
+  finally
+    ExportDoc.Free;
+    NamedUDS.Free;
+    NamedDS.Free;
+    Model.Free;
+  end;
+end;
+
+procedure TVittixReport.ExportToVectorPDF(AStream: TStream);
+var
+  Model  : TReportModel;
+  Primary: TDataSet;
+  NamedDS: TDictionary<string, TDataSet>;
+  PrimaryUDS: TVittixUserDataSet;
+  NamedUDS: TDictionary<string, TVittixUserDataSet>;
+  Engine : TReportEngine;
+  ExportDoc: TReportExportDocument;
+begin
+  if FReportJSON = '' then
+    raise Exception.Create('No report design loaded.');
+  if not Assigned(AStream) then
+    raise EArgumentNilException.Create('AStream');
+
+  Model := TReportSerializer.LoadFromJSON(FReportJSON);
+  BuildNamedDataSets(Primary, NamedDS);
+  BuildNamedUserDataSets(PrimaryUDS, NamedUDS);
+  ExportDoc := TReportExportDocument.Create;
+  try
+    if Assigned(PrimaryUDS) then
+      Engine := TReportEngine.Create(Model, PrimaryUDS, NamedUDS, nil)
+    else
+      Engine := TReportEngine.Create(Model, Primary, NamedDS, nil);
+    try
+      Engine.Parameters.Assign(FParameters);
+      Engine.TwoPassRendering := FTwoPassRendering;
+      Engine.ExportDocument := ExportDoc;
+      Engine.Prepare;
+      TReportVectorPDFExporter.ExportDocument(ExportDoc, AStream);
     finally
       Engine.Free;
     end;

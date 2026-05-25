@@ -257,6 +257,8 @@ var
   Obj: TReportObject;
   VectorPdfFile: string;
   Header: TBytes;
+  StreamHeader: TBytes;
+  VectorPdfStream: TMemoryStream;
 begin
   Writeln('================================================');
   Writeln(' VittixReport Headless Regression Runner');
@@ -458,6 +460,28 @@ begin
               raise Exception.CreateFmt(
                 'Vector PDF page content mismatch: engine=%d pdf=%d',
                 [PageCount, CountAsciiOccurrences(Header, '/Contents ')]);
+
+            VectorPdfStream := TMemoryStream.Create;
+            try
+              TReportVectorPDFExporter.ExportDocument(ExportDoc, VectorPdfStream);
+              SetLength(StreamHeader, Integer(VectorPdfStream.Size));
+              VectorPdfStream.Position := 0;
+              if Length(StreamHeader) > 0 then
+                VectorPdfStream.ReadBuffer(StreamHeader[0], Length(StreamHeader));
+            finally
+              VectorPdfStream.Free;
+            end;
+            if (Length(StreamHeader) < 5) or
+               (TEncoding.ASCII.GetString(StreamHeader, 0, 5) <> '%PDF-') then
+              raise Exception.Create('Vector PDF stream output has invalid header');
+            if not BytesContainAscii(StreamHeader, '%%EOF') or
+               not BytesContainAscii(StreamHeader, 'xref') or
+               not BytesContainAscii(StreamHeader, 'trailer') then
+              raise Exception.Create('Vector PDF stream output has invalid structure');
+            if CountAsciiOccurrences(StreamHeader, '/Type /Page ') <> PageCount then
+              raise Exception.CreateFmt(
+                'Vector PDF stream page mismatch: engine=%d stream=%d',
+                [PageCount, CountAsciiOccurrences(StreamHeader, '/Type /Page ')]);
 
             if ScriptOnly and Assigned(Report) and ((ScriptBeforeCount > 0) or (ScriptAfterCount > 0)) then
             begin
