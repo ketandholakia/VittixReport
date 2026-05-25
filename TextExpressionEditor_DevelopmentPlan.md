@@ -115,7 +115,7 @@ Commit:
 
 ## Milestone M4 - Field Insertion Panel
 
-Status: Pending
+Status: Completed
 
 Goal:
 
@@ -130,8 +130,9 @@ Implementation:
 
 Token rules:
 
-- For `Text` and `Expression`: insert `[FieldName]`.
+- For `Expression` and `PrintWhen`: insert `[FieldName]`.
 - For `DataField`: insert `FieldName`.
+- For `Text`: insert literal `FieldName`; current runtime does not interpolate field tokens stored in `Text`.
 
 Validation:
 

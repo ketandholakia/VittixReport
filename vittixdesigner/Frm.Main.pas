@@ -5609,7 +5609,8 @@ begin
 
   CurrentValue := PropEditor.Values[KeyName];
   EditedValue := CurrentValue;
-  if not TfrmTextExpressionEditor.EditValue(KeyName + ' Editor', EditedValue) then
+  if not TfrmTextExpressionEditor.EditValue(KeyName + ' Editor', KeyName,
+    FDesigner.GetFieldNames, EditedValue) then
     Exit;
 
   if EditedValue = CurrentValue then

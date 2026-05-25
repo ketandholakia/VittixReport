@@ -4,7 +4,9 @@ interface
 
 uses
   System.Classes,
+  System.SysUtils,
   Vcl.Controls,
+  Vcl.ComCtrls,
   Vcl.ExtCtrls,
   Vcl.Forms,
   Vcl.StdCtrls;
@@ -15,9 +17,14 @@ type
     FMemo: TMemo;
     FBtnOK: TButton;
     FBtnCancel: TButton;
+    FDataList: TListBox;
+    FPropertyKey: string;
+    procedure DataListDblClick(Sender: TObject);
+    procedure LoadFields(const AFields: TArray<string>);
   public
     constructor CreateNew(AOwner: TComponent; Dummy: Integer = 0); override;
-    class function EditValue(const ATitle: string; var AValue: string): Boolean;
+    class function EditValue(const ATitle, APropertyKey: string;
+      const AFields: TArray<string>; var AValue: string): Boolean;
   end;
 
 implementation
@@ -25,6 +32,9 @@ implementation
 constructor TfrmTextExpressionEditor.CreateNew(AOwner: TComponent; Dummy: Integer);
 var
   BottomPanel: TPanel;
+  SidePanel: TPanel;
+  Tabs: TPageControl;
+  DataTab: TTabSheet;
 begin
   inherited CreateNew(AOwner, Dummy);
 
@@ -33,6 +43,27 @@ begin
   Height := 460;
   Position := poMainFormCenter;
   BorderStyle := bsSizeable;
+
+  SidePanel := TPanel.Create(Self);
+  SidePanel.Parent := Self;
+  SidePanel.Align := alRight;
+  SidePanel.Width := 230;
+  SidePanel.BevelOuter := bvNone;
+
+  Tabs := TPageControl.Create(Self);
+  Tabs.Parent := SidePanel;
+  Tabs.Align := alClient;
+  Tabs.AlignWithMargins := True;
+  Tabs.Margins.SetBounds(0, 8, 8, 8);
+
+  DataTab := TTabSheet.Create(Self);
+  DataTab.PageControl := Tabs;
+  DataTab.Caption := 'Data';
+
+  FDataList := TListBox.Create(Self);
+  FDataList.Parent := DataTab;
+  FDataList.Align := alClient;
+  FDataList.OnDblClick := DataListDblClick;
 
   FMemo := TMemo.Create(Self);
   FMemo.Parent := Self;
@@ -67,7 +98,38 @@ begin
   FBtnCancel.Anchors := [akTop, akRight];
 end;
 
-class function TfrmTextExpressionEditor.EditValue(const ATitle: string; var AValue: string): Boolean;
+procedure TfrmTextExpressionEditor.DataListDblClick(Sender: TObject);
+var
+  FieldName: string;
+begin
+  if FDataList.ItemIndex < 0 then
+    Exit;
+
+  FieldName := FDataList.Items[FDataList.ItemIndex];
+  if SameText(FPropertyKey, 'Expression') or SameText(FPropertyKey, 'PrintWhen') then
+    FMemo.SelText := '[' + FieldName + ']'
+  else
+    FMemo.SelText := FieldName;
+  FMemo.SetFocus;
+end;
+
+procedure TfrmTextExpressionEditor.LoadFields(const AFields: TArray<string>);
+var
+  FieldName: string;
+begin
+  FDataList.Items.BeginUpdate;
+  try
+    FDataList.Items.Clear;
+    for FieldName in AFields do
+      if Trim(FieldName) <> '' then
+        FDataList.Items.Add(FieldName);
+  finally
+    FDataList.Items.EndUpdate;
+  end;
+end;
+
+class function TfrmTextExpressionEditor.EditValue(const ATitle, APropertyKey: string;
+  const AFields: TArray<string>; var AValue: string): Boolean;
 var
   Frm: TfrmTextExpressionEditor;
 begin
@@ -75,6 +137,8 @@ begin
   try
     if ATitle <> '' then
       Frm.Caption := ATitle;
+    Frm.FPropertyKey := APropertyKey;
+    Frm.LoadFields(AFields);
     Frm.FMemo.Lines.Text := AValue;
     Result := Frm.ShowModal = mrOk;
     if Result then
