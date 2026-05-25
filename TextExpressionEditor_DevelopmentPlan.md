@@ -280,7 +280,7 @@ Commit:
 
 ## Milestone M9 - Regression Validation
 
-Status: Pending
+Status: In Progress
 
 Checklist:
 
@@ -301,8 +301,33 @@ Commit:
 
 `docs(editor): complete text expression editor validation`
 
+### Automated Validation Record - 2026-05-25
+
+Completed:
+
+- Designer application builds successfully.
+- Runtime package builds successfully.
+- Design package builds successfully.
+- Headless runner builds successfully.
+- Vector PDF regression run passed: 25 passed, 0 failed, 7 skipped.
+
+Observed:
+
+- Existing compile warnings remain; no new build errors were introduced.
+- Headless runner reported `GDI Handles: 16 -> 24 (Delta: 8)`. This requires separate resource investigation or baseline confirmation and is not attributed to the editor dialog by this test.
+
+Manual validation still required:
+
+- Open a text object property and verify the editor opens for `Text`.
+- Edit `DataField` through double-click and verify the existing pick list still works.
+- Insert a field/variable/function into `Expression`, apply, and verify preview output.
+- Edit `PrintWhen` using an inserted field or variable and verify visibility in preview.
+- Cancel an edited value and verify the object remains unchanged.
+- Apply an edit, then use undo/redo and verify property/display restoration.
+- Export the edited report to vector PDF and verify the edited value matches preview.
+
 ## Current Next Step
 
-Start with Milestone M2 only.
+Complete the M9 manual validation checklist in the designer.
 
-Do not implement tabs, field insertion, variables, functions, or syntax highlighting until the basic dialog is compiled and validated.
+Do not mark M9 completed until preview, vector PDF export, cancel, and undo/redo behavior have been checked interactively.
