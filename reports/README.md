@@ -26,6 +26,7 @@ They are lightweight, non-interactive, and expected to render deterministically 
 - `25_object_event_before_after_expression.vrt` - object before/after script demo
 - `26_object_event_unsupported_cases.vrt` - unsupported object script diagnostics
 - `27_object_event_image_cases.vrt` - image object script demo
+- `30_invoice_named_datasets_contract.vrt` - invoice `TVittixUserDataSet` alias contract
 
 ## Manual-only Reports
 

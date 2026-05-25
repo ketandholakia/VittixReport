@@ -1,0 +1,201 @@
+{
+  "Version": 2,
+  "Title": "30 Invoice Named Datasets Contract",
+  "Author": "Codex",
+  "Description": "Regression proof for the Vittix invoice data adapter dataset aliases.",
+  "PageSettings": {
+    "PaperSize": 0,
+    "Orientation": 0,
+    "MarginLeft": 32,
+    "MarginTop": 32,
+    "MarginRight": 32,
+    "MarginBottom": 32,
+    "CustomWidth": 793,
+    "CustomHeight": 1122
+  },
+  "FieldNames": [
+    "INVOICE_NO_STR",
+    "ITEM_NAME",
+    "COMPANY_NAME",
+    "PARTY_NAME",
+    "CUSTOM_TEXT",
+    "CUSTOM_ITEM_TEXT"
+  ],
+  "DataSetNames": [
+    "Invoice",
+    "Items",
+    "Company",
+    "Party",
+    "InvoiceCustom",
+    "ItemCustom"
+  ],
+  "Objects": [
+    {
+      "Class": "TReportBand",
+      "Name": "BandTitle",
+      "Bounds": { "L": 0, "T": 0, "R": 793, "B": 32 },
+      "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+      "BandType": 0, "Height": 32, "DataSetName": "", "MasterField": "", "DetailField": "",
+      "GroupField": "", "GroupLevel": 0, "StartNewPage": false, "CanGrow": false, "CanShrink": false,
+      "BackColor": 16777215, "BackColorTransparent": true, "OnBeforePrint": "", "OnAfterPrint": "",
+      "Children": [
+        {
+          "Class": "TReportTextObject",
+          "Name": "Title",
+          "Bounds": { "L": 10, "T": 6, "R": 500, "B": 27 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "Invoice Named Dataset Contract", "DataField": "", "Expression": "",
+          "FontName": "Tahoma", "FontSize": 11, "FontColor": 0, "FontBold": true, "FontItalic": false,
+          "HAlign": 0, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": false, "BorderColor": 0, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255
+        }
+      ]
+    },
+    {
+      "Class": "TReportBand",
+      "Name": "InvoiceBand",
+      "Bounds": { "L": 0, "T": 0, "R": 793, "B": 26 },
+      "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+      "BandType": 2, "Height": 26, "DataSetName": "Invoice", "MasterField": "", "DetailField": "",
+      "GroupField": "", "GroupLevel": 0, "StartNewPage": false, "CanGrow": false, "CanShrink": false,
+      "BackColor": 16777215, "BackColorTransparent": true, "OnBeforePrint": "", "OnAfterPrint": "",
+      "Children": [
+        {
+          "Class": "TReportFieldObject",
+          "Name": "InvoiceNumber",
+          "Bounds": { "L": 10, "T": 4, "R": 300, "B": 22 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "[INVOICE_NO_STR]", "DataField": "INVOICE_NO_STR", "Expression": "",
+          "FontName": "Tahoma", "FontSize": 10, "FontColor": 0, "FontBold": false, "FontItalic": false,
+          "HAlign": 0, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": false, "BorderColor": 0, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255,
+          "DisplayFormat": "", "EditMask": ""
+        }
+      ]
+    },
+    {
+      "Class": "TReportBand",
+      "Name": "ItemsBand",
+      "Bounds": { "L": 0, "T": 0, "R": 793, "B": 26 },
+      "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+      "BandType": 8, "Height": 26, "DataSetName": "Items", "MasterField": "INVOICE_ID", "DetailField": "INVOICE_ID",
+      "GroupField": "", "GroupLevel": 0, "StartNewPage": false, "CanGrow": false, "CanShrink": false,
+      "BackColor": 16777215, "BackColorTransparent": true, "OnBeforePrint": "", "OnAfterPrint": "",
+      "Children": [
+        {
+          "Class": "TReportFieldObject",
+          "Name": "ItemValue",
+          "Bounds": { "L": 10, "T": 4, "R": 300, "B": 22 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "[ITEM_NAME]", "DataField": "ITEM_NAME", "Expression": "",
+          "FontName": "Tahoma", "FontSize": 10, "FontColor": 0, "FontBold": false, "FontItalic": false,
+          "HAlign": 0, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": false, "BorderColor": 0, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255,
+          "DisplayFormat": "", "EditMask": ""
+        }
+      ]
+    },
+    {
+      "Class": "TReportBand",
+      "Name": "CompanyBand",
+      "Bounds": { "L": 0, "T": 0, "R": 793, "B": 26 },
+      "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+      "BandType": 8, "Height": 26, "DataSetName": "Company", "MasterField": "INVOICE_ID", "DetailField": "INVOICE_ID",
+      "GroupField": "", "GroupLevel": 0, "StartNewPage": false, "CanGrow": false, "CanShrink": false,
+      "BackColor": 16777215, "BackColorTransparent": true, "OnBeforePrint": "", "OnAfterPrint": "",
+      "Children": [
+        {
+          "Class": "TReportFieldObject",
+          "Name": "CompanyValue",
+          "Bounds": { "L": 10, "T": 4, "R": 300, "B": 22 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "[COMPANY_NAME]", "DataField": "COMPANY_NAME", "Expression": "",
+          "FontName": "Tahoma", "FontSize": 10, "FontColor": 0, "FontBold": false, "FontItalic": false,
+          "HAlign": 0, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": false, "BorderColor": 0, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255,
+          "DisplayFormat": "", "EditMask": ""
+        }
+      ]
+    },
+    {
+      "Class": "TReportBand",
+      "Name": "PartyBand",
+      "Bounds": { "L": 0, "T": 0, "R": 793, "B": 26 },
+      "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+      "BandType": 8, "Height": 26, "DataSetName": "Party", "MasterField": "INVOICE_ID", "DetailField": "INVOICE_ID",
+      "GroupField": "", "GroupLevel": 0, "StartNewPage": false, "CanGrow": false, "CanShrink": false,
+      "BackColor": 16777215, "BackColorTransparent": true, "OnBeforePrint": "", "OnAfterPrint": "",
+      "Children": [
+        {
+          "Class": "TReportFieldObject",
+          "Name": "PartyValue",
+          "Bounds": { "L": 10, "T": 4, "R": 300, "B": 22 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "[PARTY_NAME]", "DataField": "PARTY_NAME", "Expression": "",
+          "FontName": "Tahoma", "FontSize": 10, "FontColor": 0, "FontBold": false, "FontItalic": false,
+          "HAlign": 0, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": false, "BorderColor": 0, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255,
+          "DisplayFormat": "", "EditMask": ""
+        }
+      ]
+    },
+    {
+      "Class": "TReportBand",
+      "Name": "InvoiceCustomBand",
+      "Bounds": { "L": 0, "T": 0, "R": 793, "B": 26 },
+      "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+      "BandType": 8, "Height": 26, "DataSetName": "InvoiceCustom", "MasterField": "INVOICE_ID", "DetailField": "INVOICE_ID",
+      "GroupField": "", "GroupLevel": 0, "StartNewPage": false, "CanGrow": false, "CanShrink": false,
+      "BackColor": 16777215, "BackColorTransparent": true, "OnBeforePrint": "", "OnAfterPrint": "",
+      "Children": [
+        {
+          "Class": "TReportFieldObject",
+          "Name": "InvoiceCustomValue",
+          "Bounds": { "L": 10, "T": 4, "R": 300, "B": 22 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "[CUSTOM_TEXT]", "DataField": "CUSTOM_TEXT", "Expression": "",
+          "FontName": "Tahoma", "FontSize": 10, "FontColor": 0, "FontBold": false, "FontItalic": false,
+          "HAlign": 0, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": false, "BorderColor": 0, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255,
+          "DisplayFormat": "", "EditMask": ""
+        }
+      ]
+    },
+    {
+      "Class": "TReportBand",
+      "Name": "ItemCustomBand",
+      "Bounds": { "L": 0, "T": 0, "R": 793, "B": 26 },
+      "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+      "BandType": 8, "Height": 26, "DataSetName": "ItemCustom", "MasterField": "INVOICE_ID", "DetailField": "INVOICE_ID",
+      "GroupField": "", "GroupLevel": 0, "StartNewPage": false, "CanGrow": false, "CanShrink": false,
+      "BackColor": 16777215, "BackColorTransparent": true, "OnBeforePrint": "", "OnAfterPrint": "",
+      "Children": [
+        {
+          "Class": "TReportFieldObject",
+          "Name": "ItemCustomValue",
+          "Bounds": { "L": 10, "T": 4, "R": 300, "B": 22 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "[CUSTOM_ITEM_TEXT]", "DataField": "CUSTOM_ITEM_TEXT", "Expression": "",
+          "FontName": "Tahoma", "FontSize": 10, "FontColor": 0, "FontBold": false, "FontItalic": false,
+          "HAlign": 0, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": false, "BorderColor": 0, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255,
+          "DisplayFormat": "", "EditMask": ""
+        }
+      ]
+    }
+  ]
+}

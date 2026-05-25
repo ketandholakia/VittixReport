@@ -23,5 +23,6 @@
   "26_object_event_unsupported_cases.vrt": 8,
   "27_object_event_image_cases.vrt": 15,
   "28_object_event_band_object_order.vrt": 8,
-  "29_band_gap_layout.vrt": 7
+  "29_band_gap_layout.vrt": 7,
+  "30_invoice_named_datasets_contract.vrt": 1
 }

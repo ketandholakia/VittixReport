@@ -30,6 +30,7 @@ uses
   Vittix.Report.Context,
   Vittix.Report.Scripting,
   Vittix.Report.Engine,
+  Vittix.Report.UserDataSet,
   Vittix.Report.Export.Commands,
   Vittix.Report.Export.VectorPDF,
   Vittix.Report.Serializer,
@@ -113,6 +114,84 @@ begin
     if Match then
       Inc(Result);
   end;
+end;
+
+function ExportDocumentContainsText(ADocument: TReportExportDocument;
+  const AText: string): Boolean;
+var
+  Page: TReportExportPage;
+  Command: TReportExportCommand;
+begin
+  Result := False;
+  if not Assigned(ADocument) then
+    Exit;
+
+  for Page in ADocument.Pages do
+    for Command in Page.Commands do
+      if (Command is TReportExportTextCommand) and
+         ContainsText(TReportExportTextCommand(Command).Text, AText) then
+        Exit(True);
+end;
+
+procedure RequireExportText(ADocument: TReportExportDocument; const AText: string);
+begin
+  if not ExportDocumentContainsText(ADocument, AText) then
+    raise Exception.CreateFmt('Expected rendered dataset value not found: %s', [AText]);
+end;
+
+function CreateInvoiceContractTable(const AValueField, AValue: string): TFDMemTable;
+begin
+  Result := TFDMemTable.Create(nil);
+  Result.FieldDefs.Add('INVOICE_ID', ftInteger);
+  Result.FieldDefs.Add(AValueField, ftString, 80);
+  Result.CreateDataSet;
+  Result.Append;
+  Result.FieldByName('INVOICE_ID').AsInteger := 101;
+  Result.FieldByName(AValueField).AsString := AValue;
+  Result.Post;
+  Result.First;
+end;
+
+procedure AddInvoiceContractDataSet(const AName, AValueField, AValue: string;
+  ADataSets: TObjectList<TFDMemTable>;
+  AUserDataSets: TObjectList<TVittixUserDataSet>;
+  ANamedDataSets: TDictionary<string, TVittixUserDataSet>;
+  out AUserDataSet: TVittixUserDataSet);
+var
+  DataSet: TFDMemTable;
+begin
+  DataSet := CreateInvoiceContractTable(AValueField, AValue);
+  ADataSets.Add(DataSet);
+  AUserDataSet := TVittixUserDataSet.Create(nil);
+  AUserDataSet.Name := AName;
+  AUserDataSet.DataSet := DataSet;
+  AUserDataSets.Add(AUserDataSet);
+  ANamedDataSets.Add(AName, AUserDataSet);
+end;
+
+procedure BuildInvoiceContractData(out APrimaryDataSet: TVittixUserDataSet;
+  out ANamedDataSets: TDictionary<string, TVittixUserDataSet>;
+  out ADataSets: TObjectList<TFDMemTable>;
+  out AUserDataSets: TObjectList<TVittixUserDataSet>);
+var
+  UserDataSet: TVittixUserDataSet;
+begin
+  APrimaryDataSet := nil;
+  ANamedDataSets := TDictionary<string, TVittixUserDataSet>.Create;
+  ADataSets := TObjectList<TFDMemTable>.Create(True);
+  AUserDataSets := TObjectList<TVittixUserDataSet>.Create(True);
+  AddInvoiceContractDataSet('Invoice', 'INVOICE_NO_STR', 'VX-INVOICE-001',
+    ADataSets, AUserDataSets, ANamedDataSets, APrimaryDataSet);
+  AddInvoiceContractDataSet('Items', 'ITEM_NAME', 'VX-ITEM-LINE',
+    ADataSets, AUserDataSets, ANamedDataSets, UserDataSet);
+  AddInvoiceContractDataSet('Company', 'COMPANY_NAME', 'VX-COMPANY',
+    ADataSets, AUserDataSets, ANamedDataSets, UserDataSet);
+  AddInvoiceContractDataSet('Party', 'PARTY_NAME', 'VX-PARTY',
+    ADataSets, AUserDataSets, ANamedDataSets, UserDataSet);
+  AddInvoiceContractDataSet('InvoiceCustom', 'CUSTOM_TEXT', 'VX-INVOICE-CUSTOM',
+    ADataSets, AUserDataSets, ANamedDataSets, UserDataSet);
+  AddInvoiceContractDataSet('ItemCustom', 'CUSTOM_ITEM_TEXT', 'VX-ITEM-CUSTOM',
+    ADataSets, AUserDataSets, ANamedDataSets, UserDataSet);
 end;
 
 procedure WriteUsage;
@@ -259,6 +338,11 @@ var
   Header: TBytes;
   StreamHeader: TBytes;
   VectorPdfStream: TMemoryStream;
+  InvoicePrimaryDataSet: TVittixUserDataSet;
+  InvoiceNamedDataSets: TDictionary<string, TVittixUserDataSet>;
+  InvoiceDataSets: TObjectList<TFDMemTable>;
+  InvoiceUserDataSets: TObjectList<TVittixUserDataSet>;
+  IsInvoiceContractReport: Boolean;
 begin
   Writeln('================================================');
   Writeln(' VittixReport Headless Regression Runner');
@@ -396,12 +480,25 @@ begin
       PageCount := 0;
       ElapsedMs := 0;
       VectorPdfFile := '';
+      IsInvoiceContractReport := SameText(JustName, '30_invoice_named_datasets_contract.vrt');
+      InvoicePrimaryDataSet := nil;
+      InvoiceNamedDataSets := nil;
+      InvoiceDataSets := nil;
+      InvoiceUserDataSets := nil;
 
       try
         Report := TReportSerializer.LoadFromFile(FileName);
         try
           ExportDoc := nil;
-          Engine := TReportEngine.Create(Report, MemTable);
+          if IsInvoiceContractReport then
+          begin
+            BuildInvoiceContractData(InvoicePrimaryDataSet, InvoiceNamedDataSets,
+              InvoiceDataSets, InvoiceUserDataSets);
+            Engine := TReportEngine.Create(Report, InvoicePrimaryDataSet,
+              InvoiceNamedDataSets, nil);
+          end
+          else
+            Engine := TReportEngine.Create(Report, MemTable);
           try
             ExportDoc := TReportExportDocument.Create;
             Engine.ExportDocument := ExportDoc;
@@ -414,6 +511,16 @@ begin
             Stopwatch.Stop;
             PageCount := Engine.Pages.Count;
             ElapsedMs := Stopwatch.ElapsedMilliseconds;
+
+            if IsInvoiceContractReport then
+            begin
+              RequireExportText(ExportDoc, 'VX-INVOICE-001');
+              RequireExportText(ExportDoc, 'VX-ITEM-LINE');
+              RequireExportText(ExportDoc, 'VX-COMPANY');
+              RequireExportText(ExportDoc, 'VX-PARTY');
+              RequireExportText(ExportDoc, 'VX-INVOICE-CUSTOM');
+              RequireExportText(ExportDoc, 'VX-ITEM-CUSTOM');
+            end;
 
             if ExportDoc.Pages.Count <> PageCount then
               raise Exception.CreateFmt(
@@ -529,6 +636,9 @@ begin
           end;
         finally
           Report.Free;
+          InvoiceNamedDataSets.Free;
+          InvoiceUserDataSets.Free;
+          InvoiceDataSets.Free;
         end;
       except
         on E: Exception do
