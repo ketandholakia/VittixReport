@@ -207,6 +207,24 @@ begin
   RegisterReportObject(TReportTableObject);
 end;
 
+function TryGetBaselinePageCount(ABaselineJSON: TJSONObject;
+  const AReportName: string; out APageCount: Integer): Boolean;
+var
+  I: Integer;
+  Pair: TJSONPair;
+begin
+  Result := False;
+  if not Assigned(ABaselineJSON) then
+    Exit;
+
+  for I := ABaselineJSON.Count - 1 downto 0 do
+  begin
+    Pair := ABaselineJSON.Pairs[I];
+    if SameText(Pair.JsonString.Value, AReportName) then
+      Exit(TryStrToInt(Pair.JsonValue.Value, APageCount));
+  end;
+end;
+
 { TVittixConsoleRunner }
 
 class procedure TVittixConsoleRunner.Run;
@@ -462,7 +480,7 @@ begin
             if not ScriptTraceOnly then
             begin
               // Check against pagination baseline
-              if BaselineJSON.TryGetValue<Integer>(JustName, ExpectedPages) then
+              if TryGetBaselinePageCount(BaselineJSON, JustName, ExpectedPages) then
               begin
                 if ExpectedPages <> PageCount then
                 begin
