@@ -85,7 +85,7 @@ Suggested commit:
 
 ## Milestone M2 - Embedded Image Designer Import
 
-Status: Pending
+Status: Completed and manually validated
 
 Goal:
 
@@ -101,11 +101,21 @@ Implementation:
 - Mark the report modified after a successful import.
 - Refresh the design surface and property display after assignment.
 
+Implemented:
+
+- Add a synthetic `Picture` action row in the property inspector for image objects.
+- Open an embedded image editor from the `Picture` ellipsis editor or by double-clicking an image on the design surface.
+- Support file import and clipboard bitmap paste inside the editor.
+- Store imported image content through the existing owned `TPicture`.
+- Record import as an undoable designer command.
+- Leave `DataField` unchanged.
+
 Initial supported formats:
 
 - BMP
 - JPEG
 - PNG
+- GIF
 - WMF
 - EMF
 

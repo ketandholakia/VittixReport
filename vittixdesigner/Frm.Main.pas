@@ -89,6 +89,7 @@ uses
   Frm.DesignerOptions,
   Frm.ScriptEditor,
   Frm.TextExpressionEditor,
+  Frm.ImageEditor,
   Frm.ExpressionHelper,
   Vittix.Designer.Commands,
   // Vittix.Designer.RuntimeDemo,
@@ -323,6 +324,7 @@ type
     procedure DesignerSelectionChanged(Sender: TObject);
     procedure DesignerModified(Sender: TObject);
     procedure DesignerViewChanged(Sender: TObject);
+    procedure DesignerDblClick(Sender: TObject);
 
     { Toolbox }
     procedure ToolboxToolSelected(Sender: TObject);
@@ -360,9 +362,14 @@ type
     // Created dynamically in FormCreate (not streamed from DFM)
     FDesigner   : TVittixReportDesigner;
     FDataSource1: TDataSource;
+    FPnlObjects : TPanel;
+    FSplObjectsStructure: TSplitter;
+    FSplStructureVariables: TSplitter;
+    FPnlDataSections: TPanel;
     FPnlFields  : TPanel;
     FLblFields  : TLabel;
     FLstFields  : TListBox;
+    FSplVariablesFields: TSplitter;
     FPnlVariables: TPanel;
     FLblVariables: TLabel;
     FTreeVariables: TTreeView;
@@ -425,6 +432,8 @@ type
     function  IsExpressionPropertyKey(const AKey: string): Boolean;
     function  IsBandEventScriptRowKey(const AKey: string): Boolean;
     function  EditTextExpressionPropertyRow(ARow: Integer): Boolean;
+    function  EditEmbeddedImageObject(AImageObj: TReportImageObject): Boolean;
+    function  EditEmbeddedImagePropertyRow(ARow: Integer): Boolean;
     function  EditExpressionPropertyRow(ARow: Integer): Boolean;
     function  EditBandEventScriptRow(ARow: Integer): Boolean;
     function  EditColorPropertyRow(ARow: Integer): Boolean;
@@ -615,7 +624,6 @@ end;
 
 procedure TfrmMain.FormCreate(Sender: TObject);
 var
-  Splitter: TSplitter;
   MI: TMenuItem;
   Sep: TMenuItem;
   procedure TrySetOrdinalProp(AObj: TObject; const APropName: string; AValue: NativeInt);
@@ -652,9 +660,54 @@ begin
   Toolbox.ToolImages := SVGIconVirtualImageList1;
   Toolbox.RefreshToolList;
 
+  // The object toolbox is a resizable top section; structure owns the
+  // flexible middle space between top and bottom sections.
+  FPnlObjects := TPanel.Create(Self);
+  FPnlObjects.Parent := pnlToolbox;
+  FPnlObjects.Align := alTop;
+  FPnlObjects.Height := 180;
+  FPnlObjects.BevelOuter := bvNone;
+  FPnlObjects.Caption := '';
+  lblToolbox.Parent := FPnlObjects;
+  Toolbox.Parent := FPnlObjects;
+
+  FSplObjectsStructure := TSplitter.Create(Self);
+  FSplObjectsStructure.Parent := pnlToolbox;
+  FSplObjectsStructure.Align := alTop;
+  FSplObjectsStructure.Height := 5;
+  FSplObjectsStructure.Color := 13684944;
+  FSplObjectsStructure.ParentColor := False;
+  FSplObjectsStructure.MinSize := 50;
+  FSplObjectsStructure.ResizeStyle := rsUpdate;
+
+  FSplStructureVariables := TSplitter.Create(Self);
+  FSplStructureVariables.Parent := pnlToolbox;
+  FSplStructureVariables.Align := alBottom;
+  FSplStructureVariables.Height := 5;
+  FSplStructureVariables.Color := 13684944;
+  FSplStructureVariables.ParentColor := False;
+  FSplStructureVariables.MinSize := 50;
+  FSplStructureVariables.ResizeStyle := rsUpdate;
+
+  FPnlDataSections := TPanel.Create(Self);
+  FPnlDataSections.Parent := pnlToolbox;
+  FPnlDataSections.Align := alBottom;
+  FPnlDataSections.Height := 335;
+  FPnlDataSections.BevelOuter := bvNone;
+  FPnlDataSections.Caption := '';
+
+  FSplVariablesFields := TSplitter.Create(Self);
+  FSplVariablesFields.Parent := FPnlDataSections;
+  FSplVariablesFields.Align := alBottom;
+  FSplVariablesFields.Height := 5;
+  FSplVariablesFields.Color := 13684944;
+  FSplVariablesFields.ParentColor := False;
+  FSplVariablesFields.MinSize := 50;
+  FSplVariablesFields.ResizeStyle := rsUpdate;
+
   // ---- Build the Fields panel dynamically inside pnlToolbox ----
   FPnlFields          := TPanel.Create(Self);
-  FPnlFields.Parent   := pnlToolbox;
+  FPnlFields.Parent   := FPnlDataSections;
   FPnlFields.Align    := alBottom;
   FPnlFields.Height   := 160;
   FPnlFields.BevelOuter := bvNone;
@@ -676,9 +729,8 @@ begin
   FLstFields.ShowHint := True;
 
   FPnlVariables := TPanel.Create(Self);
-  FPnlVariables.Parent := pnlToolbox;
-  FPnlVariables.Align := alBottom;
-  FPnlVariables.Height := 170;
+  FPnlVariables.Parent := FPnlDataSections;
+  FPnlVariables.Align := alClient;
   FPnlVariables.BevelOuter := bvNone;
   FPnlVariables.Caption := '';
 
@@ -717,8 +769,7 @@ begin
 
   FPnlStructure := TPanel.Create(Self);
   FPnlStructure.Parent := pnlToolbox;
-  FPnlStructure.Align := alBottom;
-  FPnlStructure.Height := 200;
+  FPnlStructure.Align := alClient;
   FPnlStructure.BevelOuter := bvNone;
   FPnlStructure.Caption := '';
 
@@ -793,22 +844,6 @@ begin
   TrySetOrdinalProp(SVGIconVirtualImageList1, 'DisabledGrayScale', 1);
   TrySetOrdinalProp(SVGIconVirtualImageList1, 'DisabledOpacity', 125);
 
-  // Splitters between toolbox/structure/fields panels
-  Splitter           := TSplitter.Create(Self);
-  Splitter.Parent    := pnlToolbox;
-  Splitter.Align     := alBottom;
-  Splitter.Height    := 5;
-
-  Splitter           := TSplitter.Create(Self);
-  Splitter.Parent    := pnlToolbox;
-  Splitter.Align     := alBottom;
-  Splitter.Height    := 5;
-
-  Splitter           := TSplitter.Create(Self);
-  Splitter.Parent    := pnlToolbox;
-  Splitter.Align     := alBottom;
-  Splitter.Height    := 5;
-
   // Wire designer events
   FDesigner.OnSelectionChanged := DesignerSelectionChanged;
   FDesigner.OnModified         := DesignerModified;
@@ -816,6 +851,7 @@ begin
   FDesigner.OnDataSetChanged   := DesignerDataSetChanged;
   FDesigner.OnDragOver         := DesignerDragOver;
   FDesigner.OnDragDrop         := DesignerDragDrop;
+  FDesigner.OnDblClick         := DesignerDblClick;
   edtReportTitle.OnChange      := ReportMetadataEditChange;
   edtReportAuthor.OnChange     := ReportMetadataEditChange;
   PropEditor.OnDblClick        := PropEditorDblClick;
@@ -4834,6 +4870,15 @@ begin
   HandleDesignerViewChanged(UpdateZoomControls, UpdateMenuState, UpdateStatusBar);
 end;
 
+procedure TfrmMain.DesignerDblClick(Sender: TObject);
+var
+  Obj: TReportObject;
+begin
+  Obj := CurrentPropertyTarget;
+  if Obj is TReportImageObject then
+    EditEmbeddedImageObject(TReportImageObject(Obj));
+end;
+
 { =========================================================================== }
 {  Toolbox                                                                     }
 { =========================================================================== }
@@ -5133,13 +5178,15 @@ end;
 
 procedure TfrmMain.PropEditorDblClick(Sender: TObject);
 begin
-  if not EditTextExpressionPropertyRow(PropEditor.Row) then
+  if not EditEmbeddedImagePropertyRow(PropEditor.Row) and
+     not EditTextExpressionPropertyRow(PropEditor.Row) then
     HandlePropEditorDblClick(PropEditor, EditFontPropertyRow);
 end;
 
 procedure TfrmMain.PropEditorEditButtonClick(Sender: TObject);
 begin
-  if not EditTextExpressionPropertyRow(PropEditor.Row) then
+  if not EditEmbeddedImagePropertyRow(PropEditor.Row) and
+     not EditTextExpressionPropertyRow(PropEditor.Row) then
     HandlePropEditorEditButtonClick(PropEditor, EditBandEventScriptRow,
       EditExpressionPropertyRow, EditColorPropertyRow);
 end;
@@ -5183,7 +5230,18 @@ end;
 procedure TfrmMain.LoadDesignerPreferences;
 begin
   if Assigned(FPreferences) then
+  begin
     FPreferences.LoadDesignerPreferences(FDesigner);
+    FPreferences.LoadSidebarWidths(pnlToolbox, pnlProperties);
+    FPreferences.LoadSidebarSectionHeights(FPnlObjects, FPnlDataSections,
+      FPnlFields);
+    pnlToolbox.Realign;
+    FPnlObjects.Realign;
+    FPnlStructure.Realign;
+    FPnlDataSections.Realign;
+    FPnlVariables.Realign;
+    FPnlFields.Realign;
+  end;
 end;
 
 function TfrmMain.FindRecentFilesMenu: TMenuItem;
@@ -5262,7 +5320,12 @@ end;
 procedure TfrmMain.SaveDesignerPreferences;
 begin
   if Assigned(FPreferences) then
+  begin
     FPreferences.SaveDesignerPreferences(FDesigner);
+    FPreferences.SaveSidebarWidths(pnlToolbox, pnlProperties);
+    FPreferences.SaveSidebarSectionHeights(FPnlObjects, FPnlDataSections,
+      FPnlFields);
+  end;
 end;
 
 procedure TfrmMain.UpdateStatusBar;
@@ -5620,6 +5683,54 @@ begin
   SetPropertyPanelDirty(True);
   ApplyPropertyPanel;
   Result := True;
+end;
+
+function TfrmMain.EditEmbeddedImagePropertyRow(ARow: Integer): Boolean;
+var
+  KeyName: string;
+  Target: TReportObject;
+begin
+  Result := False;
+  if (ARow <= 0) or (ARow >= PropEditor.RowCount) then
+    Exit;
+
+  KeyName := Trim(PropEditor.Keys[ARow]);
+  Target := CurrentPropertyTarget;
+  if not SameText(KeyName, 'Picture') or not (Target is TReportImageObject) then
+    Exit;
+
+  Result := EditEmbeddedImageObject(TReportImageObject(Target));
+end;
+
+function TfrmMain.EditEmbeddedImageObject(AImageObj: TReportImageObject): Boolean;
+var
+  ImportedPicture: TPicture;
+  Cmd: TImagePictureChangeCommand;
+begin
+  Result := False;
+  if not Assigned(AImageObj) then
+    Exit;
+
+  ImportedPicture := TPicture.Create;
+  try
+    if not TfrmImageEditor.EditPicture(AImageObj.Picture, ImportedPicture) then
+      Exit;
+
+    Cmd := TImagePictureChangeCommand.Create(AImageObj, AImageObj.Picture,
+      ImportedPicture);
+    if Assigned(FDesigner.Commands) then
+      FDesigner.Commands.DoCommand(Cmd)
+    else
+    begin
+      AImageObj.Picture.Assign(ImportedPicture);
+      Cmd.Free;
+    end;
+    FDesigner.RebuildLayout;
+    DesignerModified(FDesigner);
+    Result := True;
+  finally
+    ImportedPicture.Free;
+  end;
 end;
 
 function TfrmMain.EditExpressionPropertyRow(ARow: Integer): Boolean;

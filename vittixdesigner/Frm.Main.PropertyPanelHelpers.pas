@@ -139,6 +139,15 @@ var
   end;
 begin
   if (not Assigned(APropEditor)) or (APropEditor.RowCount <= 1) then Exit;
+  if (AObj is TReportImageObject) and
+     (APropEditor.Strings.IndexOfName('Picture') < 0) then
+  begin
+    if Assigned(TReportImageObject(AObj).Picture.Graphic) and
+       not TReportImageObject(AObj).Picture.Graphic.Empty then
+      APropEditor.Strings.Insert(1, 'Picture=Embedded')
+    else
+      APropEditor.Strings.Insert(1, 'Picture=(none)');
+  end;
   Keys := nil;
   if AObj is TReportBand then
     AddKeys(BandKeys)

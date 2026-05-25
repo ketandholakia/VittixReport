@@ -52,6 +52,10 @@ begin
       begin
         APropEditor.ItemProps[KeyName].EditStyle := esEllipsis;
       end
+      else if SameText(KeyName, 'Picture') and (AObj is TReportImageObject) then
+      begin
+        APropEditor.ItemProps[KeyName].EditStyle := esEllipsis;
+      end
       else if SameText(KeyName, 'DataField') then
       begin
         APropEditor.ItemProps[KeyName].EditStyle := esPickList;

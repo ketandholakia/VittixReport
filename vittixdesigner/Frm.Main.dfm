@@ -331,15 +331,6 @@ object frmMain: TfrmMain
     Align = alClient
     BevelOuter = bvNone
     TabOrder = 2
-    object splLeft: TSplitter
-      Left = 0
-      Top = 0
-      Width = 4
-      Height = 672
-      Color = 13684944
-      ParentColor = False
-      ExplicitHeight = 100
-    end
     object splRight: TSplitter
       Left = 1016
       Top = 0
@@ -393,6 +384,15 @@ object frmMain: TfrmMain
         TabOrder = 0
         OnToolSelected = ToolboxToolSelected
       end
+    end
+    object splLeft: TSplitter
+      Left = 140
+      Top = 0
+      Width = 4
+      Height = 672
+      Color = 13684944
+      ParentColor = False
+      ExplicitHeight = 100
     end
     object pnlProperties: TPanel
       Left = 1020

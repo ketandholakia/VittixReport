@@ -306,6 +306,7 @@ type
       read FOnDataSetChanged write FOnDataSetChanged;
     property OnViewChanged: TNotifyEvent
       read FOnViewChanged write FOnViewChanged;
+    property OnDblClick;
     property OnDragOver;
     property OnDragDrop;
   end;
@@ -375,7 +376,7 @@ end;
 constructor TVittixReportDesigner.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
-  ControlStyle := ControlStyle + [csOpaque];
+  ControlStyle := ControlStyle + [csOpaque, csDoubleClicks];
   DoubleBuffered := True;
   TabStop      := True;
   Width        := 640;
@@ -2154,6 +2155,12 @@ begin
 
       { Update active band }
       FActiveBand := BandOwnerOf(HitObj);
+
+      if ssDouble in Shift then
+      begin
+        FInteractionState.MouseDown := False;
+        Exit;
+      end;
 
       { Move mode }
       FInteractionState.Mode := Ord(dmMove);

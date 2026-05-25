@@ -42,6 +42,19 @@ type
     procedure Rollback; override;
   end;
 
+  TImagePictureChangeCommand = class(TUndoableAction)
+  private
+    FObj: TReportImageObject;
+    FOldPicture: TPicture;
+    FNewPicture: TPicture;
+  public
+    constructor Create(AObj: TReportImageObject; const AOldPicture,
+      ANewPicture: TPicture);
+    destructor Destroy; override;
+    procedure Execute; override;
+    procedure Rollback; override;
+  end;
+
   TReportSnapshotCommand = class(TUndoableAction)
   private
     FDesigner: TVittixReportDesigner;
@@ -150,6 +163,37 @@ procedure TTextFontChangeCommand.Rollback;
 begin
   if Assigned(FObj) then
     FObj.Font.Assign(FOldFont);
+end;
+
+constructor TImagePictureChangeCommand.Create(AObj: TReportImageObject;
+  const AOldPicture, ANewPicture: TPicture);
+begin
+  inherited Create;
+  ActionName := 'Embedded Image Change';
+  FObj := AObj;
+  FOldPicture := TPicture.Create;
+  FNewPicture := TPicture.Create;
+  FOldPicture.Assign(AOldPicture);
+  FNewPicture.Assign(ANewPicture);
+end;
+
+destructor TImagePictureChangeCommand.Destroy;
+begin
+  FOldPicture.Free;
+  FNewPicture.Free;
+  inherited;
+end;
+
+procedure TImagePictureChangeCommand.Execute;
+begin
+  if Assigned(FObj) then
+    FObj.Picture.Assign(FNewPicture);
+end;
+
+procedure TImagePictureChangeCommand.Rollback;
+begin
+  if Assigned(FObj) then
+    FObj.Picture.Assign(FOldPicture);
 end;
 
 constructor TReportSnapshotCommand.Create(ADesigner: TVittixReportDesigner;

@@ -8,6 +8,7 @@ uses
   System.IOUtils,
   System.Generics.Collections,
   System.IniFiles,
+  Vcl.Controls,
   Vcl.Graphics,
   Vittix.Report.DesignerControl;
 
@@ -33,6 +34,10 @@ type
 
     procedure LoadDesignerPreferences(ADesigner: TVittixReportDesigner);
     procedure SaveDesignerPreferences(ADesigner: TVittixReportDesigner);
+    procedure LoadSidebarWidths(ALeftSidebar, ARightSidebar: TControl);
+    procedure SaveSidebarWidths(ALeftSidebar, ARightSidebar: TControl);
+    procedure LoadSidebarSectionHeights(AObjects, ADataSections, AFields: TControl);
+    procedure SaveSidebarSectionHeights(AObjects, ADataSections, AFields: TControl);
 
     procedure LoadRecentFiles(ARecentFiles: TList<string>);
     procedure SaveRecentFiles(ARecentFiles: TList<string>);
@@ -42,6 +47,12 @@ type
   end;
 
 implementation
+
+const
+  MinSidebarWidth = 100;
+  MaxSidebarWidth = 600;
+  MinSidebarSectionHeight = 50;
+  MaxSidebarSectionHeight = 500;
 
 constructor TDesignerPreferencesService.Create(const ASettingsPath: string);
 begin
@@ -101,6 +112,95 @@ begin
     Ini.WriteInteger('Designer', 'PageColor', Integer(ADesigner.PageColor));
     Ini.WriteInteger('Designer', 'CanvasColor', Integer(ADesigner.CanvasColor));
     Ini.WriteInteger('Designer', 'BandGap', ADesigner.BandGap);
+  finally
+    Ini.Free;
+  end;
+end;
+
+procedure TDesignerPreferencesService.LoadSidebarWidths(ALeftSidebar,
+  ARightSidebar: TControl);
+var
+  Ini: TIniFile;
+  W: Integer;
+begin
+  if not Assigned(ALeftSidebar) or not Assigned(ARightSidebar) then
+    Exit;
+
+  Ini := TIniFile.Create(FSettingsPath);
+  try
+    W := Ini.ReadInteger('Designer', 'LeftSidebarWidth', ALeftSidebar.Width);
+    if W < MinSidebarWidth then W := MinSidebarWidth;
+    if W > MaxSidebarWidth then W := MaxSidebarWidth;
+    ALeftSidebar.Width := W;
+
+    W := Ini.ReadInteger('Designer', 'RightSidebarWidth', ARightSidebar.Width);
+    if W < MinSidebarWidth then W := MinSidebarWidth;
+    if W > MaxSidebarWidth then W := MaxSidebarWidth;
+    ARightSidebar.Width := W;
+  finally
+    Ini.Free;
+  end;
+end;
+
+procedure TDesignerPreferencesService.SaveSidebarWidths(ALeftSidebar,
+  ARightSidebar: TControl);
+var
+  Ini: TIniFile;
+begin
+  if not Assigned(ALeftSidebar) or not Assigned(ARightSidebar) then
+    Exit;
+
+  Ini := TIniFile.Create(FSettingsPath);
+  try
+    Ini.WriteInteger('Designer', 'LeftSidebarWidth', ALeftSidebar.Width);
+    Ini.WriteInteger('Designer', 'RightSidebarWidth', ARightSidebar.Width);
+  finally
+    Ini.Free;
+  end;
+end;
+
+procedure TDesignerPreferencesService.LoadSidebarSectionHeights(AObjects,
+  ADataSections, AFields: TControl);
+var
+  Ini: TIniFile;
+  H: Integer;
+
+  procedure LoadHeight(AControl: TControl; const AName: string);
+  begin
+    H := Ini.ReadInteger('Designer', AName, AControl.Height);
+    if H < MinSidebarSectionHeight then H := MinSidebarSectionHeight;
+    if H > MaxSidebarSectionHeight then H := MaxSidebarSectionHeight;
+    AControl.Height := H;
+  end;
+begin
+  if not Assigned(AObjects) or not Assigned(ADataSections) or
+     not Assigned(AFields) then
+    Exit;
+
+  Ini := TIniFile.Create(FSettingsPath);
+  try
+    LoadHeight(AObjects, 'ObjectsPanelHeight');
+    LoadHeight(ADataSections, 'DataSectionsPanelHeight');
+    LoadHeight(AFields, 'FieldsPanelHeight');
+  finally
+    Ini.Free;
+  end;
+end;
+
+procedure TDesignerPreferencesService.SaveSidebarSectionHeights(AObjects,
+  ADataSections, AFields: TControl);
+var
+  Ini: TIniFile;
+begin
+  if not Assigned(AObjects) or not Assigned(ADataSections) or
+     not Assigned(AFields) then
+    Exit;
+
+  Ini := TIniFile.Create(FSettingsPath);
+  try
+    Ini.WriteInteger('Designer', 'ObjectsPanelHeight', AObjects.Height);
+    Ini.WriteInteger('Designer', 'DataSectionsPanelHeight', ADataSections.Height);
+    Ini.WriteInteger('Designer', 'FieldsPanelHeight', AFields.Height);
   finally
     Ini.Free;
   end;
