@@ -140,6 +140,23 @@ begin
     raise Exception.CreateFmt('Expected rendered dataset value not found: %s', [AText]);
 end;
 
+function CountExportTextCommands(ADocument: TReportExportDocument;
+  const AText: string): Integer;
+var
+  Page: TReportExportPage;
+  Command: TReportExportCommand;
+begin
+  Result := 0;
+  if not Assigned(ADocument) then
+    Exit;
+
+  for Page in ADocument.Pages do
+    for Command in Page.Commands do
+      if (Command is TReportExportTextCommand) and
+         SameText(TReportExportTextCommand(Command).Text, AText) then
+        Inc(Result);
+end;
+
 function ExportDocumentContainsImageSource(ADocument: TReportExportDocument;
   const ASource: string): Boolean;
 var
@@ -260,6 +277,50 @@ begin
     ADataSets, AUserDataSets, ANamedDataSets, UserDataSet);
   AddInvoiceContractDataSet('ItemCustom', 'CUSTOM_ITEM_TEXT', 'VX-ITEM-CUSTOM',
     ADataSets, AUserDataSets, ANamedDataSets, UserDataSet);
+end;
+
+procedure BuildInvoicePaginationData(out APrimaryDataSet: TVittixUserDataSet;
+  out ANamedDataSets: TDictionary<string, TVittixUserDataSet>;
+  out ADataSets: TObjectList<TFDMemTable>;
+  out AUserDataSets: TObjectList<TVittixUserDataSet>);
+var
+  InvoiceDataSet: TFDMemTable;
+  ItemsDataSet: TFDMemTable;
+  ItemsUserDataSet: TVittixUserDataSet;
+  I: Integer;
+begin
+  ANamedDataSets := TDictionary<string, TVittixUserDataSet>.Create;
+  ADataSets := TObjectList<TFDMemTable>.Create(True);
+  AUserDataSets := TObjectList<TVittixUserDataSet>.Create(True);
+
+  InvoiceDataSet := CreateInvoiceContractTable('INVOICE_NO_STR', 'VX-PAGED-INVOICE');
+  ADataSets.Add(InvoiceDataSet);
+  APrimaryDataSet := TVittixUserDataSet.Create(nil);
+  APrimaryDataSet.Name := 'Invoice';
+  APrimaryDataSet.DataSet := InvoiceDataSet;
+  AUserDataSets.Add(APrimaryDataSet);
+  ANamedDataSets.Add('Invoice', APrimaryDataSet);
+
+  ItemsDataSet := TFDMemTable.Create(nil);
+  ItemsDataSet.FieldDefs.Add('INVOICE_ID', ftInteger);
+  ItemsDataSet.FieldDefs.Add('ITEM_NAME', ftString, 80);
+  ItemsDataSet.FieldDefs.Add('QTY', ftInteger);
+  ItemsDataSet.CreateDataSet;
+  for I := 1 to 80 do
+  begin
+    ItemsDataSet.Append;
+    ItemsDataSet.FieldByName('INVOICE_ID').AsInteger := 101;
+    ItemsDataSet.FieldByName('ITEM_NAME').AsString := Format('VX-PAGED-ITEM-%2.2d', [I]);
+    ItemsDataSet.FieldByName('QTY').AsInteger := I;
+    ItemsDataSet.Post;
+  end;
+  ItemsDataSet.First;
+  ADataSets.Add(ItemsDataSet);
+  ItemsUserDataSet := TVittixUserDataSet.Create(nil);
+  ItemsUserDataSet.Name := 'Items';
+  ItemsUserDataSet.DataSet := ItemsDataSet;
+  AUserDataSets.Add(ItemsUserDataSet);
+  ANamedDataSets.Add('Items', ItemsUserDataSet);
 end;
 
 procedure WriteUsage;
@@ -413,6 +474,7 @@ var
   IsInvoiceContractReport: Boolean;
   IsRuntimeParameterReport: Boolean;
   IsImageBindingReport: Boolean;
+  IsInvoicePaginationReport: Boolean;
   ImageBindingDataSet: TFDMemTable;
   LogoImageFile: string;
   SignatureImageFile: string;
@@ -557,6 +619,7 @@ begin
       IsInvoiceContractReport := SameText(JustName, '30_invoice_named_datasets_contract.vrt');
       IsRuntimeParameterReport := SameText(JustName, '31_runtime_parameter_values.vrt');
       IsImageBindingReport := SameText(JustName, '32_image_binding_values.vrt');
+      IsInvoicePaginationReport := SameText(JustName, '33_invoice_multipage_contract.vrt');
       InvoicePrimaryDataSet := nil;
       InvoiceNamedDataSets := nil;
       InvoiceDataSets := nil;
@@ -573,6 +636,13 @@ begin
           if IsInvoiceContractReport then
           begin
             BuildInvoiceContractData(InvoicePrimaryDataSet, InvoiceNamedDataSets,
+              InvoiceDataSets, InvoiceUserDataSets);
+            Engine := TReportEngine.Create(Report, InvoicePrimaryDataSet,
+              InvoiceNamedDataSets, nil);
+          end
+          else if IsInvoicePaginationReport then
+          begin
+            BuildInvoicePaginationData(InvoicePrimaryDataSet, InvoiceNamedDataSets,
               InvoiceDataSets, InvoiceUserDataSets);
             Engine := TReportEngine.Create(Report, InvoicePrimaryDataSet,
               InvoiceNamedDataSets, nil);
@@ -645,6 +715,21 @@ begin
               if CountExportImageCommands(ExportDoc) <> 2 then
                 raise Exception.CreateFmt('Expected 2 bound images, got %d',
                   [CountExportImageCommands(ExportDoc)]);
+            end;
+
+            if IsInvoicePaginationReport then
+            begin
+              if PageCount < 2 then
+                raise Exception.CreateFmt('Expected multipage invoice output, got %d page(s)',
+                  [PageCount]);
+              RequireExportText(ExportDoc, 'VX-PAGED-INVOICE');
+              RequireExportText(ExportDoc, 'VX-PAGED-ITEM-80');
+              if CountExportTextCommands(ExportDoc, 'VX-INVOICE-PAGE-HEADER') <> PageCount then
+                raise Exception.CreateFmt('Invoice page header mismatch: pages=%d headers=%d',
+                  [PageCount, CountExportTextCommands(ExportDoc, 'VX-INVOICE-PAGE-HEADER')]);
+              if CountExportTextCommands(ExportDoc, 'VX-INVOICE-PAGE-FOOTER') <> PageCount then
+                raise Exception.CreateFmt('Invoice page footer mismatch: pages=%d footers=%d',
+                  [PageCount, CountExportTextCommands(ExportDoc, 'VX-INVOICE-PAGE-FOOTER')]);
             end;
 
             if ExportDoc.Pages.Count <> PageCount then

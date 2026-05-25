@@ -29,6 +29,7 @@ They are lightweight, non-interactive, and expected to render deterministically 
 - `30_invoice_named_datasets_contract.vrt` - invoice `TVittixUserDataSet` alias contract
 - `31_runtime_parameter_values.vrt` - application-supplied runtime parameter values
 - `32_image_binding_values.vrt` - supplied logo/signature paths and missing-image safety
+- `33_invoice_multipage_contract.vrt` - invoice items with repeated page header/footer output
 
 ## Manual-only Reports
 

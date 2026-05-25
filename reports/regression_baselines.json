@@ -26,5 +26,6 @@
   "29_band_gap_layout.vrt": 7,
   "30_invoice_named_datasets_contract.vrt": 1,
   "31_runtime_parameter_values.vrt": 1,
-  "32_image_binding_values.vrt": 1
+  "32_image_binding_values.vrt": 1,
+  "33_invoice_multipage_contract.vrt": 9
 }
