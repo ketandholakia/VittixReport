@@ -254,7 +254,7 @@ Commit:
 
 ## Milestone M8 - Usability Polish
 
-Status: Pending
+Status: Completed
 
 Goal:
 

@@ -5,6 +5,7 @@ interface
 uses
   System.Classes,
   System.SysUtils,
+  Winapi.Windows,
   Vcl.Controls,
   Vcl.ComCtrls,
   Vcl.ExtCtrls,
@@ -20,13 +21,19 @@ type
     FDataList: TListBox;
     FVariableList: TListBox;
     FFunctionList: TListBox;
+    FGuidanceLabel: TLabel;
+    FStatusBar: TStatusBar;
     FPropertyKey: string;
     procedure DataListDblClick(Sender: TObject);
     procedure VariableListDblClick(Sender: TObject);
     procedure FunctionListDblClick(Sender: TObject);
+    procedure MemoChange(Sender: TObject);
+    procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure LoadFields(const AFields: TArray<string>);
     procedure LoadVariables;
     procedure LoadFunctions;
+    procedure UpdateGuidance;
+    procedure UpdateStatus;
   public
     constructor CreateNew(AOwner: TComponent; Dummy: Integer = 0); override;
     class function EditValue(const ATitle, APropertyKey: string;
@@ -51,12 +58,21 @@ begin
   Height := 460;
   Position := poMainFormCenter;
   BorderStyle := bsSizeable;
+  KeyPreview := True;
+  OnKeyDown := FormKeyDown;
 
   SidePanel := TPanel.Create(Self);
   SidePanel.Parent := Self;
   SidePanel.Align := alRight;
   SidePanel.Width := 230;
   SidePanel.BevelOuter := bvNone;
+
+  FGuidanceLabel := TLabel.Create(Self);
+  FGuidanceLabel.Parent := SidePanel;
+  FGuidanceLabel.Align := alTop;
+  FGuidanceLabel.AutoSize := False;
+  FGuidanceLabel.Height := 42;
+  FGuidanceLabel.WordWrap := True;
 
   Tabs := TPageControl.Create(Self);
   Tabs.Parent := SidePanel;
@@ -102,6 +118,7 @@ begin
   FMemo.Font.Size := 10;
   FMemo.ScrollBars := ssBoth;
   FMemo.WordWrap := False;
+  FMemo.OnChange := MemoChange;
 
   BottomPanel := TPanel.Create(Self);
   BottomPanel.Parent := Self;
@@ -124,6 +141,12 @@ begin
   FBtnCancel.ModalResult := mrCancel;
   FBtnCancel.SetBounds(BottomPanel.Width - 88, 9, 80, 25);
   FBtnCancel.Anchors := [akTop, akRight];
+
+  FStatusBar := TStatusBar.Create(Self);
+  FStatusBar.Parent := BottomPanel;
+  FStatusBar.Align := alLeft;
+  FStatusBar.Width := BottomPanel.Width - 200;
+  FStatusBar.SimplePanel := True;
 end;
 
 procedure TfrmTextExpressionEditor.DataListDblClick(Sender: TObject);
@@ -165,6 +188,21 @@ begin
   FMemo.SetFocus;
 end;
 
+procedure TfrmTextExpressionEditor.MemoChange(Sender: TObject);
+begin
+  UpdateStatus;
+end;
+
+procedure TfrmTextExpressionEditor.FormKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  if (Key = VK_RETURN) and (ssCtrl in Shift) then
+  begin
+    ModalResult := mrOk;
+    Key := 0;
+  end;
+end;
+
 procedure TfrmTextExpressionEditor.LoadFields(const AFields: TArray<string>);
 var
   FieldName: string;
@@ -204,6 +242,24 @@ begin
   FFunctionList.Items.Add('MAX([FieldName])');
 end;
 
+procedure TfrmTextExpressionEditor.UpdateGuidance;
+begin
+  if SameText(FPropertyKey, 'Expression') then
+    FGuidanceLabel.Caption := 'Double-click fields, variables, or functions to insert.'
+  else if SameText(FPropertyKey, 'PrintWhen') then
+    FGuidanceLabel.Caption := 'Double-click fields or variables to build a condition.'
+  else if SameText(FPropertyKey, 'DataField') then
+    FGuidanceLabel.Caption := 'Double-click a field to select its binding name.'
+  else
+    FGuidanceLabel.Caption := 'Text is literal. Inserted field names are not evaluated.';
+end;
+
+procedure TfrmTextExpressionEditor.UpdateStatus;
+begin
+  FStatusBar.SimpleText := Format('Lines: %d    Characters: %d    Ctrl+Enter: OK',
+    [FMemo.Lines.Count, Length(FMemo.Text)]);
+end;
+
 class function TfrmTextExpressionEditor.EditValue(const ATitle, APropertyKey: string;
   const AFields: TArray<string>; var AValue: string): Boolean;
 var
@@ -214,8 +270,10 @@ begin
     if ATitle <> '' then
       Frm.Caption := ATitle;
     Frm.FPropertyKey := APropertyKey;
+    Frm.UpdateGuidance;
     Frm.LoadFields(AFields);
     Frm.FMemo.Lines.Text := AValue;
+    Frm.UpdateStatus;
     Result := Frm.ShowModal = mrOk;
     if Result then
       AValue := Frm.FMemo.Lines.Text;
