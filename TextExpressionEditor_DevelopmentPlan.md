@@ -280,7 +280,7 @@ Commit:
 
 ## Milestone M9 - Regression Validation
 
-Status: In Progress
+Status: Completed
 
 Checklist:
 
@@ -318,16 +318,9 @@ Observed:
 
 Manual validation still required:
 
-- Open a text object property and verify the editor opens for `Text`.
-- Edit `DataField` through double-click and verify the existing pick list still works.
-- Insert a field/variable/function into `Expression`, apply, and verify preview output.
-- Edit `PrintWhen` using an inserted field or variable and verify visibility in preview.
-- Cancel an edited value and verify the object remains unchanged.
-- Apply an edit, then use undo/redo and verify property/display restoration.
-- Export the edited report to vector PDF and verify the edited value matches preview.
+- Completed interactively in the designer on 2026-05-25.
+- Confirmed editor workflow, preview behavior, and vector PDF output are working.
 
 ## Current Next Step
 
-Complete the M9 manual validation checklist in the designer.
-
-Do not mark M9 completed until preview, vector PDF export, cancel, and undo/redo behavior have been checked interactively.
+Editor development milestones M1-M9 are complete, with M7 intentionally deferred pending named-dataset field metadata support.
