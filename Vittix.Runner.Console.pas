@@ -323,6 +323,43 @@ begin
   ANamedDataSets.Add('Items', ItemsUserDataSet);
 end;
 
+procedure BuildReportDataContractData(out APrimaryDataSet: TVittixUserDataSet;
+  out ANamedDataSets: TDictionary<string, TVittixUserDataSet>;
+  out ADataSets: TObjectList<TFDMemTable>;
+  out AUserDataSets: TObjectList<TVittixUserDataSet>);
+var
+  DataSet: TFDMemTable;
+  I: Integer;
+  RowValues: array[1..3] of string;
+begin
+  ANamedDataSets := TDictionary<string, TVittixUserDataSet>.Create;
+  ADataSets := TObjectList<TFDMemTable>.Create(True);
+  AUserDataSets := TObjectList<TVittixUserDataSet>.Create(True);
+
+  DataSet := TFDMemTable.Create(nil);
+  DataSet.FieldDefs.Add('PARTY_NAME', ftString, 80);
+  DataSet.FieldDefs.Add('BALANCE_TEXT', ftString, 80);
+  DataSet.CreateDataSet;
+  RowValues[1] := 'VX-REPORTDATA-PARTY-A';
+  RowValues[2] := 'VX-REPORTDATA-PARTY-B';
+  RowValues[3] := 'VX-REPORTDATA-PARTY-C';
+  for I := 1 to Length(RowValues) do
+  begin
+    DataSet.Append;
+    DataSet.FieldByName('PARTY_NAME').AsString := RowValues[I];
+    DataSet.FieldByName('BALANCE_TEXT').AsString := Format('VX-BALANCE-%d', [I]);
+    DataSet.Post;
+  end;
+  DataSet.First;
+  ADataSets.Add(DataSet);
+
+  APrimaryDataSet := TVittixUserDataSet.Create(nil);
+  APrimaryDataSet.Name := 'ReportData';
+  APrimaryDataSet.DataSet := DataSet;
+  AUserDataSets.Add(APrimaryDataSet);
+  ANamedDataSets.Add('ReportData', APrimaryDataSet);
+end;
+
 procedure WriteUsage;
 begin
   Writeln('Usage: VittixRunner [options] [reportfile.vrt]');
@@ -475,6 +512,7 @@ var
   IsRuntimeParameterReport: Boolean;
   IsImageBindingReport: Boolean;
   IsInvoicePaginationReport: Boolean;
+  IsReportDataContractReport: Boolean;
   ImageBindingDataSet: TFDMemTable;
   LogoImageFile: string;
   SignatureImageFile: string;
@@ -620,6 +658,7 @@ begin
       IsRuntimeParameterReport := SameText(JustName, '31_runtime_parameter_values.vrt');
       IsImageBindingReport := SameText(JustName, '32_image_binding_values.vrt');
       IsInvoicePaginationReport := SameText(JustName, '33_invoice_multipage_contract.vrt');
+      IsReportDataContractReport := SameText(JustName, '34_reportdata_contract.vrt');
       InvoicePrimaryDataSet := nil;
       InvoiceNamedDataSets := nil;
       InvoiceDataSets := nil;
@@ -643,6 +682,13 @@ begin
           else if IsInvoicePaginationReport then
           begin
             BuildInvoicePaginationData(InvoicePrimaryDataSet, InvoiceNamedDataSets,
+              InvoiceDataSets, InvoiceUserDataSets);
+            Engine := TReportEngine.Create(Report, InvoicePrimaryDataSet,
+              InvoiceNamedDataSets, nil);
+          end
+          else if IsReportDataContractReport then
+          begin
+            BuildReportDataContractData(InvoicePrimaryDataSet, InvoiceNamedDataSets,
               InvoiceDataSets, InvoiceUserDataSets);
             Engine := TReportEngine.Create(Report, InvoicePrimaryDataSet,
               InvoiceNamedDataSets, nil);
@@ -674,6 +720,11 @@ begin
               Engine.Parameters.Values['AmountInWords'] := 'VX-AMOUNT-WORDS';
               Engine.Parameters.Values['BankText'] := 'VX-BANK-TEXT';
               Engine.Parameters.Values['FilterSummary'] := 'VX-FILTER-SUMMARY';
+            end;
+            if IsReportDataContractReport then
+            begin
+              Engine.Parameters.Values['ReportTitle'] := 'VX-GENERAL-REPORT-TITLE';
+              Engine.Parameters.Values['FilterSummary'] := 'VX-GENERAL-FILTER-SUMMARY';
             end;
             // Wire up the Script Adapter so object events execute during regression tests!
             Engine.ScriptEngine.OnObjectBeforePrint := ScriptAdapter.EngineObjectBeforePrint;
@@ -730,6 +781,15 @@ begin
               if CountExportTextCommands(ExportDoc, 'VX-INVOICE-PAGE-FOOTER') <> PageCount then
                 raise Exception.CreateFmt('Invoice page footer mismatch: pages=%d footers=%d',
                   [PageCount, CountExportTextCommands(ExportDoc, 'VX-INVOICE-PAGE-FOOTER')]);
+            end;
+
+            if IsReportDataContractReport then
+            begin
+              RequireExportText(ExportDoc, 'VX-GENERAL-REPORT-TITLE');
+              RequireExportText(ExportDoc, 'VX-GENERAL-FILTER-SUMMARY');
+              RequireExportText(ExportDoc, 'VX-REPORTDATA-PARTY-A');
+              RequireExportText(ExportDoc, 'VX-REPORTDATA-PARTY-C');
+              RequireExportText(ExportDoc, 'VX-BALANCE-3');
             end;
 
             if ExportDoc.Pages.Count <> PageCount then

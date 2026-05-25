@@ -28,6 +28,7 @@ Use this checklist before releases or major engine changes.
 - Confirm `31_runtime_parameter_values.vrt` renders report heading, amount-in-words, bank text, and filter summary from runtime parameters.
 - Confirm `32_image_binding_values.vrt` renders supplied logo/signature image paths and suppresses missing image output safely.
 - Confirm `33_invoice_multipage_contract.vrt` produces multiple pages with one invoice page-header and page-footer marker per page.
+- Confirm `34_reportdata_contract.vrt` renders executed-report rows through the `ReportData` alias and a supplied filter summary parameter.
 - Run `RunTests-VectorPDF.bat` to build, run vector PDF smoke checks, and keep generated PDFs for inspection.
 - Run `RunTests-Scripts.bat` to build and run only script-bearing regression reports.
 - Run `RunTests-ScriptTrace.bat` to build and run trace-only script diagnostics.

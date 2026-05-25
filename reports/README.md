@@ -30,6 +30,7 @@ They are lightweight, non-interactive, and expected to render deterministically 
 - `31_runtime_parameter_values.vrt` - application-supplied runtime parameter values
 - `32_image_binding_values.vrt` - supplied logo/signature paths and missing-image safety
 - `33_invoice_multipage_contract.vrt` - invoice items with repeated page header/footer output
+- `34_reportdata_contract.vrt` - general-report `ReportData` alias and filter parameter binding
 
 ## Manual-only Reports
 
