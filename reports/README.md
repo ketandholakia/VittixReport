@@ -28,6 +28,7 @@ They are lightweight, non-interactive, and expected to render deterministically 
 - `27_object_event_image_cases.vrt` - image object script demo
 - `30_invoice_named_datasets_contract.vrt` - invoice `TVittixUserDataSet` alias contract
 - `31_runtime_parameter_values.vrt` - application-supplied runtime parameter values
+- `32_image_binding_values.vrt` - supplied logo/signature paths and missing-image safety
 
 ## Manual-only Reports
 

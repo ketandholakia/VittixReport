@@ -24,6 +24,7 @@ uses
   FireDAC.Stan.Intf,
   FireDAC.Stan.StorageJSON,
   Vcl.Graphics, // Required to ensure GDI canvas is available for measurement
+  Vcl.Imaging.pngimage,
   Vittix.Report.Model,
   Vittix.Report.Objects,
   Vittix.Report.Bands,
@@ -137,6 +138,73 @@ procedure RequireExportText(ADocument: TReportExportDocument; const AText: strin
 begin
   if not ExportDocumentContainsText(ADocument, AText) then
     raise Exception.CreateFmt('Expected rendered dataset value not found: %s', [AText]);
+end;
+
+function ExportDocumentContainsImageSource(ADocument: TReportExportDocument;
+  const ASource: string): Boolean;
+var
+  Page: TReportExportPage;
+  Command: TReportExportCommand;
+begin
+  Result := False;
+  if not Assigned(ADocument) then
+    Exit;
+
+  for Page in ADocument.Pages do
+    for Command in Page.Commands do
+      if (Command is TReportExportImageCommand) and
+         SameText(TReportExportImageCommand(Command).Source, ASource) then
+        Exit(True);
+end;
+
+function CountExportImageCommands(ADocument: TReportExportDocument): Integer;
+var
+  Page: TReportExportPage;
+  Command: TReportExportCommand;
+begin
+  Result := 0;
+  if not Assigned(ADocument) then
+    Exit;
+
+  for Page in ADocument.Pages do
+    for Command in Page.Commands do
+      if Command is TReportExportImageCommand then
+        Inc(Result);
+end;
+
+procedure CreateVerificationPNG(const AFileName: string; const AColor: TColor);
+var
+  Bitmap: TBitmap;
+  PNG: TPngImage;
+begin
+  Bitmap := TBitmap.Create;
+  PNG := TPngImage.Create;
+  try
+    Bitmap.SetSize(16, 16);
+    Bitmap.Canvas.Brush.Color := AColor;
+    Bitmap.Canvas.FillRect(Rect(0, 0, Bitmap.Width, Bitmap.Height));
+    PNG.Assign(Bitmap);
+    PNG.SaveToFile(AFileName);
+  finally
+    PNG.Free;
+    Bitmap.Free;
+  end;
+end;
+
+function BuildImageBindingData(const ALogoFile, ASignatureFile,
+  AMissingImageFile: string): TFDMemTable;
+begin
+  Result := TFDMemTable.Create(nil);
+  Result.FieldDefs.Add('LOGO_PATH', ftString, 260);
+  Result.FieldDefs.Add('SIGNATURE_PATH', ftString, 260);
+  Result.FieldDefs.Add('MISSING_IMAGE_PATH', ftString, 260);
+  Result.CreateDataSet;
+  Result.Append;
+  Result.FieldByName('LOGO_PATH').AsString := ALogoFile;
+  Result.FieldByName('SIGNATURE_PATH').AsString := ASignatureFile;
+  Result.FieldByName('MISSING_IMAGE_PATH').AsString := AMissingImageFile;
+  Result.Post;
+  Result.First;
 end;
 
 function CreateInvoiceContractTable(const AValueField, AValue: string): TFDMemTable;
@@ -344,6 +412,11 @@ var
   InvoiceUserDataSets: TObjectList<TVittixUserDataSet>;
   IsInvoiceContractReport: Boolean;
   IsRuntimeParameterReport: Boolean;
+  IsImageBindingReport: Boolean;
+  ImageBindingDataSet: TFDMemTable;
+  LogoImageFile: string;
+  SignatureImageFile: string;
+  MissingImageFile: string;
 begin
   Writeln('================================================');
   Writeln(' VittixReport Headless Regression Runner');
@@ -483,10 +556,15 @@ begin
       VectorPdfFile := '';
       IsInvoiceContractReport := SameText(JustName, '30_invoice_named_datasets_contract.vrt');
       IsRuntimeParameterReport := SameText(JustName, '31_runtime_parameter_values.vrt');
+      IsImageBindingReport := SameText(JustName, '32_image_binding_values.vrt');
       InvoicePrimaryDataSet := nil;
       InvoiceNamedDataSets := nil;
       InvoiceDataSets := nil;
       InvoiceUserDataSets := nil;
+      ImageBindingDataSet := nil;
+      LogoImageFile := '';
+      SignatureImageFile := '';
+      MissingImageFile := '';
 
       try
         Report := TReportSerializer.LoadFromFile(FileName);
@@ -498,6 +576,22 @@ begin
               InvoiceDataSets, InvoiceUserDataSets);
             Engine := TReportEngine.Create(Report, InvoicePrimaryDataSet,
               InvoiceNamedDataSets, nil);
+          end
+          else if IsImageBindingReport then
+          begin
+            LogoImageFile := TPath.Combine(TPath.GetTempPath,
+              Format('vittix_logo_%d.png', [GetCurrentProcessId]));
+            SignatureImageFile := TPath.Combine(TPath.GetTempPath,
+              Format('vittix_signature_%d.png', [GetCurrentProcessId]));
+            MissingImageFile := TPath.Combine(TPath.GetTempPath,
+              Format('vittix_missing_%d.png', [GetCurrentProcessId]));
+            if TFile.Exists(MissingImageFile) then
+              TFile.Delete(MissingImageFile);
+            CreateVerificationPNG(LogoImageFile, clNavy);
+            CreateVerificationPNG(SignatureImageFile, clGreen);
+            ImageBindingDataSet := BuildImageBindingData(LogoImageFile,
+              SignatureImageFile, MissingImageFile);
+            Engine := TReportEngine.Create(Report, ImageBindingDataSet);
           end
           else
             Engine := TReportEngine.Create(Report, MemTable);
@@ -538,6 +632,19 @@ begin
               RequireExportText(ExportDoc, 'VX-BANK-TEXT');
               RequireExportText(ExportDoc, 'VX-FILTER-SUMMARY');
               RequireExportText(ExportDoc, 'VX-TEMPLATE-TITLE');
+            end;
+
+            if IsImageBindingReport then
+            begin
+              if not ExportDocumentContainsImageSource(ExportDoc, LogoImageFile) then
+                raise Exception.Create('Expected logo image export command not found');
+              if not ExportDocumentContainsImageSource(ExportDoc, SignatureImageFile) then
+                raise Exception.Create('Expected signature image export command not found');
+              if ExportDocumentContainsImageSource(ExportDoc, MissingImageFile) then
+                raise Exception.Create('Missing image unexpectedly produced an export command');
+              if CountExportImageCommands(ExportDoc) <> 2 then
+                raise Exception.CreateFmt('Expected 2 bound images, got %d',
+                  [CountExportImageCommands(ExportDoc)]);
             end;
 
             if ExportDoc.Pages.Count <> PageCount then
@@ -657,6 +764,11 @@ begin
           InvoiceNamedDataSets.Free;
           InvoiceUserDataSets.Free;
           InvoiceDataSets.Free;
+          ImageBindingDataSet.Free;
+          if (LogoImageFile <> '') and TFile.Exists(LogoImageFile) then
+            TFile.Delete(LogoImageFile);
+          if (SignatureImageFile <> '') and TFile.Exists(SignatureImageFile) then
+            TFile.Delete(SignatureImageFile);
         end;
       except
         on E: Exception do
