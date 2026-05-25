@@ -19,11 +19,14 @@ type
     FBtnCancel: TButton;
     FDataList: TListBox;
     FVariableList: TListBox;
+    FFunctionList: TListBox;
     FPropertyKey: string;
     procedure DataListDblClick(Sender: TObject);
     procedure VariableListDblClick(Sender: TObject);
+    procedure FunctionListDblClick(Sender: TObject);
     procedure LoadFields(const AFields: TArray<string>);
     procedure LoadVariables;
+    procedure LoadFunctions;
   public
     constructor CreateNew(AOwner: TComponent; Dummy: Integer = 0); override;
     class function EditValue(const ATitle, APropertyKey: string;
@@ -39,6 +42,7 @@ var
   Tabs: TPageControl;
   DataTab: TTabSheet;
   VariablesTab: TTabSheet;
+  FunctionsTab: TTabSheet;
 begin
   inherited CreateNew(AOwner, Dummy);
 
@@ -78,6 +82,16 @@ begin
   FVariableList.Align := alClient;
   FVariableList.OnDblClick := VariableListDblClick;
   LoadVariables;
+
+  FunctionsTab := TTabSheet.Create(Self);
+  FunctionsTab.PageControl := Tabs;
+  FunctionsTab.Caption := 'Functions';
+
+  FFunctionList := TListBox.Create(Self);
+  FFunctionList.Parent := FunctionsTab;
+  FFunctionList.Align := alClient;
+  FFunctionList.OnDblClick := FunctionListDblClick;
+  LoadFunctions;
 
   FMemo := TMemo.Create(Self);
   FMemo.Parent := Self;
@@ -139,6 +153,18 @@ begin
   FMemo.SetFocus;
 end;
 
+procedure TfrmTextExpressionEditor.FunctionListDblClick(Sender: TObject);
+begin
+  if FFunctionList.ItemIndex < 0 then
+    Exit;
+
+  if not SameText(FPropertyKey, 'Expression') then
+    Exit;
+
+  FMemo.SelText := FFunctionList.Items[FFunctionList.ItemIndex];
+  FMemo.SetFocus;
+end;
+
 procedure TfrmTextExpressionEditor.LoadFields(const AFields: TArray<string>);
 var
   FieldName: string;
@@ -167,6 +193,15 @@ begin
   FVariableList.Items.Add('DateTime');
   FVariableList.Items.Add('RecNo');
   FVariableList.Items.Add('RowNumber');
+end;
+
+procedure TfrmTextExpressionEditor.LoadFunctions;
+begin
+  FFunctionList.Items.Add('SUM([FieldName])');
+  FFunctionList.Items.Add('COUNT([FieldName])');
+  FFunctionList.Items.Add('AVG([FieldName])');
+  FFunctionList.Items.Add('MIN([FieldName])');
+  FFunctionList.Items.Add('MAX([FieldName])');
 end;
 
 class function TfrmTextExpressionEditor.EditValue(const ATitle, APropertyKey: string;

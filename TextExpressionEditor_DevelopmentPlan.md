@@ -180,7 +180,7 @@ Commit:
 
 ## Milestone M6 - Function Snippets
 
-Status: Pending
+Status: Completed
 
 Goal:
 
@@ -193,13 +193,17 @@ Initial snippets:
 - `AVG([FieldName])`
 - `MIN([FieldName])`
 - `MAX([FieldName])`
-- `IF(condition, trueValue, falseValue)`
+
+Deferred:
+
+- `IF(condition, trueValue, falseValue)` because it is not supported by the current evaluator.
 
 Validation:
 
 - Snippets insert at cursor.
 - User can edit placeholders manually.
 - Existing expression engine behavior is unchanged.
+- Aggregate snippets are inserted only for `Expression`; aggregate conditions in `PrintWhen` are not supported safely by the current evaluator.
 
 Commit:
 
