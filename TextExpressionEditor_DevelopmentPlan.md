@@ -147,7 +147,7 @@ Commit:
 
 ## Milestone M5 - Variable Insertion Panel
 
-Status: Pending
+Status: Completed
 
 Goal:
 
@@ -172,6 +172,7 @@ Validation:
 - Variables insert at cursor.
 - Tokens match current expression support.
 - Preview still resolves inserted variables.
+- Variables are insertable only into evaluated properties (`Expression` and `PrintWhen`).
 
 Commit:
 

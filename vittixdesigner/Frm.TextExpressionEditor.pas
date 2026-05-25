@@ -18,9 +18,12 @@ type
     FBtnOK: TButton;
     FBtnCancel: TButton;
     FDataList: TListBox;
+    FVariableList: TListBox;
     FPropertyKey: string;
     procedure DataListDblClick(Sender: TObject);
+    procedure VariableListDblClick(Sender: TObject);
     procedure LoadFields(const AFields: TArray<string>);
+    procedure LoadVariables;
   public
     constructor CreateNew(AOwner: TComponent; Dummy: Integer = 0); override;
     class function EditValue(const ATitle, APropertyKey: string;
@@ -35,6 +38,7 @@ var
   SidePanel: TPanel;
   Tabs: TPageControl;
   DataTab: TTabSheet;
+  VariablesTab: TTabSheet;
 begin
   inherited CreateNew(AOwner, Dummy);
 
@@ -64,6 +68,16 @@ begin
   FDataList.Parent := DataTab;
   FDataList.Align := alClient;
   FDataList.OnDblClick := DataListDblClick;
+
+  VariablesTab := TTabSheet.Create(Self);
+  VariablesTab.PageControl := Tabs;
+  VariablesTab.Caption := 'Variables';
+
+  FVariableList := TListBox.Create(Self);
+  FVariableList.Parent := VariablesTab;
+  FVariableList.Align := alClient;
+  FVariableList.OnDblClick := VariableListDblClick;
+  LoadVariables;
 
   FMemo := TMemo.Create(Self);
   FMemo.Parent := Self;
@@ -113,6 +127,18 @@ begin
   FMemo.SetFocus;
 end;
 
+procedure TfrmTextExpressionEditor.VariableListDblClick(Sender: TObject);
+begin
+  if FVariableList.ItemIndex < 0 then
+    Exit;
+
+  if not (SameText(FPropertyKey, 'Expression') or SameText(FPropertyKey, 'PrintWhen')) then
+    Exit;
+
+  FMemo.SelText := '[' + FVariableList.Items[FVariableList.ItemIndex] + ']';
+  FMemo.SetFocus;
+end;
+
 procedure TfrmTextExpressionEditor.LoadFields(const AFields: TArray<string>);
 var
   FieldName: string;
@@ -126,6 +152,21 @@ begin
   finally
     FDataList.Items.EndUpdate;
   end;
+end;
+
+procedure TfrmTextExpressionEditor.LoadVariables;
+begin
+  FVariableList.Items.Add('Date');
+  FVariableList.Items.Add('Time');
+  FVariableList.Items.Add('Page');
+  FVariableList.Items.Add('Page#');
+  FVariableList.Items.Add('TotalPages');
+  FVariableList.Items.Add('TotalPages#');
+  FVariableList.Items.Add('ReportTitle');
+  FVariableList.Items.Add('ReportDate');
+  FVariableList.Items.Add('DateTime');
+  FVariableList.Items.Add('RecNo');
+  FVariableList.Items.Add('RowNumber');
 end;
 
 class function TfrmTextExpressionEditor.EditValue(const ATitle, APropertyKey: string;
