@@ -343,6 +343,7 @@ var
   InvoiceDataSets: TObjectList<TFDMemTable>;
   InvoiceUserDataSets: TObjectList<TVittixUserDataSet>;
   IsInvoiceContractReport: Boolean;
+  IsRuntimeParameterReport: Boolean;
 begin
   Writeln('================================================');
   Writeln(' VittixReport Headless Regression Runner');
@@ -481,6 +482,7 @@ begin
       ElapsedMs := 0;
       VectorPdfFile := '';
       IsInvoiceContractReport := SameText(JustName, '30_invoice_named_datasets_contract.vrt');
+      IsRuntimeParameterReport := SameText(JustName, '31_runtime_parameter_values.vrt');
       InvoicePrimaryDataSet := nil;
       InvoiceNamedDataSets := nil;
       InvoiceDataSets := nil;
@@ -502,6 +504,13 @@ begin
           try
             ExportDoc := TReportExportDocument.Create;
             Engine.ExportDocument := ExportDoc;
+            if IsRuntimeParameterReport then
+            begin
+              Engine.Parameters.Values['ReportTitle'] := 'VX-RUNTIME-TITLE';
+              Engine.Parameters.Values['AmountInWords'] := 'VX-AMOUNT-WORDS';
+              Engine.Parameters.Values['BankText'] := 'VX-BANK-TEXT';
+              Engine.Parameters.Values['FilterSummary'] := 'VX-FILTER-SUMMARY';
+            end;
             // Wire up the Script Adapter so object events execute during regression tests!
             Engine.ScriptEngine.OnObjectBeforePrint := ScriptAdapter.EngineObjectBeforePrint;
             Engine.ScriptEngine.OnObjectAfterPrint := ScriptAdapter.EngineObjectAfterPrint;
@@ -520,6 +529,15 @@ begin
               RequireExportText(ExportDoc, 'VX-PARTY');
               RequireExportText(ExportDoc, 'VX-INVOICE-CUSTOM');
               RequireExportText(ExportDoc, 'VX-ITEM-CUSTOM');
+            end;
+
+            if IsRuntimeParameterReport then
+            begin
+              RequireExportText(ExportDoc, 'VX-RUNTIME-TITLE');
+              RequireExportText(ExportDoc, 'VX-AMOUNT-WORDS');
+              RequireExportText(ExportDoc, 'VX-BANK-TEXT');
+              RequireExportText(ExportDoc, 'VX-FILTER-SUMMARY');
+              RequireExportText(ExportDoc, 'VX-TEMPLATE-TITLE');
             end;
 
             if ExportDoc.Pages.Count <> PageCount then

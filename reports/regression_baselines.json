@@ -24,5 +24,6 @@
   "27_object_event_image_cases.vrt": 15,
   "28_object_event_band_object_order.vrt": 8,
   "29_band_gap_layout.vrt": 7,
-  "30_invoice_named_datasets_contract.vrt": 1
+  "30_invoice_named_datasets_contract.vrt": 1,
+  "31_runtime_parameter_values.vrt": 1
 }

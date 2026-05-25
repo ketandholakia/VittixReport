@@ -25,6 +25,7 @@ Use this checklist before releases or major engine changes.
 - Confirm `RunTests.bat` also validates vector PDF command page counts and `%PDF-` smoke output.
 - Confirm `RunTests.bat` validates vector PDF output through both file and `TMemoryStream` export paths.
 - Confirm `30_invoice_named_datasets_contract.vrt` renders marker values from the six invoice `TVittixUserDataSet` aliases.
+- Confirm `31_runtime_parameter_values.vrt` renders report heading, amount-in-words, bank text, and filter summary from runtime parameters.
 - Run `RunTests-VectorPDF.bat` to build, run vector PDF smoke checks, and keep generated PDFs for inspection.
 - Run `RunTests-Scripts.bat` to build and run only script-bearing regression reports.
 - Run `RunTests-ScriptTrace.bat` to build and run trace-only script diagnostics.

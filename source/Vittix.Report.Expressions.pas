@@ -256,6 +256,15 @@ begin
   end;
 end;
 
+function IsSingleTokenExpression(const Expr: string): Boolean;
+var
+  S: string;
+begin
+  S := Trim(Expr);
+  Result := (Length(S) >= 3) and (S[1] = '[') and
+    (S[Length(S)] = ']') and (Pos(']', S) = Length(S));
+end;
+
 // ---------------------------------------------------------------------------
 // Simple arithmetic parser
 // ---------------------------------------------------------------------------
@@ -401,6 +410,18 @@ begin
   // Steps 2+3 — system tokens and field tokens
   S := ResolveFieldTokens(Expr, Context.DataSet, Context);
   S := Trim(S);
+
+  // A standalone field/parameter token is a value lookup, not an expression
+  // to re-parse from the returned text. This preserves punctuation in values
+  // such as invoice headings and bank references.
+  if IsSingleTokenExpression(Expr) then
+  begin
+    if TryStrToFloat(S, DblValue) then
+      Result := DblValue
+    else
+      Result := S;
+    Exit;
+  end;
 
   // Step 4 — quoted string literal
   if (Length(S) >= 2)
