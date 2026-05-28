@@ -176,8 +176,9 @@ function ResolveFieldTokens(
   const Context: TExpressionContext): string;
 var
   i, j: Integer;
-  TokenName, TokenValue: string;
+  TokenName, TokenValue, FieldToken: string;
   F: TField;
+  DotPos: Integer;
 begin
   Result := '';
   i := 1;
@@ -190,6 +191,19 @@ begin
       while (j <= Length(S)) and (S[j] <> ']') do Inc(j);
 
       TokenName := Copy(S, i + 1, j - i - 1);
+      FieldToken := Trim(TokenName);
+
+      // Accept dataset-qualified tokens like:
+      // [Customers.Company], [Customers."Company"], [Customers.'Company']
+      DotPos := Pos('.', FieldToken);
+      if DotPos > 0 then
+      begin
+        FieldToken := Trim(Copy(FieldToken, DotPos + 1, MaxInt));
+        if (Length(FieldToken) >= 2) and
+           (((FieldToken[1] = '"') and (FieldToken[Length(FieldToken)] = '"')) or
+            ((FieldToken[1] = '''') and (FieldToken[Length(FieldToken)] = ''''))) then
+          FieldToken := Copy(FieldToken, 2, Length(FieldToken) - 2);
+      end;
 
       // 1. Try system tokens first
       if ResolveSystemToken(TokenName, Context, TokenValue) then
@@ -219,21 +233,21 @@ begin
       else if Assigned(Context.UserDataSet) then
       begin
         try
-          Result := Result + SafeSourceFieldAsString(ADataSet, Context.UserDataSet, TokenName);
+          Result := Result + SafeSourceFieldAsString(ADataSet, Context.UserDataSet, FieldToken);
         except
 {$IFDEF DEBUG}
-          DebugLogUnresolvedToken(S, TokenName, 'field conversion error');
+          DebugLogUnresolvedToken(S, FieldToken, 'field conversion error');
 {$ENDIF}
           Result := Result + '0';
         end;
       end
-      else if TryGetField(ADataSet, TokenName, F) then
+      else if TryGetField(ADataSet, FieldToken, F) then
       begin
         try
           Result := Result + F.AsString;
         except
 {$IFDEF DEBUG}
-          DebugLogUnresolvedToken(S, TokenName, 'field conversion error');
+          DebugLogUnresolvedToken(S, FieldToken, 'field conversion error');
 {$ENDIF}
           Result := Result + '0';
         end;
@@ -241,7 +255,7 @@ begin
       else
       begin
 {$IFDEF DEBUG}
-        DebugLogUnresolvedToken(S, TokenName, 'field missing');
+        DebugLogUnresolvedToken(S, FieldToken, 'field missing');
 {$ENDIF}
         Result := Result + '0';
       end;

@@ -342,8 +342,17 @@ object frmMain: TfrmMain
       ExplicitLeft = 0
       ExplicitHeight = 100
     end
+    object splLeft: TSplitter
+      Left = 140
+      Top = 0
+      Width = 4
+      Height = 672
+      Color = 13684944
+      ParentColor = False
+      ExplicitHeight = 100
+    end
     object pnlToolbox: TPanel
-      Left = 4
+      Left = 0
       Top = 0
       Width = 140
       Height = 672
@@ -384,15 +393,6 @@ object frmMain: TfrmMain
         TabOrder = 0
         OnToolSelected = ToolboxToolSelected
       end
-    end
-    object splLeft: TSplitter
-      Left = 140
-      Top = 0
-      Width = 4
-      Height = 672
-      Color = 13684944
-      ParentColor = False
-      ExplicitHeight = 100
     end
     object pnlProperties: TPanel
       Left = 1020

@@ -368,6 +368,7 @@ type
     FPnlDataSections: TPanel;
     FPnlFields  : TPanel;
     FLblFields  : TLabel;
+    FEdtFieldFilter: TEdit;
     FLstFields  : TListBox;
     FSplVariablesFields: TSplitter;
     FPnlVariables: TPanel;
@@ -503,6 +504,7 @@ type
     function  StructureObjectIconIndex(AObj: TReportObject): Integer;
     function  ShortNodePreview(const S: string; AMaxLen: Integer = 28): string;
     procedure FieldListDblClick(Sender: TObject);
+    procedure FieldFilterChange(Sender: TObject);
     procedure DesignerDragOver(Sender, Source: TObject; X, Y: Integer;
       State: TDragState; var Accept: Boolean);
     procedure DesignerDragDrop(Sender, Source: TObject; X, Y: Integer);
@@ -719,6 +721,13 @@ begin
   FLblFields.Caption  := ' Dataset Fields';
   FLblFields.Font.Style := [fsBold];
   FLblFields.Height   := 18;
+
+  FEdtFieldFilter := TEdit.Create(Self);
+  FEdtFieldFilter.Parent := FPnlFields;
+  FEdtFieldFilter.Align := alTop;
+  FEdtFieldFilter.Height := 24;
+  FEdtFieldFilter.TextHint := 'Type to filter fields...';
+  FEdtFieldFilter.OnChange := FieldFilterChange;
 
   FLstFields          := TListBox.Create(Self);
   FLstFields.Parent   := FPnlFields;
@@ -5537,7 +5546,8 @@ end;
 
 procedure TfrmMain.RefreshFieldList;
 begin
-  Frm.Main.TreeFieldHelpers.RefreshFieldList(FLstFields, FLblFields, FDesigner);
+  Frm.Main.TreeFieldHelpers.RefreshFieldList(FLstFields, FLblFields, FDesigner,
+    FEdtFieldFilter.Text);
 end;
 
 procedure TfrmMain.FieldListDblClick(Sender: TObject);
@@ -5548,6 +5558,11 @@ begin
   FieldName := FLstFields.Items[FLstFields.ItemIndex];
   if not FDesigner.InsertFieldObject(FieldName) then
     ShowMessage('Please click a band on the canvas first to set the active band, then double-click a field.');
+end;
+
+procedure TfrmMain.FieldFilterChange(Sender: TObject);
+begin
+  RefreshFieldList;
 end;
 
 function TfrmMain.VariableTokenForNode(ANode: TTreeNode; out AToken: string;
@@ -5657,6 +5672,11 @@ var
   KeyName: string;
   CurrentValue: string;
   EditedValue: string;
+  BaseFields: TArray<string>;
+  EditorFields: TArray<string>;
+  I, J, K: Integer;
+  DataSetNames: TStringList;
+  DSName, FieldName: string;
 begin
   Result := False;
   if (ARow <= 0) or (ARow >= PropEditor.RowCount) then
@@ -5672,9 +5692,55 @@ begin
 
   CurrentValue := PropEditor.Values[KeyName];
   EditedValue := CurrentValue;
-  if not TfrmTextExpressionEditor.EditValue(KeyName + ' Editor', KeyName,
-    FDesigner.GetFieldNames, EditedValue) then
-    Exit;
+  BaseFields := FDesigner.GetFieldNames;
+  EditorFields := BaseFields;
+  DataSetNames := TStringList.Create;
+  try
+    if Assigned(FDesigner) and Assigned(FDesigner.Report) then
+    begin
+      for I := 0 to FDesigner.Report.DataSetNames.Count - 1 do
+      begin
+        DSName := Trim(FDesigner.Report.DataSetNames[I]);
+        if DSName <> '' then
+          DataSetNames.Add(DSName);
+      end;
+    end;
+
+    // Fallback for reports where DataSetNames metadata is not filled.
+    if DataSetNames.Count = 0 then
+      DataSetNames.Add('MainData');
+
+    // For expression-like editing, offer dataset-qualified token names in the
+    // FastReport style: DataSet."FieldName".
+    if (Length(BaseFields) > 0) and not SameText(KeyName, 'DataField') then
+    begin
+      SetLength(EditorFields, DataSetNames.Count * Length(BaseFields));
+      K := 0;
+      for I := 0 to DataSetNames.Count - 1 do
+      begin
+        DSName := Trim(DataSetNames[I]);
+        if DSName = '' then
+          Continue;
+        for J := 0 to High(BaseFields) do
+        begin
+          FieldName := Trim(BaseFields[J]);
+          if FieldName = '' then
+            Continue;
+          EditorFields[K] := DSName + '."' + FieldName + '"';
+          Inc(K);
+        end;
+      end;
+      SetLength(EditorFields, K);
+      if K = 0 then
+        EditorFields := BaseFields;
+    end;
+
+    if not TfrmTextExpressionEditor.EditValue(KeyName + ' Editor', KeyName,
+      EditorFields, EditedValue) then
+      Exit;
+  finally
+    DataSetNames.Free;
+  end;
 
   if EditedValue = CurrentValue then
     Exit(True);
@@ -5960,6 +6026,8 @@ var
   JsonFile: string;
 begin
   JsonFile := GetRegressionReportPath('sample_data.json');
+  if ExtractFileDir(JsonFile) <> '' then
+    ForceDirectories(ExtractFileDir(JsonFile));
 
   CreateSampleDataSet;
 

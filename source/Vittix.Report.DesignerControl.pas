@@ -1326,19 +1326,19 @@ var
   I: Integer;
 begin
   Result := [];
-  if Assigned(FDataSet) and FDataSet.Active and (FDataSet.FieldCount > 0) then
-  begin
-    // Live dataset connected (design-time / host app) — read field names directly
-    SetLength(Result, FDataSet.FieldCount);
-    for I := 0 to FDataSet.FieldCount - 1 do
-      Result[I] := FDataSet.Fields[I].FieldName;
-  end
-  else if Assigned(FReport) and (FReport.FieldNames.Count > 0) then
+  if Assigned(FReport) and (FReport.FieldNames.Count > 0) then
   begin
     // Standalone designer: no live DB — use field names embedded in the .vrt file
     SetLength(Result, FReport.FieldNames.Count);
     for I := 0 to FReport.FieldNames.Count - 1 do
       Result[I] := FReport.FieldNames[I];
+  end
+  else if Assigned(FDataSet) and FDataSet.Active and (FDataSet.FieldCount > 0) then
+  begin
+    // Fall back to the connected design-time/sample dataset when the report has no schema.
+    SetLength(Result, FDataSet.FieldCount);
+    for I := 0 to FDataSet.FieldCount - 1 do
+      Result[I] := FDataSet.Fields[I].FieldName;
   end;
 end;
 

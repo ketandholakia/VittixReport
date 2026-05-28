@@ -18,20 +18,27 @@ uses
   Vittix.Report.Bands,
   Vittix.Report.DesignerControl;
 
-procedure RefreshFieldList(ALstFields: TListBox; ALblFields: TLabel; ADesigner: TVittixReportDesigner);
+procedure RefreshFieldList(ALstFields: TListBox; ALblFields: TLabel; ADesigner: TVittixReportDesigner;
+  const AFilterText: string = '');
 function VariableTokenForNode(ANode: TTreeNode; out AToken: string; out ASupported: Boolean): Boolean;
 function CanInsertVariableIntoCurrentProperty(APropEditor: TValueListEditor; out AKey: string): Boolean;
 procedure InsertVariableToken(APropEditor: TValueListEditor; APropEditorDirty: TProc<Boolean>; AUpdateHint: TProc<Integer>; const AToken: string);
 
 implementation
 
-procedure RefreshFieldList(ALstFields: TListBox; ALblFields: TLabel; ADesigner: TVittixReportDesigner);
+procedure RefreshFieldList(ALstFields: TListBox; ALblFields: TLabel; ADesigner: TVittixReportDesigner;
+  const AFilterText: string = '');
 var
   Names: TArray<string>;
   N: string;
+  FilterText: string;
+  VisibleCount: Integer;
 begin
   if not Assigned(ALstFields) or not Assigned(ALblFields) then
     Exit;
+
+  FilterText := Trim(AFilterText);
+  VisibleCount := 0;
 
   ALstFields.Items.BeginUpdate;
   try
@@ -40,16 +47,27 @@ begin
     begin
       Names := ADesigner.GetFieldNames;
       for N in Names do
-        ALstFields.Items.Add(N);
+      begin
+        if (FilterText = '') or (Pos(UpperCase(FilterText), UpperCase(N)) > 0) then
+        begin
+          ALstFields.Items.Add(N);
+          Inc(VisibleCount);
+        end;
+      end;
     end;
   finally
     ALstFields.Items.EndUpdate;
   end;
 
-  if ALstFields.Items.Count = 0 then
-    ALblFields.Caption := ' Dataset Fields  (none)'
+  if VisibleCount = 0 then
+  begin
+    if FilterText = '' then
+      ALblFields.Caption := ' Dataset Fields  (none)'
+    else
+      ALblFields.Caption := ' Dataset Fields  (0 match)';
+  end
   else
-    ALblFields.Caption := Format(' Dataset Fields  (%d)', [ALstFields.Items.Count]);
+    ALblFields.Caption := Format(' Dataset Fields  (%d)', [VisibleCount]);
 end;
 
 function VariableTokenForNode(ANode: TTreeNode; out AToken: string; out ASupported: Boolean): Boolean;
