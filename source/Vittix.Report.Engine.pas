@@ -1078,8 +1078,9 @@ begin
      and FNamedDataSets.TryGetValue(ABand.DataSetName, Result) then
     Exit;
 
-  // Unknown dataset name: no data for this band.
-  Result := nil;
+  // Fallback to the primary dataset when the band name is not registered.
+  // This keeps older templates working even when the named dataset wiring is incomplete.
+  Result := FDataSet;
 end;
 
 function TReportEngine.ResolveBandUserDataSet(
@@ -1096,7 +1097,8 @@ begin
      FNamedUserDataSets.TryGetValue(ABand.DataSetName, Result) then
     Exit;
 
-  Result := nil;
+  // Fallback to the primary user dataset when the band name is not registered.
+  Result := FUserDataSet;
 end;
 
 function TReportEngine.PrimarySourceActive: Boolean;
