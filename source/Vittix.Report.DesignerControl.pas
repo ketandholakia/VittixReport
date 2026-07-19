@@ -138,6 +138,8 @@ type
 
     { Hit testing }
     function  BandSepHitTest(ScreenPt: TPoint; out HitBand: TReportBand): Boolean;
+    function  BandHeaderHitTest(ScreenPt: TPoint; out HitBand: TReportBand): Boolean;
+    function  BandHitTest(ScreenPt: TPoint; out HitBand: TReportBand): Boolean;
     function  ObjectHitTest(ScreenPt: TPoint; out HitObj: TReportObject): Boolean;
     function  HandleHitTest(ScreenPt: TPoint; out H: TResizeHandle): Boolean;
 
@@ -545,6 +547,70 @@ begin
   Result := DesignerBandSepHitTest(ScreenPt, FBandLayouts, PageTop, FZoom, HitBand);
 end;
 
+function TVittixReportDesigner.BandHitTest(ScreenPt: TPoint;
+  out HitBand: TReportBand): Boolean;
+var
+  I: Integer;
+  BL: TBandLayout;
+  BandRect: TRect;
+  PM: TReportMargins;
+  PrintableW: Integer;
+begin
+  Result := False;
+  HitBand := nil;
+  PM := FReport.PageSettings.Margins;
+  PrintableW := PageWidth - Scale(PM.Left) - Scale(PM.Right);
+  if PrintableW < 0 then
+    PrintableW := 0;
+
+  for I := High(FBandLayouts) downto 0 do
+  begin
+    BL := FBandLayouts[I];
+    BandRect := Rect(
+      PageLeft + Scale(PM.Left),
+      PageTop + Scale(BL.Y),
+      PageLeft + Scale(PM.Left) + PrintableW,
+      PageTop + Scale(BL.Y + BL.Height + BAND_HDR_H));
+    if PtInRect(BandRect, ScreenPt) then
+    begin
+      HitBand := BL.Band;
+      Exit(True);
+    end;
+  end;
+end;
+
+function TVittixReportDesigner.BandHeaderHitTest(ScreenPt: TPoint;
+  out HitBand: TReportBand): Boolean;
+var
+  I: Integer;
+  BL: TBandLayout;
+  HeaderRect: TRect;
+  PM: TReportMargins;
+  PrintableW: Integer;
+begin
+  Result := False;
+  HitBand := nil;
+  PM := FReport.PageSettings.Margins;
+  PrintableW := PageWidth - Scale(PM.Left) - Scale(PM.Right);
+  if PrintableW < 0 then
+    PrintableW := 0;
+
+  for I := High(FBandLayouts) downto 0 do
+  begin
+    BL := FBandLayouts[I];
+    HeaderRect := Rect(
+      PageLeft + Scale(PM.Left),
+      PageTop + Scale(BL.Y),
+      PageLeft + Scale(PM.Left) + PrintableW,
+      PageTop + Scale(BL.Y) + BAND_HDR_H);
+    if PtInRect(HeaderRect, ScreenPt) then
+    begin
+      HitBand := BL.Band;
+      Exit(True);
+    end;
+  end;
+end;
+
 function TVittixReportDesigner.ObjectHitTest(ScreenPt: TPoint;
   out HitObj: TReportObject): Boolean;
 begin
@@ -665,9 +731,7 @@ begin
   Cmd.ActionName := 'Add Band';
   FCommands.DoCommand(Cmd);
   ComputeBandLayouts;
-  ClearSelection;
-  AddToSelection(Result);
-  FActiveBand := Result;
+  SelectObject(Result);
   DoModified;
 end;
 
@@ -1793,6 +1857,7 @@ var
   I   : Integer;
   BL  : TBandLayout;
   BR  : TRect;
+  TextRect: TRect;
   PM  : TReportMargins;
   PrintableW: Integer;
   Txt: string;
@@ -1803,6 +1868,8 @@ begin
     PrintableW := 0;
 
   Canvas.Brush.Style := bsSolid;
+  Canvas.Font.Assign(Font);
+  Canvas.Font.Name   := 'Segoe UI';
   Canvas.Font.Color  := clBlack;
   Canvas.Font.Size   := 8;
   Canvas.Font.Style  := [fsBold];
@@ -1820,7 +1887,9 @@ begin
     Canvas.FillRect(BR);
     Canvas.Brush.Style := bsClear;
     Txt := BAND_LABELS[BL.Band.BandType] + ': ' + BL.Band.Name;
-    Canvas.TextOut(BR.Left + 4, BR.Top + 1, Txt);
+    TextRect := Rect(BR.Left + 4, BR.Top, BR.Right - 18, BR.Bottom);
+    DrawText(Canvas.Handle, PChar(Txt), Length(Txt), TextRect,
+      DT_LEFT or DT_VCENTER or DT_SINGLELINE or DT_END_ELLIPSIS);
     Canvas.Pen.Color := $00808080;
     Canvas.MoveTo(BR.Left, BR.Bottom);
     Canvas.LineTo(BR.Right, BR.Bottom);
@@ -2127,6 +2196,13 @@ begin
       Exit;
     end;
 
+    { ---- BAND HEADER ---- }
+    if BandHeaderHitTest(Point(X, Y), HitBand) then
+    begin
+      SelectObject(HitBand);
+      Exit;
+    end;
+
     { ---- OBJECT HIT TEST ---- }
     if ObjectHitTest(Point(X, Y), HitObj) then
     begin
@@ -2169,6 +2245,13 @@ begin
       begin
         FInteractionState.DragStartBounds.Add(HitObj, HitObj.Bounds);
       end;
+      Exit;
+    end;
+
+    { ---- BAND HIT TEST ---- }
+    if BandHitTest(Point(X, Y), HitBand) then
+    begin
+      SelectObject(HitBand);
       Exit;
     end;
 

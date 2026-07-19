@@ -124,13 +124,6 @@ begin
     C.FillRect(BandR);
   end;
 
-  // Bottom separator line
-  C.Pen.Color := clSilver;
-  C.Pen.Width := 1;
-  C.Pen.Style := psSolid;
-  C.MoveTo(BandR.Left,  BandR.Bottom);
-  C.LineTo(BandR.Right, BandR.Bottom);
-
   // Draw children with DC offset so child Bounds are band-relative
   SaveDC(C.Handle);
   try

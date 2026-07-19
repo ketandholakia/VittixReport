@@ -27,6 +27,10 @@ type
 
 implementation
 
+const
+  PDF_POINTS_PER_PIXEL = 72 / 96;
+  PDF_XREF_EOL = #13#10;
+
 class procedure TReportVectorPDFExporter.ExportDocument(
   ADocument: TReportExportDocument;
   const AFileName: string);
@@ -89,7 +93,7 @@ var
   function PdfNumber(AValue: Double): AnsiString;
   begin
     Result := AnsiString(StringReplace(
-      FormatFloat('0.###', AValue),
+      FormatFloat('0.###', AValue * PDF_POINTS_PER_PIXEL),
       FormatSettings.DecimalSeparator,
       '.',
       []));
@@ -453,8 +457,8 @@ begin
 
     BeginObject(ObjNo);
     WriteAnsi('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' +
-      AnsiString(IntToStr(ADocument.Pages[PageIndex].Width)) + ' ' +
-      AnsiString(IntToStr(ADocument.Pages[PageIndex].Height)) +
+      PdfNumber(ADocument.Pages[PageIndex].Width) + ' ' +
+      PdfNumber(ADocument.Pages[PageIndex].Height) +
       '] /Resources << /Font << ' +
       '/F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> ' +
       '/F2 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> ' +
@@ -476,9 +480,9 @@ begin
   XRefOffset := AStream.Position;
   WriteAnsi('xref' + #10);
   WriteAnsi(AnsiString('0 ' + IntToStr(ObjectCount + 1) + #10));
-  WriteAnsi('0000000000 65535 f ' + #10);
+  WriteAnsi('0000000000 65535 f ' + PDF_XREF_EOL);
   for I := 1 to ObjectCount do
-    WriteAnsi(AnsiString(Format('%.10d 00000 n ', [Offsets[I]]) + #10));
+    WriteAnsi(AnsiString(Format('%.10d 00000 n ', [Offsets[I]]) + PDF_XREF_EOL));
   WriteAnsi('trailer' + #10);
   WriteAnsi(AnsiString('<< /Size ' + IntToStr(ObjectCount + 1) +
     ' /Root 1 0 R >>' + #10));

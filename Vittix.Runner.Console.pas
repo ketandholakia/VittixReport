@@ -117,6 +117,15 @@ begin
   end;
 end;
 
+function PdfPointNumber(AValue: Integer): AnsiString;
+begin
+  Result := AnsiString(StringReplace(
+    FormatFloat('0.###', AValue * (72 / 96)),
+    FormatSettings.DecimalSeparator,
+    '.',
+    []));
+end;
+
 function ExportDocumentContainsText(ADocument: TReportExportDocument;
   const AText: string): Boolean;
 var
@@ -828,11 +837,13 @@ begin
             if (PageCount > 0) and
                (CountAsciiOccurrences(Header,
                   AnsiString('/MediaBox [0 0 ' +
-                    IntToStr(ExportDoc.Pages[0].Width) + ' ' +
-                    IntToStr(ExportDoc.Pages[0].Height) + ']')) <> PageCount) then
+                    string(PdfPointNumber(ExportDoc.Pages[0].Width)) + ' ' +
+                    string(PdfPointNumber(ExportDoc.Pages[0].Height)) + ']')) <> PageCount) then
               raise Exception.CreateFmt(
-                'Vector PDF MediaBox mismatch: expected %d page(s) sized %dx%d',
-                [PageCount, ExportDoc.Pages[0].Width, ExportDoc.Pages[0].Height]);
+                'Vector PDF MediaBox mismatch: expected %d page(s) sized %s x %s points',
+                [PageCount,
+                 string(PdfPointNumber(ExportDoc.Pages[0].Width)),
+                 string(PdfPointNumber(ExportDoc.Pages[0].Height))]);
             if CountAsciiOccurrences(Header, '/Contents ') <> PageCount then
               raise Exception.CreateFmt(
                 'Vector PDF page content mismatch: engine=%d pdf=%d',
