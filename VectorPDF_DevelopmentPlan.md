@@ -230,6 +230,93 @@ Safe commit condition:
 - Unsupported images fail gracefully.
 - Raster images do not break vector text output.
 
+### M5.5 - Vector PDF Hardening
+
+Status: In Progress (implemented, pending build/test verification)
+
+Goal:
+Fix correctness/safety issues found in review before wiring up designer UI in M6.
+
+Findings from review:
+- Inline `BI/ID/EI` images had no `/L` (Length) key, so PDF readers had to
+  scan raw JPEG/PNG bytes for an `EI` byte sequence to find the end of the
+  image. Real compressed image data can coincidentally contain that
+  sequence, corrupting the file. Full-size report images (not small icons)
+  made this a real risk, not a theoretical one.
+- `TReportExportTextCommand.WordWrap` was captured but never used - all
+  text rendered as a single `Tj` line regardless of `Bounds` width, so
+  wrapped memo/field text in preview would overflow or clip in the vector
+  PDF instead of wrapping.
+- `PdfTextX` estimated string width as `Length(Text) * FontSize * 0.5` for
+  center/right alignment - a rough heuristic with visible drift from the
+  GDI-rendered preview, most noticeable on right-aligned invoice amounts.
+- PNG embedding read every pixel via `Canvas.Pixels`, a slow per-pixel GDI
+  round trip.
+
+Changes made:
+- Replaced inline images with proper Image XObjects: each embedded image
+  is now its own indirect PDF object with an explicit `/Length`,
+  referenced from the page's `/Resources /XObject` dictionary and drawn
+  with `cm` + `/ImN Do`. Object numbering became a two-pass process
+  (content build, then number assignment) since image count per page is
+  variable.
+- Added a measurement `TBitmap.Canvas` (created once per export, freed at
+  the end) that is set to the report's requested `FontName`/`FontSize`/
+  `FontStyle` for each text command. Used for:
+  - Greedy word-wrap by real character widths, hard line breaks preserved,
+    only used when `WordWrap` is set.
+  - Real `TextWidth` measurement in `PdfTextX`, replacing the `0.5em`
+    heuristic.
+- PNG pixel copy switched from `Canvas.Pixels` to `ScanLine`.
+
+Known limitations (unchanged by this pass, called out explicitly so they
+are a documented decision rather than a silent gap):
+- No font embedding. Text is always drawn with one of four built-in
+  Helvetica variants; `TextCmd.FontName` is not used for the actual glyph
+  rendering (only for wrap/alignment measurement). Non-Latin-1 text
+  (including Devanagari, Gujarati, and other Indic scripts used in GST
+  invoices) will not render correctly, since core PDF Type1 fonts only
+  support WinAnsi/Latin-1 and `PdfText` converts through `AnsiString`
+  using the system default codepage. Do not point real Indic-language
+  reports at "Export Vector PDF" until a follow-up milestone addresses
+  this - see M5.6 below.
+- A single word wider than `Bounds.Width` is not mid-word split.
+- Progressive/CMYK JPEG files are not distinguished from baseline JPEG
+  and would embed incorrectly if encountered (pre-existing limitation).
+- PNG transparency is flattened onto white; no alpha channel support.
+
+Safe commit condition:
+- Existing sample reports with text, lines, shapes, JPEG, and PNG export
+  without corruption.
+- A report with a wrapped memo field exports with visible line breaks
+  matching (approximately) the preview.
+- `RunTests-VectorPDF.bat` passes on the current tree.
+
+### M5.6 - Font Embedding and Indic/Unicode Text Export
+
+Status: Pending
+
+Goal:
+Make vector PDF export usable for real GST invoices containing Indic-script
+text, not just Latin-1 reports.
+
+Options to evaluate (not yet decided):
+- Rasterize just the non-Latin-1 text runs via GDI into a small image
+  XObject placed at the correct position. Reuses existing font rendering,
+  guarantees visual fidelity, avoids full font-embedding complexity. Would
+  reuse the M5.5 Image XObject plumbing.
+- Embed a TrueType subset (`/FontFile2`, `/CIDFontType2`) for at least one
+  bundled Indic-capable font (e.g., a Noto Sans Devanagari/Gujarati family).
+  Meaningfully larger effort: glyph subsetting, CID-to-GID mapping,
+  `/ToUnicode` CMap for text extraction/search.
+
+Interim mitigation until this lands:
+- Detect non-Latin-1 text at export time and fail that text command
+  gracefully (skip with a logged warning) rather than silently emitting
+  `?` or blank output.
+- Keep "Export Vector PDF" labeled as Latin-text-only (beta) in the
+  designer UI (M6) until this milestone is complete.
+
 ### M6 - API and Designer Integration
 
 Status: Complete
@@ -253,6 +340,26 @@ Initial implementation:
 - Added separate `TVittixReport.ExportToVectorPDF`.
 - Existing `TVittixReport.ExportToPDF` remains printer-based and unchanged.
 - Added separate designer File menu action `Export to Vector PDF...`.
+
+Review verification (post-implementation):
+- `ExportToVectorPDF` (file and stream overloads) mirrors the existing
+  `ExportToPDF` resolution/cleanup pattern exactly - no discrepancies.
+- `mnuExportVectorPDFClick` mirrors `mnuExportPDFClick` (dataset fallback,
+  empty-pages guard, cursor/dialog cleanup) - clean.
+- `Vittix.Designer.RegressionRunner.pas` cleanup is unconditional `Free`
+  calls (nil-safe) for `Renderer`/`Engine`/`ExportDoc`/`ReportModel` - no
+  leaks found in the runner itself.
+- The smoke test only checks the output file exists and starts with
+  `%PDF-`; it does not parse the xref table or verify page count. Fine for
+  a smoke test, but call it out as a gap to close in M7.
+
+Open follow-up (not blocking M6, tracked for M7):
+- The latest `RunTests-VectorPDF.bat` run showed GDI Handles going from 16
+  to 24 (delta +8) across the 30-report suite. Not yet isolated to vector
+  PDF export vs. the engine/preview paths the same harness also exercises.
+  Before M7 closes, compare against a pre-M5.5 baseline and check whether
+  the delta concentrates on image-heavy reports (`07_imagepath_test`,
+  `27_object_event_image_cases`).
 
 ### M7 - Regression and Quality Pass
 

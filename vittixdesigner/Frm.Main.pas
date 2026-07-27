@@ -1296,7 +1296,7 @@ begin
   try
     dlgPDF.Filter     := 'PDF Files (*.pdf)|*.pdf|All Files (*.*)|*.*';
     dlgPDF.DefaultExt := 'pdf';
-    dlgPDF.Title      := 'Export Report to Vector PDF';
+    dlgPDF.Title      := 'Export Report to Vector PDF (Beta)';
     if FCurrentFile <> '' then
       dlgPDF.FileName := ChangeFileExt(FCurrentFile, '.vector.pdf');
     if not dlgPDF.Execute then Exit;
@@ -1314,7 +1314,7 @@ begin
       end;
       if not Assigned(DS) then
       begin
-        ShowMessage('Vector PDF export requires a dataset for report preparation.');
+        ShowMessage('Vector PDF export (beta) requires a dataset for report preparation.');
         Exit;
       end;
 
@@ -1326,7 +1326,7 @@ begin
           Eng.Prepare;
           if ExportDoc.Pages.Count = 0 then
           begin
-            ShowMessage('No pages were generated. Add a MasterData band with objects and ensure a DataSet is assigned.');
+            ShowMessage('No pages were generated. Add a MasterData band with objects and ensure a DataSet is assigned. Full Unicode/font embedding is still pending in Vector PDF beta.');
             Exit;
           end;
           TReportVectorPDFExporter.ExportDocument(ExportDoc, dlgPDF.FileName);

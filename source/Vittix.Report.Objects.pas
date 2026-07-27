@@ -1,4 +1,4 @@
-﻿unit Vittix.Report.Objects;
+unit Vittix.Report.Objects;
 
 interface
 
@@ -374,8 +374,8 @@ begin
     Exit;
 
   CanPrint := True;
-  if Assigned(GBeforeObjectPrint) then
-    GBeforeObjectPrint(AObject, Context, CanPrint);
+  if Assigned(Context.Hooks) then
+    Context.Hooks.InvokeBeforeObjectPrint(AObject, Context, CanPrint);
   if not CanPrint then
     Exit;
 
@@ -386,8 +386,8 @@ begin
     GPrecheckedObjectForPrintWhen := nil;
   end;
 
-  if Assigned(GAfterObjectPrint) then
-    GAfterObjectPrint(AObject, Context);
+  if Assigned(Context.Hooks) then
+    Context.Hooks.InvokeAfterObjectPrint(AObject, Context);
 end;
 
 procedure EnsureRegistryInitialized;
@@ -1671,13 +1671,8 @@ begin
     Exit;
 
   Result := nil;
-  try
-    if Assigned(GNamedDataSets) then
-      if not GNamedDataSets.TryGetValue(Obj.FDataSetName, Result) then
-        Result := nil;
-  except
-    Result := nil;
-  end;
+  if Assigned(Context.Hooks) then
+    Result := Context.Hooks.GetNamedDataSet(Obj.FDataSetName);
 end;
 
 function FindSubReportMasterBand(AModel: TReportModel): TReportBand;

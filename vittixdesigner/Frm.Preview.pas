@@ -22,6 +22,7 @@ uses
   Vcl.Forms, Vcl.Controls, Vcl.StdCtrls, Vcl.ComCtrls,
   Vcl.ExtCtrls, Vcl.Buttons, Vcl.Dialogs,
   Data.DB,
+  Vittix.Report.Engine,
   Vittix.Report.Model,
   Vittix.Report.Renderer,
   Vittix.Report.Preview;
@@ -91,6 +92,7 @@ end;
 procedure TfrmPreview.LoadReport(AReport: TReportModel; ADataSet: TDataSet);
 var
   Rend: TReportRenderer;
+  Engine: TReportEngine;
   const
     PreviewWarnThresholdMB = 300;
   var
@@ -115,7 +117,13 @@ begin
   try
     Rend := TReportRenderer.Create;
     try
-      Rend.Render(AReport, ADataSet);
+      Engine := TReportEngine.Create(AReport, ADataSet);
+      try
+        Engine.Prepare;
+        Rend.Render(Engine, AReport.PageSettings.PageWidth, AReport.PageSettings.PageHeight);
+      finally
+        Engine.Free;
+      end;
       PageCount := Rend.Pages.Count;
       Preview.Margins := AReport.PageSettings.Margins;
       if PageCount > 0 then

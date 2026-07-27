@@ -33,15 +33,7 @@ type
     constructor Create;
     destructor Destroy; override;
 
-    procedure Render(AReport: TReportModel; ADataSet: TDataSet); overload;
-    procedure Render(
-      AReport: TReportModel;
-      ADataSet: TDataSet;
-      ANamedDataSets: TDictionary<string, TDataSet>); overload;
-    procedure Render(
-      AReport: TReportModel;
-      AUserDataSet: TVittixUserDataSet;
-      ANamedUserDataSets: TDictionary<string, TVittixUserDataSet>); overload;
+    procedure Render(AEngine: TReportEngine; APageWidth, APageHeight: Integer);
     procedure Print;
 
     property Pages: TObjectList<TRenderPage> read FPages;
@@ -98,101 +90,31 @@ begin
     FParameters.Assign(Value);
 end;
 
-procedure TReportRenderer.Render(
-  AReport: TReportModel;
-  ADataSet: TDataSet);
-begin
-  Render(AReport, ADataSet, nil);
-end;
-
-procedure TReportRenderer.Render(
-  AReport: TReportModel;
-  ADataSet: TDataSet;
-  ANamedDataSets: TDictionary<string, TDataSet>);
+procedure TReportRenderer.Render(AEngine: TReportEngine; APageWidth, APageHeight: Integer);
 var
-  Engine: TReportEngine;
   i:      Integer;
   Page:   TRenderPage;
   R:      TRect;
-  PW, PH: Integer;
 begin
   FPages.Clear;
-  ClearReportObjectRenderHooks;
+  if not Assigned(AEngine) then Exit;
 
-  if not Assigned(AReport) then Exit;
+  AEngine.Parameters.Assign(FParameters);
+  AEngine.TwoPassRendering := FTwoPassRendering;
+  AEngine.Prepare;
 
-  // Read page dimensions from the model's PageSettings
-  PW := AReport.PageSettings.PageWidth;
-  PH := AReport.PageSettings.PageHeight;
-
-  Engine := TReportEngine.Create(AReport, ADataSet, ANamedDataSets, nil);
-  try
-    Engine.Parameters.Assign(FParameters);
-    Engine.TwoPassRendering := FTwoPassRendering;
-    Engine.Prepare;
-
-    for i := 0 to Engine.Pages.Count - 1 do
-    begin
-      Page := TRenderPage.Create(PW, PH);
-      try
-        R  := Rect(0, 0, PW, PH);
-
-        Page.Metafile.Assign(Engine.Pages[i]);
-        Page.Bitmap.Canvas.StretchDraw(R, Engine.Pages[i]);
-
-        FPages.Add(Page);
-        Page := nil; // owned by FPages after Add
-      finally
-        Page.Free;
-      end;
+  for i := 0 to AEngine.Pages.Count - 1 do
+  begin
+    Page := TRenderPage.Create(APageWidth, APageHeight);
+    try
+      R  := Rect(0, 0, APageWidth, APageHeight);
+      Page.Metafile.Assign(AEngine.Pages[i]);
+      Page.Bitmap.Canvas.StretchDraw(R, AEngine.Pages[i]);
+      FPages.Add(Page);
+      Page := nil; // owned by FPages after Add
+    finally
+      Page.Free;
     end;
-  finally
-    Engine.Free;
-  end;
-end;
-
-procedure TReportRenderer.Render(
-  AReport: TReportModel;
-  AUserDataSet: TVittixUserDataSet;
-  ANamedUserDataSets: TDictionary<string, TVittixUserDataSet>);
-var
-  Engine: TReportEngine;
-  i:      Integer;
-  Page:   TRenderPage;
-  R:      TRect;
-  PW, PH: Integer;
-begin
-  FPages.Clear;
-  ClearReportObjectRenderHooks;
-
-  if not Assigned(AReport) then Exit;
-
-  PW := AReport.PageSettings.PageWidth;
-  PH := AReport.PageSettings.PageHeight;
-
-  Engine := TReportEngine.Create(AReport, AUserDataSet, ANamedUserDataSets, nil);
-  try
-    Engine.Parameters.Assign(FParameters);
-    Engine.TwoPassRendering := FTwoPassRendering;
-    Engine.Prepare;
-
-    for i := 0 to Engine.Pages.Count - 1 do
-    begin
-      Page := TRenderPage.Create(PW, PH);
-      try
-        R  := Rect(0, 0, PW, PH);
-
-        Page.Metafile.Assign(Engine.Pages[i]);
-        Page.Bitmap.Canvas.StretchDraw(R, Engine.Pages[i]);
-
-        FPages.Add(Page);
-        Page := nil;
-      finally
-        Page.Free;
-      end;
-    end;
-  finally
-    Engine.Free;
   end;
 end;
 

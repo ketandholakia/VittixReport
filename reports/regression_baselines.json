@@ -1,4 +1,4 @@
-{
+﻿{
   "01_simple_masterdata.vrt": 6,
   "02_missing_field_safety.vrt": 6,
   "03_grouped_report.vrt": 15,
@@ -28,5 +28,6 @@
   "31_runtime_parameter_values.vrt": 1,
   "32_image_binding_values.vrt": 1,
   "33_invoice_multipage_contract.vrt": 9,
-  "34_reportdata_contract.vrt": 1
+  "34_reportdata_contract.vrt": 1,
+  "35_svg_vector_export.vrt": 15
 }

@@ -1,0 +1,32 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    # Assuming a self-hosted runner with RAD Studio / MSBuild installed,
+    # or using a community action to setup Delphi/MSBuild environment.
+    # For a generic MSBuild setup on GitHub hosted runners (for C# mostly),
+    # you might need a custom action for Delphi.
+    # Here we just show the structure of invoking build.bat and tests.
+    
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v1.1
+      
+    - name: Build Packages and Designer
+      run: |
+        cmd.exe /c build.bat
+        
+    - name: Build and Run Tests
+      run: |
+        msbuild tests\VittixReportTests.dproj /p:Config=Release /p:Platform=Win32 /t:Clean;Build
+        .\tests\Win32\Release\VittixReportTests.exe

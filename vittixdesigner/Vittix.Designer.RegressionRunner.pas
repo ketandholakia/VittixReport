@@ -88,11 +88,6 @@ begin
       try
         ReportModel := TReportSerializer.LoadFromFile(FN);
         Renderer := TReportRenderer.Create;
-        if Assigned(AGetSampleDataSet) then
-          Renderer.Render(ReportModel, AGetSampleDataSet)
-        else
-          Renderer.Render(ReportModel, nil);
-
         ExportDoc := TReportExportDocument.Create;
         if Assigned(AGetSampleDataSet) then
           Engine := TReportEngine.Create(ReportModel, AGetSampleDataSet)
@@ -100,6 +95,7 @@ begin
           Engine := TReportEngine.Create(ReportModel, TDataSet(nil));
         Engine.ExportDocument := ExportDoc;
         Engine.Prepare;
+        Renderer.Render(Engine, ReportModel.PageSettings.PageWidth, ReportModel.PageSettings.PageHeight);
 
         CaptureOk := (ExportDoc.Pages.Count = Engine.Pages.Count);
         if CaptureOk and (Engine.Pages.Count > 0) then

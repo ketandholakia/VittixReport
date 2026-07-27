@@ -164,7 +164,7 @@ begin
           Blank.Free;
         end;
       end;
-      Utf8NoBom := TUTF8Encoding.Create(False);
+      Utf8NoBom := TUTF8Encoding.Create;
       try
         TFile.WriteAllText(InFile, JsonIn, Utf8NoBom);
       finally

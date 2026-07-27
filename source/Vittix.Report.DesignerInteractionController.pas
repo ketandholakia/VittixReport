@@ -11,10 +11,12 @@ uses
   Vittix.Report.DesignerInteraction;
 
 type
+  TDesignerMode = (dmSelect, dmMove, dmResize, dmBandResize, dmRubberBand, dmInsert);
+
   TDesignerInteractionState = record
     MouseDown: Boolean;
     MouseStart: TPoint;
-    Mode: Integer;
+    Mode: TDesignerMode;
     ResizeHandle: TResizeHandle;
     DragStartBounds: TDictionary<TReportObject, TRect>;
     BandResizeBand: TReportBand;

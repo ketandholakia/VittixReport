@@ -4,7 +4,7 @@ interface
 
 uses
   System.Classes,
-  System.SysUtils,
+  System.SysUtils, System.Generics.Collections,
   System.UITypes,
   Data.DB,
   Vcl.Graphics,
@@ -24,14 +24,63 @@ type
     TraceMessage: string;
   end;
 
+  TScriptCommandHandler = procedure(
+    AObject: TReportObject;
+    const Value, AScript: string;
+    var Context: TExpressionContext;
+    var ACanPrint: Boolean;
+    var AResult: TScriptHostCommandResult
+  ) of object;
+
   TReportScriptHostAdapter = class
   private
+    FHandlers: TDictionary<string, TScriptCommandHandler>;
+    procedure InitHandlers;
     function ParseScriptAssignment(const AScript: string; out AKey, AValue: string): Boolean;
     function SplitStatements(const AScript: string): TArray<string>;
     function StripOuterQuotes(const S: string): string;
     function ExecuteSingleBeforeObject(AObject: TReportObject; const AScript: string;
       var Context: TExpressionContext; var ACanPrint: Boolean): TScriptHostCommandResult;
   public
+    constructor Create;
+    destructor Destroy; override;
+    procedure Cmd_Canprint(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Visible(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Anchorright(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Anchorbottom(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Background(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Fontcolor(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Fontname(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Halign(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Valign(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Printwhen(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Fontbold(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Fontitalic(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Datafield(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Displayformat(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Editmask(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Expression(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Fontcolorcondition(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Fontsize(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Fontcolorontrue(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Backgroundontrue(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Backgroundcondition(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Bordercolorcondition(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Bordercolorontrue(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Bordercolor(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Stretch(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Center(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Proportional(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Transparent(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Autosize(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Wordwrap(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Bordervisible(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Borderwidth(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Paddingleft(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Paddingtop(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Paddingright(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Paddingbottom(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+    procedure Cmd_Text(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
     procedure EngineObjectBeforePrint(AReport: TReportModel; AObject: TReportObject;
       const AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean);
     procedure EngineObjectAfterPrint(AReport: TReportModel; AObject: TReportObject;
@@ -121,6 +170,7 @@ var
   Lit: string;
   Arg: string;
   F: TField;
+  Handler: TScriptCommandHandler;
 begin
   Result.Handled := False;
   Result.Unsupported := False;
@@ -135,158 +185,273 @@ begin
 
   Result.Handled := True;
 
-  if Key = 'canprint' then
+  Result.Handled := True;
+  if FHandlers.TryGetValue(Key, Handler) then
   begin
+    Handler(AObject, Value, AScript, Context, ACanPrint, Result);
+  end
+  else
+  begin
+    Result.Unsupported := True;
+    Result.UnsupportedCount := 1;
+    Result.TraceMessage := 'ScriptUnsupported[UnknownCommand]: ' + AScript;
+  end;
+end;
+
+constructor TReportScriptHostAdapter.Create;
+begin
+  inherited;
+  FHandlers := TDictionary<string, TScriptCommandHandler>.Create;
+  InitHandlers;
+end;
+
+destructor TReportScriptHostAdapter.Destroy;
+begin
+  FHandlers.Free;
+  inherited;
+end;
+
+procedure TReportScriptHostAdapter.InitHandlers;
+var
+  Handler: TScriptCommandHandler;
+begin
+  Handler := Cmd_Canprint;
+  FHandlers.Add('canprint', Handler);
+  Handler := Cmd_Visible;
+  FHandlers.Add('visible', Handler);
+  Handler := Cmd_Anchorright;
+  FHandlers.Add('anchorright', Handler);
+  Handler := Cmd_Anchorbottom;
+  FHandlers.Add('anchorbottom', Handler);
+  Handler := Cmd_Background;
+  FHandlers.Add('background', Handler);
+  Handler := Cmd_Fontcolor;
+  FHandlers.Add('fontcolor', Handler);
+  Handler := Cmd_Fontname;
+  FHandlers.Add('fontname', Handler);
+  Handler := Cmd_Halign;
+  FHandlers.Add('halign', Handler);
+  Handler := Cmd_Valign;
+  FHandlers.Add('valign', Handler);
+  Handler := Cmd_Printwhen;
+  FHandlers.Add('printwhen', Handler);
+  Handler := Cmd_Fontbold;
+  FHandlers.Add('fontbold', Handler);
+  Handler := Cmd_Fontitalic;
+  FHandlers.Add('fontitalic', Handler);
+  Handler := Cmd_Datafield;
+  FHandlers.Add('datafield', Handler);
+  Handler := Cmd_Displayformat;
+  FHandlers.Add('displayformat', Handler);
+  Handler := Cmd_Editmask;
+  FHandlers.Add('editmask', Handler);
+  Handler := Cmd_Expression;
+  FHandlers.Add('expression', Handler);
+  Handler := Cmd_Fontcolorcondition;
+  FHandlers.Add('fontcolorcondition', Handler);
+  Handler := Cmd_Fontsize;
+  FHandlers.Add('fontsize', Handler);
+  Handler := Cmd_Fontcolorontrue;
+  FHandlers.Add('fontcolorontrue', Handler);
+  Handler := Cmd_Backgroundontrue;
+  FHandlers.Add('backgroundontrue', Handler);
+  Handler := Cmd_Backgroundcondition;
+  FHandlers.Add('backgroundcondition', Handler);
+  Handler := Cmd_Bordercolorcondition;
+  FHandlers.Add('bordercolorcondition', Handler);
+  Handler := Cmd_Bordercolorontrue;
+  FHandlers.Add('bordercolorontrue', Handler);
+  Handler := Cmd_Bordercolor;
+  FHandlers.Add('bordercolor', Handler);
+  Handler := Cmd_Stretch;
+  FHandlers.Add('stretch', Handler);
+  Handler := Cmd_Center;
+  FHandlers.Add('center', Handler);
+  Handler := Cmd_Proportional;
+  FHandlers.Add('proportional', Handler);
+  Handler := Cmd_Transparent;
+  FHandlers.Add('transparent', Handler);
+  Handler := Cmd_Autosize;
+  FHandlers.Add('autosize', Handler);
+  Handler := Cmd_Wordwrap;
+  FHandlers.Add('wordwrap', Handler);
+  Handler := Cmd_Bordervisible;
+  FHandlers.Add('bordervisible', Handler);
+  Handler := Cmd_Borderwidth;
+  FHandlers.Add('borderwidth', Handler);
+  Handler := Cmd_Paddingleft;
+  FHandlers.Add('paddingleft', Handler);
+  Handler := Cmd_Paddingtop;
+  FHandlers.Add('paddingtop', Handler);
+  Handler := Cmd_Paddingright;
+  FHandlers.Add('paddingright', Handler);
+  Handler := Cmd_Paddingbottom;
+  FHandlers.Add('paddingbottom', Handler);
+  Handler := Cmd_Text;
+  FHandlers.Add('text', Handler);
+end;
+
+procedure TReportScriptHostAdapter.Cmd_Canprint(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if SameText(Value, 'False') then
     begin
       ACanPrint := False;
-      Result.Canceled := True;
+      AResult.Canceled := True;
       if Assigned(AObject) then
-        Result.TraceMessage := 'ScriptCanceledObject: ' + AObject.ClassName
+        AResult.TraceMessage := 'ScriptCanceledObject: ' + AObject.ClassName
       else
-        Result.TraceMessage := 'ScriptCanceledObject: <nil>';
+        AResult.TraceMessage := 'ScriptCanceledObject: <nil>';
     end
     else
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[CanPrintValue]: ' + AScript;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[CanPrintValue]: ' + AScript;
     end;
-    Exit;
-  end;
+end;
 
-  if Key = 'visible' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Visible(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if SameText(Value, 'True') then
       B := True
     else if SameText(Value, 'False') then
       B := False
     else
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[VisibleValue]: ' + AScript;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[VisibleValue]: ' + AScript;
       Exit;
     end;
 
     AObject.Visible := B;
-    Result.TraceMessage := Format('ScriptSetVisible: %s "%s" -> %s',
+    AResult.TraceMessage := Format('ScriptSetVisible: %s "%s" -> %s',
       [AObject.ClassName, AObject.Name, BoolToStr(B, True)]);
-    Exit;
-  end;
+end;
 
-  if Key = 'anchorright' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Anchorright(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if SameText(Value, 'True') then
       B := True
     else if SameText(Value, 'False') then
       B := False
     else
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[AnchorRightValue]: ' + AScript;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[AnchorRightValue]: ' + AScript;
       Exit;
     end;
     AObject.AnchorRight := B;
-    Result.TraceMessage := Format('ScriptSetAnchorRight: %s "%s" -> %s',
+    AResult.TraceMessage := Format('ScriptSetAnchorRight: %s "%s" -> %s',
       [AObject.ClassName, AObject.Name, BoolToStr(B, True)]);
-    Exit;
-  end;
+end;
 
-  if Key = 'anchorbottom' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Anchorbottom(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if SameText(Value, 'True') then
       B := True
     else if SameText(Value, 'False') then
       B := False
     else
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[AnchorBottomValue]: ' + AScript;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[AnchorBottomValue]: ' + AScript;
       Exit;
     end;
     AObject.AnchorBottom := B;
-    Result.TraceMessage := Format('ScriptSetAnchorBottom: %s "%s" -> %s',
+    AResult.TraceMessage := Format('ScriptSetAnchorBottom: %s "%s" -> %s',
       [AObject.ClassName, AObject.Name, BoolToStr(B, True)]);
-    Exit;
-  end;
+end;
 
-  if Key = 'background' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Background(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportTextObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     try
       C := StringToColor(Value);
       TReportTextObject(AObject).Background := C;
       TReportTextObject(AObject).Transparent := False;
-      Result.TraceMessage := Format('ScriptSetBackground: %s "%s" -> %s',
+      AResult.TraceMessage := Format('ScriptSetBackground: %s "%s" -> %s',
         [AObject.ClassName, AObject.Name, Value]);
     except
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ColorValue]: ' + AScript;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ColorValue]: ' + AScript;
     end;
-    Exit;
-  end;
+end;
 
-  if Key = 'fontcolor' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Fontcolor(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportTextObject) and not (AObject is TReportImageObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     try
       C := StringToColor(Value);
       TReportTextObject(AObject).Font.Color := C;
-      Result.TraceMessage := Format('ScriptSetFontColor: %s "%s" -> %s',
+      AResult.TraceMessage := Format('ScriptSetFontColor: %s "%s" -> %s',
         [AObject.ClassName, AObject.Name, Value]);
     except
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ColorValue]: ' + AScript;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ColorValue]: ' + AScript;
     end;
-    Exit;
-  end;
+end;
 
-  if Key = 'fontname' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Fontname(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportTextObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     if Value = '' then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[FontNameValue]: ' + AScript;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[FontNameValue]: ' + AScript;
       Exit;
     end;
     TReportTextObject(AObject).Font.Name := Value;
-    Result.TraceMessage := Format('ScriptSetFontName: %s "%s" -> "%s"',
+    AResult.TraceMessage := Format('ScriptSetFontName: %s "%s" -> "%s"',
       [AObject.ClassName, AObject.Name, Value]);
-    Exit;
-  end;
+end;
 
-  if Key = 'halign' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Halign(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportTextObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     if SameText(Value, 'Left') then
@@ -297,23 +462,24 @@ begin
       TReportTextObject(AObject).HAlign := taRightJustify
     else
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[HAlignValue]: ' + AScript;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[HAlignValue]: ' + AScript;
       Exit;
     end;
-    Result.TraceMessage := Format('ScriptSetHAlign: %s "%s" -> %s',
+    AResult.TraceMessage := Format('ScriptSetHAlign: %s "%s" -> %s',
       [AObject.ClassName, AObject.Name, Value]);
-    Exit;
-  end;
+end;
 
-  if Key = 'valign' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Valign(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportTextObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     if SameText(Value, 'Top') then
@@ -324,38 +490,40 @@ begin
       TReportTextObject(AObject).VAlign := taAlignBottom
     else
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[VAlignValue]: ' + AScript;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[VAlignValue]: ' + AScript;
       Exit;
     end;
-    Result.TraceMessage := Format('ScriptSetVAlign: %s "%s" -> %s',
+    AResult.TraceMessage := Format('ScriptSetVAlign: %s "%s" -> %s',
       [AObject.ClassName, AObject.Name, Value]);
-    Exit;
-  end;
+end;
 
-  if Key = 'printwhen' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Printwhen(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportTextObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     TReportTextObject(AObject).PrintWhen := Value;
-    Result.TraceMessage := Format('ScriptSetPrintWhen: %s "%s" -> "%s"',
+    AResult.TraceMessage := Format('ScriptSetPrintWhen: %s "%s" -> "%s"',
       [AObject.ClassName, AObject.Name, Value]);
-    Exit;
-  end;
+end;
 
-  if Key = 'fontbold' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Fontbold(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportTextObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     if SameText(Value, 'True') then
@@ -364,27 +532,28 @@ begin
       B := False
     else
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[FontBoldValue]: ' + AScript;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[FontBoldValue]: ' + AScript;
       Exit;
     end;
     if B then
       TReportTextObject(AObject).Font.Style := TReportTextObject(AObject).Font.Style + [fsBold]
     else
       TReportTextObject(AObject).Font.Style := TReportTextObject(AObject).Font.Style - [fsBold];
-    Result.TraceMessage := Format('ScriptSetFontBold: %s "%s" -> %s',
+    AResult.TraceMessage := Format('ScriptSetFontBold: %s "%s" -> %s',
       [AObject.ClassName, AObject.Name, BoolToStr(B, True)]);
-    Exit;
-  end;
+end;
 
-  if Key = 'fontitalic' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Fontitalic(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportTextObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     if SameText(Value, 'True') then
@@ -393,231 +562,243 @@ begin
       B := False
     else
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[FontItalicValue]: ' + AScript;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[FontItalicValue]: ' + AScript;
       Exit;
     end;
     if B then
       TReportTextObject(AObject).Font.Style := TReportTextObject(AObject).Font.Style + [fsItalic]
     else
       TReportTextObject(AObject).Font.Style := TReportTextObject(AObject).Font.Style - [fsItalic];
-    Result.TraceMessage := Format('ScriptSetFontItalic: %s "%s" -> %s',
+    AResult.TraceMessage := Format('ScriptSetFontItalic: %s "%s" -> %s',
       [AObject.ClassName, AObject.Name, BoolToStr(B, True)]);
-    Exit;
-  end;
+end;
 
-  if Key = 'datafield' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Datafield(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportTextObject) and not (AObject is TReportImageObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     if AObject is TReportTextObject then
     begin
       TReportTextObject(AObject).DataField := Value;
-      Result.TraceMessage := Format('ScriptSetDataField: %s "%s" -> "%s"',
+      AResult.TraceMessage := Format('ScriptSetDataField: %s "%s" -> "%s"',
         [AObject.ClassName, AObject.Name, Value]);
     end
     else
     begin
       TReportImageObject(AObject).DataField := Value;
-      Result.TraceMessage := Format('ScriptSetDataField: %s "%s" -> "%s"',
+      AResult.TraceMessage := Format('ScriptSetDataField: %s "%s" -> "%s"',
         [AObject.ClassName, AObject.Name, Value]);
     end;
-    Exit;
-  end;
+end;
 
-  if Key = 'displayformat' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Displayformat(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportFieldObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     TReportFieldObject(AObject).DisplayFormat := StripOuterQuotes(Value);
-    Result.TraceMessage := Format('ScriptSetDisplayFormat: %s "%s" -> "%s"',
+    AResult.TraceMessage := Format('ScriptSetDisplayFormat: %s "%s" -> "%s"',
       [AObject.ClassName, AObject.Name, TReportFieldObject(AObject).DisplayFormat]);
-    Exit;
-  end;
+end;
 
-  if Key = 'editmask' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Editmask(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportFieldObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     TReportFieldObject(AObject).EditMask := StripOuterQuotes(Value);
-    Result.TraceMessage := Format('ScriptSetEditMask: %s "%s" -> "%s"',
+    AResult.TraceMessage := Format('ScriptSetEditMask: %s "%s" -> "%s"',
       [AObject.ClassName, AObject.Name, TReportFieldObject(AObject).EditMask]);
-    Exit;
-  end;
+end;
 
-  if Key = 'expression' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Expression(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportTextObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     TReportTextObject(AObject).Expression := Value;
-    Result.TraceMessage := Format('ScriptSetExpression: %s "%s" -> "%s"',
+    AResult.TraceMessage := Format('ScriptSetExpression: %s "%s" -> "%s"',
       [AObject.ClassName, AObject.Name, Value]);
-    Exit;
-  end;
+end;
 
-  if Key = 'fontcolorcondition' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Fontcolorcondition(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportTextObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     TReportTextObject(AObject).FontColorCondition := Value;
-    Result.TraceMessage := Format('ScriptSetFontColorCondition: %s "%s" -> "%s"',
+    AResult.TraceMessage := Format('ScriptSetFontColorCondition: %s "%s" -> "%s"',
       [AObject.ClassName, AObject.Name, Value]);
-    Exit;
-  end;
+end;
 
-  if Key = 'fontsize' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Fontsize(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportTextObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     if not TryStrToInt(Value, N) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[FontSizeValue]: ' + AScript;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[FontSizeValue]: ' + AScript;
       Exit;
     end;
     if N < 1 then
       N := 1;
     TReportTextObject(AObject).Font.Size := N;
-    Result.TraceMessage := Format('ScriptSetFontSize: %s "%s" -> %d',
+    AResult.TraceMessage := Format('ScriptSetFontSize: %s "%s" -> %d',
       [AObject.ClassName, AObject.Name, N]);
-    Exit;
-  end;
+end;
 
-  if Key = 'fontcolorontrue' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Fontcolorontrue(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportTextObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     try
       C := StringToColor(Value);
       TReportTextObject(AObject).FontColorOnTrue := C;
-      Result.TraceMessage := Format('ScriptSetFontColorOnTrue: %s "%s" -> %s',
+      AResult.TraceMessage := Format('ScriptSetFontColorOnTrue: %s "%s" -> %s',
         [AObject.ClassName, AObject.Name, Value]);
     except
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ColorValue]: ' + AScript;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ColorValue]: ' + AScript;
     end;
-    Exit;
-  end;
+end;
 
-  if Key = 'backgroundontrue' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Backgroundontrue(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportTextObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     try
       C := StringToColor(Value);
       TReportTextObject(AObject).BackgroundOnTrue := C;
-      Result.TraceMessage := Format('ScriptSetBackgroundOnTrue: %s "%s" -> %s',
+      AResult.TraceMessage := Format('ScriptSetBackgroundOnTrue: %s "%s" -> %s',
         [AObject.ClassName, AObject.Name, Value]);
     except
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ColorValue]: ' + AScript;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ColorValue]: ' + AScript;
     end;
-    Exit;
-  end;
+end;
 
-  if Key = 'backgroundcondition' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Backgroundcondition(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportTextObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     TReportTextObject(AObject).BackgroundCondition := Value;
-    Result.TraceMessage := Format('ScriptSetBackgroundCondition: %s "%s" -> "%s"',
+    AResult.TraceMessage := Format('ScriptSetBackgroundCondition: %s "%s" -> "%s"',
       [AObject.ClassName, AObject.Name, Value]);
-    Exit;
-  end;
+end;
 
-  if Key = 'bordercolorcondition' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Bordercolorcondition(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportTextObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     TReportTextObject(AObject).BorderColorCondition := Value;
-    Result.TraceMessage := Format('ScriptSetBorderColorCondition: %s "%s" -> "%s"',
+    AResult.TraceMessage := Format('ScriptSetBorderColorCondition: %s "%s" -> "%s"',
       [AObject.ClassName, AObject.Name, Value]);
-    Exit;
-  end;
+end;
 
-  if Key = 'bordercolorontrue' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Bordercolorontrue(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportTextObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     try
       C := StringToColor(Value);
       TReportTextObject(AObject).BorderColorOnTrue := C;
-      Result.TraceMessage := Format('ScriptSetBorderColorOnTrue: %s "%s" -> %s',
+      AResult.TraceMessage := Format('ScriptSetBorderColorOnTrue: %s "%s" -> %s',
         [AObject.ClassName, AObject.Name, Value]);
     except
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ColorValue]: ' + AScript;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ColorValue]: ' + AScript;
     end;
-    Exit;
-  end;
+end;
 
-  if Key = 'bordercolor' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Bordercolor(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportTextObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     try
@@ -632,23 +813,24 @@ begin
         TReportImageObject(AObject).BorderColor := C;
         TReportImageObject(AObject).BorderVisible := True;
       end;
-      Result.TraceMessage := Format('ScriptSetBorderColor: %s "%s" -> %s',
+      AResult.TraceMessage := Format('ScriptSetBorderColor: %s "%s" -> %s',
         [AObject.ClassName, AObject.Name, Value]);
     except
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ColorValue]: ' + AScript;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ColorValue]: ' + AScript;
     end;
-    Exit;
-  end;
+end;
 
-  if Key = 'stretch' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Stretch(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportImageObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     if SameText(Value, 'True') then
@@ -657,24 +839,25 @@ begin
       B := False
     else
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[StretchValue]: ' + AScript;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[StretchValue]: ' + AScript;
       Exit;
     end;
     TReportImageObject(AObject).Stretch := B;
-    Result.TraceMessage := Format('ScriptSetStretch: %s "%s" -> %s',
+    AResult.TraceMessage := Format('ScriptSetStretch: %s "%s" -> %s',
       [AObject.ClassName, AObject.Name, BoolToStr(B, True)]);
-    Exit;
-  end;
+end;
 
-  if Key = 'center' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Center(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportImageObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     if SameText(Value, 'True') then
@@ -683,24 +866,25 @@ begin
       B := False
     else
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[CenterValue]: ' + AScript;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[CenterValue]: ' + AScript;
       Exit;
     end;
     TReportImageObject(AObject).Center := B;
-    Result.TraceMessage := Format('ScriptSetCenter: %s "%s" -> %s',
+    AResult.TraceMessage := Format('ScriptSetCenter: %s "%s" -> %s',
       [AObject.ClassName, AObject.Name, BoolToStr(B, True)]);
-    Exit;
-  end;
+end;
 
-  if Key = 'proportional' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Proportional(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportImageObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     if SameText(Value, 'True') then
@@ -709,24 +893,25 @@ begin
       B := False
     else
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ProportionalValue]: ' + AScript;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ProportionalValue]: ' + AScript;
       Exit;
     end;
     TReportImageObject(AObject).Proportional := B;
-    Result.TraceMessage := Format('ScriptSetProportional: %s "%s" -> %s',
+    AResult.TraceMessage := Format('ScriptSetProportional: %s "%s" -> %s',
       [AObject.ClassName, AObject.Name, BoolToStr(B, True)]);
-    Exit;
-  end;
+end;
 
-  if Key = 'transparent' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Transparent(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportTextObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     if SameText(Value, 'True') then
@@ -735,23 +920,24 @@ begin
       TReportTextObject(AObject).Transparent := False
     else
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[TransparentValue]: ' + AScript;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[TransparentValue]: ' + AScript;
       Exit;
     end;
-    Result.TraceMessage := Format('ScriptSetTransparent: %s "%s" -> %s',
+    AResult.TraceMessage := Format('ScriptSetTransparent: %s "%s" -> %s',
       [AObject.ClassName, AObject.Name, Value]);
-    Exit;
-  end;
+end;
 
-  if Key = 'autosize' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Autosize(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportTextObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     if SameText(Value, 'True') then
@@ -760,23 +946,24 @@ begin
       TReportTextObject(AObject).AutoSize := False
     else
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[AutoSizeValue]: ' + AScript;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[AutoSizeValue]: ' + AScript;
       Exit;
     end;
-    Result.TraceMessage := Format('ScriptSetAutoSize: %s "%s" -> %s',
+    AResult.TraceMessage := Format('ScriptSetAutoSize: %s "%s" -> %s',
       [AObject.ClassName, AObject.Name, Value]);
-    Exit;
-  end;
+end;
 
-  if Key = 'wordwrap' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Wordwrap(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportTextObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     if SameText(Value, 'True') then
@@ -785,23 +972,24 @@ begin
       TReportTextObject(AObject).WordWrap := False
     else
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[WordWrapValue]: ' + AScript;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[WordWrapValue]: ' + AScript;
       Exit;
     end;
-    Result.TraceMessage := Format('ScriptSetWordWrap: %s "%s" -> %s',
+    AResult.TraceMessage := Format('ScriptSetWordWrap: %s "%s" -> %s',
       [AObject.ClassName, AObject.Name, Value]);
-    Exit;
-  end;
+end;
 
-  if Key = 'bordervisible' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Bordervisible(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportTextObject) and not (AObject is TReportImageObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     if SameText(Value, 'True') then
@@ -820,30 +1008,31 @@ begin
     end
     else
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[BorderVisibleValue]: ' + AScript;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[BorderVisibleValue]: ' + AScript;
       Exit;
     end;
-    Result.TraceMessage := Format('ScriptSetBorderVisible: %s "%s" -> %s',
+    AResult.TraceMessage := Format('ScriptSetBorderVisible: %s "%s" -> %s',
       [AObject.ClassName, AObject.Name, Value]);
-    Exit;
-  end;
+end;
 
-  if Key = 'borderwidth' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Borderwidth(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportTextObject) and not (AObject is TReportImageObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     if not TryStrToInt(Value, N) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[BorderWidthValue]: ' + AScript;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[BorderWidthValue]: ' + AScript;
       Exit;
     end;
     if N < 0 then
@@ -858,109 +1047,114 @@ begin
       TReportImageObject(AObject).BorderWidth := N;
       TReportImageObject(AObject).BorderVisible := True;
     end;
-    Result.TraceMessage := Format('ScriptSetBorderWidth: %s "%s" -> %d',
+    AResult.TraceMessage := Format('ScriptSetBorderWidth: %s "%s" -> %d',
       [AObject.ClassName, AObject.Name, N]);
-    Exit;
-  end;
+end;
 
-  if Key = 'paddingleft' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Paddingleft(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportTextObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     if not TryStrToInt(Value, N) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[PaddingLeftValue]: ' + AScript;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[PaddingLeftValue]: ' + AScript;
       Exit;
     end;
     if N < 0 then
       N := 0;
     TReportTextObject(AObject).PaddingLeft := N;
-    Result.TraceMessage := Format('ScriptSetPaddingLeft: %s "%s" -> %d',
+    AResult.TraceMessage := Format('ScriptSetPaddingLeft: %s "%s" -> %d',
       [AObject.ClassName, AObject.Name, N]);
-    Exit;
-  end;
+end;
 
-  if Key = 'paddingtop' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Paddingtop(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportTextObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     if not TryStrToInt(Value, N) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[PaddingTopValue]: ' + AScript;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[PaddingTopValue]: ' + AScript;
       Exit;
     end;
     if N < 0 then
       N := 0;
     TReportTextObject(AObject).PaddingTop := N;
-    Result.TraceMessage := Format('ScriptSetPaddingTop: %s "%s" -> %d',
+    AResult.TraceMessage := Format('ScriptSetPaddingTop: %s "%s" -> %d',
       [AObject.ClassName, AObject.Name, N]);
-    Exit;
-  end;
+end;
 
-  if Key = 'paddingright' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Paddingright(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportTextObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     if not TryStrToInt(Value, N) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[PaddingRightValue]: ' + AScript;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[PaddingRightValue]: ' + AScript;
       Exit;
     end;
     if N < 0 then
       N := 0;
     TReportTextObject(AObject).PaddingRight := N;
-    Result.TraceMessage := Format('ScriptSetPaddingRight: %s "%s" -> %d',
+    AResult.TraceMessage := Format('ScriptSetPaddingRight: %s "%s" -> %d',
       [AObject.ClassName, AObject.Name, N]);
-    Exit;
-  end;
+end;
 
-  if Key = 'paddingbottom' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Paddingbottom(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if not (AObject is TReportTextObject) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       Exit;
     end;
     if not TryStrToInt(Value, N) then
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[PaddingBottomValue]: ' + AScript;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[PaddingBottomValue]: ' + AScript;
       Exit;
     end;
     if N < 0 then
       N := 0;
     TReportTextObject(AObject).PaddingBottom := N;
-    Result.TraceMessage := Format('ScriptSetPaddingBottom: %s "%s" -> %d',
+    AResult.TraceMessage := Format('ScriptSetPaddingBottom: %s "%s" -> %d',
       [AObject.ClassName, AObject.Name, N]);
-    Exit;
-  end;
+end;
 
-  if Key = 'text' then
-  begin
+procedure TReportScriptHostAdapter.Cmd_Text(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
+var
+  B: Boolean; N: Integer; C: TColor; Lit: string; Arg: string; F: TField;
+begin
     if (Length(Value) >= 8) and SameText(Copy(Value, 1, 6), 'Field(') and
        (Value[Length(Value)] = ')') then
     begin
@@ -971,16 +1165,16 @@ begin
         Arg := StringReplace(Arg, '''''', '''', [rfReplaceAll]);
         if Trim(Arg) = '' then
         begin
-          Result.Unsupported := True;
-          Result.UnsupportedCount := 1;
-          Result.TraceMessage := 'ScriptUnsupported[FieldName]: ' + AScript;
+          AResult.Unsupported := True;
+          AResult.UnsupportedCount := 1;
+          AResult.TraceMessage := 'ScriptUnsupported[FieldName]: ' + AScript;
           Exit;
         end;
         if not (AObject is TReportTextObject) then
         begin
-          Result.Unsupported := True;
-          Result.UnsupportedCount := 1;
-          Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+          AResult.Unsupported := True;
+          AResult.UnsupportedCount := 1;
+          AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
           Exit;
         end;
 
@@ -990,22 +1184,22 @@ begin
         if Assigned(F) then
         begin
           TReportTextObject(AObject).Text := F.AsString;
-          Result.TextSet := True;
-          Result.TextSetCount := 1;
-          Result.TraceMessage := Format('ScriptSetTextFromField: %s "%s" <- Field("%s")',
+          AResult.TextSet := True;
+          AResult.TextSetCount := 1;
+          AResult.TraceMessage := Format('ScriptSetTextFromField: %s "%s" <- Field("%s")',
             [AObject.ClassName, AObject.Name, Arg]);
         end
         else
         begin
           TReportTextObject(AObject).Text := '';
-          Result.TraceMessage := 'ScriptFieldResolveMiss: ' + Arg;
+          AResult.TraceMessage := 'ScriptFieldResolveMiss: ' + Arg;
         end;
       end
       else
       begin
-        Result.Unsupported := True;
-        Result.UnsupportedCount := 1;
-        Result.TraceMessage := 'ScriptUnsupported[FieldSyntax]: ' + AScript;
+        AResult.Unsupported := True;
+        AResult.UnsupportedCount := 1;
+        AResult.TraceMessage := 'ScriptUnsupported[FieldSyntax]: ' + AScript;
       end;
       Exit;
     end;
@@ -1017,32 +1211,26 @@ begin
       if AObject is TReportTextObject then
       begin
         TReportTextObject(AObject).Text := Lit;
-        Result.TextSet := True;
-        Result.TextSetCount := 1;
-        Result.TraceMessage := Format('ScriptSetText: %s "%s" -> "%s"',
+        AResult.TextSet := True;
+        AResult.TextSetCount := 1;
+        AResult.TraceMessage := Format('ScriptSetText: %s "%s" -> "%s"',
           [AObject.ClassName, AObject.Name, Lit]);
       end
       else
       begin
-        Result.Unsupported := True;
-        Result.UnsupportedCount := 1;
-        Result.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
+        AResult.Unsupported := True;
+        AResult.UnsupportedCount := 1;
+        AResult.TraceMessage := 'ScriptUnsupported[ObjectType]: ' + AObject.ClassName;
       end;
     end
     else
     begin
-      Result.Unsupported := True;
-      Result.UnsupportedCount := 1;
-      Result.TraceMessage := 'ScriptUnsupported[TextLiteral]: ' + AScript;
+      AResult.Unsupported := True;
+      AResult.UnsupportedCount := 1;
+      AResult.TraceMessage := 'ScriptUnsupported[TextLiteral]: ' + AScript;
     end;
-    Exit;
-  end;
-
-  Result.Handled := True;
-  Result.Unsupported := True;
-  Result.UnsupportedCount := 1;
-  Result.TraceMessage := 'ScriptUnsupported[UnknownCommand]: ' + AScript;
 end;
+
 
 function TReportScriptHostAdapter.ExecuteBeforeObject(AObject: TReportObject;
   const AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean): TScriptHostCommandResult;

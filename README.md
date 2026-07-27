@@ -10,7 +10,7 @@ Unlike legacy reporting tools, VittixReport relies entirely on standard Delphi R
 ## Features
 
 * **🎨 Standalone Visual Designer:** A powerful desktop application featuring drag-and-drop object placement, a property inspector, band management, and a live print preview.
-* **⚡ Dependency-Free:** Built strictly with Delphi 12.2 RTL and VCL. No external component packs or libraries to install.
+* **⚡ Dependency-Free Core:** The core runtime framework is built strictly with Delphi 12.2 RTL and VCL with no external component packs to install. *(Note: The standalone visual designer application does require third-party libraries such as madExcept, FireDAC, ADO, and SVG icon components.)*
 * **🔄 Unlimited Undo/Redo:** The designer implements a deep undo/redo stack for *every* action, including complex multi-object alignments, property changes, and band management.
 * **📄 JSON Report Format (`.vrt`):** Say goodbye to binary blobs. Reports are stored in a human-readable, easily diffable JSON format.
 * **🧩 Rich Object Library:** Out-of-the-box support for text labels, data fields, rich text, images, shapes, lines, barcodes, tables, and nested sub-reports.

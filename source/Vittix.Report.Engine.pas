@@ -1,4 +1,4 @@
-﻿unit Vittix.Report.Engine;
+unit Vittix.Report.Engine;
 
 {
   Vittix.Report.Engine
@@ -89,7 +89,7 @@ type
     const Context: TExpressionContext) of object;
 
 type
-  TReportEngine = class
+  TReportEngine = class(TObject, IInterface, IReportRenderHooks)
   private
     FReport:   TReportModel;
     FDataSet:  TDataSet;
@@ -188,18 +188,20 @@ type
     procedure PrintDetailBands;
     function  ExecutePass(ATotalPages: Integer; AReportProgress: Boolean): Integer;
     function  CheckSpace(RequiredHeight: Integer): Boolean;
-    procedure HandleBeforeObjectPrint(
-      AObject: TReportObject;
-      const Context: TExpressionContext;
-      var ACanPrint: Boolean);
-    procedure HandleAfterObjectPrint(
-      AObject: TReportObject;
-      const Context: TExpressionContext);
-    procedure CaptureExportObjectCommand(
+procedure CaptureExportObjectCommand(
       AObject: TReportObject;
       const Context: TExpressionContext);
 
   public
+    // IInterface implementation
+    function QueryInterface(const IID: TGUID; out Obj): HResult; stdcall;
+    function _AddRef: Integer; stdcall;
+    function _Release: Integer; stdcall;
+
+    // IReportRenderHooks implementation
+    procedure InvokeBeforeObjectPrint(Sender: TObject; const Context: TExpressionContext; var ACanPrint: Boolean);
+    procedure InvokeAfterObjectPrint(Sender: TObject; const Context: TExpressionContext);
+    function GetNamedDataSet(const AName: string): TDataSet;
     /// <param name="AProgress">
     ///   Optional progress/cancellation callback.  Pass nil to skip.
     /// </param>
@@ -434,6 +436,7 @@ begin
           // Set band Bounds to full page so its children can use absolute positions
           FOverlayBand.Bounds := Rect(0, 0, FPageWidth, FPageHeight);
           var Ctx2: TExpressionContext := Default(TExpressionContext);
+          Ctx2.Hooks := Self;
           Ctx2.DataSet    := FDataSet;
           Ctx2.UserDataSet := FUserDataSet;
           Ctx2.PageNumber := FPageNumber;
@@ -500,6 +503,7 @@ begin
     AUserDataSet := FUserDataSet;
 
   Ctx := Default(TExpressionContext);
+  Ctx.Hooks := Self;
   Ctx.DataSet     := ADataSet;
   Ctx.UserDataSet := AUserDataSet;
   Ctx.GroupStart  := FGroupStartBookmark;
@@ -922,6 +926,7 @@ begin
   if ABand.PrintWhen <> '' then
   begin
     var Ctx0: TExpressionContext := Default(TExpressionContext);
+    Ctx0.Hooks := Self;
     Ctx0.DataSet     := ADataSet;
     Ctx0.UserDataSet := AUserDataSet;
     Ctx0.PageNumber := FPageNumber;
@@ -944,6 +949,8 @@ begin
   end;
 
   // Build render context early — needed for CanGrow MeasuredBottom calls
+  Ctx := Default(TExpressionContext);
+  Ctx.Hooks := Self;
   Ctx.DataSet     := ADataSet;
   Ctx.UserDataSet := AUserDataSet;
   Ctx.GroupStart  := FGroupStartBookmark;
@@ -1318,12 +1325,7 @@ var
   HasAnyActiveGroup: Boolean;
 begin
   FIsRenderingPass := AReportProgress;
-  SetReportNamedDataSets(FNamedDataSets);
-  if FIsRenderingPass then
-    SetReportObjectRenderHooks(HandleBeforeObjectPrint, HandleAfterObjectPrint)
-  else
-    ClearReportObjectRenderHooks;
-  try
+try
     BeginPass(ATotalPages, AReportProgress, TotalRows, RowNumber);
     PrintFirstPageBands;
     HasAnyActiveGroup := InitializeActiveGroupHeaders(ActiveGroupHeader);
@@ -1331,9 +1333,7 @@ begin
     ProcessMasterDataLoop(ActiveGroupHeader, AReportProgress, RowNumber, HasOpenedGroups);
     Result := FinalizePass(ActiveGroupHeader, HasAnyActiveGroup, HasOpenedGroups);
   finally
-    ClearReportObjectRenderHooks;
     FIsRenderingPass := False;
-    SetReportNamedDataSets(nil);
   end;
 end;
 
@@ -1405,11 +1405,14 @@ begin
   end;
 end;
 
-procedure TReportEngine.HandleBeforeObjectPrint(
-  AObject: TReportObject;
+procedure TReportEngine.InvokeBeforeObjectPrint(
+  Sender: TObject;
   const Context: TExpressionContext;
   var ACanPrint: Boolean);
+var
+  AObject: TReportObject;
 begin
+  AObject := Sender as TReportObject;
   if FIsRenderingPass and Assigned(AObject) and Assigned(FScriptEngine) and
      (AObject.OnBeforePrint <> '') then
   begin
@@ -1425,10 +1428,13 @@ begin
     FOnBeforeObject(Self, Self, AObject, Context, ACanPrint);
 end;
 
-procedure TReportEngine.HandleAfterObjectPrint(
-  AObject: TReportObject;
+procedure TReportEngine.InvokeAfterObjectPrint(
+  Sender: TObject;
   const Context: TExpressionContext);
+var
+  AObject: TReportObject;
 begin
+  AObject := Sender as TReportObject;
   CaptureExportObjectCommand(AObject, Context);
 
   if FIsRenderingPass and Assigned(AObject) and Assigned(FScriptEngine) and
@@ -1709,21 +1715,34 @@ begin
     end;
 
     ImageSource := ImageObj.ResolveImageSource(Context);
-    if (ImageSource <> '') and FileExists(ImageSource) and
-       Assigned(ImageObj.Picture.Graphic) and not ImageObj.Picture.Graphic.Empty then
+    if (ImageSource <> '') and FileExists(ImageSource) then
     begin
-      if ImageObj.Stretch then
+      var IsVectorFormat := LowerCase(ExtractFileExt(ImageSource)) = '.svg';
+      if IsVectorFormat or (Assigned(ImageObj.Picture.Graphic) and not ImageObj.Picture.Graphic.Empty) then
       begin
-        if ImageObj.Proportional then
+        if ImageObj.Stretch then
         begin
-          PW := ImageObj.Picture.Width;
-          PH := ImageObj.Picture.Height;
-          BW := R.Width;
-          BH := R.Height;
-          if (PW > 0) and (PH > 0) and (BW > 0) and (BH > 0) then
+          if ImageObj.Proportional then
           begin
-            ScaleX := BW / PW;
-            ScaleY := BH / PH;
+            if IsVectorFormat then
+            begin
+              // Assuming a standard 100x100 aspect ratio for unparsed SVG bounds right now.
+              // A real implementation would parse the SVG viewBox here to compute aspect ratio.
+              PW := 100;
+              PH := 100;
+            end
+            else
+            begin
+              PW := ImageObj.Picture.Width;
+              PH := ImageObj.Picture.Height;
+            end;
+            
+            BW := R.Width;
+            BH := R.Height;
+            if (PW > 0) and (PH > 0) and (BW > 0) and (BH > 0) then
+            begin
+              ScaleX := BW / PW;
+              ScaleY := BH / PH;
             if ScaleX < ScaleY then Scale := ScaleX else Scale := ScaleY;
             R := Rect(R.Left, R.Top,
                       R.Left + Round(PW * Scale),
@@ -1748,6 +1767,7 @@ begin
         R := Rect(R.Left, R.Top,
                   R.Left + ImageObj.Picture.Width,
                   R.Top + ImageObj.Picture.Height);
+      end;
 
       ImageCmd := TReportExportImageCommand.Create;
       ImageCmd.Bounds := R;
@@ -1964,6 +1984,31 @@ begin
       FCurrentExportPage.Commands.Add(LineCmd);
     end;
   end;
+end;
+
+
+function TReportEngine.QueryInterface(const IID: TGUID; out Obj): HResult;
+begin
+  if GetInterface(IID, Obj) then
+    Result := 0
+  else
+    Result := E_NOINTERFACE;
+end;
+
+function TReportEngine._AddRef: Integer;
+begin
+  Result := -1;
+end;
+
+function TReportEngine._Release: Integer;
+begin
+  Result := -1;
+end;
+
+function TReportEngine.GetNamedDataSet(const AName: string): TDataSet;
+begin
+  if not FNamedDataSets.TryGetValue(AName, Result) then
+    Result := nil;
 end;
 
 end.

@@ -1,11 +1,18 @@
-unit Vittix.Report.Core.Objects;
+unit Vittix.Report.Core;
 
 interface
 
 uses
+  Vittix.Report.Bands,
+  Vittix.Report.Model,
   Vittix.Report.Objects;
 
 type
+  TReportBandType = Vittix.Report.Bands.TReportBandType;
+  TReportBand = Vittix.Report.Bands.TReportBand;
+  
+  TReportModel = Vittix.Report.Model.TReportModel;
+
   TReportObject = Vittix.Report.Objects.TReportObject;
   TReportObjectClass = Vittix.Report.Objects.TReportObjectClass;
   TReportTextObject = Vittix.Report.Objects.TReportTextObject;
@@ -20,6 +27,17 @@ type
   TReportLineObject = Vittix.Report.Objects.TReportLineObject;
 
 const
+  btReportTitle   = Vittix.Report.Bands.btReportTitle;
+  btPageHeader    = Vittix.Report.Bands.btPageHeader;
+  btMasterData    = Vittix.Report.Bands.btMasterData;
+  btPageFooter    = Vittix.Report.Bands.btPageFooter;
+  btReportSummary = Vittix.Report.Bands.btReportSummary;
+  btGroupHeader   = Vittix.Report.Bands.btGroupHeader;
+  btGroupFooter   = Vittix.Report.Bands.btGroupFooter;
+  btColumnHeader  = Vittix.Report.Bands.btColumnHeader;
+  btDetail        = Vittix.Report.Bands.btDetail;
+  btOverlay       = Vittix.Report.Bands.btOverlay;
+
   stRectangle = Vittix.Report.Objects.stRectangle;
   stRoundRect = Vittix.Report.Objects.stRoundRect;
   stEllipse   = Vittix.Report.Objects.stEllipse;

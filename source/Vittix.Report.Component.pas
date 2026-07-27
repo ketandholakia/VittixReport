@@ -418,10 +418,16 @@ begin
     try
       Renderer.Parameters.Assign(FParameters);
       Renderer.TwoPassRendering := FTwoPassRendering;
-      if Assigned(PrimaryUDS) then
-        Renderer.Render(Model, PrimaryUDS, NamedUDS)
-      else
-        Renderer.Render(Model, Primary, NamedDS);
+      var Engine: TReportEngine;
+        if Assigned(PrimaryUDS) then
+          Engine := TReportEngine.Create(Model, PrimaryUDS, NamedUDS, nil)
+        else
+          Engine := TReportEngine.Create(Model, Primary, NamedDS, nil);
+        try
+          Renderer.Render(Engine, Model.PageSettings.PageWidth, Model.PageSettings.PageHeight);
+        finally
+          Engine.Free;
+        end;
 
       NavHelp := TPreviewNavHelper.Create;
       try
@@ -535,10 +541,16 @@ begin
     try
       Renderer.Parameters.Assign(FParameters);
       Renderer.TwoPassRendering := FTwoPassRendering;
-      if Assigned(PrimaryUDS) then
-        Renderer.Render(Model, PrimaryUDS, NamedUDS)
-      else
-        Renderer.Render(Model, Primary, NamedDS);
+      var Engine: TReportEngine;
+        if Assigned(PrimaryUDS) then
+          Engine := TReportEngine.Create(Model, PrimaryUDS, NamedUDS, nil)
+        else
+          Engine := TReportEngine.Create(Model, Primary, NamedDS, nil);
+        try
+          Renderer.Render(Engine, Model.PageSettings.PageWidth, Model.PageSettings.PageHeight);
+        finally
+          Engine.Free;
+        end;
       Renderer.Print;
   finally
     Renderer.Free;

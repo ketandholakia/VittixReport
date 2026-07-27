@@ -55,10 +55,7 @@ const
   MOVE_DRAG_THRESHOLD = 3; // screen pixels before a click becomes a drag
 
 type
-  TDesignerMode = (dmSelect, dmMove, dmResize, dmBandResize,
-                   dmRubberBand, dmInsert);
-
-  TDesignerGridUnit = (guCentimeters, guInches, guPixels, guPoints);
+TDesignerGridUnit = (guCentimeters, guInches, guPixels, guPoints);
 
   TResizeHandle = Vittix.Report.DesignerInteraction.TResizeHandle;
 
@@ -715,7 +712,7 @@ end;
 procedure TVittixReportDesigner.BeginInsertObject(AClass: TReportObjectClass);
 begin
   FInsertClass := AClass;
-  FInteractionState.Mode := Ord(dmInsert);
+  FInteractionState.Mode := dmInsert;
   Cursor       := crCross;
   ClearSelection;
 end;
@@ -1602,7 +1599,7 @@ var
   H   : TResizeHandle;
   Dummy: TReportBand;
 begin
-  if FInteractionState.Mode = Ord(dmInsert) then
+  if FInteractionState.Mode = dmInsert then
   begin
     Cursor := crCross;
     Exit;
@@ -2054,7 +2051,7 @@ var
   HintRect: TRect;
   HintText: string;
 begin
-  if (FInteractionState.Mode <> Ord(dmInsert)) or not Assigned(FInsertClass) then
+  if (FInteractionState.Mode <> dmInsert) or not Assigned(FInsertClass) then
     Exit;
 
   if Length(FBandLayouts) = 0 then
@@ -2132,7 +2129,7 @@ begin
   if Button = mbLeft then
   begin
     { ---- INSERT MODE ---- }
-    if FInteractionState.Mode = Ord(dmInsert) then
+    if FInteractionState.Mode = dmInsert then
     begin
       if Assigned(FInsertClass) then
       begin
@@ -2165,7 +2162,7 @@ begin
           ClearSelection;
           AddToSelection(NewObj);
           FActiveBand := TargetBand;
-          FInteractionState.Mode := Ord(dmSelect);
+          FInteractionState.Mode := dmSelect;
           Cursor      := crDefault;
           DoModified;
         end;
@@ -2176,7 +2173,7 @@ begin
     { ---- BAND SEPARATOR ---- }
     if BandSepHitTest(Point(X, Y), HitBand) then
     begin
-      FInteractionState.Mode := Ord(dmBandResize);
+      FInteractionState.Mode := dmBandResize;
       FInteractionState.BandResizeBand  := HitBand;
       FInteractionState.BandResizeOrigH := HitBand.Height;
       Exit;
@@ -2185,7 +2182,7 @@ begin
     { ---- RESIZE HANDLE ---- }
     if HandleHitTest(Point(X, Y), H) then
     begin
-      FInteractionState.Mode := Ord(dmResize);
+      FInteractionState.Mode := dmResize;
       FInteractionState.ResizeHandle := H;
       { Snapshot bounds of all selected for undo }
       FInteractionState.DragStartBounds.Clear;
@@ -2239,7 +2236,7 @@ begin
       end;
 
       { Move mode }
-      FInteractionState.Mode := Ord(dmMove);
+      FInteractionState.Mode := dmMove;
       FInteractionState.DragStartBounds.Clear;
       for HitObj in FSelected do
       begin
@@ -2268,7 +2265,7 @@ begin
 
     FInteractionState.Rubbering  := True;
     FInteractionState.RubberRect := Rect(X, Y, X, Y);
-    FInteractionState.Mode := Ord(dmRubberBand);
+    FInteractionState.Mode := dmRubberBand;
   end;
 end;
 
@@ -2296,7 +2293,7 @@ begin
   LogDX := UnScale(DX);
   LogDY := UnScale(DY);
 
-  case TDesignerMode(FInteractionState.Mode) of
+  case FInteractionState.Mode of
     dmMove:
     begin
       if (Abs(DX) < MOVE_DRAG_THRESHOLD) and (Abs(DY) < MOVE_DRAG_THRESHOLD) then
@@ -2486,7 +2483,7 @@ var
 begin
   if not FInteractionState.MouseDown then Exit;
   FInteractionState.MouseDown := False;
-  case TDesignerMode(FInteractionState.Mode) of
+  case FInteractionState.Mode of
     dmMove:
     begin
       if FSelected.Count > 0 then
@@ -2578,7 +2575,7 @@ begin
     end;
   end;
 
-  FInteractionState.Mode := Ord(dmSelect);
+  FInteractionState.Mode := dmSelect;
   FInteractionState.DragStartBounds.Clear;
   UpdateCursor(X, Y);
 end;
@@ -2611,7 +2608,7 @@ begin
 
   case Key of
     VK_DELETE:
-      if (FInteractionState.Mode = Ord(dmSelect)) and (FSelected.Count > 0) then
+      if (FInteractionState.Mode = dmSelect) and (FSelected.Count > 0) then
       begin
         DeleteSelected;
         Key := 0;
@@ -2651,9 +2648,9 @@ begin
     end;
     VK_ESCAPE:
     begin
-      if FInteractionState.Mode = Ord(dmInsert) then
+      if FInteractionState.Mode = dmInsert then
       begin
-        FInteractionState.Mode := Ord(dmSelect);
+        FInteractionState.Mode := dmSelect;
         Cursor  := crDefault;
         FInsertClass := nil;
       end;

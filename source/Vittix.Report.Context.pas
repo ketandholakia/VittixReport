@@ -33,6 +33,8 @@ uses
   System.SysUtils;
 
 type
+  IReportRenderHooks = interface;
+
   TExpressionContext = record
     { Dataset access }
     DataSet:    TDataSet;
@@ -55,6 +57,16 @@ type
 
     { Pass metadata }
     IsCountingPass: Boolean; // True only during the engine page-count pass
+    
+    { Hooks and Context State }
+    Hooks: IReportRenderHooks;
+  end;
+
+  IReportRenderHooks = interface
+    ['{F8D69A64-D72E-4D3B-A162-42DF6ED26226}']
+    procedure InvokeBeforeObjectPrint(Sender: TObject; const Context: TExpressionContext; var CanPrint: Boolean);
+    procedure InvokeAfterObjectPrint(Sender: TObject; const Context: TExpressionContext);
+    function GetNamedDataSet(const AName: string): TDataSet;
   end;
 
 implementation
