@@ -37,6 +37,7 @@ uses
   Vittix.Report.Bands,
   Vittix.Report.Objects,
   Vittix.Report.Context,
+  Vittix.Report.PageSettings,
   Vittix.Report.Scripting,
   Vittix.Report.LayoutCache,
   Vittix.Report.LayoutPagination,
@@ -110,6 +111,7 @@ type
     FCurrentY:    Integer;
     FPageWidth:   Integer;   // cached from PageSettings at Prepare time
     FPageHeight:  Integer;
+    FMarginLeft, FMarginTop, FMarginRight, FMarginBottom: Integer;
     FPageNumber:  Integer;   // 1-based current page counter
     FRowNumber:   Integer;   // 1-based current master row counter
     FReportDate:  TDateTime; // set once when Prepare begins
@@ -150,10 +152,13 @@ type
       AProgress:      IReportProgress);
     procedure CacheBands;
     function IsCapturingExportCommands: Boolean;
+
     procedure StartNewPage;
+    procedure ApplyPageSettings(ASettings: TReportPageSettings);
+
     procedure EndCurrentPage;
     procedure PrintPageHeader;  // prints PageHeader + ColumnHeader together
-    procedure EnsurePageSpaceForBand(RequiredHeight: Integer; PrintColumnHeader: Boolean = False);
+    procedure EnsurePageSpaceForBand(ABand: TReportBand; RequiredHeight: Integer; PrintColumnHeader: Boolean = False);
     procedure BeginPass(ATotalPages: Integer; AReportProgress: Boolean; out ATotalRows, ARowNumber: Integer);
     procedure PrintFirstPageBands;
     function InitializeActiveGroupHeaders(out AActiveGroupHeader: TBooleanDynArray): Boolean;
@@ -380,6 +385,18 @@ end;
 
 { ================= Page Lifecycle ================= }
 
+procedure TReportEngine.ApplyPageSettings(ASettings: TReportPageSettings);
+begin
+  FPageWidth  := ASettings.PageWidth;
+  FPageHeight := ASettings.PageHeight;
+  FMarginLeft   := ASettings.Margins.Left;
+  FMarginTop    := ASettings.Margins.Top;
+  FMarginRight  := ASettings.Margins.Right;
+  FMarginBottom := ASettings.Margins.Bottom;
+  // Note: changing page settings mid-engine could mess up space tracking if not exactly at top of page,
+  // but StartNewPage safely resets these coordinates.
+end;
+
 procedure TReportEngine.StartNewPage;
 begin
   EndCurrentPage;
@@ -575,11 +592,14 @@ begin
 end;
 
 procedure TReportEngine.EnsurePageSpaceForBand(
-  RequiredHeight: Integer; PrintColumnHeader: Boolean);
+  ABand: TReportBand; RequiredHeight: Integer; PrintColumnHeader: Boolean);
 begin
   if CheckSpace(RequiredHeight) then
     Exit;
 
+  if Assigned(ABand) and ABand.OverridePageSettings then
+    ApplyPageSettings(ABand.PageSettings);
+  
   StartNewPage;
   PrintPageHeader;
   if PrintColumnHeader and Assigned(FColumnHeaderBand) then
@@ -686,7 +706,7 @@ begin
   FRowNumber := ARowNumber;
 
   EffH := ComputeEffectiveBandHeight(FMasterBand, FDataSet, FUserDataSet);
-  EnsurePageSpaceForBand(EffH + ComputeFirstDetailRowsHeight, True);
+  EnsurePageSpaceForBand(FMasterBand, EffH + ComputeFirstDetailRowsHeight, True);
   PrintBand(FMasterBand, FDataSet, EffH, FUserDataSet);
   PrintDetailBands;
 
@@ -831,6 +851,8 @@ begin
     GH := FGroupHeaders[I];
     if GH.StartNewPage then
     begin
+      if GH.OverridePageSettings then
+        ApplyPageSettings(GH.PageSettings);
       StartNewPage;
       PrintPageHeader;
     end;
@@ -842,7 +864,7 @@ begin
     begin
       ColumnHeaderH := ComputeEffectiveBandHeight(FColumnHeaderBand, FDataSet);
       PageBeforeColumnHeader := FPageNumber;
-      EnsurePageSpaceForBand(ColumnHeaderH, True);
+      EnsurePageSpaceForBand(FColumnHeaderBand, ColumnHeaderH, True);
       if FPageNumber = PageBeforeColumnHeader then
         PrintBand(FColumnHeaderBand, FDataSet, ColumnHeaderH);
     end;
@@ -881,7 +903,7 @@ begin
     Exit;
 
   EffH := ComputeEffectiveBandHeight(FSummaryBand, FDataSet);
-  EnsurePageSpaceForBand(EffH);
+  EnsurePageSpaceForBand(FSummaryBand, EffH);
   PrintBand(FSummaryBand, FDataSet, EffH);
 end;
 
@@ -1073,7 +1095,7 @@ begin
     Exit;
 
   EffH := ComputeEffectiveBandHeight(ABand, ADataSet, AUserDataSet);
-  EnsurePageSpaceForBand(EffH);
+  EnsurePageSpaceForBand(FSummaryBand, EffH);
 
   PrintBand(ABand, ADataSet, EffH, AUserDataSet);
 end;
@@ -1248,7 +1270,7 @@ begin
          VarSameValue(SourceFieldValue(nil, ADetailUDS, ABand.DetailField), MasterValue) then
       begin
         EffH := ComputeEffectiveBandHeight(ABand, nil, ADetailUDS);
-        EnsurePageSpaceForBand(EffH, True);
+        EnsurePageSpaceForBand(ABand, EffH, True);
         PrintBand(ABand, nil, EffH, ADetailUDS);
       end;
       ADetailUDS.Next;
@@ -1273,7 +1295,7 @@ begin
     if (not HasMasterField) or VarSameValue(DetailFld.Value, MasterValue) then
     begin
       EffH := ComputeEffectiveBandHeight(ABand, ADetailDS);
-      EnsurePageSpaceForBand(EffH, True);
+      EnsurePageSpaceForBand(ABand, EffH, True);
       PrintBand(ABand, ADetailDS, EffH);
     end;
     ADetailDS.Next;

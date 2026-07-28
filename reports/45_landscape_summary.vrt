@@ -1,0 +1,78 @@
+{
+  "Version": 1,
+  "PageSettings": {
+    "PaperSize": 0,
+    "Orientation": 0,
+    "Margins": {
+      "Left": 40,
+      "Top": 40,
+      "Right": 40,
+      "Bottom": 40
+    }
+  },
+  "Objects": [
+    {
+      "Type": "TReportBand",
+      "BandType": 1,
+      "Name": "MasterData1",
+      "DataSetName": "Companies",
+      "Height": 100,
+      "Bounds": {
+        "L": 0,
+        "T": 0,
+        "R": 0,
+        "B": 0
+      },
+      "Children": [
+        {
+          "Type": "TReportMemoObject",
+          "Name": "Memo1",
+          "Text": "[Companies.\"CompanyName\"]",
+          "Bounds": {
+            "L": 10,
+            "T": 10,
+            "R": 300,
+            "B": 40
+          }
+        }
+      ]
+    },
+    {
+      "Type": "TReportBand",
+      "BandType": 5,
+      "Name": "Summary1",
+      "Height": 400,
+      "StartNewPage": true,
+      "OverridePageSettings": true,
+      "PageSettings": {
+        "PaperSize": 0,
+        "Orientation": 1,
+        "Margins": {
+          "Left": 40,
+          "Top": 40,
+          "Right": 40,
+          "Bottom": 40
+        }
+      },
+      "Bounds": {
+        "L": 0,
+        "T": 0,
+        "R": 0,
+        "B": 0
+      },
+      "Children": [
+        {
+          "Type": "TReportMemoObject",
+          "Name": "Memo2",
+          "Text": "Summary on Landscape Page",
+          "Bounds": {
+            "L": 10,
+            "T": 10,
+            "R": 300,
+            "B": 40
+          }
+        }
+      ]
+    }
+  ]
+}

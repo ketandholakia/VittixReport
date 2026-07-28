@@ -10,6 +10,7 @@ uses
   System.Generics.Collections,
   Vittix.Report.Objects, // Keep here
   Data.DB,
+  Vittix.Report.PageSettings,
   Vittix.Report.Context;
 
 type
@@ -41,6 +42,10 @@ type
     FCanGrow:            Boolean;
     FCanShrink:          Boolean;
     FBackColor:          TColor;
+    FColorEven:          TColor;
+    FColorOdd:           TColor;
+    FOverridePageSettings: Boolean;
+    FPageSettings: TReportPageSettings;
     FBackColorTransparent: Boolean;
     FBackColorCondition: string;
     FOnBeforePrint:      string;
@@ -65,6 +70,10 @@ type
     property CanGrow:   Boolean         read FCanGrow   write FCanGrow   default False;
     property CanShrink: Boolean         read FCanShrink write FCanShrink default False;
     property BackColor: TColor          read FBackColor write FBackColor default clWhite;
+    property ColorEven: TColor          read FColorEven write FColorEven default clNone;
+    property ColorOdd:  TColor          read FColorOdd  write FColorOdd  default clNone;
+    property OverridePageSettings: Boolean read FOverridePageSettings write FOverridePageSettings default False;
+    property PageSettings: TReportPageSettings read FPageSettings;
     property BackColorTransparent: Boolean
                                         read FBackColorTransparent
                                         write FBackColorTransparent default True;
@@ -87,12 +96,17 @@ begin
   FCanGrow              := False;
   FCanShrink            := False;
   FBackColor            := clWhite;
+  FColorEven            := clNone;
+  FColorOdd             := clNone;
+  FOverridePageSettings := False;
+  FPageSettings         := TReportPageSettings.Create;
   FBackColorTransparent := True;
   FChildren := TObjectList<TReportObject>.Create(True);
 end;
 
 destructor TReportBand.Destroy;
 begin
+  FPageSettings.Free;
   FChildren.Free;
   inherited;
 end;
@@ -108,6 +122,22 @@ begin
 
   // Background fill
   FillBackColor := not FBackColorTransparent;
+  var ActualColor := FBackColor;
+  
+  if (Context.RowNumber > 0) then
+  begin
+    if (Context.RowNumber mod 2 = 0) and (FColorEven <> clNone) then
+    begin
+      FillBackColor := True;
+      ActualColor := FColorEven;
+    end
+    else if (Context.RowNumber mod 2 = 1) and (FColorOdd <> clNone) then
+    begin
+      FillBackColor := True;
+      ActualColor := FColorOdd;
+    end;
+  end;
+
   if FBackColorCondition <> '' then
   begin
     try
@@ -119,7 +149,7 @@ begin
   end;
   if FillBackColor then
   begin
-    C.Brush.Color := FBackColor;
+    C.Brush.Color := ActualColor;
     C.Brush.Style := bsSolid;
     C.FillRect(BandR);
   end;

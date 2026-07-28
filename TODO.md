@@ -35,15 +35,15 @@
 |---|---------|--------|------------|
 | 14 | Field list drag-and-drop | Currently double-click only. Drag from field list to band is the standard UX. | Complete |
 | 15 | Copy/paste between reports | Clipboard is internal to one designer session only. | Complete |
-| 16 | Snap to other objects (smart guides) | Only grid snap exists. No alignment guides relative to other objects. | |
+| 16 | Snap to other objects (smart guides) | Only grid snap exists. No alignment guides relative to other objects. | Complete |
 | 17 | Property editor for Font | Font shows as a raw string in the value list editor, no font picker dialog. | Complete |
 | 18 | Colour picker for Color properties | No colour dialog in the property panel. | Complete |
 | 19 | Object locking | No Locked property to prevent accidental moves. | Complete |
 | 20 | Report variables / parameters | Add `Variables` dictionary to TReportModel. Allow syntax `[<VarName>]` in text objects. | Complete |
 | 22 | Chart object | Pie/bar/line chart bound to dataset. | Complete |
-| 23 | Subreport as a child band | Inline nested report in a band. | |
-| 24 | [RecNo] system token | Current record number within the group or report. | |
-| 25 | Alternating row colors | Odd/even row background on master data band. | |
+| 23 | Subreport as a child band | Inline nested report in a band. | Complete |
+| 24 | [RecNo] system token | Current record number within the group or report. | Complete |
+| 25 | Alternating row colors | Odd/even row background on master data band. | Complete |
 | 26 | Print preview zoom + fit-page | The inline preview (Execute) has no zoom controls. | Complete |
 | 27 | Multiple paper sizes per section | Landscape summary page after portrait data. | |
 | 28 | Email export | Send PDF directly via MAPI/SMTP. | |

@@ -74,6 +74,9 @@ uses
   Vittix.Report.Objects.Barcode;
 
 // ---------------------------------------------------------------------------
+
+
+
 // Rect helpers
 // ---------------------------------------------------------------------------
 
@@ -376,7 +379,12 @@ var
   PicClassRef: TPersistentClass;
   G:          TGraphic;
 begin
-  Cls := FindObjectClass(O.GetValue<string>('Class'));
+  if O.GetValue('Class') <> nil then
+    Cls := FindObjectClass(O.GetValue('Class').Value)
+  else if O.GetValue('Type') <> nil then
+    Cls := FindObjectClass(O.GetValue('Type').Value)
+  else
+    Cls := nil;
   if not Assigned(Cls) then
     raise Exception.CreateFmt(
       'Unknown report object class: "%s"',
