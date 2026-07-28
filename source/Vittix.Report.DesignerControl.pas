@@ -73,6 +73,7 @@ TDesignerGridUnit = (guCentimeters, guInches, guPixels, guPoints);
     { Appearance }
     FShowGrid   : Boolean;
     FSnapToGrid : Boolean;
+      FSmartGuides: Boolean;
     FGridSize   : Integer;
     FGridUnit   : TDesignerGridUnit;
     FShowRulers : Boolean;
@@ -394,6 +395,7 @@ begin
   FZoom        := 100;
   FShowGrid    := True;
   FSnapToGrid  := True;
+  FSmartGuides := True;
   FGridSize    := 8;
   FGridUnit    := guPixels;
   FShowRulers  := True;
@@ -2272,7 +2274,8 @@ begin
           ClearSelection;
           AddToSelection(NewObj);
           FActiveBand := TargetBand;
-          FInteractionState.Mode := dmSelect;
+          FInteractionState.ActiveGuides := nil;
+      FInteractionState.Mode := dmSelect;
           Cursor      := crDefault;
           DoModified;
         end;
@@ -2687,7 +2690,8 @@ begin
     end;
   end;
 
-  FInteractionState.Mode := dmSelect;
+  FInteractionState.ActiveGuides := nil;
+      FInteractionState.Mode := dmSelect;
   FInteractionState.DragStartBounds.Clear;
   UpdateCursor(X, Y);
 end;
@@ -2762,7 +2766,8 @@ begin
     begin
       if FInteractionState.Mode = dmInsert then
       begin
-        FInteractionState.Mode := dmSelect;
+        FInteractionState.ActiveGuides := nil;
+      FInteractionState.Mode := dmSelect;
         Cursor  := crDefault;
         FInsertClass := nil;
       end;

@@ -3,6 +3,7 @@ unit Vittix.Report.DesignerInteraction;
 interface
 
 uses
+  System.Math,
   System.Types,
   System.Generics.Collections,
   Vcl.Graphics,
@@ -19,6 +20,10 @@ type
     rhLeft, rhRight,
     rhBottomLeft, rhBottom, rhBottomRight
   );
+
+TSmartGuideLine = record
+    P1, P2: TPoint;
+  end;
 
   TBandOwnerFunc = function(AObj: TReportObject): TReportBand of object;
   TBandLayoutIndexFunc = function(ABand: TReportBand): Integer of object;
@@ -69,6 +74,14 @@ function DesignerHandleHitTest(
   out H: TResizeHandle): Boolean;
 
 function DesignerSnapV(V, AGridStepPx: Integer; ASnapToGrid: Boolean): Integer;
+
+procedure DesignerSnapToObjects(
+  var TargetRect: TRect;
+  const TargetBandY: Integer;
+  const ABandLayouts: TDesignerBandLayouts;
+  const ASelected: TList<TReportObject>;
+  AThreshold: Integer;
+  out Guides: TArray<TSmartGuideLine>);
 
 implementation
 
@@ -231,6 +244,14 @@ begin
 end;
 
 function DesignerSnapV(V, AGridStepPx: Integer; ASnapToGrid: Boolean): Integer;
+
+procedure DesignerSnapToObjects(
+  var TargetRect: TRect;
+  const TargetBandY: Integer;
+  const ABandLayouts: TDesignerBandLayouts;
+  const ASelected: TList<TReportObject>;
+  AThreshold: Integer;
+  out Guides: TArray<TSmartGuideLine>);
 begin
   if ASnapToGrid and (AGridStepPx > 0) then
     Result := Round(V / AGridStepPx) * AGridStepPx

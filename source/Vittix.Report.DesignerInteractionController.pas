@@ -23,6 +23,7 @@ type
     BandResizeOrigH: Integer;
     RubberRect: TRect;
     Rubbering: Boolean;
+    ActiveGuides: TArray<TSmartGuideLine>;
   end;
 
 implementation
