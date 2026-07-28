@@ -70,6 +70,7 @@ uses
   Vcl.Imaging.Jpeg,
   Vittix.Report.Objects.Table,
   Vittix.Report.Objects.CrossTab,
+    Vittix.Report.Objects.Chart,
   Vittix.Report.Objects.Barcode;
 
 // ---------------------------------------------------------------------------
@@ -152,6 +153,7 @@ var
   Barcode:   TReportBarcodeObject;
   Table:     TReportTableObject;
   CT:        TReportCrossTabObject;
+  Chart:     TReportChartObject;
   Band:      TReportBand;
   ChildArr:  TJSONArray;
   Child:     TReportObject;

@@ -40,7 +40,7 @@
 | 18 | Colour picker for Color properties | No colour dialog in the property panel. | Complete |
 | 19 | Object locking | No Locked property to prevent accidental moves. | Complete |
 | 20 | Report variables / parameters | Add `Variables` dictionary to TReportModel. Allow syntax `[<VarName>]` in text objects. | Complete |
-| 22 | Chart object | Pie/bar/line chart bound to dataset. | |
+| 22 | Chart object | Pie/bar/line chart bound to dataset. | Complete |
 | 23 | Subreport as a child band | Inline nested report in a band. | |
 | 24 | [RecNo] system token | Current record number within the group or report. | |
 | 25 | Alternating row colors | Odd/even row background on master data band. | |
