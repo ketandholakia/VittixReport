@@ -1,0 +1,48 @@
+{
+  "Version": "1.0",
+  "Title": "Test HTML Memo",
+  "PageWidth": 794,
+  "PageHeight": 1123,
+  "PageSettings": {
+    "Width": 794,
+    "Height": 1123,
+    "MarginLeft": 38,
+    "MarginTop": 38,
+    "MarginRight": 38,
+    "MarginBottom": 38,
+    "Orientation": 0
+  },
+  "Bands": [
+    {
+      "Class": "TReportBand",
+      "BandType": 4,
+      "Bounds": {
+        "Left": 0,
+        "Top": 0,
+        "Right": 794,
+        "Bottom": 200
+      },
+      "Objects": [
+        {
+          "Class": "TReportMemoObject",
+          "Bounds": {
+            "Left": 10,
+            "Top": 10,
+            "Right": 700,
+            "Bottom": 150
+          },
+          "Text": "Normal text <b>Bold text</b> <i>Italic text</i> <u>Underlined</u> <font color=\"clRed\">Red Text</font> <font color=\"#00FF00\">Green Text</font>",
+          "Font": {
+            "Name": "Arial",
+            "Size": 12,
+            "Color": 0,
+            "Style": []
+          },
+          "AllowHTML": true
+        }
+      ]
+    }
+  ],
+  "Objects": [],
+  "Variables": []
+}

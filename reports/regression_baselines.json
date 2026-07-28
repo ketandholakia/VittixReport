@@ -36,5 +36,6 @@
   "39_detail_bands.vrt": 1,
   "40_export_xlsx.vrt": 6,
   "41_twopass_totalpages.vrt": 75,
-  "42_crosstab_object.vrt": 1
+  "42_crosstab_object.vrt": 1,
+  "43_memo_html.vrt": 1
 }

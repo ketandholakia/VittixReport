@@ -248,6 +248,7 @@ type
   private
     FAutoHeight: Boolean;
     FMinHeight:  Integer;
+    FAllowHTML:  Boolean;
   public
     constructor Create; override;
     class function DisplayName: string; override;
@@ -256,6 +257,7 @@ type
   published
     property AutoHeight: Boolean read FAutoHeight write FAutoHeight default True;
     property MinHeight:  Integer read FMinHeight  write FMinHeight  default 20;
+    property AllowHTML:  Boolean read FAllowHTML  write FAllowHTML  default False;
   end;
 
 { ================= Sub-report Object (nested report + own dataset) ========= }
@@ -1227,12 +1229,18 @@ type
   TMemoRun = record
     Text: string;
     Style: TFontStyles;
+    Color: TColor;
+    FontName: string;
+    Size: Integer;
     IsBreak: Boolean;
   end;
 
   TMemoSeg = record
     Text: string;
     Style: TFontStyles;
+    Color: TColor;
+    FontName: string;
+    Size: Integer;
     Width: Integer;
   end;
 
@@ -1243,7 +1251,7 @@ type
   end;
 
 procedure AddMemoRun(var Runs: TArray<TMemoRun>; const AText: string;
-  const AStyle: TFontStyles; AIsBreak: Boolean);
+  const AStyle: TFontStyles; AColor: TColor; const AFontName: string; ASize: Integer; AIsBreak: Boolean);
 var
   L: Integer;
 begin
@@ -1304,47 +1312,146 @@ begin
 end;
 
 procedure ParseMemoRuns(const S: string; const BaseStyle: TFontStyles;
-  out Runs: TArray<TMemoRun>);
+  BaseColor: TColor; const BaseFontName: string; BaseSize: Integer;
+  AllowHTML: Boolean; out Runs: TArray<TMemoRun>);
+type
+  TMemoState = record
+    Style: TFontStyles;
+    Color: TColor;
+    FontName: string;
+    Size: Integer;
+  end;
 var
-  I, J: Integer;
+  I, J, K: Integer;
   Buf: string;
   Tag: string;
-  CurStyle: TFontStyles;
+  StateStack: TArray<TMemoState>;
+  CurState: TMemoState;
+  Attrs: TArray<string>;
+  P: Integer;
+  AName, AVal: string;
+  TagL: string;
+
+  procedure PushState;
+  begin
+    SetLength(StateStack, Length(StateStack) + 1);
+    StateStack[High(StateStack)] := CurState;
+  end;
+  
+  procedure PopState;
+  begin
+    if Length(StateStack) > 0 then
+    begin
+      CurState := StateStack[High(StateStack)];
+      SetLength(StateStack, Length(StateStack) - 1);
+    end;
+  end;
+
+  function ParseColor(const SC: string): TColor;
+  var 
+    L: string;
+  begin
+    if SC = '' then Exit(BaseColor);
+    if (Length(SC) > 0) and (SC[1] = '#') then
+    begin
+      if Length(SC) = 7 then
+        Result := RGB(StrToIntDef('$' + Copy(SC, 2, 2), 0),
+                      StrToIntDef('$' + Copy(SC, 4, 2), 0),
+                      StrToIntDef('$' + Copy(SC, 6, 2), 0))
+      else
+        Result := BaseColor;
+    end
+    else
+    begin
+      L := LowerCase(SC);
+      if L = 'red' then Result := clRed
+      else if L = 'blue' then Result := clBlue
+      else if L = 'green' then Result := clGreen
+      else if L = 'black' then Result := clBlack
+      else if L = 'white' then Result := clWhite
+      else if L = 'yellow' then Result := clYellow
+      else if L = 'gray' then Result := clGray
+      else if L = 'silver' then Result := clSilver
+      else if L = 'maroon' then Result := clMaroon
+      else if L = 'olive' then Result := clOlive
+      else if L = 'navy' then Result := clNavy
+      else if L = 'purple' then Result := clPurple
+      else if L = 'teal' then Result := clTeal
+      else if L = 'fuchsia' then Result := clFuchsia
+      else if L = 'aqua' then Result := clAqua
+      else if Copy(L, 1, 2) = 'cl' then
+        Result := StringToColor(SC)
+      else
+        Result := BaseColor;
+    end;
+  end;
+
 begin
   SetLength(Runs, 0);
-  CurStyle := BaseStyle;
+  SetLength(StateStack, 0);
+  CurState.Style := BaseStyle;
+  CurState.Color := BaseColor;
+  CurState.FontName := BaseFontName;
+  CurState.Size := BaseSize;
   Buf := '';
   I := 1;
 
   while I <= Length(S) do
   begin
-    if (S[I] = '<') then
+    if AllowHTML and (S[I] = '<') then
     begin
       J := I + 1;
       while (J <= Length(S)) and (S[J] <> '>') do Inc(J);
       if J <= Length(S) then
       begin
-        AddMemoRun(Runs, DecodeHtmlEntities(Buf), CurStyle, False);
+        AddMemoRun(Runs, DecodeHtmlEntities(Buf), CurState.Style, CurState.Color, CurState.FontName, CurState.Size, False);
         Buf := '';
 
-        Tag := LowerCase(Trim(Copy(S, I + 1, J - I - 1)));
+        Tag := Trim(Copy(S, I + 1, J - I - 1));
+        TagL := LowerCase(Tag);
 
-        if (Tag = 'b') then
-          Include(CurStyle, fsBold)
-        else if (Tag = '/b') then
-          Exclude(CurStyle, fsBold)
-        else if (Tag = 'i') then
-          Include(CurStyle, fsItalic)
-        else if (Tag = '/i') then
-          Exclude(CurStyle, fsItalic)
-        else if (Tag = 'u') then
-          Include(CurStyle, fsUnderline)
-        else if (Tag = '/u') then
-          Exclude(CurStyle, fsUnderline)
-        else if (Tag = 'br') or (Tag = 'br/') or (Tag = 'br /') then
-          AddMemoRun(Runs, '', CurStyle, True)
-        else if (Tag = 'p') or (Tag = '/p') then
-          AddMemoRun(Runs, '', CurStyle, True)
+        if TagL = 'b' then
+        begin
+          PushState;
+          Include(CurState.Style, fsBold);
+        end
+        else if TagL = '/b' then PopState
+        else if TagL = 'i' then
+        begin
+          PushState;
+          Include(CurState.Style, fsItalic);
+        end
+        else if TagL = '/i' then PopState
+        else if TagL = 'u' then
+        begin
+          PushState;
+          Include(CurState.Style, fsUnderline);
+        end
+        else if TagL = '/u' then PopState
+        else if (TagL = 'br') or (TagL = 'br/') or (TagL = 'br /') then
+          AddMemoRun(Runs, '', CurState.Style, CurState.Color, CurState.FontName, CurState.Size, True)
+        else if (TagL = 'p') or (TagL = '/p') then
+          AddMemoRun(Runs, '', CurState.Style, CurState.Color, CurState.FontName, CurState.Size, True)
+        else if TagL = '/font' then PopState
+        else if Copy(TagL, 1, 5) = 'font ' then
+        begin
+          PushState;
+          Attrs := Tag.Substring(5).Split([' '], TStringSplitOptions.ExcludeEmpty);
+          for K := 0 to High(Attrs) do
+          begin
+            P := Pos('=', Attrs[K]);
+            if P > 0 then
+            begin
+              AName := LowerCase(Trim(Copy(Attrs[K], 1, P - 1)));
+              AVal := Trim(Copy(Attrs[K], P + 1, Length(Attrs[K])));
+              AVal := StringReplace(AVal, '"', '', [rfReplaceAll]);
+              AVal := StringReplace(AVal, '', '', [rfReplaceAll]);
+              if AName = 'color' then CurState.Color := ParseColor(AVal)
+              else if AName = 'face' then CurState.FontName := AVal
+              else if AName = 'size' then CurState.Size := StrToIntDef(AVal, CurState.Size);
+            end;
+          end;
+        end
         else
           Buf := Buf + Copy(S, I, J - I + 1);
 
@@ -1355,9 +1462,9 @@ begin
 
     if (S[I] = #13) or (S[I] = #10) then
     begin
-      AddMemoRun(Runs, DecodeHtmlEntities(Buf), CurStyle, False);
+      AddMemoRun(Runs, DecodeHtmlEntities(Buf), CurState.Style, CurState.Color, CurState.FontName, CurState.Size, False);
       Buf := '';
-      AddMemoRun(Runs, '', CurStyle, True);
+      AddMemoRun(Runs, '', CurState.Style, CurState.Color, CurState.FontName, CurState.Size, True);
       if (S[I] = #13) and (I < Length(S)) and (S[I + 1] = #10) then
         Inc(I);
     end
@@ -1367,28 +1474,32 @@ begin
     Inc(I);
   end;
 
-  AddMemoRun(Runs, DecodeHtmlEntities(Buf), CurStyle, False);
+  AddMemoRun(Runs, DecodeHtmlEntities(Buf), CurState.Style, CurState.Color, CurState.FontName, CurState.Size, False);
 end;
 
 function StyledTextWidth(C: TCanvas; BaseFont: TFont; const S: string;
-  const Style: TFontStyles): Integer;
+  const Style: TFontStyles; const FontName: string; Size: Integer): Integer;
 begin
   if S = '' then Exit(0);
   C.Font.Assign(BaseFont);
   C.Font.Style := Style;
+  if FontName <> '' then C.Font.Name := FontName;
+  if Size > 0 then C.Font.Size := Size;
   Result := C.TextWidth(S);
 end;
 
 function StyledTextHeight(C: TCanvas; BaseFont: TFont;
-  const Style: TFontStyles): Integer;
+  const Style: TFontStyles; const FontName: string; Size: Integer): Integer;
 begin
   C.Font.Assign(BaseFont);
   C.Font.Style := Style;
+  if FontName <> '' then C.Font.Name := FontName;
+  if Size > 0 then C.Font.Size := Size;
   Result := C.TextHeight('Hg');
 end;
 
 procedure AddLineSegment(var Line: TMemoLine; C: TCanvas; BaseFont: TFont;
-  const S: string; const Style: TFontStyles);
+  const S: string; const Style: TFontStyles; Color: TColor; const FontName: string; Size: Integer);
 var
   L: Integer;
   W: Integer;
@@ -1396,11 +1507,11 @@ var
 begin
   if S = '' then Exit;
 
-  W := StyledTextWidth(C, BaseFont, S, Style);
-  H := StyledTextHeight(C, BaseFont, Style);
+  W := StyledTextWidth(C, BaseFont, S, Style, FontName, Size);
+  H := StyledTextHeight(C, BaseFont, Style, FontName, Size);
 
   L := Length(Line.Segments);
-  if (L > 0) and (Line.Segments[L - 1].Style = Style) then
+  if (L > 0) and (Line.Segments[L - 1].Style = Style) and (Line.Segments[L - 1].Color = Color) and (SameText(Line.Segments[L - 1].FontName, FontName)) and (Line.Segments[L - 1].Size = Size) then
   begin
     Line.Segments[L - 1].Text := Line.Segments[L - 1].Text + S;
     Line.Segments[L - 1].Width := Line.Segments[L - 1].Width + W;
@@ -1434,8 +1545,8 @@ begin
   Line.Height := DefaultHeight;
 end;
 
-procedure BuildMemoLines(C: TCanvas; BaseFont: TFont; const Text: string;
-  MaxWidth: Integer; WordWrap: Boolean; out Lines: TArray<TMemoLine>;
+procedure BuildMemoLines(C: TCanvas; BaseFont: TFont; BaseColor: TColor; const Text: string;
+  MaxWidth: Integer; WordWrap: Boolean; AllowHTML: Boolean; out Lines: TArray<TMemoLine>;
   out TotalHeight: Integer);
 var
   Runs: TArray<TMemoRun>;
@@ -1450,9 +1561,9 @@ begin
   SetLength(Lines, 0);
   TotalHeight := 0;
 
-  ParseMemoRuns(Text, BaseFont.Style, Runs);
+  ParseMemoRuns(Text, BaseFont.Style, BaseColor, BaseFont.Name, BaseFont.Size, AllowHTML, Runs);
 
-  DefaultH := StyledTextHeight(C, BaseFont, BaseFont.Style);
+  DefaultH := StyledTextHeight(C, BaseFont, BaseFont.Style, BaseFont.Name, BaseFont.Size);
   if DefaultH <= 0 then DefaultH := 14;
   if MaxWidth <= 0 then MaxWidth := 1;
 
@@ -1480,7 +1591,7 @@ begin
 
       if not WordWrap then
       begin
-        AddLineSegment(Line, C, BaseFont, Token, Run.Style);
+        AddLineSegment(Line, C, BaseFont, Token, Run.Style, Run.Color, Run.FontName, Run.Size);
       end
       else
       begin
@@ -1490,26 +1601,26 @@ begin
           Continue;
         end;
 
-        var TokenW := StyledTextWidth(C, BaseFont, Token, Run.Style);
+        var TokenW := StyledTextWidth(C, BaseFont, Token, Run.Style, Run.FontName, Run.Size);
 
         if (Line.Width + TokenW <= MaxWidth) or (Line.Width = 0) then
-          AddLineSegment(Line, C, BaseFont, Token, Run.Style)
+          AddLineSegment(Line, C, BaseFont, Token, Run.Style, Run.Color, Run.FontName, Run.Size)
         else if IsSpace then
           PushLine(Lines, Line, DefaultH, False)
         else if TokenW <= MaxWidth then
         begin
           PushLine(Lines, Line, DefaultH, False);
-          AddLineSegment(Line, C, BaseFont, Token, Run.Style);
+          AddLineSegment(Line, C, BaseFont, Token, Run.Style, Run.Color, Run.FontName, Run.Size);
         end
         else
         begin
           for Ch in Token do
           begin
             var CharText := string(Ch);
-            var CharW := StyledTextWidth(C, BaseFont, CharText, Run.Style);
+            var CharW := StyledTextWidth(C, BaseFont, CharText, Run.Style, Run.FontName, Run.Size);
             if (Line.Width > 0) and (Line.Width + CharW > MaxWidth) then
               PushLine(Lines, Line, DefaultH, False);
-            AddLineSegment(Line, C, BaseFont, CharText, Run.Style);
+            AddLineSegment(Line, C, BaseFont, CharText, Run.Style, Run.Color, Run.FontName, Run.Size);
           end;
         end;
       end;
@@ -1588,7 +1699,7 @@ begin
     Exit;
   end;
 
-  BuildMemoLines(C, FFont, S, MaxWidth, FWordWrap, Lines, TotalH);
+  BuildMemoLines(C, FFont, DrawFontColor, S, MaxWidth, FWordWrap, FAllowHTML, Lines, TotalH);
 
   Y := TR.Top;
   if not FWordWrap then
@@ -1616,8 +1727,15 @@ begin
       for J := 0 to High(Lines[I].Segments) do
       begin
         C.Font.Assign(FFont);
-        C.Font.Color := DrawFontColor;
         C.Font.Style := Lines[I].Segments[J].Style;
+        if Lines[I].Segments[J].Color <> clNone then
+          C.Font.Color := Lines[I].Segments[J].Color
+        else
+          C.Font.Color := DrawFontColor;
+        if Lines[I].Segments[J].FontName <> '' then
+          C.Font.Name := Lines[I].Segments[J].FontName;
+        if Lines[I].Segments[J].Size > 0 then
+          C.Font.Size := Lines[I].Segments[J].Size;
         C.Brush.Style := bsClear;
         C.TextOut(X, Y, Lines[I].Segments[J].Text);
         Inc(X, Lines[I].Segments[J].Width);
@@ -1663,7 +1781,7 @@ begin
     Exit;
   end;
 
-  BuildMemoLines(C, FFont, S, MaxWidth, FWordWrap, Lines, TotalH);
+  BuildMemoLines(C, FFont, FFont.Color, S, MaxWidth, FWordWrap, FAllowHTML, Lines, TotalH);
 
   if TotalH > 0 then
   begin
