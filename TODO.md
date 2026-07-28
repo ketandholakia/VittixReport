@@ -45,5 +45,5 @@
 | 24 | [RecNo] system token | Current record number within the group or report. | Complete |
 | 25 | Alternating row colors | Odd/even row background on master data band. | Complete |
 | 26 | Print preview zoom + fit-page | The inline preview (Execute) has no zoom controls. | Complete |
-| 27 | Multiple paper sizes per section | Landscape summary page after portrait data. | |
+| 27 | Multiple paper sizes per section | Landscape summary page after portrait data. | Complete |
 | 28 | Email export | Send PDF directly via MAPI/SMTP. | |
