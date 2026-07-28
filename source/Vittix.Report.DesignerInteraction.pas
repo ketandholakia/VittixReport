@@ -213,6 +213,8 @@ begin
   if not Assigned(ASelected) or (ASelected.Count = 0) then Exit;
 
   Obj := ASelected[ASelected.Count - 1];
+  if Obj.Locked then Exit;
+
   SR  := ObjScreenRectInternal(Obj, ABandLayouts, APageLeft, APageTop, AMarginLeft, AZoom,
     ABandOwner, ABandLayoutIndex);
   CX  := (SR.Left + SR.Right)  div 2;

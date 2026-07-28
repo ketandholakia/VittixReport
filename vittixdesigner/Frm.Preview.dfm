@@ -14,62 +14,212 @@ object frmPreview: TfrmPreview
   WindowState = wsMaximized
   OnCreate = FormCreate
   OnDestroy = FormDestroy
-  PixelsPerInch = 96
   TextHeight = 15
-
   object pnlTop: TPanel
-    Align = alTop  Height = 30
-    BevelOuter = bvNone  Color = $002C2C2C  Caption = ''
+    Left = 0
+    Top = 0
+    Width = 960
+    Height = 30
+    Align = alTop
+    BevelOuter = bvNone
+    Color = 2894892
+    TabOrder = 0
+    ExplicitWidth = 185
     object lblPrevTitle: TLabel
-      Left = 10  Top = 7
+      Left = 10
+      Top = 7
+      Width = 76
+      Height = 15
       Caption = 'Print Preview'
-      Font.Color = clWhite  Font.Style = [fsBold]  ParentFont = False
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWhite
+      Font.Height = -12
+      Font.Name = 'Segoe UI'
+      Font.Style = [fsBold]
+      ParentFont = False
     end
   end
-
   object StatusBar1: TStatusBar
-    Align = alBottom
+    Left = 0
+    Top = 711
+    Width = 960
+    Height = 19
+    Panels = <>
     SimplePanel = True
     SimpleText = 'Ready'
+    ExplicitTop = 0
+    ExplicitWidth = 0
   end
-
   object ToolBar1: TToolBar
-    Align = alTop
+    Left = 0
+    Top = 30
+    Width = 960
+    Height = 29
     ButtonHeight = 26
-    ButtonWidth  = 26
+    ButtonWidth = 26
     ShowCaptions = True
-
-    object btnFirst:    TToolButton  Caption = 'First'    Hint = 'First Page'    OnClick = btnFirstClick    end
-    object btnPrev:     TToolButton  Caption = 'Prev'     Hint = 'Previous Page' OnClick = btnPrevClick     end
-    object btnNext:     TToolButton  Caption = 'Next'     Hint = 'Next Page'     OnClick = btnNextClick     end
-    object btnLast:     TToolButton  Caption = 'Last'     Hint = 'Last Page'     OnClick = btnLastClick     end
-    object btnGoToPage: TToolButton  Caption = 'Go To'    Hint = 'Go To Page'    OnClick = btnGoToPageClick end
-    object tbSep1:      TToolButton  Style = tbsSeparator  end
-    object btnZoomIn:   TToolButton  Caption = 'Zoom In'   Hint = 'Zoom In'       OnClick = btnZoomInClick   end
-    object btnZoomOut:  TToolButton  Caption = 'Zoom Out'  Hint = 'Zoom Out'      OnClick = btnZoomOutClick  end
-    object btnFitWidth: TToolButton  Caption = 'Fit'       Hint = 'Fit Width'     OnClick = btnFitWidthClick end
-    object tbSep2:      TToolButton  Style = tbsSeparator  end
-    object lblPageInfo: TLabel
-      Caption = 'Page 1 / 1'
-      Font.Style = [fsBold]
+    TabOrder = 3
+    ExplicitTop = 0
+    ExplicitWidth = 150
+    object btnFirst: TToolButton
+      Left = 0
+      Top = 0
+      Hint = 'First Page'
+      Caption = 'First'
+      OnClick = btnFirstClick
     end
-    object tbSep3:      TToolButton  Style = tbsSeparator  end
-    object btnPrint:    TToolButton  Caption = 'Print' Hint = 'Print Report' OnClick = btnPrintClick end
+    object btnPrev: TToolButton
+      Left = 0
+      Top = 0
+      Hint = 'Previous Page'
+      Caption = 'Prev'
+      OnClick = btnPrevClick
+    end
+    object btnNext: TToolButton
+      Left = 0
+      Top = 0
+      Hint = 'Next Page'
+      Caption = 'Next'
+      OnClick = btnNextClick
+    end
+    object btnLast: TToolButton
+      Left = 0
+      Top = 0
+      Hint = 'Last Page'
+      Caption = 'Last'
+      OnClick = btnLastClick
+    end
+    object btnGoToPage: TToolButton
+      Left = 0
+      Top = 0
+      Hint = 'Go To Page'
+      Caption = 'Go To'
+      OnClick = btnGoToPageClick
+    end
+    object tbSep1: TToolButton
+      Left = 0
+      Top = 0
+      Width = 26
+      Style = tbsSeparator
+    end
+    object btnZoomIn: TToolButton
+      Left = 0
+      Top = 0
+      Hint = 'Zoom In (Ctrl +)'
+      Caption = 'Zoom In'
+      OnClick = btnZoomInClick
+    end
+    object btnZoomOut: TToolButton
+      Left = 0
+      Top = 0
+      Hint = 'Zoom Out (Ctrl -)'
+      Caption = 'Zoom Out'
+      OnClick = btnZoomOutClick
+    end
+    object btnFitWidth: TToolButton
+      Left = 0
+      Top = 0
+      Hint = 'Fit Width'
+      Caption = 'Fit Width'
+      OnClick = btnFitWidthClick
+    end
+    object btnFitPage: TToolButton
+      Left = 0
+      Top = 0
+      Hint = 'Fit Whole Page'
+      Caption = 'Fit Page'
+      OnClick = btnFitPageClick
+    end
+    object tbSepZoom: TToolButton
+      Left = 0
+      Top = 0
+      Width = 26
+      Style = tbsSeparator
+    end
+    object trkZoom: TTrackBar
+      Left = 0
+      Top = 0
+      Width = 130
+      Height = 26
+      Max = 400
+      Min = 10
+      Frequency = 10
+      Position = 100
+      TabOrder = 0
+      OnChange = trkZoomChange
+    end
+    object lblZoom: TLabel
+      Left = 0
+      Top = 0
+      Width = 34
+      Height = 15
+      Caption = '100 %'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -12
+      Font.Name = 'Segoe UI'
+      Font.Style = [fsBold]
+      ParentFont = False
+      Layout = tlCenter
+    end
+    object tbSep2: TToolButton
+      Left = 0
+      Top = 0
+      Width = 26
+      Style = tbsSeparator
+    end
+    object lblPageInfo: TLabel
+      Left = 0
+      Top = 0
+      Width = 55
+      Height = 15
+      Caption = 'Page 1 / 1'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -12
+      Font.Name = 'Segoe UI'
+      Font.Style = [fsBold]
+      ParentFont = False
+    end
+    object tbSep3: TToolButton
+      Left = 0
+      Top = 0
+      Width = 26
+      Style = tbsSeparator
+    end
+    object btnPrint: TToolButton
+      Left = 0
+      Top = 0
+      Hint = 'Print Report'
+      Caption = 'Print'
+      OnClick = btnPrintClick
+    end
   end
-
   object btnClose: TButton
-    Align = alBottom
+    Left = 0
+    Top = 730
+    Width = 960
     Height = 30
+    Align = alBottom
+    Cancel = True
     Caption = 'Close Preview'
     Default = True
-    Cancel  = True
     TabOrder = 1
     OnClick = btnCloseClick
+    ExplicitTop = 0
+    ExplicitWidth = 75
   end
-
   object Preview: TVittixReportPreview
+    Left = 0
+    Top = 59
+    Width = 960
+    Height = 652
     Align = alClient
-    Color = $00D0D0D0
+    Color = 13684944
+    PageIndex = 0
     OnPageChanged = PreviewPageChanged
+    ExplicitTop = 0
+    ExplicitWidth = 0
+    ExplicitHeight = 0
   end
 end

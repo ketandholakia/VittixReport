@@ -1,17 +1,17 @@
 unit Frm.Preview;
 
 (*
-  Frm.Preview — Print Preview Window
+  Frm.Preview - Print Preview Window
   =====================================
   Hosts TVittixReportPreview inside a modal dialog with:
-    • First / Prev / Next / Last page navigation toolbar
-    • Zoom in / out / fit controls
-    • Page counter label
-    • "Print" button (wired to Preview.Print)
-    • "Export PDF" note
+    * First / Prev / Next / Last page navigation toolbar
+    * Zoom In / Zoom Out / Fit Width / Fit Page buttons
+    * Zoom slider (TTrackBar, 10-400%) and zoom percent label
+    * Page counter label
+    * "Print" button (wired to Preview.Print)
 
   Rendering: passes the report through TReportRenderer, which runs the
-  engine against a nil dataset (design-time preview — no live data).
+  engine against a nil dataset (design-time preview - no live data).
   For live data, call LoadReport(Report, DataSet) before ShowModal.
 *)
 
@@ -25,7 +25,7 @@ uses
   Vittix.Report.Engine,
   Vittix.Report.Model,
   Vittix.Report.Renderer,
-  Vittix.Report.Preview;
+  Vittix.Report.Preview, Vcl.ToolWin;
 
 type
   TfrmPreview = class(TForm)
@@ -41,6 +41,10 @@ type
     btnZoomIn   : TToolButton;
     btnZoomOut  : TToolButton;
     btnFitWidth : TToolButton;
+    btnFitPage  : TToolButton;
+    tbSepZoom   : TToolButton;
+    trkZoom     : TTrackBar;
+    lblZoom     : TLabel;
     tbSep2      : TToolButton;
     lblPageInfo : TLabel;
     tbSep3      : TToolButton;
@@ -59,12 +63,17 @@ type
     procedure btnZoomInClick(Sender: TObject);
     procedure btnZoomOutClick(Sender: TObject);
     procedure btnFitWidthClick(Sender: TObject);
+    procedure btnFitPageClick(Sender: TObject);
+    procedure trkZoomChange(Sender: TObject);
     procedure btnPrintClick(Sender: TObject);
     procedure btnCloseClick(Sender: TObject);
     procedure PreviewPageChanged(Sender: TObject);
+    procedure PreviewZoomChanged(Sender: TObject);
 
   private
+    FUpdatingZoom: Boolean;
     procedure UpdateNav;
+    procedure UpdateZoomUI;
 
   public
     procedure LoadReport(AReport: TReportModel; ADataSet: TDataSet = nil);
@@ -80,7 +89,10 @@ uses
 procedure TfrmPreview.FormCreate(Sender: TObject);
 begin
   Preview.OnPageChanged := PreviewPageChanged;
+  Preview.OnZoomChanged := PreviewZoomChanged;
+  FUpdatingZoom := False;
   UpdateNav;
+  UpdateZoomUI;
 end;
 
 procedure TfrmPreview.FormDestroy(Sender: TObject);
@@ -158,14 +170,19 @@ begin
     Screen.Cursor := crDefault;
   end;
 
+  // Apply fit-page by default so the first page always fills the window.
+  Preview.FitPage;
+
 {$IFDEF DEBUG}
   ElapsedMs := GetTickCount64 - StartMs;
   UpdateNav;
+  UpdateZoomUI;
   StatusBar1.SimpleText := Format('%d page(s) rendered in %d ms', [Preview.PageCount, ElapsedMs]);
   OutputDebugString(PChar(Format('VittixDesigner Preview: %d page(s) rendered in %d ms',
     [Preview.PageCount, ElapsedMs])));
 {$ELSE}
   UpdateNav;
+  UpdateZoomUI;
   StatusBar1.SimpleText := Format('%d page(s) rendered', [Preview.PageCount]);
 {$ENDIF}
 end;
@@ -184,9 +201,28 @@ begin
     lblPageInfo.Caption := 'No pages';
 end;
 
+procedure TfrmPreview.UpdateZoomUI;
+begin
+  lblZoom.Caption := Format('%d %%', [Preview.ZoomPercent]);
+
+  // Prevent the TrackBar's OnChange from firing back into SetZoomPercent
+  // while we are programmatically setting its position.
+  FUpdatingZoom := True;
+  try
+    trkZoom.Position := Preview.ZoomPercent;
+  finally
+    FUpdatingZoom := False;
+  end;
+end;
+
 procedure TfrmPreview.PreviewPageChanged(Sender: TObject);
 begin
   UpdateNav;
+end;
+
+procedure TfrmPreview.PreviewZoomChanged(Sender: TObject);
+begin
+  UpdateZoomUI;
 end;
 
 procedure TfrmPreview.btnFirstClick(Sender: TObject);
@@ -243,6 +279,18 @@ procedure TfrmPreview.btnFitWidthClick(Sender: TObject);
 begin
   Preview.FitWidth;
   UpdateNav;
+end;
+
+procedure TfrmPreview.btnFitPageClick(Sender: TObject);
+begin
+  Preview.FitPage;
+  UpdateNav;
+end;
+
+procedure TfrmPreview.trkZoomChange(Sender: TObject);
+begin
+  if FUpdatingZoom then Exit;
+  Preview.ZoomPercent := trkZoom.Position;
 end;
 
 procedure TfrmPreview.btnPrintClick(Sender: TObject);

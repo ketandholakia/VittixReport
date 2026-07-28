@@ -30,6 +30,9 @@ function EditFontPropertyRow(
 
 implementation
 
+uses
+  Frm.Main.PropertyHelpers;
+
 function EditFontPropertyRow(
   AOwner: TComponent;
   ADesigner: TVittixReportDesigner;
@@ -56,6 +59,8 @@ begin
 
   KeyName := APropEditor.Keys[ARow];
   if KeyName = '' then
+    Exit;
+  if not IsFontDialogRowKey(KeyName) then
     Exit;
 
   Obj := ACurrentPropertyTarget();

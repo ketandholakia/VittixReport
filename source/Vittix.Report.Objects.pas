@@ -32,6 +32,7 @@ type
     FAnchorBottom:Boolean;
     FPageBreakBefore: Boolean;
     FPageBreakAfter: Boolean;
+    FLocked:      Boolean;
   protected
     procedure DrawSelection(C: TCanvas);
   public
@@ -57,6 +58,7 @@ type
     property AnchorBottom: Boolean read FAnchorBottom write FAnchorBottom default False;
     property PageBreakBefore: Boolean read FPageBreakBefore write FPageBreakBefore default False;
     property PageBreakAfter:  Boolean read FPageBreakAfter  write FPageBreakAfter  default False;
+    property Locked:       Boolean read FLocked       write FLocked       default False;
   end;
 
   TReportObjectClass = class of TReportObject;
@@ -436,6 +438,7 @@ begin
   FAnchorBottom := False;
   FPageBreakBefore := False;
   FPageBreakAfter  := False;
+  FLocked       := False;
 end;
  
 procedure TReportObject.Draw(C: TCanvas; const Context: TExpressionContext);
@@ -453,6 +456,16 @@ const
 var
   CX, CY: Integer;
 begin
+  if FLocked then
+  begin
+    C.Pen.Style := psDot;
+    C.Pen.Color := clRed;
+    C.Brush.Style := bsClear;
+    C.Rectangle(FBounds);
+    C.Pen.Style := psSolid;
+    Exit;
+  end;
+
   CX := (FBounds.Left + FBounds.Right)  div 2;
   CY := (FBounds.Top  + FBounds.Bottom) div 2;
 
@@ -614,6 +627,9 @@ begin
     else
       Result := SafeSourceFieldAsString(Context.DataSet, Context.UserDataSet, FDataField);
   end
+  else if Pos('[', FText) > 0 then
+    // FText contains embedded system/field tokens — evaluate them.
+    Result := VarToStr(TReportExpression.Evaluate(FText, Context))
   else
     Result := FText;
 end;
@@ -758,6 +774,9 @@ begin
     S := FText;
   end
 {$ENDIF}
+  else if Pos('[', FText) > 0 then
+    // FText contains embedded system/field tokens — evaluate them.
+    S := VarToStr(TReportExpression.Evaluate(FText, Context))
   else
     S := FText;
 
@@ -1945,8 +1964,7 @@ end;
 { ================= Init ================= }
 
 initialization
-  GRegistryCS := TCriticalSection.Create;
-  GRegistry := TList<TReportObjectClass>.Create;
+  EnsureRegistryInitialized;
   RegisterReportObject(TReportTextObject);
   RegisterReportObject(TReportLabelObject);
   RegisterReportObject(TReportFieldObject);

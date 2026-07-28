@@ -1,0 +1,126 @@
+{
+  "Version": 2,
+  "Title": "39 Detail Bands",
+  "Author": "Codex",
+  "Description": "Test detail bands binding to a master dataset.",
+  "PageSettings": {
+    "PaperSize": 0,
+    "Orientation": 0,
+    "MarginLeft": 40,
+    "MarginTop": 40,
+    "MarginRight": 40,
+    "MarginBottom": 40,
+    "CustomWidth": 793,
+    "CustomHeight": 1122
+  },
+  "FieldNames": [
+    "CustomerName",
+    "InvoiceNo",
+    "ItemName",
+    "Amount"
+  ],
+  "DataSetNames": [
+    "MasterData",
+    "DetailData"
+  ],
+  "Objects": [
+    {
+      "Class": "TReportBand",
+      "Name": "BandTitle",
+      "Bounds": { "L": 0, "T": 0, "R": 793, "B": 50 },
+      "Visible": true,
+      "BandType": 0,
+      "Height": 50,
+      "BackColor": 16777215,
+      "BackColorTransparent": true,
+      "Children": [
+        {
+          "Class": "TReportTextObject",
+          "Name": "txtTitle",
+          "Bounds": { "L": 12, "T": 10, "R": 320, "B": 30 },
+          "Visible": true,
+          "Text": "Detail Bands Test",
+          "FontName": "Tahoma",
+          "FontSize": 12,
+          "FontBold": true,
+          "Transparent": true
+        }
+      ]
+    },
+    {
+      "Class": "TReportBand",
+      "Name": "BandMaster",
+      "Bounds": { "L": 0, "T": 0, "R": 793, "B": 40 },
+      "Visible": true,
+      "BandType": 2,
+      "Height": 40,
+      "DataSetName": "MasterData",
+      "BackColor": 16777215,
+      "BackColorTransparent": true,
+      "Children": [
+        {
+          "Class": "TReportFieldObject",
+          "Name": "fldCustomer",
+          "Bounds": { "L": 12, "T": 8, "R": 200, "B": 28 },
+          "Visible": true,
+          "Text": "[CustomerName]",
+          "DataField": "CustomerName",
+          "FontName": "Tahoma",
+          "FontSize": 10,
+          "FontBold": true,
+          "Transparent": true
+        },
+        {
+          "Class": "TReportFieldObject",
+          "Name": "fldInvoice",
+          "Bounds": { "L": 210, "T": 8, "R": 350, "B": 28 },
+          "Visible": true,
+          "Text": "[InvoiceNo]",
+          "DataField": "InvoiceNo",
+          "FontName": "Tahoma",
+          "FontSize": 10,
+          "FontBold": true,
+          "Transparent": true
+        }
+      ]
+    },
+    {
+      "Class": "TReportBand",
+      "Name": "BandDetail",
+      "Bounds": { "L": 0, "T": 0, "R": 793, "B": 30 },
+      "Visible": true,
+      "BandType": 8,
+      "Height": 30,
+      "DataSetName": "DetailData",
+      "MasterField": "InvoiceNo",
+      "DetailField": "InvoiceNo",
+      "BackColor": 16777215,
+      "BackColorTransparent": true,
+      "Children": [
+        {
+          "Class": "TReportFieldObject",
+          "Name": "fldItem",
+          "Bounds": { "L": 50, "T": 4, "R": 250, "B": 24 },
+          "Visible": true,
+          "Text": "[ItemName]",
+          "DataField": "ItemName",
+          "FontName": "Tahoma",
+          "FontSize": 10,
+          "Transparent": true
+        },
+        {
+          "Class": "TReportFieldObject",
+          "Name": "fldAmount",
+          "Bounds": { "L": 260, "T": 4, "R": 350, "B": 24 },
+          "Visible": true,
+          "Text": "[Amount]",
+          "DataField": "Amount",
+          "FontName": "Tahoma",
+          "FontSize": 10,
+          "Transparent": true,
+          "DisplayFormat": "#,##0.00"
+        }
+      ]
+    }
+  ]
+}

@@ -36,7 +36,8 @@ procedure HandlePropEditorEditButtonClick(
   APropEditor: TValueListEditor;
   const AEditBandEventScriptRow: TFunc<Integer, Boolean>;
   const AEditExpressionPropertyRow: TFunc<Integer, Boolean>;
-  const AEditColorPropertyRow: TFunc<Integer, Boolean>);
+  const AEditColorPropertyRow: TFunc<Integer, Boolean>;
+  const AEditFontPropertyRow: TFunc<Integer, Boolean>);
 
 implementation
 
@@ -119,13 +120,15 @@ procedure HandlePropEditorEditButtonClick(
   APropEditor: TValueListEditor;
   const AEditBandEventScriptRow: TFunc<Integer, Boolean>;
   const AEditExpressionPropertyRow: TFunc<Integer, Boolean>;
-  const AEditColorPropertyRow: TFunc<Integer, Boolean>);
+  const AEditColorPropertyRow: TFunc<Integer, Boolean>;
+  const AEditFontPropertyRow: TFunc<Integer, Boolean>);
 begin
   if Assigned(APropEditor) then
   begin
     if Assigned(AEditBandEventScriptRow) and AEditBandEventScriptRow(APropEditor.Row) then Exit;
     if Assigned(AEditExpressionPropertyRow) and AEditExpressionPropertyRow(APropEditor.Row) then Exit;
-    if Assigned(AEditColorPropertyRow) then AEditColorPropertyRow(APropEditor.Row);
+    if Assigned(AEditColorPropertyRow) and AEditColorPropertyRow(APropEditor.Row) then Exit;
+    if Assigned(AEditFontPropertyRow) then AEditFontPropertyRow(APropEditor.Row);
   end;
 end;
 

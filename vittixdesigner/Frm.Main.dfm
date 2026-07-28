@@ -697,8 +697,12 @@ object frmMain: TfrmMain
         OnClick = mnuAddBandHeaderClick
       end
       object mnuAddBandData: TMenuItem
-        Caption = 'Band: &Master Data'
+        Caption = 'Master Data Band'
         OnClick = mnuAddBandDataClick
+      end
+      object mnuAddBandDetail: TMenuItem
+        Caption = 'Detail Data Band'
+        OnClick = mnuAddBandDetailClick
       end
       object mnuAddBandFooter: TMenuItem
         Caption = 'Band: Page &Footer'

@@ -56,6 +56,10 @@ begin
     Exit('Allow control height to shrink when content is empty')
   else if SameText(AKey, 'GroupField') then
     Exit('Field used for grouping band sections')
+  else if SameText(AKey, 'MasterField') then
+    Exit('Field from the master dataset used to link detail records')
+  else if SameText(AKey, 'DetailField') then
+    Exit('Field from the detail dataset that matches the master field')
   else if SameText(AKey, 'OnBeforePrint') then
   begin
     if Assigned(AObj) and not (AObj is TReportBand) then
@@ -98,8 +102,9 @@ end;
 
 procedure PromoteImportantProperties(APropEditor: TValueListEditor; AObj: TReportObject);
 const
-  BandKeys: array[0..14] of string = (
-    'BandType', 'Height', 'DataSetName', 'GroupField', 'GroupLevel',
+  BandKeys: array[0..16] of string = (
+    'BandType', 'Height', 'DataSetName', 'MasterField', 'DetailField',
+    'GroupField', 'GroupLevel',
     'CanGrow', 'CanShrink', 'StartNewPage', 'Visible', 'PrintWhen',
     'BackColor', 'BackColorTransparent', 'BackColorCondition',
     'OnBeforePrint', 'OnAfterPrint'
@@ -229,7 +234,7 @@ begin
   if AObj is TReportBand then
   begin
     if APropEditor.Strings.IndexOfName('[Data]') < 0 then
-      InsertGroupAt('Data', FindFirstExistingIndex(['DataSetName', 'GroupField', 'GroupLevel']));
+      InsertGroupAt('Data', FindFirstExistingIndex(['DataSetName', 'MasterField', 'DetailField', 'GroupField', 'GroupLevel']));
     if APropEditor.Strings.IndexOfName('[Behavior]') < 0 then
       InsertGroupAt('Behavior', FindFirstExistingIndex(['CanGrow', 'CanShrink', 'StartNewPage']));
   end;

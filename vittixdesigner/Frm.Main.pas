@@ -1,4 +1,4 @@
-﻿unit Frm.Main;
+unit Frm.Main;
 
 (*
   Frm.Main — Vittix Report Designer  —  Main Application Form
@@ -124,6 +124,7 @@ type
       mnuAddBandTitle   : TMenuItem;
       mnuAddBandHeader  : TMenuItem;
       mnuAddBandData    : TMenuItem;
+      mnuAddBandDetail  : TMenuItem;
       mnuAddBandFooter  : TMenuItem;
       mnuAddBandSummary : TMenuItem;
       mnuSep5           : TMenuItem;
@@ -271,6 +272,7 @@ type
     procedure mnuAddBandTitleClick(Sender: TObject);
     procedure mnuAddBandHeaderClick(Sender: TObject);
     procedure mnuAddBandDataClick(Sender: TObject);
+    procedure mnuAddBandDetailClick(Sender: TObject);
     procedure mnuAddBandFooterClick(Sender: TObject);
     procedure mnuAddBandSummaryClick(Sender: TObject);
 
@@ -355,7 +357,8 @@ type
     FCurrentFile: string;
     FModified   : Boolean;
     FReportMetadataDirty: Boolean;
-    FPropertyPanelDirty: Boolean;
+    FDisablePreviewShortcut: Boolean;
+    FIsSubReportEditor: Boolean;
     FLoadingPropertyPanel: Boolean;
     FUpdatingZoomControls: Boolean;
     FRuntimeEventDemoOutput: string;
@@ -434,6 +437,7 @@ type
     function  IsBandEventScriptRowKey(const AKey: string): Boolean;
     function  EditTextExpressionPropertyRow(ARow: Integer): Boolean;
     function  EditEmbeddedImageObject(AImageObj: TReportImageObject): Boolean;
+    function  EditSubReportObject(ASubReportObj: TReportSubReportObject): Boolean;
     function  EditEmbeddedImagePropertyRow(ARow: Integer): Boolean;
     function  EditExpressionPropertyRow(ARow: Integer): Boolean;
     function  EditBandEventScriptRow(ARow: Integer): Boolean;
@@ -504,12 +508,14 @@ type
     function  StructureObjectIconIndex(AObj: TReportObject): Integer;
     function  ShortNodePreview(const S: string; AMaxLen: Integer = 28): string;
     procedure FieldListDblClick(Sender: TObject);
+    procedure FieldListMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
     procedure FieldFilterChange(Sender: TObject);
     procedure DesignerDragOver(Sender, Source: TObject; X, Y: Integer;
       State: TDragState; var Accept: Boolean);
     procedure DesignerDragDrop(Sender, Source: TObject; X, Y: Integer);
     procedure DesignerDataSetChanged(Sender: TObject);
     procedure VariableListDblClick(Sender: TObject);
+    procedure VariableListMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
     procedure CreateSampleDataSet;
     procedure ReloadSampleDataSet;
     procedure UseSampleDataSet;
@@ -733,7 +739,8 @@ begin
   FLstFields.Parent   := FPnlFields;
   FLstFields.Align    := alClient;
   FLstFields.OnDblClick := FieldListDblClick;
-  FLstFields.DragMode := dmAutomatic;
+  FLstFields.OnMouseMove := FieldListMouseMove;
+  FLstFields.DragMode := dmManual;
   FLstFields.Hint     := 'Double-click or drag a field into a band to insert a bound label';
   FLstFields.ShowHint := True;
 
@@ -758,7 +765,9 @@ begin
   FTreeVariables.RowSelect := True;
   FTreeVariables.Indent := 18;
   FTreeVariables.OnDblClick := VariableListDblClick;
-  FTreeVariables.Hint := 'Double-click a system variable to insert its token';
+  FTreeVariables.OnMouseMove := VariableListMouseMove;
+  FTreeVariables.DragMode := dmManual;
+  FTreeVariables.Hint := 'Double-click or drag a system variable to insert its token';
   FTreeVariables.ShowHint := True;
   var VarsRoot := FTreeVariables.Items.AddChild(nil, 'Variables');
   var SysRoot := FTreeVariables.Items.AddChild(VarsRoot, 'System variables');
@@ -1039,8 +1048,6 @@ procedure TfrmMain.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   CanClose := True;
 
-  // Command-line mode: save the report to the output file before closing
-  // so the component editor can read it back.
   if FCmdLineOutputFile <> '' then
   begin
     try
@@ -1057,6 +1064,26 @@ begin
     SaveDesignerPreferences;
     SaveRecentFiles;
     Exit; // skip the normal "save changes?" prompt
+  end;
+
+  if FIsSubReportEditor then
+  begin
+    if FModified or FReportMetadataDirty then
+    begin
+      var Res := MessageDlg('Save changes to this sub-report?', mtConfirmation, [mbYes, mbNo, mbCancel], 0);
+      if Res = mrCancel then
+      begin
+        CanClose := False;
+        Exit;
+      end
+      else if Res = mrYes then
+        ModalResult := mrOk
+      else
+        ModalResult := mrCancel;
+    end
+    else
+      ModalResult := mrCancel;
+    Exit;
   end;
 
   if FModified or FReportMetadataDirty then
@@ -1200,6 +1227,13 @@ end;
 
 procedure TfrmMain.mnuSaveClick(Sender: TObject);
 begin
+  if FIsSubReportEditor then
+  begin
+    CommitReportMetadataChanges(True);
+    ModalResult := mrOk;
+    Exit;
+  end;
+
   if FCurrentFile = '' then
     mnuSaveAsClick(Sender)
   else
@@ -4289,6 +4323,9 @@ begin AddBand(btPageHeader);    end;
 procedure TfrmMain.mnuAddBandDataClick(Sender: TObject);
 begin AddBand(btMasterData);    end;
 
+procedure TfrmMain.mnuAddBandDetailClick(Sender: TObject);
+begin AddBand(btDetail);        end;
+
 procedure TfrmMain.mnuAddBandFooterClick(Sender: TObject);
 begin AddBand(btPageFooter);    end;
 
@@ -4885,7 +4922,9 @@ var
 begin
   Obj := CurrentPropertyTarget;
   if Obj is TReportImageObject then
-    EditEmbeddedImageObject(TReportImageObject(Obj));
+    EditEmbeddedImageObject(TReportImageObject(Obj))
+  else if Obj is TReportSubReportObject then
+    EditSubReportObject(TReportSubReportObject(Obj));
 end;
 
 { =========================================================================== }
@@ -5197,7 +5236,7 @@ begin
   if not EditEmbeddedImagePropertyRow(PropEditor.Row) and
      not EditTextExpressionPropertyRow(PropEditor.Row) then
     HandlePropEditorEditButtonClick(PropEditor, EditBandEventScriptRow,
-      EditExpressionPropertyRow, EditColorPropertyRow);
+      EditExpressionPropertyRow, EditColorPropertyRow, EditFontPropertyRow);
 end;
 
 { =========================================================================== }
@@ -5560,6 +5599,12 @@ begin
     ShowMessage('Please click a band on the canvas first to set the active band, then double-click a field.');
 end;
 
+procedure TfrmMain.FieldListMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
+begin
+  if (ssLeft in Shift) and (FLstFields.ItemIndex >= 0) then
+    FLstFields.BeginDrag(False, 4);
+end;
+
 procedure TfrmMain.FieldFilterChange(Sender: TObject);
 begin
   RefreshFieldList;
@@ -5603,29 +5648,56 @@ begin
 
   if not Supported then
   begin
-    ShowMessage('This variable is not supported yet.');
+    ShowMessage('Variable insertion not supported yet.');
     Exit;
   end;
 
   InsertVariableToken(Token);
 end;
 
+procedure TfrmMain.VariableListMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
+var
+  Token: string;
+  Supported: Boolean;
+begin
+  if (ssLeft in Shift) and Assigned(FTreeVariables) and Assigned(FTreeVariables.Selected) then
+  begin
+    if VariableTokenForNode(FTreeVariables.Selected, Token, Supported) and Supported then
+      FTreeVariables.BeginDrag(False, 4);
+  end;
+end;
+
 procedure TfrmMain.DesignerDragOver(Sender, Source: TObject; X, Y: Integer;
   State: TDragState; var Accept: Boolean);
 begin
-  Accept := (Source = FLstFields) and (FLstFields.ItemIndex >= 0);
+  Accept := False;
+  if (Source = FLstFields) and (FLstFields.ItemIndex >= 0) then
+    Accept := True
+  else if (Source = FTreeVariables) and Assigned(FTreeVariables.Selected) then
+    Accept := True;
 end;
 
 procedure TfrmMain.DesignerDragDrop(Sender, Source: TObject; X, Y: Integer);
 var
-  FieldName: string;
+  FieldName, Token: string;
+  Supported: Boolean;
 begin
-  if Source <> FLstFields then Exit;
-  if FLstFields.ItemIndex < 0 then Exit;
-
-  FieldName := FLstFields.Items[FLstFields.ItemIndex];
-  if not FDesigner.InsertFieldObjectAt(FieldName, X, Y) then
-    ShowMessage('Drop the field inside a band area.');
+  if Source = FLstFields then
+  begin
+    if FLstFields.ItemIndex < 0 then Exit;
+    FieldName := FLstFields.Items[FLstFields.ItemIndex];
+    if not FDesigner.InsertFieldObjectAt(FieldName, X, Y) then
+      ShowMessage('Drop the field inside a band area.');
+  end
+  else if Source = FTreeVariables then
+  begin
+    if not Assigned(FTreeVariables.Selected) then Exit;
+    if VariableTokenForNode(FTreeVariables.Selected, Token, Supported) and Supported then
+    begin
+      if not FDesigner.InsertTextObjectAt(Token, X, Y) then
+        ShowMessage('Drop the variable inside a band area.');
+    end;
+  end;
 end;
 
 procedure TfrmMain.DesignerDataSetChanged(Sender: TObject);
@@ -5796,6 +5868,68 @@ begin
     Result := True;
   finally
     ImportedPicture.Free;
+  end;
+end;
+
+function TfrmMain.EditSubReportObject(ASubReportObj: TReportSubReportObject): Boolean;
+var
+  SubDesigner: TfrmMain;
+  Cmd: TGenericPropertyChangeCommand;
+  NewJSON: string;
+begin
+  Result := False;
+  if not Assigned(ASubReportObj) then Exit;
+
+  SubDesigner := TfrmMain.Create(Self);
+  try
+    SubDesigner.Caption := 'Sub-Report Editor - ' + ASubReportObj.Name;
+    SubDesigner.FIsSubReportEditor := True;
+    
+    // Disable saving to file
+    SubDesigner.mnuSaveAs.Enabled := False;
+    SubDesigner.mnuNew.Enabled := False;
+    SubDesigner.mnuOpen.Enabled := False;
+    
+    // load existing JSON
+    if Trim(ASubReportObj.ReportJSON) <> '' then
+    begin
+      var Model := TReportSerializer.LoadFromJSON(ASubReportObj.ReportJSON);
+      if Assigned(Model) then
+      begin
+        SubDesigner.FDesigner.Report := Model;
+        Model.Free;
+      end;
+    end
+    else
+    begin
+      SubDesigner.FDesigner.Report := nil; // blank
+    end;
+
+    if SubDesigner.ShowModal = mrOk then
+    begin
+      NewJSON := TReportSerializer.SaveToJSON(SubDesigner.FDesigner.Report);
+      if NewJSON <> ASubReportObj.ReportJSON then
+      begin
+        Cmd := TGenericPropertyChangeCommand.Create(
+          ASubReportObj,
+          TPropertyBridge.GetPropertyByPath(ASubReportObj, 'ReportJSON'),
+          ASubReportObj.ReportJSON,
+          NewJSON
+        );
+        if Assigned(FDesigner.Commands) then
+          FDesigner.Commands.DoCommand(Cmd)
+        else
+        begin
+          ASubReportObj.ReportJSON := NewJSON;
+          Cmd.Free;
+        end;
+        FDesigner.RebuildLayout;
+        DesignerModified(FDesigner);
+        Result := True;
+      end;
+    end;
+  finally
+    SubDesigner.Free;
   end;
 end;
 

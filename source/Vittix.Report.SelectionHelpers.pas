@@ -215,6 +215,7 @@ var
   Objects: TArray<TReportObject>;
   OldBounds: TArray<TRect>;
   NewBounds: TArray<TRect>;
+  ChangedCount: Integer;
   Cmd: TMultiMoveCommand;
 begin
   if not Assigned(ASelected) or (ASelected.Count = 0) or not Assigned(ACommands) then
@@ -223,15 +224,25 @@ begin
   SetLength(Objects, ASelected.Count);
   SetLength(OldBounds, ASelected.Count);
   SetLength(NewBounds, ASelected.Count);
+  ChangedCount := 0;
   for I := 0 to ASelected.Count - 1 do
   begin
     Obj := ASelected[I];
-    Objects[I] := Obj;
-    OldBounds[I] := Obj.Bounds;
+    if Obj.Locked then Continue;
+    
+    Objects[ChangedCount] := Obj;
+    OldBounds[ChangedCount] := Obj.Bounds;
     R := Obj.Bounds;
-    NewBounds[I] := Bounds(R.Left + DX, R.Top + DY, R.Width, R.Height);
-    Obj.Bounds := NewBounds[I];
+    NewBounds[ChangedCount] := Bounds(R.Left + DX, R.Top + DY, R.Width, R.Height);
+    Obj.Bounds := NewBounds[ChangedCount];
+    Inc(ChangedCount);
   end;
+  
+  if ChangedCount = 0 then Exit;
+  
+  SetLength(Objects, ChangedCount);
+  SetLength(OldBounds, ChangedCount);
+  SetLength(NewBounds, ChangedCount);
 
   Cmd := TMultiMoveCommand.Create(Objects, OldBounds, NewBounds);
   if Length(Objects) <= 1 then
@@ -271,7 +282,7 @@ begin
   for I := 0 to ASelected.Count - 1 do
   begin
     Obj := ASelected[I];
-    if Obj is TReportBand then
+    if (Obj is TReportBand) or Obj.Locked then
       Continue;
 
     R := Obj.Bounds;

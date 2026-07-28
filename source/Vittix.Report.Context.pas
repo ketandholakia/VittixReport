@@ -54,6 +54,7 @@ type
     ReportTitle: string;
     ReportDate:  TDateTime; // set once when Prepare begins
     Parameters:  TStrings;  // borrowed runtime parameter name/value pairs
+    Variables:   TStrings;  // borrowed design-time model variables (name=value)
 
     { Pass metadata }
     IsCountingPass: Boolean; // True only during the engine page-count pass

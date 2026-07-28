@@ -1,4 +1,4 @@
-﻿unit Vittix.Report.Expressions;
+unit Vittix.Report.Expressions;
 
 {
   Vittix.Report.Expressions
@@ -161,6 +161,12 @@ begin
 
     if not TryResolveParameter(ParamName, Value) then
       Value := '';
+  end
+  else if Assigned(Context.Variables) and
+          (Context.Variables.IndexOfName(Token) >= 0) then
+  begin
+    // Design-time model variable: [VarName] -> Variables.Values['VarName']
+    Value := Context.Variables.Values[Token];
   end
   else
     Result := False;  // not a system token

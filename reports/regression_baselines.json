@@ -29,5 +29,12 @@
   "32_image_binding_values.vrt": 1,
   "33_invoice_multipage_contract.vrt": 9,
   "34_reportdata_contract.vrt": 1,
-  "35_svg_vector_export.vrt": 15
+  "35_svg_vector_export.vrt": 15,
+  "36_emf_vector_export.vrt": 15,
+  "37_report_variables.vrt": 1,
+  "38_export_html.vrt": 1,
+  "39_detail_bands.vrt": 1,
+  "40_export_xlsx.vrt": 6,
+  "41_twopass_totalpages.vrt": 75,
+  "42_crosstab_object.vrt": 1
 }

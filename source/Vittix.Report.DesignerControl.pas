@@ -1,4 +1,4 @@
-﻿unit Vittix.Report.DesignerControl;
+unit Vittix.Report.DesignerControl;
 
 (*
   Vittix.Report.DesignerControl  --  Full-featured report designer VCL control
@@ -104,7 +104,7 @@ TDesignerGridUnit = (guCentimeters, guInches, guPixels, guPoints);
     FCommands: TCommandDispatcher;
 
     { Clipboard }
-    FClipboard: TReportObject;   // owned by designer; nil when empty
+    // FClipboard: TReportObject;  -- Removed, using system clipboard now
 
     { Batch paint suppression }
     FUpdateCount: Integer;
@@ -261,6 +261,7 @@ TDesignerGridUnit = (guCentimeters, guInches, guPixels, guPoints);
     function  GetFieldNames: TArray<string>;
     function  InsertFieldObject(const AFieldName: string): Boolean;
     function  InsertFieldObjectAt(const AFieldName: string; X, Y: Integer): Boolean;
+    function  InsertTextObjectAt(const AText: string; X, Y: Integer): Boolean;
 
     { Rebuild internal band/object layout after external report mutations }
     procedure RebuildLayout;
@@ -790,33 +791,64 @@ begin
 end;
 
 procedure TVittixReportDesigner.CopySelection;
+var
+  S: string;
 begin
   if FSelected.Count = 0 then Exit;
-  FreeAndNil(FClipboard);
-  FClipboard := TReportSerializer.CloneObject(FSelected[FSelected.Count - 1]);
+  S := TReportSerializer.SerializeObjectListToJSON(FSelected.ToArray);
+  Clipboard.AsText := S;
 end;
 
 procedure TVittixReportDesigner.PasteSelection;
 var
+  S: string;
+  Objects: TArray<TReportObject>;
   Obj : TReportObject;
   Band: TReportBand;
   Cmd : TInsertObjectCommand;
+  Macro: TMacroCommand;
+  I: Integer;
 begin
-  if (FClipboard = nil) or not Assigned(FActiveBand) then Exit;
-  Obj  := TReportSerializer.CloneObject(FClipboard);
-  if Obj = nil then Exit;
-  Obj.Bounds := Bounds(Obj.Bounds.Left + 8, Obj.Bounds.Top + 8,
-                       Obj.Bounds.Width, Obj.Bounds.Height);
+  if not Clipboard.HasFormat(CF_TEXT) then Exit;
+  S := Clipboard.AsText;
+  if S = '' then Exit;
+  if not Assigned(FActiveBand) then Exit;
+  
+  Objects := TReportSerializer.DeserializeObjectListFromJSON(S);
+  if Length(Objects) = 0 then Exit;
+  
   Band := FActiveBand;
-  Cmd  := TInsertObjectCommand.Create(Band.Children, Obj);
-  if FSelected.Count <= 1 then
-    Cmd.ActionName := 'Paste Object'
+  
+  if Length(Objects) = 1 then
+  begin
+    Obj := Objects[0];
+    Obj.Bounds := Bounds(Obj.Bounds.Left + 8, Obj.Bounds.Top + 8,
+                         Obj.Bounds.Width, Obj.Bounds.Height);
+    Cmd := TInsertObjectCommand.Create(Band.Children, Obj);
+    Cmd.ActionName := 'Paste Object';
+    FCommands.DoCommand(Cmd);
+    FObjectBandMap.AddOrSetValue(Obj, Band);
+    ClearSelection;
+    AddToSelection(Obj);
+  end
   else
-    Cmd.ActionName := 'Paste Objects';
-  FCommands.DoCommand(Cmd);
-  FObjectBandMap.AddOrSetValue(Obj, Band);
-  ClearSelection;
-  AddToSelection(Obj);
+  begin
+    Macro := TMacroCommand.Create;
+    Macro.ActionName := 'Paste Objects';
+    ClearSelection;
+    for I := 0 to High(Objects) do
+    begin
+      Obj := Objects[I];
+      Obj.Bounds := Bounds(Obj.Bounds.Left + 8, Obj.Bounds.Top + 8,
+                           Obj.Bounds.Width, Obj.Bounds.Height);
+      Cmd := TInsertObjectCommand.Create(Band.Children, Obj);
+      Macro.Add(Cmd);
+      FObjectBandMap.AddOrSetValue(Obj, Band);
+      AddToSelection(Obj);
+    end;
+    FCommands.DoCommand(Macro);
+  end;
+  
   DoModified;
 end;
 
@@ -1479,6 +1511,84 @@ begin
 
   Cmd := TInsertObjectCommand.Create(TargetBand.Children, NewObj);
   Cmd.ActionName := 'Insert Field';
+  FCommands.DoCommand(Cmd);
+  FObjectBandMap.AddOrSetValue(NewObj, TargetBand);
+
+  ClearSelection;
+  AddToSelection(NewObj);
+  FActiveBand := TargetBand;
+  DoModified;
+  Result := True;
+end;
+
+function TVittixReportDesigner.InsertTextObjectAt(const AText: string; X, Y: Integer): Boolean;
+var
+  TargetBand: TReportBand;
+  NewObj    : TReportTextObject;
+  Cmd       : TInsertObjectCommand;
+  NextX, NextY: Integer;
+  Obj       : TReportObject;
+  PP        : TPoint;
+  I         : Integer;
+  BL        : TBandLayout;
+  BandTop   : Integer;
+begin
+  Result := False;
+  BandTop := 0;
+
+  { If a drop point is provided, resolve target band from point first. }
+  TargetBand := nil;
+  if (X >= 0) and (Y >= 0) then
+  begin
+    PP := ScreenToPage(Point(X, Y));
+    for I := 0 to High(FBandLayouts) do
+    begin
+      BL := FBandLayouts[I];
+      if (PP.Y >= BL.Y) and (PP.Y < BL.Y + BL.Height) then
+      begin
+        TargetBand := BL.Band;
+        BandTop := BL.Y;
+        Break;
+      end;
+    end;
+  end;
+
+  { Fallback to active band }
+  if not Assigned(TargetBand) then
+    TargetBand := FActiveBand;
+  if not Assigned(TargetBand) and (Length(FBandLayouts) > 0) then
+    TargetBand := FBandLayouts[0].Band;
+  if not Assigned(TargetBand) then Exit;
+
+  if BandTop = 0 then
+    for I := 0 to High(FBandLayouts) do
+      if FBandLayouts[I].Band = TargetBand then
+      begin
+        BandTop := FBandLayouts[I].Y;
+        Break;
+      end;
+
+  if (X >= 0) and (Y >= 0) then
+  begin
+    NextX := SnapV(PP.X);
+    NextY := SnapV(PP.Y - BandTop);
+    if NextY < 0 then NextY := 0;
+  end
+  else
+  begin
+    NextY := 4;
+    NextX := 4;
+    for Obj in TargetBand.Children do
+      if Obj.Bounds.Bottom + 2 > NextY then
+        NextY := Obj.Bounds.Bottom + 2;
+  end;
+
+  NewObj        := TReportTextObject.Create;
+  NewObj.Bounds := Bounds(SnapV(NextX), SnapV(NextY), 120, 20);
+  NewObj.Text   := AText;
+
+  Cmd := TInsertObjectCommand.Create(TargetBand.Children, NewObj);
+  Cmd.ActionName := 'Insert Variable';
   FCommands.DoCommand(Cmd);
   FObjectBandMap.AddOrSetValue(NewObj, TargetBand);
 
@@ -2188,7 +2298,8 @@ begin
       FInteractionState.DragStartBounds.Clear;
       for HitObj in FSelected do
       begin
-        FInteractionState.DragStartBounds.Add(HitObj, HitObj.Bounds);
+        if not HitObj.Locked then
+          FInteractionState.DragStartBounds.Add(HitObj, HitObj.Bounds);
       end;
       Exit;
     end;
@@ -2240,7 +2351,8 @@ begin
       FInteractionState.DragStartBounds.Clear;
       for HitObj in FSelected do
       begin
-        FInteractionState.DragStartBounds.Add(HitObj, HitObj.Bounds);
+        if not HitObj.Locked then
+          FInteractionState.DragStartBounds.Add(HitObj, HitObj.Bounds);
       end;
       Exit;
     end;

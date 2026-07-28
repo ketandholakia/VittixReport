@@ -14,6 +14,7 @@ uses
   Vcl.Imaging.jpeg,
   Vcl.Imaging.pngimage,
   Vittix.Report.Export.VectorPDF.SVG,
+  Vittix.Report.Export.VectorPDF.EMF,
   Vittix.Report.Export.Commands;
 
 type
@@ -1147,6 +1148,12 @@ var
             var SVGPdfCommands: AnsiString;
             if TryDrawSVGToPDFCommands(ImageCmd, APage.Height, SVGPdfCommands) then
               Result := Result + SVGPdfCommands;
+          end
+          else if (LowerCase(ExtractFileExt(ImageCmd.Source)) = '.emf') or (LowerCase(ExtractFileExt(ImageCmd.Source)) = '.wmf') then
+          begin
+            var EMFPdfCommands: AnsiString;
+            if TryDrawEMFToPDFCommands(ImageCmd, APage.Height, EMFPdfCommands) then
+              Result := Result + EMFPdfCommands;
           end;
           // Unsupported/missing image sources are skipped: text, line,
           // shape, and other image output must not be affected (per

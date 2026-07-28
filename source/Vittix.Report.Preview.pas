@@ -1,4 +1,4 @@
-﻿unit Vittix.Report.Preview;
+unit Vittix.Report.Preview;
 
 {
   Vittix.Report.Preview
@@ -42,6 +42,7 @@ type
     FPageIndex:  Integer;
     FZoomPercent: Integer;
     FOnPageChanged: TNotifyEvent;
+    FOnZoomChanged: TNotifyEvent;
     FMargins: TReportMargins;
     FShowMarginOverlay: Boolean;
     FScrollX: Integer;
@@ -112,6 +113,8 @@ type
       read FShowMarginOverlay write FShowMarginOverlay default True;
     property OnPageChanged: TNotifyEvent
       read FOnPageChanged write FOnPageChanged;
+    property OnZoomChanged: TNotifyEvent
+      read FOnZoomChanged write FOnZoomChanged;
   end;
 
 procedure Register;
@@ -283,6 +286,7 @@ begin
   FZoomPercent := NewZoom;
   UpdateScrollBars;
   Invalidate;
+  if Assigned(FOnZoomChanged) then FOnZoomChanged(Self);
 end;
 
 procedure TVittixReportPreview.GetContentSize(out AWidth, AHeight: Integer);

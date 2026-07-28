@@ -34,9 +34,13 @@ uses
   Vittix.Report.UserDataSet,
   Vittix.Report.Export.Commands,
   Vittix.Report.Export.VectorPDF,
+  Vittix.Report.Export.VectorPDF.EMF,
+  Vittix.Report.Export.HTML,
+  Vittix.Report.Export.XLSX,
   Vittix.Report.Serializer,
   Vittix.Report.Objects.Barcode,
   Vittix.Report.Objects.Table,
+  Vittix.Report.Objects.CrossTab,
   Vittix.Report.ScriptHost.Adapter;
 
 function CountOccurrences(const Haystack, Needle: string): Integer;
@@ -369,6 +373,55 @@ begin
   ANamedDataSets.Add('ReportData', APrimaryDataSet);
 end;
 
+procedure BuildDetailBandsData(out APrimaryDataSet: TVittixUserDataSet;
+  out ANamedDataSets: TDictionary<string, TVittixUserDataSet>;
+  out ADataSets: TObjectList<TFDMemTable>;
+  out AUserDataSets: TObjectList<TVittixUserDataSet>);
+var
+  MasterDS, DetailDS: TFDMemTable;
+  UserDS: TVittixUserDataSet;
+  I, J: Integer;
+begin
+  ANamedDataSets := TDictionary<string, TVittixUserDataSet>.Create;
+  ADataSets := TObjectList<TFDMemTable>.Create(True);
+  AUserDataSets := TObjectList<TVittixUserDataSet>.Create(True);
+
+  MasterDS := TFDMemTable.Create(nil);
+  MasterDS.FieldDefs.Add('InvoiceNo', ftString, 20);
+  MasterDS.FieldDefs.Add('CustomerName', ftString, 80);
+  MasterDS.CreateDataSet;
+
+  DetailDS := TFDMemTable.Create(nil);
+  DetailDS.FieldDefs.Add('InvoiceNo', ftString, 20);
+  DetailDS.FieldDefs.Add('ItemName', ftString, 80);
+  DetailDS.FieldDefs.Add('Amount', ftFloat);
+  DetailDS.CreateDataSet;
+
+  for I := 1 to 5 do
+  begin
+    MasterDS.AppendRecord(['INV-' + IntToStr(I), 'Customer ' + IntToStr(I)]);
+    for J := 1 to 3 do
+      DetailDS.AppendRecord(['INV-' + IntToStr(I), 'Item ' + IntToStr(I) + '-' + IntToStr(J), I * 10.5 * J]);
+  end;
+  MasterDS.First;
+  DetailDS.First;
+
+  ADataSets.Add(MasterDS);
+  ADataSets.Add(DetailDS);
+
+  APrimaryDataSet := TVittixUserDataSet.Create(nil);
+  APrimaryDataSet.Name := 'MasterData';
+  APrimaryDataSet.DataSet := MasterDS;
+  AUserDataSets.Add(APrimaryDataSet);
+  ANamedDataSets.Add('MasterData', APrimaryDataSet);
+
+  UserDS := TVittixUserDataSet.Create(nil);
+  UserDS.Name := 'DetailData';
+  UserDS.DataSet := DetailDS;
+  AUserDataSets.Add(UserDS);
+  ANamedDataSets.Add('DetailData', UserDS);
+end;
+
 procedure WriteUsage;
 begin
   Writeln('Usage: VittixRunner [options] [reportfile.vrt]');
@@ -668,6 +721,10 @@ begin
       IsImageBindingReport := SameText(JustName, '32_image_binding_values.vrt');
       IsInvoicePaginationReport := SameText(JustName, '33_invoice_multipage_contract.vrt');
       IsReportDataContractReport := SameText(JustName, '34_reportdata_contract.vrt');
+      var IsExportXLSXReport := SameText(JustName, '40_export_xlsx.vrt');
+      var IsDetailBandsReport := SameText(JustName, '39_detail_bands.vrt');
+      var IsTwoPassReport := SameText(JustName, '41_twopass_totalpages.vrt');
+      var IsExportHTMLReport := SameText(JustName, '38_export_html.vrt');
       InvoicePrimaryDataSet := nil;
       InvoiceNamedDataSets := nil;
       InvoiceDataSets := nil;
@@ -676,6 +733,7 @@ begin
       LogoImageFile := '';
       SignatureImageFile := '';
       MissingImageFile := '';
+      var HtmlFile := '';
 
       try
         Report := TReportSerializer.LoadFromFile(FileName);
@@ -698,6 +756,13 @@ begin
           else if IsReportDataContractReport then
           begin
             BuildReportDataContractData(InvoicePrimaryDataSet, InvoiceNamedDataSets,
+              InvoiceDataSets, InvoiceUserDataSets);
+            Engine := TReportEngine.Create(Report, InvoicePrimaryDataSet,
+              InvoiceNamedDataSets, nil);
+          end
+          else if IsDetailBandsReport then
+          begin
+            BuildDetailBandsData(InvoicePrimaryDataSet, InvoiceNamedDataSets,
               InvoiceDataSets, InvoiceUserDataSets);
             Engine := TReportEngine.Create(Report, InvoicePrimaryDataSet,
               InvoiceNamedDataSets, nil);
@@ -801,6 +866,20 @@ begin
               RequireExportText(ExportDoc, 'VX-BALANCE-3');
             end;
 
+            if IsTwoPassReport then
+            begin
+              // Assert the page header token was evaluated (not left as a literal).
+              RequireExportText(ExportDoc, 'Page 1 of');
+              // Assert TotalPages was NOT resolved as 0 on any page.
+              // A resolved [TotalPages] must equal the actual page count (>0).
+              if ExportDocumentContainsText(ExportDoc, 'of 0') then
+                raise Exception.Create(
+                  'Two-pass failure: [TotalPages] was rendered as 0 on at least one page');
+              if PageCount < 2 then
+                raise Exception.CreateFmt(
+                  'Two-pass report expected at least 2 pages, got %d', [PageCount]);
+            end;
+
             if ExportDoc.Pages.Count <> PageCount then
               raise Exception.CreateFmt(
                 'Vector PDF command page mismatch: engine=%d command=%d',
@@ -816,6 +895,8 @@ begin
             TReportVectorPDFExporter.ExportDocument(ExportDoc, VectorPdfFile);
             if not TFile.Exists(VectorPdfFile) then
               raise Exception.Create('Vector PDF smoke output was not created');
+            if IsExportXLSXReport then
+              TReportXLSXExporter.ExportToFile(ExportDoc.Pages, 'build\vector-pdf-smoke\' + ExtractFileName(FileName) + '.xlsx');
             Header := TFile.ReadAllBytes(VectorPdfFile);
             if (Length(Header) < 5) or
                (TEncoding.ASCII.GetString(Header, 0, 5) <> '%PDF-') then
@@ -871,6 +952,28 @@ begin
                 'Vector PDF stream page mismatch: engine=%d stream=%d',
                 [PageCount, CountAsciiOccurrences(StreamHeader, '/Type /Page ')]);
 
+            // -- HTML export smoke test --
+            if IsExportHTMLReport then
+            begin
+              if KeepVectorPDF then
+                HtmlFile := 'build\vector-pdf-smoke\' +
+                  TPath.GetFileNameWithoutExtension(JustName) + '.html'
+              else
+                HtmlFile := TPath.Combine(TPath.GetTempPath,
+                  TPath.GetFileNameWithoutExtension(JustName) + '_' +
+                  IntToStr(GetCurrentProcessId) + '_headless_html_smoke.html');
+              TReportHTMLExporter.ExportDocument(ExportDoc, HtmlFile);
+              if not TFile.Exists(HtmlFile) then
+                raise Exception.Create('HTML smoke output was not created');
+              var HtmlContent := TFile.ReadAllText(HtmlFile, TEncoding.UTF8);
+              if not ContainsText(HtmlContent, '<!DOCTYPE html>') then
+                raise Exception.Create('HTML smoke output has invalid header (missing DOCTYPE)');
+              if not ContainsText(HtmlContent, '<html>') then
+                raise Exception.Create('HTML smoke output has invalid header (missing <html>)');
+              if not ContainsText(HtmlContent, 'This is a test') then
+                raise Exception.Create(
+                  'HTML smoke output is missing expected sentinel text: "This is a test"');
+            end;
             if ScriptOnly and Assigned(Report) and ((ScriptBeforeCount > 0) or (ScriptAfterCount > 0)) then
             begin
               Writeln(Format('  [TRACE] %s', [JustName]));
@@ -935,6 +1038,8 @@ begin
       end;
       if not KeepVectorPDF and (VectorPdfFile <> '') and TFile.Exists(VectorPdfFile) then
         TFile.Delete(VectorPdfFile);
+      if not KeepVectorPDF and (HtmlFile <> '') and TFile.Exists(HtmlFile) then
+        TFile.Delete(HtmlFile);
 
       TestEndGDI := GetGuiResources(GetCurrentProcess, GR_GDIOBJECTS);
 
@@ -949,7 +1054,10 @@ begin
         // Small GDI increases (< 25) during the first few reports are just normal cache allocations.
         if (TestEndGDI - TestStartGDI) < 25 then
         begin
-          Writeln(Format('[PASS] %-40s | %3d pgs | %4d ms | Vector PDF OK | VCL Cache: +%d', [JustName, PageCount, ElapsedMs, TestEndGDI - TestStartGDI]));
+          if IsExportHTMLReport then
+            Writeln(Format('[PASS] %-40s | %3d pgs | %4d ms | Vector PDF OK | HTML OK | VCL Cache: +%d', [JustName, PageCount, ElapsedMs, TestEndGDI - TestStartGDI]))
+          else
+            Writeln(Format('[PASS] %-40s | %3d pgs | %4d ms | Vector PDF OK | VCL Cache: +%d', [JustName, PageCount, ElapsedMs, TestEndGDI - TestStartGDI]));
           Inc(PassCount);
         end
         else
@@ -960,7 +1068,10 @@ begin
       end
       else
       begin
-        Writeln(Format('[PASS] %-40s | %3d pgs | %4d ms | Vector PDF OK', [JustName, PageCount, ElapsedMs]));
+        if IsExportHTMLReport then
+          Writeln(Format('[PASS] %-40s | %3d pgs | %4d ms | Vector PDF OK | HTML OK', [JustName, PageCount, ElapsedMs]))
+        else
+          Writeln(Format('[PASS] %-40s | %3d pgs | %4d ms | Vector PDF OK', [JustName, PageCount, ElapsedMs]));
         Inc(PassCount);
       end;
     end;

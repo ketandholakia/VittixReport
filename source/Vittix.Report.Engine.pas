@@ -256,6 +256,7 @@ uses
   Vittix.Report.Utils,          // DataSetSupportsBookmarks, SafeRecordCount
   Vittix.Report.Objects.Barcode,
   Vittix.Report.Objects.Table,
+  Vittix.Report.Objects.CrossTab,
   System.Types,
   System.Generics.Defaults;
 
@@ -446,6 +447,7 @@ begin
           Ctx2.ReportTitle := FReport.Title;
           Ctx2.ReportDate  := FReportDate;
           Ctx2.Parameters  := FParameters;
+          Ctx2.Variables   := FReport.Variables;
           Ctx2.IsCountingPass := not FIsRenderingPass;
           var CanPrintBand := True;
           if FIsRenderingPass and Assigned(FOnBeforeBand) then
@@ -515,6 +517,7 @@ begin
   Ctx.ReportTitle := FReport.Title;
   Ctx.ReportDate  := FReportDate;
   Ctx.Parameters  := FParameters;
+  Ctx.Variables   := FReport.Variables;
   Ctx.IsCountingPass := not FIsRenderingPass;
 
   MaxBottom := 0;
@@ -936,6 +939,7 @@ begin
     Ctx0.ReportTitle := FReport.Title;
     Ctx0.ReportDate  := FReportDate;
     Ctx0.Parameters  := FParameters;
+    Ctx0.Variables   := FReport.Variables;
     Ctx0.IsCountingPass := not FIsRenderingPass;
     var PWResult: Variant;
     var ShouldPrint: Boolean;
@@ -962,6 +966,7 @@ begin
   Ctx.ReportTitle := FReport.Title;
   Ctx.ReportDate  := FReportDate;
   Ctx.Parameters  := FParameters;
+  Ctx.Variables   := FReport.Variables;
   Ctx.IsCountingPass := not FIsRenderingPass;
   var CanPrintBand := True;
   if FIsRenderingPass and Assigned(FOnBeforeBand) then
@@ -1489,6 +1494,7 @@ var
   DrawFontColor: TColor;
   DrawBackground: TColor;
   DrawBorderColor: TColor;
+  ViewportOrg: TPoint;
 
   function ExportCode39Pattern(Ch: Char): string;
   begin
@@ -1657,11 +1663,15 @@ begin
      not Assigned(AObject) then
     Exit;
 
+  ViewportOrg := Point(0, 0);
+  if Assigned(FCanvas) then
+    GetViewportOrgEx(FCanvas.Handle, ViewportOrg);
+
   if AObject is TReportTextObject then
   begin
     TextObj := TReportTextObject(AObject);
     R := TextObj.Bounds;
-    OffsetRect(R, FExportOriginX, FExportOriginY);
+    OffsetRect(R, ViewportOrg.X, ViewportOrg.Y);
     TextObj.ResolveTextStyle(Context, DrawFontColor, DrawBackground, DrawBorderColor);
 
     if not TextObj.Transparent then
@@ -1697,13 +1707,12 @@ begin
     TextCmd.HAlign := TextObj.HAlign;
     TextCmd.WordWrap := TextObj.WordWrap;
     FCurrentExportPage.Commands.Add(TextCmd);
-  end;
-
-  if AObject is TReportImageObject then
+  end
+  else if AObject is TReportImageObject then
   begin
     ImageObj := TReportImageObject(AObject);
     R := ImageObj.Bounds;
-    OffsetRect(R, FExportOriginX, FExportOriginY);
+    OffsetRect(R, ViewportOrg.X, ViewportOrg.Y);
 
     if ImageObj.BorderVisible then
     begin
@@ -1717,7 +1726,8 @@ begin
     ImageSource := ImageObj.ResolveImageSource(Context);
     if (ImageSource <> '') and FileExists(ImageSource) then
     begin
-      var IsVectorFormat := LowerCase(ExtractFileExt(ImageSource)) = '.svg';
+      var Ext := LowerCase(ExtractFileExt(ImageSource));
+      var IsVectorFormat := (Ext = '.svg') or (Ext = '.emf') or (Ext = '.wmf');
       if IsVectorFormat or (Assigned(ImageObj.Picture.Graphic) and not ImageObj.Picture.Graphic.Empty) then
       begin
         if ImageObj.Stretch then
@@ -1726,8 +1736,6 @@ begin
           begin
             if IsVectorFormat then
             begin
-              // Assuming a standard 100x100 aspect ratio for unparsed SVG bounds right now.
-              // A real implementation would parse the SVG viewBox here to compute aspect ratio.
               PW := 100;
               PH := 100;
             end
@@ -1777,16 +1785,15 @@ begin
       ImageCmd.Proportional := ImageObj.Proportional;
       FCurrentExportPage.Commands.Add(ImageCmd);
     end;
-  end;
-
-  if AObject is TReportLineObject then
+  end
+  else if AObject is TReportLineObject then
   begin
     LineObj := TReportLineObject(AObject);
     R := LineObj.Bounds;
     if LineObj.ExtendToPageBottom and (LineObj.Orientation = loVertical) and
        (Context.PageBottom > R.Top) then
       R.Bottom := Context.PageBottom;
-    OffsetRect(R, FExportOriginX, FExportOriginY);
+    OffsetRect(R, ViewportOrg.X, ViewportOrg.Y);
     CX := (R.Left + R.Right) div 2;
     CY := (R.Top + R.Bottom) div 2;
 
@@ -1808,13 +1815,12 @@ begin
       LineCmd.Y2 := R.Bottom;
     end;
     FCurrentExportPage.Commands.Add(LineCmd);
-  end;
-
-  if AObject is TReportShapeObject then
+  end
+  else if AObject is TReportShapeObject then
   begin
     ShapeObj := TReportShapeObject(AObject);
     R := ShapeObj.Bounds;
-    OffsetRect(R, FExportOriginX, FExportOriginY);
+    OffsetRect(R, ViewportOrg.X, ViewportOrg.Y);
 
     case ShapeObj.ShapeType of
       stRectangle:
@@ -1862,13 +1868,12 @@ begin
         end;
       end;
     end;
-  end;
-
-  if AObject is TReportBarcodeObject then
+  end
+  else if AObject is TReportBarcodeObject then
   begin
     BarcodeObj := TReportBarcodeObject(AObject);
     R := BarcodeObj.Bounds;
-    OffsetRect(R, FExportOriginX, FExportOriginY);
+    OffsetRect(R, ViewportOrg.X, ViewportOrg.Y);
 
     BarcodeText := BarcodeObj.Value;
     if Trim(BarcodeObj.DataField) <> '' then
@@ -1925,13 +1930,12 @@ begin
       TextCmd.WordWrap := False;
       FCurrentExportPage.Commands.Add(TextCmd);
     end;
-  end;
-
-  if AObject is TReportTableObject then
+  end
+  else if AObject is TReportTableObject then
   begin
     TableObj := TReportTableObject(AObject);
     R := TableObj.Bounds;
-    OffsetRect(R, FExportOriginX, FExportOriginY);
+    OffsetRect(R, ViewportOrg.X, ViewportOrg.Y);
     if (TableObj.Rows <= 0) or (TableObj.Cols <= 0) then
       Exit;
 

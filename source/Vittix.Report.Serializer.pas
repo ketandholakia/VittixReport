@@ -1,4 +1,4 @@
-﻿unit Vittix.Report.Serializer;
+unit Vittix.Report.Serializer;
 
 (*
   Vittix.Report.Serializer
@@ -48,6 +48,12 @@ type
 
     /// <summary>Deep-clone an entire report model via serialize -> deserialize.</summary>
     class function CloneReport(R: TReportModel): TReportModel;
+
+    /// <summary>Serialize a list of objects to a JSON string.</summary>
+    class function SerializeObjectListToJSON(const Objects: TArray<TReportObject>): string;
+    
+    /// <summary>Deserialize a list of objects from a JSON string.</summary>
+    class function DeserializeObjectListFromJSON(const S: string): TArray<TReportObject>;
   end;
 
 { Exposed so units like the designer can reuse serialisation of single objects }
@@ -62,8 +68,9 @@ uses
   Vcl.Controls,
   Vcl.Imaging.pngimage,
   Vcl.Imaging.Jpeg,
-  Vittix.Report.Objects.Barcode,
-  Vittix.Report.Objects.Table;
+  Vittix.Report.Objects.Table,
+  Vittix.Report.Objects.CrossTab,
+  Vittix.Report.Objects.Barcode;
 
 // ---------------------------------------------------------------------------
 // Rect helpers
@@ -88,6 +95,31 @@ begin
     O.GetValue<Integer>('R'),
     O.GetValue<Integer>('B')
   );
+end;
+
+// ---------------------------------------------------------------------------
+// Font helpers
+// ---------------------------------------------------------------------------
+
+function FontToJSON(F: TFont): TJSONObject;
+begin
+  Result := TJSONObject.Create;
+  Result.AddPair('Name',  F.Name);
+  Result.AddPair('Size',  TJSONNumber.Create(F.Size));
+  Result.AddPair('Color', TJSONNumber.Create(F.Color));
+  Result.AddPair('Bold',  TJSONBool.Create(fsBold in F.Style));
+  Result.AddPair('Italic', TJSONBool.Create(fsItalic in F.Style));
+end;
+
+procedure JSONToFont(O: TJSONObject; F: TFont);
+begin
+  F.Name := O.GetValue<string>('Name', 'Tahoma');
+  F.Size := O.GetValue<Integer>('Size', 10);
+  F.Color := O.GetValue<Integer>('Color', clBlack);
+  var Style: TFontStyles := [];
+  if O.GetValue<Boolean>('Bold', False) then Include(Style, fsBold);
+  if O.GetValue<Boolean>('Italic', False) then Include(Style, fsItalic);
+  F.Style := Style;
 end;
 
 // ---------------------------------------------------------------------------
@@ -119,6 +151,7 @@ var
   Ln:        TReportLineObject;
   Barcode:   TReportBarcodeObject;
   Table:     TReportTableObject;
+  CT:        TReportCrossTabObject;
   Band:      TReportBand;
   ChildArr:  TJSONArray;
   Child:     TReportObject;
@@ -136,6 +169,7 @@ begin
   Result.AddPair('AnchorBottom', TJSONBool.Create(Obj.AnchorBottom));
   Result.AddPair('PageBreakBefore', TJSONBool.Create(Obj.PageBreakBefore));
   Result.AddPair('PageBreakAfter',  TJSONBool.Create(Obj.PageBreakAfter));
+  Result.AddPair('Locked',          TJSONBool.Create(Obj.Locked));
   if not (Obj is TReportBand) then
   begin
     if Trim(Obj.OnBeforePrint) <> '' then
@@ -270,6 +304,22 @@ begin
     Result.AddPair('HeaderRows',  TJSONNumber.Create(Table.HeaderRows));
     Result.AddPair('GridColor',   TJSONNumber.Create(Table.GridColor));
     Result.AddPair('HeaderColor', TJSONNumber.Create(Table.HeaderColor));
+  end
+  else if Obj is TReportCrossTabObject then
+  begin
+    CT := TReportCrossTabObject(Obj);
+    Result.AddPair('DataSetName', CT.DataSetName);
+    Result.AddPair('RowField',    CT.RowField);
+    Result.AddPair('ColumnField', CT.ColumnField);
+    Result.AddPair('CellField',   CT.CellField);
+    Result.AddPair('Aggregate',   TJSONNumber.Create(Ord(CT.Aggregate)));
+    Result.AddPair('ShowRowGrandTotals', TJSONBool.Create(CT.ShowRowGrandTotals));
+    Result.AddPair('ShowColGrandTotals', TJSONBool.Create(CT.ShowColGrandTotals));
+    Result.AddPair('GridColor',   TJSONNumber.Create(CT.GridColor));
+    Result.AddPair('HeaderColor', TJSONNumber.Create(CT.HeaderColor));
+    Result.AddPair('CellFormat',  CT.CellFormat);
+    Result.AddPair('Font',        FontToJSON(CT.Font));
+    Result.AddPair('HeaderFont',  FontToJSON(CT.HeaderFont));
   end;
 
   if Obj is TReportBand then
@@ -311,6 +361,7 @@ var
   Ln:         TReportLineObject;
   Barcode:    TReportBarcodeObject;
   Table:      TReportTableObject;
+  CT:         TReportCrossTabObject;
   Band:       TReportBand;
   ChildArr:   TJSONArray;
   i:          Integer;
@@ -341,6 +392,7 @@ begin
     Obj.AnchorBottom := O.GetValue<Boolean>('AnchorBottom', False);
     Obj.PageBreakBefore := O.GetValue<Boolean>('PageBreakBefore', False);
     Obj.PageBreakAfter  := O.GetValue<Boolean>('PageBreakAfter',  False);
+    Obj.Locked          := O.GetValue<Boolean>('Locked',          False);
 
     if Obj is TReportTextObject then
     begin
@@ -485,6 +537,26 @@ begin
       Table.HeaderRows  := O.GetValue<Integer>('HeaderRows', 1);
       Table.GridColor   := O.GetValue<Integer>('GridColor', Integer(clGray));
       Table.HeaderColor := O.GetValue<Integer>('HeaderColor', $00F0F0F0);
+    end
+    else if Obj is TReportCrossTabObject then
+    begin
+      CT := TReportCrossTabObject(Obj);
+      CT.DataSetName := O.GetValue<string>('DataSetName', '');
+      CT.RowField    := O.GetValue<string>('RowField', '');
+      CT.ColumnField := O.GetValue<string>('ColumnField', '');
+      CT.CellField   := O.GetValue<string>('CellField', '');
+      CT.Aggregate   := TCrossTabAggregate(O.GetValue<Integer>('Aggregate', Ord(caSum)));
+      CT.ShowRowGrandTotals := O.GetValue<Boolean>('ShowRowGrandTotals', True);
+      CT.ShowColGrandTotals := O.GetValue<Boolean>('ShowColGrandTotals', True);
+      CT.GridColor   := O.GetValue<Integer>('GridColor', Integer(clGray));
+      CT.HeaderColor := O.GetValue<Integer>('HeaderColor', $00F0F0F0);
+      CT.CellFormat  := O.GetValue<string>('CellFormat', '');
+      
+      var JFont := O.GetValue<TJSONObject>('Font');
+      if Assigned(JFont) then JSONToFont(JFont, CT.Font);
+      
+      var JHdrFont := O.GetValue<TJSONObject>('HeaderFont');
+      if Assigned(JHdrFont) then JSONToFont(JHdrFont, CT.HeaderFont);
     end;
 
     if Obj is TReportBand then
@@ -573,6 +645,72 @@ class function TReportSerializer.CloneReport(R: TReportModel): TReportModel;
 begin
   // Round-trip through SaveToJSON/LoadFromJSON so FieldNames are preserved
   Result := LoadFromJSON(SaveToJSON(R));
+end;
+
+class function TReportSerializer.SerializeObjectListToJSON(const Objects: TArray<TReportObject>): string;
+var
+  Root: TJSONObject;
+  Arr: TJSONArray;
+  Obj: TReportObject;
+begin
+  Root := TJSONObject.Create;
+  try
+    Root.AddPair('Format', 'VittixClipboard.1.0');
+    Arr := TJSONArray.Create;
+    for Obj in Objects do
+      Arr.AddElement(ObjectToJSON(Obj));
+    Root.AddPair('Objects', Arr);
+    Result := Root.ToJSON;
+  finally
+    Root.Free;
+  end;
+end;
+
+class function TReportSerializer.DeserializeObjectListFromJSON(const S: string): TArray<TReportObject>;
+var
+  Root: TJSONObject;
+  Arr: TJSONArray;
+  I: Integer;
+  Obj: TReportObject;
+  ParsedJSON: TJSONValue;
+begin
+  SetLength(Result, 0);
+  if Trim(S) = '' then Exit;
+  
+  try
+    ParsedJSON := TJSONObject.ParseJSONValue(S);
+    if not Assigned(ParsedJSON) or not (ParsedJSON is TJSONObject) then
+    begin
+      ParsedJSON.Free;
+      Exit;
+    end;
+    
+    Root := TJSONObject(ParsedJSON);
+    try
+      if Root.GetValue<string>('Format', '') <> 'VittixClipboard.1.0' then Exit;
+      
+      Arr := Root.GetValue<TJSONArray>('Objects');
+      if Assigned(Arr) then
+      begin
+        for I := 0 to Arr.Count - 1 do
+        begin
+          if Arr.Items[I] is TJSONObject then
+          begin
+            Obj := JSONToObject(TJSONObject(Arr.Items[I]));
+            if Assigned(Obj) then
+            begin
+              SetLength(Result, Length(Result) + 1);
+              Result[Length(Result) - 1] := Obj;
+            end;
+          end;
+        end;
+      end;
+    finally
+      Root.Free;
+    end;
+  except
+    // ignore parse errors for clipboard
+  end;
 end;
 
 // ---------------------------------------------------------------------------

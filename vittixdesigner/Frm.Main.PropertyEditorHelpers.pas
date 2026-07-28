@@ -70,7 +70,7 @@ begin
         end;
       end
       else if IsBandEventScriptRowKey(KeyName) or IsExpressionPropertyKey(KeyName) or
-              IsColorPropertyKey(KeyName) then
+              IsColorPropertyKey(KeyName) or IsFontDialogRowKey(KeyName) then
       begin
         APropEditor.ItemProps[KeyName].EditStyle := esEllipsis;
       end

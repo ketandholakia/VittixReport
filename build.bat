@@ -1,11 +1,17 @@
 @echo off
 setlocal
 
-:: Check if msbuild is available
+:: Try to find rsvars.bat for Delphi 12 (Studio 23.0) or Delphi 11 (Studio 22.0)
 where msbuild >nul 2>nul
 if %errorlevel% neq 0 (
-    echo msbuild is not in your PATH. Please run this script from a RAD Studio Command Prompt.
-    exit /b 1
+    if exist "C:\Program Files (x86)\Embarcadero\Studio\23.0\bin\rsvars.bat" (
+        call "C:\Program Files (x86)\Embarcadero\Studio\23.0\bin\rsvars.bat"
+    ) else if exist "C:\Program Files (x86)\Embarcadero\Studio\22.0\bin\rsvars.bat" (
+        call "C:\Program Files (x86)\Embarcadero\Studio\22.0\bin\rsvars.bat"
+    ) else (
+        echo msbuild is not in your PATH. Please run this script from a RAD Studio Command Prompt.
+        exit /b 1
+    )
 )
 
 echo =======================================================
