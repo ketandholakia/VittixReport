@@ -70,10 +70,10 @@ begin
   ExpectedID := FDataSet.FieldByName('ID').AsInteger;
   
   // Add a master band so the engine actually traverses the dataset
-  var LMasterBand := TReportBand.Create(FReport);
+  var LMasterBand := TReportBand.Create;
   LMasterBand.BandType := btMasterData;
   LMasterBand.Height := 20;
-  FReport.Bands.Add(LMasterBand);
+  FReport.Objects.Add(LMasterBand);
 
   // Run the report
   FEngine.Prepare;
@@ -89,20 +89,20 @@ var
   LChildObj: TReportTextObject;
 begin
   // Set up a simple master band to force at least one page
-  var LMasterBand := TReportBand.Create(FReport);
+  var LMasterBand := TReportBand.Create;
   LMasterBand.BandType := btMasterData;
   LMasterBand.Height := 20;
-  FReport.Bands.Add(LMasterBand);
+  FReport.Objects.Add(LMasterBand);
 
   // Set up a footer band with an object that requests a page break
-  LFooterBand := TReportBand.Create(FReport);
+  LFooterBand := TReportBand.Create;
   LFooterBand.BandType := btPageFooter;
   LFooterBand.Height := 50;
   
-  LChildObj := TReportTextObject.Create(FReport);
+  LChildObj := TReportTextObject.Create;
   LChildObj.PageBreakBefore := True; // This is the malicious property causing C-01
   LFooterBand.Children.Add(LChildObj);
-  FReport.Bands.Add(LFooterBand);
+  FReport.Objects.Add(LFooterBand);
 
   // If C-01 is present, this will cause a Stack Overflow
   // If guarded properly, Prepare will complete successfully

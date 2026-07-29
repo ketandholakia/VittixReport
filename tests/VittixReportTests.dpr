@@ -11,7 +11,8 @@ uses
   DUnitX.Loggers.Console,
   DUnitX.Loggers.Xml.NUnit,
   DUnitX.TestFramework,
-  Test.Vittix.Report.Engine in 'Test.Vittix.Report.Engine.pas';
+  Test.Vittix.Report.Engine in 'Test.Vittix.Report.Engine.pas',
+  Test.Vittix.Report.Undo in 'Test.Vittix.Report.Undo.pas';
 
 var
   runner : ITestRunner;
