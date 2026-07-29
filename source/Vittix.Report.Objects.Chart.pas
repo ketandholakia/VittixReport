@@ -44,6 +44,7 @@ type
     destructor Destroy; override;
 
     procedure Draw(C: TCanvas; const Context: TExpressionContext); override;
+    class function DisplayName: string; override;
 
   published
     property ChartType: TChartType read FChartType write FChartType default ctPie;
@@ -394,5 +395,13 @@ begin
   C.LineTo(R.Left, R.Bottom - 5);
   C.LineTo(R.Right, R.Bottom - 5);
 end;
+
+class function TReportChartObject.DisplayName: string;
+begin
+  Result := 'Chart';
+end;
+
+initialization
+  RegisterReportObject(TReportChartObject);
 
 end.

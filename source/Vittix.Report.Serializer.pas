@@ -325,6 +325,16 @@ begin
     Result.AddPair('CellFormat',  CT.CellFormat);
     Result.AddPair('Font',        FontToJSON(CT.Font));
     Result.AddPair('HeaderFont',  FontToJSON(CT.HeaderFont));
+  end
+  else if Obj is TReportChartObject then
+  begin
+    Chart := TReportChartObject(Obj);
+    Result.AddPair('ChartType', TJSONNumber.Create(Ord(Chart.ChartType)));
+    Result.AddPair('DataSetName', Chart.DataSetName);
+    Result.AddPair('DataFieldLabel', Chart.DataFieldLabel);
+    Result.AddPair('DataFieldValue', Chart.DataFieldValue);
+    Result.AddPair('Title', Chart.Title);
+    Result.AddPair('ShowLegend', TJSONBool.Create(Chart.ShowLegend));
   end;
 
   if Obj is TReportBand then
@@ -367,6 +377,7 @@ var
   Barcode:    TReportBarcodeObject;
   Table:      TReportTableObject;
   CT:         TReportCrossTabObject;
+  Chart:      TReportChartObject;
   Band:       TReportBand;
   ChildArr:   TJSONArray;
   i:          Integer;
@@ -567,6 +578,16 @@ begin
       
       var JHdrFont := O.GetValue<TJSONObject>('HeaderFont');
       if Assigned(JHdrFont) then JSONToFont(JHdrFont, CT.HeaderFont);
+    end
+    else if Obj is TReportChartObject then
+    begin
+      Chart := TReportChartObject(Obj);
+      Chart.ChartType := TChartType(O.GetValue<Integer>('ChartType', 0));
+      Chart.DataSetName := O.GetValue<string>('DataSetName', '');
+      Chart.DataFieldLabel := O.GetValue<string>('DataFieldLabel', '');
+      Chart.DataFieldValue := O.GetValue<string>('DataFieldValue', '');
+      Chart.Title := O.GetValue<string>('Title', '');
+      Chart.ShowLegend := O.GetValue<Boolean>('ShowLegend', True);
     end;
 
     if Obj is TReportBand then
