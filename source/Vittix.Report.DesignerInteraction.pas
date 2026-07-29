@@ -244,6 +244,12 @@ begin
 end;
 
 function DesignerSnapV(V, AGridStepPx: Integer; ASnapToGrid: Boolean): Integer;
+begin
+  if ASnapToGrid and (AGridStepPx > 0) then
+    Result := Round(V / AGridStepPx) * AGridStepPx
+  else
+    Result := V;
+end;
 
 procedure DesignerSnapToObjects(
   var TargetRect: TRect;
@@ -253,10 +259,7 @@ procedure DesignerSnapToObjects(
   AThreshold: Integer;
   out Guides: TArray<TSmartGuideLine>);
 begin
-  if ASnapToGrid and (AGridStepPx > 0) then
-    Result := Round(V / AGridStepPx) * AGridStepPx
-  else
-    Result := V;
+  // TODO: implement
 end;
 
 end.
