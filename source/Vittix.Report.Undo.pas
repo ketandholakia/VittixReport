@@ -52,6 +52,18 @@ type
   // ---------------------------------------------------------------------------
   // Command manager
   // ---------------------------------------------------------------------------
+
+  TMacroCommand = class(TUndoableAction)
+  private
+    FCommands: TObjectList<TUndoableAction>;
+  public
+    constructor Create; override;
+    destructor Destroy; override;
+    procedure Add(ACmd: TUndoableAction);
+    procedure Execute; override;
+    procedure Rollback; override;
+  end;
+
   TCommandManager = class
   private
     FUndo: TObjectList<TUndoableAction>;
@@ -192,6 +204,40 @@ type
   end;
 
 implementation
+
+{ TMacroCommand }
+
+constructor TMacroCommand.Create;
+begin
+  inherited Create;
+  FCommands := TObjectList<TUndoableAction>.Create(True);
+end;
+
+destructor TMacroCommand.Destroy;
+begin
+  FCommands.Free;
+  inherited;
+end;
+
+procedure TMacroCommand.Add(ACmd: TUndoableAction);
+begin
+  FCommands.Add(ACmd);
+end;
+
+procedure TMacroCommand.Execute;
+var I: Integer;
+begin
+  for I := 0 to FCommands.Count - 1 do
+    FCommands[I].Execute;
+end;
+
+procedure TMacroCommand.Rollback;
+var I: Integer;
+begin
+  for I := FCommands.Count - 1 downto 0 do
+    FCommands[I].Rollback;
+end;
+
 
 // ===========================================================================
 // TUndoableAction

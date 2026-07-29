@@ -37,7 +37,7 @@ uses
   Data.DB,
   Vittix.Report.Model, Vittix.Report.Objects, Vittix.Report.Bands,
   Vittix.Report.PageSettings, Vittix.Report.Context,
-  Vittix.Report.Undo, Vittix.Report.Serializer,
+  Vittix.Report.Undo, Vittix.Report.Serializer, Vcl.Clipbrd,
   Vittix.Report.CommandDispatcher,
   Vittix.Report.DesignerInteraction,
   Vittix.Report.LayoutHelpers,
@@ -412,7 +412,6 @@ begin
   FObjectBandMap.Free;
   FInteractionState.DragStartBounds.Free;
   FSelected.Free;
-  FClipboard.Free;   // nil-safe
   if FOwnsReport then
     FReport.Free;
   inherited;

@@ -46,6 +46,8 @@ contains
   Vittix.Report.ObjectRegistry  in '..\source\Vittix.Report.ObjectRegistry.pas',
   Vittix.Report.Objects.Barcode in '..\source\Vittix.Report.Objects.Barcode.pas',
   Vittix.Report.Objects.Table   in '..\source\Vittix.Report.Objects.Table.pas',
+  Vittix.Report.Objects.CrossTab in '..\source\Vittix.Report.Objects.CrossTab.pas',
+  Vittix.Report.Objects.Chart in '..\source\Vittix.Report.Objects.Chart.pas',
   Vittix.Report.Bands           in '..\source\Vittix.Report.Bands.pas',
   Vittix.Report.Core            in '..\source\Vittix.Report.Core.pas',
   Vittix.Report.Expressions     in '..\source\Vittix.Report.Expressions.pas',
@@ -70,8 +72,11 @@ contains
   Vittix.Report.Undo            in '..\source\Vittix.Report.Undo.pas',
   Vittix.Report.Export.Commands in '..\source\Vittix.Report.Export.Commands.pas',
   Vittix.Report.Export.VectorPDF in '..\source\Vittix.Report.Export.VectorPDF.pas',
+  Vittix.Report.Export.VectorPDF.SVG in '..\source\Vittix.Report.Export.VectorPDF.SVG.pas',
   Vittix.Report.Export.PDF      in '..\source\Vittix.Report.Export.PDF.pas',
   Vittix.Report.Export.Text     in '..\source\Vittix.Report.Export.Text.pas',
-  Vittix.Report.Component       in '..\source\Vittix.Report.Component.pas';  // NEW: non-visual component
-
+  Vittix.Report.Component       in '..\source\Vittix.Report.Component.pas',
+  Vittix.Report.Export.HTML in '..\source\Vittix.Report.Export.HTML.pas',
+  Vittix.Report.Export.VectorPDF.EMF in '..\source\Vittix.Report.Export.VectorPDF.EMF.pas',
+  Vittix.Report.Export.XLSX in '..\source\Vittix.Report.Export.XLSX.pas';
 end.
