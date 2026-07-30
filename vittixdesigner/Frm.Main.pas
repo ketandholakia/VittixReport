@@ -53,6 +53,7 @@ uses
   Vittix.Report.Export.Commands,
   Vittix.Report.Export.PDF,
   Vittix.Report.Export.VectorPDF,
+  Vittix.Report.Export.Email,
   Vittix.Report.Objects.Barcode,
   Vittix.Report.Objects.Table, Vcl.Grids,  Vcl.CheckLst,
   Vittix.Report.ScriptHost.Adapter,
@@ -257,6 +258,7 @@ type
     procedure mnuSaveAsClick(Sender: TObject);
     procedure mnuExportPDFClick(Sender: TObject);
     procedure mnuExportVectorPDFClick(Sender: TObject);
+    procedure mnuExportEmailClick(Sender: TObject);
     procedure mnuExitClick(Sender: TObject);
 
     { Edit }
@@ -363,6 +365,7 @@ type
     FUpdatingZoomControls: Boolean;
     FRuntimeEventDemoOutput: string;
     // Created dynamically in FormCreate (not streamed from DFM)
+    mnuExportEmail: TMenuItem;
     FDesigner   : TVittixReportDesigner;
     FDataSource1: TDataSource;
     FPnlObjects : TPanel;
@@ -878,6 +881,14 @@ begin
   PropEditor.OnSetEditText     := PropEditorSetEditText;
   cboZoomToolbar.OnChange      := cboZoomToolbarChange;
 
+  mnuExportEmail := TMenuItem.Create(Self);
+  mnuExportEmail.Caption := 'Send as Email (PDF)...';
+  mnuExportEmail.OnClick := mnuExportEmailClick;
+  if Assigned(mnuExportVectorPDF) and Assigned(mnuExportVectorPDF.Parent) then
+    mnuExportVectorPDF.Parent.Insert(mnuExportVectorPDF.MenuIndex + 1, mnuExportEmail)
+  else
+    mnuFile.Add(mnuExportEmail);
+
   // Connect the shared DataSource so the designer sees whatever dataset
   // is assigned at runtime.
   FDesigner.DataSource := FDataSource1;
@@ -1375,6 +1386,41 @@ begin
     end;
   finally
     dlgPDF.Free;
+  end;
+end;
+
+procedure TfrmMain.mnuExportEmailClick(Sender: TObject);
+var
+  Eng: TReportEngine;
+  DS: TDataSet;
+begin
+  CommitReportMetadataChanges(True);
+  Screen.Cursor := crHourGlass;
+  try
+    DS := nil;
+    if Assigned(FDataSource1) then
+      DS := FDataSource1.DataSet;
+    if not Assigned(DS) then
+    begin
+      UseSampleDataSet;
+      if Assigned(FDataSource1) then
+        DS := FDataSource1.DataSet;
+    end;
+
+    Eng := TReportEngine.Create(FDesigner.Report, DS);
+    try
+      Eng.Prepare;
+      if Eng.Pages.Count = 0 then
+      begin
+        ShowMessage('No pages were generated.');
+        Exit;
+      end;
+      TReportEmailExporter.SendEmailWithReport(Eng.Pages, FDesigner.Report.Title);
+    finally
+      Eng.Free;
+    end;
+  finally
+    Screen.Cursor := crDefault;
   end;
 end;
 

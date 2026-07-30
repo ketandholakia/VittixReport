@@ -151,7 +151,9 @@ uses
   Vcl.Controls,
   Vcl.ExtCtrls,
   Vcl.StdCtrls,
-  Vittix.Report.Preview;
+  Vcl.Graphics,
+  Vittix.Report.Preview,
+  Vittix.Report.Export.Email;
 
 // ---------------------------------------------------------------------------
 //  Constructor / Destructor
@@ -362,6 +364,7 @@ type
 
   TPreviewNavHelper = class
     Preview: TVittixReportPreview;
+    Renderer: TReportRenderer;
     procedure PrevClick(Sender: TObject);
     procedure NextClick(Sender: TObject);
     procedure ZoomInClick(Sender: TObject);
@@ -369,6 +372,7 @@ type
     procedure FitWidthClick(Sender: TObject);
     procedure FitPageClick(Sender: TObject);
     procedure ZoomResetClick(Sender: TObject);
+    procedure EmailClick(Sender: TObject);
   end;
 
 procedure InvokePreviewAction(APreview: TObject; const AMethodName: string);
@@ -392,6 +396,24 @@ procedure TPreviewNavHelper.FitWidthClick(Sender: TObject); begin Preview.FitWid
 procedure TPreviewNavHelper.FitPageClick(Sender: TObject);  begin InvokePreviewAction(Preview, 'FitPage'); end;
 procedure TPreviewNavHelper.ZoomResetClick(Sender: TObject); begin Preview.ZoomPercent := 100; end;
 
+procedure TPreviewNavHelper.EmailClick(Sender: TObject);
+var
+  Metafiles: TObjectList<TMetafile>;
+  i: Integer;
+begin
+  if Assigned(Renderer) then
+  begin
+    Metafiles := TObjectList<TMetafile>.Create(False);
+    try
+      for i := 0 to Renderer.Pages.Count - 1 do
+        Metafiles.Add(Renderer.Pages[i].Metafile);
+      TReportEmailExporter.SendEmailWithReport(Metafiles, 'VittixReport');
+    finally
+      Metafiles.Free;
+    end;
+  end;
+end;
+
 // ---------------------------------------------------------------------------
 //  Execute — modal preview
 // ---------------------------------------------------------------------------
@@ -407,7 +429,7 @@ var
   Frm      : TForm;
   Preview  : TVittixReportPreview;
   Toolbar  : TPanel;
-  BtnClose, BtnPrev, BtnNext       : TButton;
+  BtnClose, BtnPrev, BtnNext, BtnEmail     : TButton;
   BtnZoomIn, BtnZoomOut, BtnZoom100: TButton;
   BtnFitPage, BtnFitWidth          : TButton;
   NavHelp  : TPreviewNavHelper;
@@ -467,30 +489,35 @@ begin
           BtnNext.Caption := 'Next >';
           BtnNext.Left    := 172;  BtnNext.Top := 4;  BtnNext.Width := 72;
 
+          BtnEmail         := TButton.Create(Frm);
+          BtnEmail.Parent  := Toolbar;
+          BtnEmail.Caption := 'Email PDF';
+          BtnEmail.Left    := 250; BtnEmail.Top := 4; BtnEmail.Width := 85;
+
           BtnZoomOut         := TButton.Create(Frm);
           BtnZoomOut.Parent  := Toolbar;
           BtnZoomOut.Caption := 'Zoom -';
-          BtnZoomOut.Left    := 262; BtnZoomOut.Top := 4; BtnZoomOut.Width := 72;
+          BtnZoomOut.Left    := 342; BtnZoomOut.Top := 4; BtnZoomOut.Width := 72;
 
           BtnZoomIn         := TButton.Create(Frm);
           BtnZoomIn.Parent  := Toolbar;
           BtnZoomIn.Caption := 'Zoom +';
-          BtnZoomIn.Left    := 342; BtnZoomIn.Top := 4;  BtnZoomIn.Width := 72;
+          BtnZoomIn.Left    := 422; BtnZoomIn.Top := 4;  BtnZoomIn.Width := 72;
 
           BtnZoom100         := TButton.Create(Frm);
           BtnZoom100.Parent  := Toolbar;
           BtnZoom100.Caption := '100%';
-          BtnZoom100.Left    := 422; BtnZoom100.Top := 4; BtnZoom100.Width := 60;
+          BtnZoom100.Left    := 502; BtnZoom100.Top := 4; BtnZoom100.Width := 60;
 
           BtnFitPage         := TButton.Create(Frm);
           BtnFitPage.Parent  := Toolbar;
           BtnFitPage.Caption := 'Fit Page';
-          BtnFitPage.Left    := 490; BtnFitPage.Top := 4; BtnFitPage.Width := 72;
+          BtnFitPage.Left    := 570; BtnFitPage.Top := 4; BtnFitPage.Width := 72;
 
           BtnFitWidth         := TButton.Create(Frm);
           BtnFitWidth.Parent  := Toolbar;
           BtnFitWidth.Caption := 'Fit Width';
-          BtnFitWidth.Left    := 570; BtnFitWidth.Top := 4; BtnFitWidth.Width := 72;
+          BtnFitWidth.Left    := 650; BtnFitWidth.Top := 4; BtnFitWidth.Width := 72;
 
           Preview        := TVittixReportPreview.Create(Frm);
           Preview.Parent := Frm;
@@ -498,6 +525,7 @@ begin
           Preview.LoadFromRenderer(Renderer);
 
           NavHelp.Preview      := Preview;
+          NavHelp.Renderer     := Renderer;
           BtnPrev.OnClick      := NavHelp.PrevClick;
           BtnNext.OnClick      := NavHelp.NextClick;
           BtnZoomIn.OnClick    := NavHelp.ZoomInClick;
@@ -505,6 +533,8 @@ begin
           BtnFitWidth.OnClick  := NavHelp.FitWidthClick;
           BtnFitPage.OnClick   := NavHelp.FitPageClick;
           BtnZoom100.OnClick   := NavHelp.ZoomResetClick;
+          BtnFitWidth.OnClick := NavHelp.FitWidthClick;
+          BtnEmail.OnClick   := NavHelp.EmailClick;
 
           Frm.ShowModal;
         finally

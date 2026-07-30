@@ -70,8 +70,11 @@ uses
   Vcl.Imaging.Jpeg,
   Vittix.Report.Objects.Table,
   Vittix.Report.Objects.CrossTab,
-    Vittix.Report.Objects.Chart,
+  Vittix.Report.Objects.Chart,
   Vittix.Report.Objects.Barcode;
+
+function PageSettingsToJSON(PS: TReportPageSettings): TJSONObject; forward;
+procedure JSONToPageSettings(O: TJSONObject; PS: TReportPageSettings); forward;
 
 // ---------------------------------------------------------------------------
 
@@ -353,6 +356,8 @@ begin
     Result.AddPair('BackColor',           TJSONNumber.Create(Band.BackColor));
     Result.AddPair('BackColorTransparent',TJSONBool.Create(Band.BackColorTransparent));
     Result.AddPair('BackColorCondition',  Band.BackColorCondition);
+    Result.AddPair('OverridePageSettings',TJSONBool.Create(Band.OverridePageSettings));
+    Result.AddPair('PageSettings',        PageSettingsToJSON(Band.PageSettings));
     Result.AddPair('OnBeforePrint',       Band.OnBeforePrint);
     Result.AddPair('OnAfterPrint',        Band.OnAfterPrint);
 
@@ -606,6 +611,9 @@ begin
       Band.BackColor            := O.GetValue<Integer>('BackColor',    Integer(clWhite));
       Band.BackColorTransparent := O.GetValue<Boolean>('BackColorTransparent', True);
       Band.BackColorCondition   := O.GetValue<string>('BackColorCondition', '');
+      Band.OverridePageSettings := O.GetValue<Boolean>('OverridePageSettings', False);
+      if Assigned(O.GetValue<TJSONObject>('PageSettings')) then
+        JSONToPageSettings(O.GetValue<TJSONObject>('PageSettings'), Band.PageSettings);
       Band.OnBeforePrint        := O.GetValue<string>('OnBeforePrint', '');
       Band.OnAfterPrint         := O.GetValue<string>('OnAfterPrint',  '');
 

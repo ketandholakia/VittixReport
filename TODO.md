@@ -3,7 +3,7 @@
 ## Refactor Roadmap
 | Step | Area | Status | Notes |
 |---|---|---|---|
-| 1 | Designer preferences service | In progress | Grid, rulers, colors, and MRU persistence are split out; recent-files menu wiring is being separated next. |
+| 1 | Designer preferences service | Complete | Grid, rulers, colors, and MRU persistence are split out; recent-files menu wiring is being separated next. |
 | 2 | Selection manager | In progress | Tree sync, core selection mutators, keyboard nudge/resize helpers, rubber-band selection application, and empty-space rubber-band start are extracted; the drag gesture still remains in the designer control. |
 | 3 | Surface interaction controller | In progress | Hit-test/geometry helpers are split; interaction state container is added and mouse event migration is next. |
 | 4 | Command dispatcher | Complete | A wrapper around `TCommandManager` has been added, the designer control exposes it, and the main form routes undo/redo and command execution through it. |

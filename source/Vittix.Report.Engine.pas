@@ -940,9 +940,11 @@ begin
   // Respect Visible flag
   if not ABand.Visible then Exit;
 
-  if BandHasChildPageBreak(ABand, True) and
+  if (ABand.StartNewPage or BandHasChildPageBreak(ABand, True)) and
      (FCurrentY > FReport.PageSettings.Margins.Top) then
   begin
+    if ABand.OverridePageSettings then
+      ApplyPageSettings(ABand.PageSettings);
     StartNewPage;
     PrintPageHeader;
   end;
@@ -1095,7 +1097,7 @@ begin
     Exit;
 
   EffH := ComputeEffectiveBandHeight(ABand, ADataSet, AUserDataSet);
-  EnsurePageSpaceForBand(FSummaryBand, EffH);
+  EnsurePageSpaceForBand(ABand, EffH);
 
   PrintBand(ABand, ADataSet, EffH, AUserDataSet);
 end;
