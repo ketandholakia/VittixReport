@@ -6,7 +6,6 @@ uses
   System.Classes, System.SysUtils, System.Types, System.Math, Vcl.Graphics,
   Data.DB, System.Generics.Collections,
   Vittix.Report.Context,
-  Vittix.Report.Core,
   Vittix.Report.Objects,
   Vittix.Report.Expressions;
 

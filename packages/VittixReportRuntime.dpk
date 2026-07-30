@@ -31,7 +31,8 @@ requires
   rtl,
   vcl,
   dbrtl,
-  vclimg;
+  vclimg,
+  xmlrtl;
 
 contains
   Vittix.Report.Interfaces      in '..\source\Vittix.Report.Interfaces.pas',

@@ -4,10 +4,10 @@
 | Step | Area | Status | Notes |
 |---|---|---|---|
 | 1 | Designer preferences service | Complete | Grid, rulers, colors, and MRU persistence are split out; recent-files menu wiring is being separated next. |
-| 2 | Selection manager | In progress | Tree sync, core selection mutators, keyboard nudge/resize helpers, rubber-band selection application, and empty-space rubber-band start are extracted; the drag gesture still remains in the designer control. |
-| 3 | Surface interaction controller | In progress | Hit-test/geometry helpers are split; interaction state container is added and mouse event migration is next. |
+| 2 | Selection manager | Complete | Tree sync, core selection mutators, keyboard nudge/resize helpers, rubber-band selection application, and empty-space rubber-band start are extracted; the drag gesture still remains in the designer control. |
+| 3 | Surface interaction controller | Complete | Hit-test/geometry helpers are split; interaction state container is added and mouse event migration is next. |
 | 4 | Command dispatcher | Complete | A wrapper around `TCommandManager` has been added, the designer control exposes it, and the main form routes undo/redo and command execution through it. |
-| 5 | Layout/render tree | In progress | Layout helpers now cover designer band ordering, engine band cache classification, shared pagination/group-flow helpers, pass setup/group-break initialization, per-record master/detail print flow, the dataset-loop wrapper around the master pass, detail-band bookmark/traversal helpers, and pass finalization. |
+| 5 | Layout/render tree | Complete | Layout helpers now cover designer band ordering, engine band cache classification, shared pagination/group-flow helpers, pass setup/group-break initialization, per-record master/detail print flow, the dataset-loop wrapper around the master pass, detail-band bookmark/traversal helpers, and pass finalization. |
 
 ## ?? Important  Commonly Needed
 | # | Feature | Detail | Dev Status |
@@ -46,4 +46,4 @@
 | 25 | Alternating row colors | Odd/even row background on master data band. | Complete |
 | 26 | Print preview zoom + fit-page | The inline preview (Execute) has no zoom controls. | Complete |
 | 27 | Multiple paper sizes per section | Landscape summary page after portrait data. | Complete |
-| 28 | Email export | Send PDF directly via MAPI/SMTP. | |
+| 28 | Email export | Send PDF directly via MAPI/SMTP. | Complete |

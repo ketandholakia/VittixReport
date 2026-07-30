@@ -1,4 +1,4 @@
-﻿unit Vittix.Report.Undo;
+unit Vittix.Report.Undo;
 
 (*
   Vittix.Report.Undo
@@ -23,6 +23,8 @@
 *)
 
 interface
+
+{$WARN HIDDEN_VIRTUAL OFF}
 
 uses
   System.Classes,

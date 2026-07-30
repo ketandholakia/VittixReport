@@ -4,7 +4,7 @@ interface
 
 uses
   System.SysUtils, System.Classes, System.Math, Winapi.Windows,
-  Vittix.Report.Core, Vittix.Report.Context, Vittix.Report.Export.Commands;
+  Vittix.Report.Context, Vittix.Report.Export.Commands;
 
 /// <summary>
 /// Attempts to parse an EMF/WMF metafile and translate its fundamental vector

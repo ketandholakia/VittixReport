@@ -33,12 +33,15 @@ uses
   Vittix.Report.Toolbox in '..\source\Vittix.Report.Toolbox.pas',
   Vittix.Report.PropertyBridge in '..\source\Vittix.Report.PropertyBridge.pas',
   Vittix.Report.Engine in '..\source\Vittix.Report.Engine.pas',
+  Vittix.Report.LayoutBookmarks in '..\source\Vittix.Report.LayoutBookmarks.pas',
   Vittix.Report.Renderer in '..\source\Vittix.Report.Renderer.pas',
   Vittix.Report.Preview in '..\source\Vittix.Report.Preview.pas',
   Vittix.Report.Interfaces in '..\source\Vittix.Report.Interfaces.pas',
   Vittix.Report.Utils in '..\source\Vittix.Report.Utils.pas',
   Vittix.Report.Objects.Barcode in '..\source\Vittix.Report.Objects.Barcode.pas',
   Vittix.Report.Objects.Table in '..\source\Vittix.Report.Objects.Table.pas',
+  Vittix.Report.Objects.Chart in '..\source\Vittix.Report.Objects.Chart.pas',
+  Vittix.Report.Objects.CrossTab in '..\source\Vittix.Report.Objects.CrossTab.pas',
   Vittix.Report.UserDataSet in '..\source\Vittix.Report.UserDataSet.pas',
   Vittix.Report.LayoutCache in '..\source\Vittix.Report.LayoutCache.pas',
   Vittix.Report.LayoutHelpers in '..\source\Vittix.Report.LayoutHelpers.pas',
@@ -55,7 +58,10 @@ uses
   Vittix.Report.Engine.Renderer in '..\source\Vittix.Report.Engine.Renderer.pas',
   Vittix.Report.Export.Commands in '..\source\Vittix.Report.Export.Commands.pas',
   Vittix.Report.Export.VectorPDF in '..\source\Vittix.Report.Export.VectorPDF.pas',
+  Vittix.Report.Export.VectorPDF.SVG in '..\source\Vittix.Report.Export.VectorPDF.SVG.pas',
+  Vittix.Report.Export.VectorPDF.EMF in '..\source\Vittix.Report.Export.VectorPDF.EMF.pas',
   Vittix.Report.Export.PDF in '..\source\Vittix.Report.Export.PDF.pas',
+  Vittix.Report.Export.Email in '..\source\Vittix.Report.Export.Email.pas',
   Vittix.Report.Export.Text in '..\source\Vittix.Report.Export.Text.pas';
 
 {$R *.res}

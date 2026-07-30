@@ -321,7 +321,6 @@ var
   S: string;
   D: Double;
 begin
-  Result := False;
 
   if VarIsNull(V) or System.Variants.VarIsEmpty(V) then
     Exit(False);

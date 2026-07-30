@@ -12,7 +12,9 @@ uses
   DUnitX.Loggers.Xml.NUnit,
   DUnitX.TestFramework,
   Test.Vittix.Report.Engine in 'Test.Vittix.Report.Engine.pas',
-  Test.Vittix.Report.Undo in 'Test.Vittix.Report.Undo.pas';
+  Test.Vittix.Report.Undo in 'Test.Vittix.Report.Undo.pas',
+  Test.Vittix.Report.Objects.Chart in 'Test.Vittix.Report.Objects.Chart.pas',
+  Test.Vittix.Report.Serializer in 'Test.Vittix.Report.Serializer.pas';
 
 var
   runner : ITestRunner;

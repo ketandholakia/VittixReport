@@ -3,7 +3,7 @@ unit Vittix.Report.Objects.Barcode;
 interface
 
 uses
-  System.Classes,
+  System.UITypes, System.Classes,
   System.Math,
   System.SysUtils,
   System.Variants,

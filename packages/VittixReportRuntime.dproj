@@ -99,6 +99,7 @@
         <DCCReference Include="vcl.dcp"/>
         <DCCReference Include="dbrtl.dcp"/>
         <DCCReference Include="vclimg.dcp"/>
+        <DCCReference Include="xmlrtl.dcp"/>
         <DCCReference Include="..\source\Vittix.Report.Interfaces.pas"/>
         <DCCReference Include="..\source\Vittix.Report.PageSettings.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Utils.pas"/>

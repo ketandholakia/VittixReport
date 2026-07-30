@@ -25,7 +25,7 @@ unit Vittix.Report.Serializer;
 interface
 
 uses
-  System.SysUtils,
+  System.UITypes, System.SysUtils,
   System.Classes,
   System.JSON,
   System.Types,
@@ -59,10 +59,12 @@ type
 { Exposed so units like the designer can reuse serialisation of single objects }
 function ObjectToJSON(Obj: TReportObject): TJSONObject;
 function JSONToObject(O: TJSONObject): TReportObject;
+function JSONToObjectEx(O: TJSONObject; AVersion: Integer): TReportObject; forward;
 
 implementation
 
 uses
+  System.Generics.Collections,
   System.NetEncoding,
   Vcl.Graphics,
   Vcl.Controls,
@@ -97,10 +99,10 @@ begin
   if not Assigned(O) then
     Exit(Rect(0, 0, 0, 0));
   Result := Rect(
-    O.GetValue<Integer>('L'),
-    O.GetValue<Integer>('T'),
-    O.GetValue<Integer>('R'),
-    O.GetValue<Integer>('B')
+    Trunc(O.GetValue<Double>('L')),
+    Trunc(O.GetValue<Double>('T')),
+    Trunc(O.GetValue<Double>('R')),
+    Trunc(O.GetValue<Double>('B'))
   );
 end;
 
@@ -121,8 +123,8 @@ end;
 procedure JSONToFont(O: TJSONObject; F: TFont);
 begin
   F.Name := O.GetValue<string>('Name', 'Tahoma');
-  F.Size := O.GetValue<Integer>('Size', 10);
-  F.Color := O.GetValue<Integer>('Color', clBlack);
+  F.Size := Trunc(O.GetValue<Double>('Size', 10));
+  F.Color := Trunc(O.GetValue<Double>('Color', clBlack));
   var Style: TFontStyles := [];
   if O.GetValue<Boolean>('Bold', False) then Include(Style, fsBold);
   if O.GetValue<Boolean>('Italic', False) then Include(Style, fsItalic);
@@ -143,257 +145,680 @@ begin
       Exit(C);
 end;
 
-// ---------------------------------------------------------------------------
-// Single TReportObject <-> JSON
-// ---------------------------------------------------------------------------
 
-function ObjectToJSON(Obj: TReportObject): TJSONObject;
+type
+  TReportObjectSerializer = class
+  public
+    class procedure SaveProperties(Obj: TReportObject; JSON: TJSONObject); virtual;
+    class procedure LoadProperties(Obj: TReportObject; JSON: TJSONObject; AVersion: Integer); virtual;
+  end;
+  TReportObjectSerializerClass = class of TReportObjectSerializer;
+
+  TReportTextObjectSerializer = class(TReportObjectSerializer)
+  public
+    class procedure SaveProperties(Obj: TReportObject; JSON: TJSONObject); override;
+    class procedure LoadProperties(Obj: TReportObject; JSON: TJSONObject; AVersion: Integer); override;
+  end;
+
+  TReportShapeObjectSerializer = class(TReportObjectSerializer)
+  public
+    class procedure SaveProperties(Obj: TReportObject; JSON: TJSONObject); override;
+    class procedure LoadProperties(Obj: TReportObject; JSON: TJSONObject; AVersion: Integer); override;
+  end;
+
+  TReportImageObjectSerializer = class(TReportObjectSerializer)
+  public
+    class procedure SaveProperties(Obj: TReportObject; JSON: TJSONObject); override;
+    class procedure LoadProperties(Obj: TReportObject; JSON: TJSONObject; AVersion: Integer); override;
+  end;
+
+  TReportMemoObjectSerializer = class(TReportTextObjectSerializer)
+  public
+    class procedure SaveProperties(Obj: TReportObject; JSON: TJSONObject); override;
+    class procedure LoadProperties(Obj: TReportObject; JSON: TJSONObject; AVersion: Integer); override;
+  end;
+
+  TReportFieldObjectSerializer = class(TReportTextObjectSerializer)
+  public
+    class procedure SaveProperties(Obj: TReportObject; JSON: TJSONObject); override;
+    class procedure LoadProperties(Obj: TReportObject; JSON: TJSONObject; AVersion: Integer); override;
+  end;
+
+  TReportSubReportObjectSerializer = class(TReportObjectSerializer)
+  public
+    class procedure SaveProperties(Obj: TReportObject; JSON: TJSONObject); override;
+    class procedure LoadProperties(Obj: TReportObject; JSON: TJSONObject; AVersion: Integer); override;
+  end;
+
+  TReportLineObjectSerializer = class(TReportObjectSerializer)
+  public
+    class procedure SaveProperties(Obj: TReportObject; JSON: TJSONObject); override;
+    class procedure LoadProperties(Obj: TReportObject; JSON: TJSONObject; AVersion: Integer); override;
+  end;
+
+  TReportBarcodeObjectSerializer = class(TReportObjectSerializer)
+  public
+    class procedure SaveProperties(Obj: TReportObject; JSON: TJSONObject); override;
+    class procedure LoadProperties(Obj: TReportObject; JSON: TJSONObject; AVersion: Integer); override;
+  end;
+
+  TReportTableObjectSerializer = class(TReportObjectSerializer)
+  public
+    class procedure SaveProperties(Obj: TReportObject; JSON: TJSONObject); override;
+    class procedure LoadProperties(Obj: TReportObject; JSON: TJSONObject; AVersion: Integer); override;
+  end;
+
+  TReportCrossTabObjectSerializer = class(TReportObjectSerializer)
+  public
+    class procedure SaveProperties(Obj: TReportObject; JSON: TJSONObject); override;
+    class procedure LoadProperties(Obj: TReportObject; JSON: TJSONObject; AVersion: Integer); override;
+  end;
+
+  TReportChartObjectSerializer = class(TReportObjectSerializer)
+  public
+    class procedure SaveProperties(Obj: TReportObject; JSON: TJSONObject); override;
+    class procedure LoadProperties(Obj: TReportObject; JSON: TJSONObject; AVersion: Integer); override;
+  end;
+
+  TReportBandSerializer = class(TReportObjectSerializer)
+  public
+    class procedure SaveProperties(Obj: TReportObject; JSON: TJSONObject); override;
+    class procedure LoadProperties(Obj: TReportObject; JSON: TJSONObject; AVersion: Integer); override;
+  end;
+
 var
-  T:         TReportTextObject;
-  Sh:        TReportShapeObject;
-  Img:       TReportImageObject;
-  Memo:      TReportMemoObject;
-  Fld:       TReportFieldObject;
-  SubRep:    TReportSubReportObject;
-  Ln:        TReportLineObject;
-  Barcode:   TReportBarcodeObject;
-  Table:     TReportTableObject;
-  CT:        TReportCrossTabObject;
-  Chart:     TReportChartObject;
-  Band:      TReportBand;
-  ChildArr:  TJSONArray;
-  Child:     TReportObject;
-  PicStream: TMemoryStream;
-  PicBytes:  TBytes;
-begin
-  Result := TJSONObject.Create;
+  GSerializers: TDictionary<TReportObjectClass, TReportObjectSerializerClass>;
 
-  Result.AddPair('Class',        Obj.ClassName);
-  Result.AddPair('Name',         Obj.Name);
-  Result.AddPair('Bounds',       RectToJSON(Obj.Bounds));
-  Result.AddPair('Visible',      TJSONBool.Create(Obj.Visible));
-  Result.AddPair('PrintWhen',    Obj.PrintWhen);
-  Result.AddPair('AnchorRight',  TJSONBool.Create(Obj.AnchorRight));
-  Result.AddPair('AnchorBottom', TJSONBool.Create(Obj.AnchorBottom));
-  Result.AddPair('PageBreakBefore', TJSONBool.Create(Obj.PageBreakBefore));
-  Result.AddPair('PageBreakAfter',  TJSONBool.Create(Obj.PageBreakAfter));
-  Result.AddPair('Locked',          TJSONBool.Create(Obj.Locked));
+function GetSerializer(Cls: TReportObjectClass): TReportObjectSerializerClass;
+var
+  CurrCls: TClass;
+begin
+  if not Assigned(GSerializers) then
+  begin
+    GSerializers := TDictionary<TReportObjectClass, TReportObjectSerializerClass>.Create;
+    GSerializers.Add(TReportObject, TReportObjectSerializer);
+    GSerializers.Add(TReportTextObject, TReportTextObjectSerializer);
+    GSerializers.Add(TReportLabelObject, TReportTextObjectSerializer);
+    GSerializers.Add(TReportShapeObject, TReportShapeObjectSerializer);
+    GSerializers.Add(TReportImageObject, TReportImageObjectSerializer);
+    GSerializers.Add(TReportMemoObject, TReportMemoObjectSerializer);
+    GSerializers.Add(TReportFieldObject, TReportFieldObjectSerializer);
+    GSerializers.Add(TReportSubReportObject, TReportSubReportObjectSerializer);
+    GSerializers.Add(TReportLineObject, TReportLineObjectSerializer);
+    GSerializers.Add(TReportBarcodeObject, TReportBarcodeObjectSerializer);
+    GSerializers.Add(TReportTableObject, TReportTableObjectSerializer);
+    GSerializers.Add(TReportCrossTabObject, TReportCrossTabObjectSerializer);
+    GSerializers.Add(TReportChartObject, TReportChartObjectSerializer);
+    GSerializers.Add(TReportBand, TReportBandSerializer);
+  end;
+
+  CurrCls := Cls;
+  while CurrCls <> nil do
+  begin
+    if GSerializers.TryGetValue(TReportObjectClass(CurrCls), Result) then
+      Exit;
+    CurrCls := CurrCls.ClassParent;
+  end;
+  Result := TReportObjectSerializer;
+end;
+
+{ TReportObjectSerializer }
+
+class procedure TReportObjectSerializer.SaveProperties(Obj: TReportObject; JSON: TJSONObject);
+begin
+  JSON.AddPair('Class',        Obj.ClassName);
+  JSON.AddPair('Name',         Obj.Name);
+  JSON.AddPair('Bounds',       RectToJSON(Obj.Bounds));
+  JSON.AddPair('Visible',      TJSONBool.Create(Obj.Visible));
+  JSON.AddPair('PrintWhen',    Obj.PrintWhen);
+  JSON.AddPair('AnchorRight',  TJSONBool.Create(Obj.AnchorRight));
+  JSON.AddPair('AnchorBottom', TJSONBool.Create(Obj.AnchorBottom));
+  JSON.AddPair('PageBreakBefore', TJSONBool.Create(Obj.PageBreakBefore));
+  JSON.AddPair('PageBreakAfter',  TJSONBool.Create(Obj.PageBreakAfter));
+  JSON.AddPair('Locked',          TJSONBool.Create(Obj.Locked));
   if not (Obj is TReportBand) then
   begin
     if Trim(Obj.OnBeforePrint) <> '' then
-      Result.AddPair('OnBeforePrint', Obj.OnBeforePrint);
+      JSON.AddPair('OnBeforePrint', Obj.OnBeforePrint);
     if Trim(Obj.OnAfterPrint) <> '' then
-      Result.AddPair('OnAfterPrint', Obj.OnAfterPrint);
+      JSON.AddPair('OnAfterPrint', Obj.OnAfterPrint);
   end;
+end;
 
-  if Obj is TReportTextObject then
+class procedure TReportObjectSerializer.LoadProperties(Obj: TReportObject; JSON: TJSONObject; AVersion: Integer);
+begin
+  Obj.Name         := JSON.GetValue<string>('Name',   '');
+  if Assigned(JSON.GetValue('Bounds')) then Obj.Bounds := JSONToRect(JSON.GetValue('Bounds') as TJSONObject);
+  Obj.Visible      := JSON.GetValue<Boolean>('Visible',      True);
+  Obj.PrintWhen    := JSON.GetValue<string>('PrintWhen',     '');
+  Obj.OnBeforePrint:= JSON.GetValue<string>('OnBeforePrint', '');
+  Obj.OnAfterPrint := JSON.GetValue<string>('OnAfterPrint',  '');
+  Obj.AnchorRight  := JSON.GetValue<Boolean>('AnchorRight',  False);
+  Obj.AnchorBottom := JSON.GetValue<Boolean>('AnchorBottom', False);
+  Obj.PageBreakBefore := JSON.GetValue<Boolean>('PageBreakBefore', False);
+  Obj.PageBreakAfter  := JSON.GetValue<Boolean>('PageBreakAfter',  False);
+  Obj.Locked          := JSON.GetValue<Boolean>('Locked',          False);
+end;
+
+{ TReportTextObjectSerializer }
+
+class procedure TReportTextObjectSerializer.SaveProperties(Obj: TReportObject; JSON: TJSONObject);
+var
+  T: TReportTextObject;
+begin
+  inherited;
+  T := TReportTextObject(Obj);
+  JSON.AddPair('Text',          T.Text);
+  JSON.AddPair('DataField',      T.DataField);
+  JSON.AddPair('Expression',     T.Expression);
+  JSON.AddPair('FontName',       T.Font.Name);
+  JSON.AddPair('FontSize',       TJSONNumber.Create(T.Font.Size));
+  JSON.AddPair('FontColor',      TJSONNumber.Create(T.Font.Color));
+  JSON.AddPair('FontBold',       TJSONBool.Create(fsBold   in T.Font.Style));
+  JSON.AddPair('FontItalic',     TJSONBool.Create(fsItalic in T.Font.Style));
+  JSON.AddPair('HAlign',         TJSONNumber.Create(Ord(T.HAlign)));
+  JSON.AddPair('VAlign',         TJSONNumber.Create(Ord(T.VAlign)));
+  JSON.AddPair('Background',     TJSONNumber.Create(T.Background));
+  JSON.AddPair('Transparent',    TJSONBool.Create(T.Transparent));
+  JSON.AddPair('BorderVisible',  TJSONBool.Create(T.BorderVisible));
+  JSON.AddPair('BorderColor',    TJSONNumber.Create(T.BorderColor));
+  JSON.AddPair('BorderWidth',    TJSONNumber.Create(T.BorderWidth));
+  JSON.AddPair('WordWrap',       TJSONBool.Create(T.WordWrap));
+  JSON.AddPair('AutoSize',       TJSONBool.Create(T.AutoSize));
+  JSON.AddPair('PaddingLeft',    TJSONNumber.Create(T.PaddingLeft));
+  JSON.AddPair('PaddingTop',     TJSONNumber.Create(T.PaddingTop));
+  JSON.AddPair('PaddingRight',   TJSONNumber.Create(T.PaddingRight));
+  JSON.AddPair('PaddingBottom',  TJSONNumber.Create(T.PaddingBottom));
+  JSON.AddPair('FontColorCondition',   T.FontColorCondition);
+  JSON.AddPair('FontColorOnTrue',      TJSONNumber.Create(T.FontColorOnTrue));
+  JSON.AddPair('BackgroundCondition',  T.BackgroundCondition);
+  JSON.AddPair('BackgroundOnTrue',     TJSONNumber.Create(T.BackgroundOnTrue));
+  JSON.AddPair('BorderColorCondition', T.BorderColorCondition);
+  JSON.AddPair('BorderColorOnTrue',    TJSONNumber.Create(T.BorderColorOnTrue));
+end;
+
+class procedure TReportTextObjectSerializer.LoadProperties(Obj: TReportObject; JSON: TJSONObject; AVersion: Integer);
+var
+  T: TReportTextObject;
+  Style: TFontStyles;
+begin
+  inherited;
+  T := TReportTextObject(Obj);
+  T.Text        := JSON.GetValue<string>('Text',       '');
+  T.DataField   := JSON.GetValue<string>('DataField',  '');
+  T.Expression  := JSON.GetValue<string>('Expression', '');
+  T.Font.Name   := JSON.GetValue<string>('FontName',   'Tahoma');
+  T.Font.Size   := Trunc(JSON.GetValue<Double>('FontSize',  10));
+  T.Font.Color  := Trunc(JSON.GetValue<Double>('FontColor', 0));
+  Style := [];
+  if JSON.GetValue<Boolean>('FontBold',   False) then Include(Style, fsBold);
+  if JSON.GetValue<Boolean>('FontItalic', False) then Include(Style, fsItalic);
+  T.Font.Style     := Style;
+  T.HAlign         := TAlignment(Trunc(JSON.GetValue<Double>('HAlign',  0)));
+  T.VAlign         := TVerticalAlignment(Trunc(JSON.GetValue<Double>('VAlign', 2)));
+  T.Background     := Trunc(JSON.GetValue<Double>('Background',    Integer(clWhite)));
+  T.Transparent    := JSON.GetValue<Boolean>('Transparent',   True);
+  T.BorderVisible  := JSON.GetValue<Boolean>('BorderVisible', False);
+  T.BorderColor    := Trunc(JSON.GetValue<Double>('BorderColor',   Integer(clBlack)));
+  T.BorderWidth    := Trunc(JSON.GetValue<Double>('BorderWidth',   1));
+  T.WordWrap       := JSON.GetValue<Boolean>('WordWrap',      False);
+  T.AutoSize       := JSON.GetValue<Boolean>('AutoSize',      False);
+  T.PaddingLeft    := Trunc(JSON.GetValue<Double>('PaddingLeft',   2));
+  T.PaddingTop     := Trunc(JSON.GetValue<Double>('PaddingTop',    2));
+  T.PaddingRight   := Trunc(JSON.GetValue<Double>('PaddingRight',  2));
+  T.PaddingBottom  := Trunc(JSON.GetValue<Double>('PaddingBottom', 2));
+  T.FontColorCondition   := JSON.GetValue<string>('FontColorCondition',   '');
+  T.FontColorOnTrue      := Trunc(JSON.GetValue<Double>('FontColorOnTrue',      Integer(clRed)));
+  T.BackgroundCondition  := JSON.GetValue<string>('BackgroundCondition',  '');
+  T.BackgroundOnTrue     := Trunc(JSON.GetValue<Double>('BackgroundOnTrue',     Integer(clYellow)));
+  T.BorderColorCondition := JSON.GetValue<string>('BorderColorCondition', '');
+  T.BorderColorOnTrue    := Trunc(JSON.GetValue<Double>('BorderColorOnTrue',    Integer(clRed)));
+end;
+
+{ TReportShapeObjectSerializer }
+
+class procedure TReportShapeObjectSerializer.SaveProperties(Obj: TReportObject; JSON: TJSONObject);
+var
+  Sh: TReportShapeObject;
+begin
+  inherited;
+  Sh := TReportShapeObject(Obj);
+  JSON.AddPair('ShapeType',    TJSONNumber.Create(Ord(Sh.ShapeType)));
+  JSON.AddPair('PenColor',     TJSONNumber.Create(Sh.PenColor));
+  JSON.AddPair('PenWidth',     TJSONNumber.Create(Sh.PenWidth));
+  JSON.AddPair('PenStyle',     TJSONNumber.Create(Ord(Sh.PenStyle)));
+  JSON.AddPair('BrushColor',   TJSONNumber.Create(Sh.BrushColor));
+  JSON.AddPair('BrushStyle',   TJSONNumber.Create(Ord(Sh.BrushStyle)));
+  JSON.AddPair('CornerRadius', TJSONNumber.Create(Sh.CornerRadius));
+end;
+
+class procedure TReportShapeObjectSerializer.LoadProperties(Obj: TReportObject; JSON: TJSONObject; AVersion: Integer);
+var
+  Sh: TReportShapeObject;
+begin
+  inherited;
+  Sh := TReportShapeObject(Obj);
+  Sh.ShapeType    := TReportShapeType(Trunc(JSON.GetValue<Double>('ShapeType', 0)));
+  Sh.PenColor     := Trunc(JSON.GetValue<Double>('PenColor',   Integer(clBlack)));
+  Sh.PenWidth     := Trunc(JSON.GetValue<Double>('PenWidth',   1));
+  Sh.PenStyle     := TPenStyle(Trunc(JSON.GetValue<Double>('PenStyle',   0)));
+  Sh.BrushColor   := Trunc(JSON.GetValue<Double>('BrushColor', Integer(clWhite)));
+  Sh.BrushStyle   := TBrushStyle(Trunc(JSON.GetValue<Double>('BrushStyle', 0)));
+  Sh.CornerRadius := Trunc(JSON.GetValue<Double>('CornerRadius', 12));
+end;
+
+{ TReportImageObjectSerializer }
+
+class procedure TReportImageObjectSerializer.SaveProperties(Obj: TReportObject; JSON: TJSONObject);
+var
+  Img: TReportImageObject;
+  PicStream: TMemoryStream;
+  PicBytes: TBytes;
+begin
+  inherited;
+  Img := TReportImageObject(Obj);
+  JSON.AddPair('Stretch',       TJSONBool.Create(Img.Stretch));
+  JSON.AddPair('Center',        TJSONBool.Create(Img.Center));
+  JSON.AddPair('Proportional',  TJSONBool.Create(Img.Proportional));
+  JSON.AddPair('BorderVisible', TJSONBool.Create(Img.BorderVisible));
+  JSON.AddPair('BorderColor',   TJSONNumber.Create(Img.BorderColor));
+  JSON.AddPair('BorderWidth',   TJSONNumber.Create(Img.BorderWidth));
+  JSON.AddPair('DataField',     Img.DataField);
+  if Assigned(Img.Picture.Graphic) and not Img.Picture.Graphic.Empty then
   begin
-    T := TReportTextObject(Obj);
-    Result.AddPair('Text',          T.Text);
-    Result.AddPair('DataField',      T.DataField);
-    Result.AddPair('Expression',     T.Expression);
-    Result.AddPair('FontName',       T.Font.Name);
-    Result.AddPair('FontSize',       TJSONNumber.Create(T.Font.Size));
-    Result.AddPair('FontColor',      TJSONNumber.Create(T.Font.Color));
-    Result.AddPair('FontBold',       TJSONBool.Create(fsBold   in T.Font.Style));
-    Result.AddPair('FontItalic',     TJSONBool.Create(fsItalic in T.Font.Style));
-    Result.AddPair('HAlign',         TJSONNumber.Create(Ord(T.HAlign)));
-    Result.AddPair('VAlign',         TJSONNumber.Create(Ord(T.VAlign)));
-    Result.AddPair('Background',     TJSONNumber.Create(T.Background));
-    Result.AddPair('Transparent',    TJSONBool.Create(T.Transparent));
-    Result.AddPair('BorderVisible',  TJSONBool.Create(T.BorderVisible));
-    Result.AddPair('BorderColor',    TJSONNumber.Create(T.BorderColor));
-    Result.AddPair('BorderWidth',    TJSONNumber.Create(T.BorderWidth));
-    Result.AddPair('WordWrap',       TJSONBool.Create(T.WordWrap));
-    Result.AddPair('AutoSize',       TJSONBool.Create(T.AutoSize));
-    Result.AddPair('PaddingLeft',    TJSONNumber.Create(T.PaddingLeft));
-    Result.AddPair('PaddingTop',     TJSONNumber.Create(T.PaddingTop));
-    Result.AddPair('PaddingRight',   TJSONNumber.Create(T.PaddingRight));
-    Result.AddPair('PaddingBottom',  TJSONNumber.Create(T.PaddingBottom));
-    Result.AddPair('FontColorCondition',   T.FontColorCondition);
-    Result.AddPair('FontColorOnTrue',      TJSONNumber.Create(T.FontColorOnTrue));
-    Result.AddPair('BackgroundCondition',  T.BackgroundCondition);
-    Result.AddPair('BackgroundOnTrue',     TJSONNumber.Create(T.BackgroundOnTrue));
-    Result.AddPair('BorderColorCondition', T.BorderColorCondition);
-    Result.AddPair('BorderColorOnTrue',    TJSONNumber.Create(T.BorderColorOnTrue));
+    PicStream := TMemoryStream.Create;
+    try
+      Img.Picture.Graphic.SaveToStream(PicStream);
+      SetLength(PicBytes, PicStream.Size);
+      Move(PicStream.Memory^, PicBytes[0], PicStream.Size);
+      JSON.AddPair('PictureData',  TNetEncoding.Base64.EncodeBytesToString(PicBytes));
+      JSON.AddPair('PictureClass', Img.Picture.Graphic.ClassName);
+    finally
+      PicStream.Free;
+    end;
   end;
+end;
 
-  if Obj is TReportShapeObject then
+class procedure TReportImageObjectSerializer.LoadProperties(Obj: TReportObject; JSON: TJSONObject; AVersion: Integer);
+var
+  Img: TReportImageObject;
+  PicData, PicClass: string;
+  PicBytes: TBytes;
+  PicStream: TMemoryStream;
+  PicClassRef: TPersistentClass;
+  PicGraphic: TGraphicClass;
+  G: TGraphic;
+begin
+  inherited;
+  Img := TReportImageObject(Obj);
+  Img.Stretch       := JSON.GetValue<Boolean>('Stretch',       True);
+  Img.Center        := JSON.GetValue<Boolean>('Center',        True);
+  Img.Proportional  := JSON.GetValue<Boolean>('Proportional',  True);
+  Img.BorderVisible := JSON.GetValue<Boolean>('BorderVisible', False);
+  Img.BorderColor   := Trunc(JSON.GetValue<Double>('BorderColor',   Integer(clBlack)));
+  Img.BorderWidth   := Trunc(JSON.GetValue<Double>('BorderWidth',   1));
+  Img.DataField     := JSON.GetValue<string>('DataField',      '');
+  PicData  := JSON.GetValue<string>('PictureData',  '');
+  PicClass := JSON.GetValue<string>('PictureClass', '');
+  if (PicData <> '') and (PicClass <> '') then
   begin
-    Sh := TReportShapeObject(Obj);
-    Result.AddPair('ShapeType',    TJSONNumber.Create(Ord(Sh.ShapeType)));
-    Result.AddPair('PenColor',     TJSONNumber.Create(Sh.PenColor));
-    Result.AddPair('PenWidth',     TJSONNumber.Create(Sh.PenWidth));
-    Result.AddPair('PenStyle',     TJSONNumber.Create(Ord(Sh.PenStyle)));
-    Result.AddPair('BrushColor',   TJSONNumber.Create(Sh.BrushColor));
-    Result.AddPair('BrushStyle',   TJSONNumber.Create(Ord(Sh.BrushStyle)));
-    Result.AddPair('CornerRadius', TJSONNumber.Create(Sh.CornerRadius));
-  end;
-
-  if Obj is TReportImageObject then
-  begin
-    Img := TReportImageObject(Obj);
-    Result.AddPair('Stretch',       TJSONBool.Create(Img.Stretch));
-    Result.AddPair('Center',        TJSONBool.Create(Img.Center));
-    Result.AddPair('Proportional',  TJSONBool.Create(Img.Proportional));
-    Result.AddPair('BorderVisible', TJSONBool.Create(Img.BorderVisible));
-    Result.AddPair('BorderColor',   TJSONNumber.Create(Img.BorderColor));
-    Result.AddPair('BorderWidth',   TJSONNumber.Create(Img.BorderWidth));
-    Result.AddPair('DataField',     Img.DataField);
-    if Assigned(Img.Picture.Graphic) and not Img.Picture.Graphic.Empty then
+    PicBytes  := TNetEncoding.Base64.DecodeStringToBytes(PicData);
+    if Length(PicBytes) > 0 then
     begin
       PicStream := TMemoryStream.Create;
       try
-        Img.Picture.Graphic.SaveToStream(PicStream);
-        SetLength(PicBytes, PicStream.Size);
-        Move(PicStream.Memory^, PicBytes[0], PicStream.Size);
-        Result.AddPair('PictureData',  TNetEncoding.Base64.EncodeBytesToString(PicBytes));
-        Result.AddPair('PictureClass', Img.Picture.Graphic.ClassName);
+        PicStream.WriteBuffer(PicBytes[0], Length(PicBytes));
+        PicStream.Position := 0;
+        PicClassRef := GetClass(PicClass);
+        if Assigned(PicClassRef) and PicClassRef.InheritsFrom(TGraphic) then
+        begin
+          PicGraphic := TGraphicClass(PicClassRef);
+          G := PicGraphic.Create;
+          try
+            G.LoadFromStream(PicStream);
+            Img.Picture.Assign(G);
+          finally
+            G.Free;
+          end;
+        end;
       finally
         PicStream.Free;
       end;
     end;
   end;
+end;
 
-  if Obj is TReportMemoObject then
-  begin
-    Memo := TReportMemoObject(Obj);
-    Result.AddPair('AutoHeight', TJSONBool.Create(Memo.AutoHeight));
-    Result.AddPair('MinHeight',  TJSONNumber.Create(Memo.MinHeight));
-  end;
+{ TReportMemoObjectSerializer }
 
-  if Obj is TReportFieldObject then
-  begin
-    Fld := TReportFieldObject(Obj);
-    Result.AddPair('DisplayFormat', Fld.DisplayFormat);
-    Result.AddPair('EditMask',      Fld.EditMask);
-  end;
+class procedure TReportMemoObjectSerializer.SaveProperties(Obj: TReportObject; JSON: TJSONObject);
+var
+  Memo: TReportMemoObject;
+begin
+  inherited;
+  Memo := TReportMemoObject(Obj);
+  JSON.AddPair('AutoHeight', TJSONBool.Create(Memo.AutoHeight));
+  JSON.AddPair('MinHeight',  TJSONNumber.Create(Memo.MinHeight));
+end;
 
-  if Obj is TReportSubReportObject then
-  begin
-    SubRep := TReportSubReportObject(Obj);
-    Result.AddPair('SubReportJSON', SubRep.ReportJSON);
-    Result.AddPair('DataSetName',   SubRep.DataSetName);
-    Result.AddPair('MasterField',   SubRep.MasterField);
-    Result.AddPair('DetailField',   SubRep.DetailField);
-    Result.AddPair('Transparent',   TJSONBool.Create(SubRep.Transparent));
-    Result.AddPair('Background',    TJSONNumber.Create(SubRep.Background));
-    Result.AddPair('BorderVisible', TJSONBool.Create(SubRep.BorderVisible));
-    Result.AddPair('BorderColor',   TJSONNumber.Create(SubRep.BorderColor));
-    Result.AddPair('BorderWidth',   TJSONNumber.Create(SubRep.BorderWidth));
-  end;
+class procedure TReportMemoObjectSerializer.LoadProperties(Obj: TReportObject; JSON: TJSONObject; AVersion: Integer);
+var
+  Memo: TReportMemoObject;
+begin
+  inherited;
+  Memo := TReportMemoObject(Obj);
+  Memo.AutoHeight := JSON.GetValue<Boolean>('AutoHeight', True);
+  Memo.MinHeight  := Trunc(JSON.GetValue<Double>('MinHeight',  20));
+end;
 
-  if Obj is TReportLineObject then
-  begin
-    Ln := TReportLineObject(Obj);
-    Result.AddPair('Orientation', TJSONNumber.Create(Ord(Ln.Orientation)));
-    Result.AddPair('LineColor',   TJSONNumber.Create(Ln.LineColor));
-    Result.AddPair('LineWidth',   TJSONNumber.Create(Ln.LineWidth));
-    Result.AddPair('LineStyle',   TJSONNumber.Create(Ord(Ln.LineStyle)));
-    Result.AddPair('ExtendToPageBottom', TJSONBool.Create(Ln.ExtendToPageBottom));
-  end;
+{ TReportFieldObjectSerializer }
 
-  if Obj is TReportBarcodeObject then
-  begin
-    Barcode := TReportBarcodeObject(Obj);
-    Result.AddPair('Value',           Barcode.Value);
-    Result.AddPair('DataField',       Barcode.DataField);
-    Result.AddPair('Symbology',       TJSONNumber.Create(Ord(Barcode.Symbology)));
-    Result.AddPair('ShowText',        TJSONBool.Create(Barcode.ShowText));
-    Result.AddPair('BarColor',        TJSONNumber.Create(Barcode.BarColor));
-    Result.AddPair('BackgroundColor', TJSONNumber.Create(Barcode.BackgroundColor));
-  end;
+class procedure TReportFieldObjectSerializer.SaveProperties(Obj: TReportObject; JSON: TJSONObject);
+var
+  Fld: TReportFieldObject;
+begin
+  inherited;
+  Fld := TReportFieldObject(Obj);
+  JSON.AddPair('DisplayFormat', Fld.DisplayFormat);
+  JSON.AddPair('EditMask',      Fld.EditMask);
+end;
 
-  if Obj is TReportTableObject then
-  begin
-    Table := TReportTableObject(Obj);
-    Result.AddPair('Rows',        TJSONNumber.Create(Table.Rows));
-    Result.AddPair('Cols',        TJSONNumber.Create(Table.Cols));
-    Result.AddPair('HeaderRows',  TJSONNumber.Create(Table.HeaderRows));
-    Result.AddPair('GridColor',   TJSONNumber.Create(Table.GridColor));
-    Result.AddPair('HeaderColor', TJSONNumber.Create(Table.HeaderColor));
-  end
-  else if Obj is TReportCrossTabObject then
-  begin
-    CT := TReportCrossTabObject(Obj);
-    Result.AddPair('DataSetName', CT.DataSetName);
-    Result.AddPair('RowField',    CT.RowField);
-    Result.AddPair('ColumnField', CT.ColumnField);
-    Result.AddPair('CellField',   CT.CellField);
-    Result.AddPair('Aggregate',   TJSONNumber.Create(Ord(CT.Aggregate)));
-    Result.AddPair('ShowRowGrandTotals', TJSONBool.Create(CT.ShowRowGrandTotals));
-    Result.AddPair('ShowColGrandTotals', TJSONBool.Create(CT.ShowColGrandTotals));
-    Result.AddPair('GridColor',   TJSONNumber.Create(CT.GridColor));
-    Result.AddPair('HeaderColor', TJSONNumber.Create(CT.HeaderColor));
-    Result.AddPair('CellFormat',  CT.CellFormat);
-    Result.AddPair('Font',        FontToJSON(CT.Font));
-    Result.AddPair('HeaderFont',  FontToJSON(CT.HeaderFont));
-  end
-  else if Obj is TReportChartObject then
-  begin
-    Chart := TReportChartObject(Obj);
-    Result.AddPair('ChartType', TJSONNumber.Create(Ord(Chart.ChartType)));
-    Result.AddPair('DataSetName', Chart.DataSetName);
-    Result.AddPair('DataFieldLabel', Chart.DataFieldLabel);
-    Result.AddPair('DataFieldValue', Chart.DataFieldValue);
-    Result.AddPair('Title', Chart.Title);
-    Result.AddPair('ShowLegend', TJSONBool.Create(Chart.ShowLegend));
-  end;
+class procedure TReportFieldObjectSerializer.LoadProperties(Obj: TReportObject; JSON: TJSONObject; AVersion: Integer);
+var
+  Fld: TReportFieldObject;
+begin
+  inherited;
+  Fld := TReportFieldObject(Obj);
+  Fld.DisplayFormat := JSON.GetValue<string>('DisplayFormat', '');
+  Fld.EditMask      := JSON.GetValue<string>('EditMask',      '');
+end;
 
-  if Obj is TReportBand then
-  begin
-    Band := TReportBand(Obj);
-    Result.AddPair('BandType',            TJSONNumber.Create(Ord(Band.BandType)));
-    Result.AddPair('Height',              TJSONNumber.Create(Band.Height));
-    Result.AddPair('DataSetName',         Band.DataSetName);
-    Result.AddPair('MasterField',         Band.MasterField);
-    Result.AddPair('DetailField',         Band.DetailField);
-    Result.AddPair('GroupField',          Band.GroupField);
-    Result.AddPair('GroupLevel',          TJSONNumber.Create(Band.GroupLevel));
-    Result.AddPair('StartNewPage',        TJSONBool.Create(Band.StartNewPage));
-    Result.AddPair('CanGrow',             TJSONBool.Create(Band.CanGrow));
-    Result.AddPair('CanShrink',           TJSONBool.Create(Band.CanShrink));
-    Result.AddPair('BackColor',           TJSONNumber.Create(Band.BackColor));
-    Result.AddPair('BackColorTransparent',TJSONBool.Create(Band.BackColorTransparent));
-    Result.AddPair('BackColorCondition',  Band.BackColorCondition);
-    Result.AddPair('OverridePageSettings',TJSONBool.Create(Band.OverridePageSettings));
-    Result.AddPair('PageSettings',        PageSettingsToJSON(Band.PageSettings));
-    Result.AddPair('OnBeforePrint',       Band.OnBeforePrint);
-    Result.AddPair('OnAfterPrint',        Band.OnAfterPrint);
+{ TReportSubReportObjectSerializer }
 
-    ChildArr := TJSONArray.Create;
-    for Child in Band.Children do
-      ChildArr.AddElement(ObjectToJSON(Child));
-    Result.AddPair('Children', ChildArr);
-  end;
+class procedure TReportSubReportObjectSerializer.SaveProperties(Obj: TReportObject; JSON: TJSONObject);
+var
+  SubRep: TReportSubReportObject;
+begin
+  inherited;
+  SubRep := TReportSubReportObject(Obj);
+  JSON.AddPair('SubReportJSON', SubRep.ReportJSON);
+  JSON.AddPair('DataSetName',   SubRep.DataSetName);
+  JSON.AddPair('MasterField',   SubRep.MasterField);
+  JSON.AddPair('DetailField',   SubRep.DetailField);
+  JSON.AddPair('Transparent',   TJSONBool.Create(SubRep.Transparent));
+  JSON.AddPair('Background',    TJSONNumber.Create(SubRep.Background));
+  JSON.AddPair('BorderVisible', TJSONBool.Create(SubRep.BorderVisible));
+  JSON.AddPair('BorderColor',   TJSONNumber.Create(SubRep.BorderColor));
+  JSON.AddPair('BorderWidth',   TJSONNumber.Create(SubRep.BorderWidth));
+end;
+
+class procedure TReportSubReportObjectSerializer.LoadProperties(Obj: TReportObject; JSON: TJSONObject; AVersion: Integer);
+var
+  SubRep: TReportSubReportObject;
+begin
+  inherited;
+  SubRep := TReportSubReportObject(Obj);
+  SubRep.ReportJSON   := JSON.GetValue<string>('SubReportJSON', '');
+  SubRep.DataSetName  := JSON.GetValue<string>('DataSetName',   '');
+  SubRep.MasterField  := JSON.GetValue<string>('MasterField',   '');
+  SubRep.DetailField  := JSON.GetValue<string>('DetailField',   '');
+  SubRep.Transparent  := JSON.GetValue<Boolean>('Transparent',  True);
+  SubRep.Background   := Trunc(JSON.GetValue<Double>('Background',   Integer(clWhite)));
+  SubRep.BorderVisible:= JSON.GetValue<Boolean>('BorderVisible', True);
+  SubRep.BorderColor  := Trunc(JSON.GetValue<Double>('BorderColor', Integer(clSilver)));
+  SubRep.BorderWidth  := Trunc(JSON.GetValue<Double>('BorderWidth', 1));
+end;
+
+{ TReportLineObjectSerializer }
+
+class procedure TReportLineObjectSerializer.SaveProperties(Obj: TReportObject; JSON: TJSONObject);
+var
+  Ln: TReportLineObject;
+begin
+  inherited;
+  Ln := TReportLineObject(Obj);
+  JSON.AddPair('Orientation', TJSONNumber.Create(Ord(Ln.Orientation)));
+  JSON.AddPair('LineColor',   TJSONNumber.Create(Ln.LineColor));
+  JSON.AddPair('LineWidth',   TJSONNumber.Create(Ln.LineWidth));
+  JSON.AddPair('LineStyle',   TJSONNumber.Create(Ord(Ln.LineStyle)));
+  JSON.AddPair('ExtendToPageBottom', TJSONBool.Create(Ln.ExtendToPageBottom));
+end;
+
+class procedure TReportLineObjectSerializer.LoadProperties(Obj: TReportObject; JSON: TJSONObject; AVersion: Integer);
+var
+  Ln: TReportLineObject;
+begin
+  inherited;
+  Ln := TReportLineObject(Obj);
+  Ln.Orientation := TLineOrientation(Trunc(JSON.GetValue<Double>('Orientation', 0)));
+  Ln.LineColor   := Trunc(JSON.GetValue<Double>('LineColor', Integer(clBlack)));
+  Ln.LineWidth   := Trunc(JSON.GetValue<Double>('LineWidth', 1));
+  Ln.LineStyle   := TPenStyle(Trunc(JSON.GetValue<Double>('LineStyle', 0)));
+  Ln.ExtendToPageBottom := JSON.GetValue<Boolean>('ExtendToPageBottom', False);
+end;
+
+{ TReportBarcodeObjectSerializer }
+
+class procedure TReportBarcodeObjectSerializer.SaveProperties(Obj: TReportObject; JSON: TJSONObject);
+var
+  Barcode: TReportBarcodeObject;
+begin
+  inherited;
+  Barcode := TReportBarcodeObject(Obj);
+  JSON.AddPair('Value',           Barcode.Value);
+  JSON.AddPair('DataField',       Barcode.DataField);
+  JSON.AddPair('Symbology',       TJSONNumber.Create(Ord(Barcode.Symbology)));
+  JSON.AddPair('ShowText',        TJSONBool.Create(Barcode.ShowText));
+  JSON.AddPair('BarColor',        TJSONNumber.Create(Barcode.BarColor));
+  JSON.AddPair('BackgroundColor', TJSONNumber.Create(Barcode.BackgroundColor));
+end;
+
+class procedure TReportBarcodeObjectSerializer.LoadProperties(Obj: TReportObject; JSON: TJSONObject; AVersion: Integer);
+var
+  Barcode: TReportBarcodeObject;
+begin
+  inherited;
+  Barcode := TReportBarcodeObject(Obj);
+  Barcode.Value           := JSON.GetValue<string>('Value', '1234567890');
+  Barcode.DataField       := JSON.GetValue<string>('DataField', '');
+  Barcode.Symbology       := TReportBarcodeSymbology(Trunc(JSON.GetValue<Double>('Symbology', 0)));
+  Barcode.ShowText        := JSON.GetValue<Boolean>('ShowText', True);
+  Barcode.BarColor        := Trunc(JSON.GetValue<Double>('BarColor', Integer(clBlack)));
+  Barcode.BackgroundColor := Trunc(JSON.GetValue<Double>('BackgroundColor', Integer(clWhite)));
+end;
+
+{ TReportTableObjectSerializer }
+
+class procedure TReportTableObjectSerializer.SaveProperties(Obj: TReportObject; JSON: TJSONObject);
+var
+  Table: TReportTableObject;
+begin
+  inherited;
+  Table := TReportTableObject(Obj);
+  JSON.AddPair('Rows',        TJSONNumber.Create(Table.Rows));
+  JSON.AddPair('Cols',        TJSONNumber.Create(Table.Cols));
+  JSON.AddPair('HeaderRows',  TJSONNumber.Create(Table.HeaderRows));
+  JSON.AddPair('GridColor',   TJSONNumber.Create(Table.GridColor));
+  JSON.AddPair('HeaderColor', TJSONNumber.Create(Table.HeaderColor));
+end;
+
+class procedure TReportTableObjectSerializer.LoadProperties(Obj: TReportObject; JSON: TJSONObject; AVersion: Integer);
+var
+  Table: TReportTableObject;
+begin
+  inherited;
+  Table := TReportTableObject(Obj);
+  Table.Rows        := Trunc(JSON.GetValue<Double>('Rows', 4));
+  Table.Cols        := Trunc(JSON.GetValue<Double>('Cols', 4));
+  Table.HeaderRows  := Trunc(JSON.GetValue<Double>('HeaderRows', 1));
+  Table.GridColor   := Trunc(JSON.GetValue<Double>('GridColor', Integer(clGray)));
+  Table.HeaderColor := Trunc(JSON.GetValue<Double>('HeaderColor', $00F0F0F0));
+end;
+
+{ TReportCrossTabObjectSerializer }
+
+class procedure TReportCrossTabObjectSerializer.SaveProperties(Obj: TReportObject; JSON: TJSONObject);
+var
+  CT: TReportCrossTabObject;
+begin
+  inherited;
+  CT := TReportCrossTabObject(Obj);
+  JSON.AddPair('DataSetName', CT.DataSetName);
+  JSON.AddPair('RowField',    CT.RowField);
+  JSON.AddPair('ColumnField', CT.ColumnField);
+  JSON.AddPair('CellField',   CT.CellField);
+  JSON.AddPair('Aggregate',   TJSONNumber.Create(Ord(CT.Aggregate)));
+  JSON.AddPair('ShowRowGrandTotals', TJSONBool.Create(CT.ShowRowGrandTotals));
+  JSON.AddPair('ShowColGrandTotals', TJSONBool.Create(CT.ShowColGrandTotals));
+  JSON.AddPair('GridColor',   TJSONNumber.Create(CT.GridColor));
+  JSON.AddPair('HeaderColor', TJSONNumber.Create(CT.HeaderColor));
+  JSON.AddPair('CellFormat',  CT.CellFormat);
+  JSON.AddPair('Font',        FontToJSON(CT.Font));
+  JSON.AddPair('HeaderFont',  FontToJSON(CT.HeaderFont));
+end;
+
+class procedure TReportCrossTabObjectSerializer.LoadProperties(Obj: TReportObject; JSON: TJSONObject; AVersion: Integer);
+var
+  CT: TReportCrossTabObject;
+  JFont, JHdrFont: TJSONObject;
+begin
+  inherited;
+  CT := TReportCrossTabObject(Obj);
+  CT.DataSetName := JSON.GetValue<string>('DataSetName', '');
+  CT.RowField    := JSON.GetValue<string>('RowField', '');
+  CT.ColumnField := JSON.GetValue<string>('ColumnField', '');
+  CT.CellField   := JSON.GetValue<string>('CellField', '');
+  CT.Aggregate   := TCrossTabAggregate(Trunc(JSON.GetValue<Double>('Aggregate', Ord(caSum))));
+  CT.ShowRowGrandTotals := JSON.GetValue<Boolean>('ShowRowGrandTotals', True);
+  CT.ShowColGrandTotals := JSON.GetValue<Boolean>('ShowColGrandTotals', True);
+  CT.GridColor   := Trunc(JSON.GetValue<Double>('GridColor', Integer(clGray)));
+  CT.HeaderColor := Trunc(JSON.GetValue<Double>('HeaderColor', $00F0F0F0));
+  CT.CellFormat  := JSON.GetValue<string>('CellFormat', '');
+  
+  if Assigned(JSON.GetValue('Font')) then JFont := JSON.GetValue('Font') as TJSONObject else JFont := nil;
+  if Assigned(JFont) then JSONToFont(JFont, CT.Font);
+  
+  if Assigned(JSON.GetValue('HeaderFont')) then JHdrFont := JSON.GetValue('HeaderFont') as TJSONObject else JHdrFont := nil;
+  if Assigned(JHdrFont) then JSONToFont(JHdrFont, CT.HeaderFont);
+end;
+
+{ TReportChartObjectSerializer }
+
+class procedure TReportChartObjectSerializer.SaveProperties(Obj: TReportObject; JSON: TJSONObject);
+var
+  Chart: TReportChartObject;
+begin
+  inherited;
+  Chart := TReportChartObject(Obj);
+  JSON.AddPair('ChartType', TJSONNumber.Create(Ord(Chart.ChartType)));
+  JSON.AddPair('DataSetName', Chart.DataSetName);
+  JSON.AddPair('DataFieldLabel', Chart.DataFieldLabel);
+  JSON.AddPair('DataFieldValue', Chart.DataFieldValue);
+  JSON.AddPair('Title', Chart.Title);
+  JSON.AddPair('ShowLegend', TJSONBool.Create(Chart.ShowLegend));
+end;
+
+class procedure TReportChartObjectSerializer.LoadProperties(Obj: TReportObject; JSON: TJSONObject; AVersion: Integer);
+var
+  Chart: TReportChartObject;
+begin
+  inherited;
+  Chart := TReportChartObject(Obj);
+  Chart.ChartType := TChartType(Trunc(JSON.GetValue<Double>('ChartType', 0)));
+  Chart.DataSetName := JSON.GetValue<string>('DataSetName', '');
+  Chart.DataFieldLabel := JSON.GetValue<string>('DataFieldLabel', '');
+  Chart.DataFieldValue := JSON.GetValue<string>('DataFieldValue', '');
+  Chart.Title := JSON.GetValue<string>('Title', '');
+  Chart.ShowLegend := JSON.GetValue<Boolean>('ShowLegend', True);
+end;
+
+{ TReportBandSerializer }
+
+class procedure TReportBandSerializer.SaveProperties(Obj: TReportObject; JSON: TJSONObject);
+var
+  Band: TReportBand;
+  ChildArr: TJSONArray;
+  Child: TReportObject;
+begin
+  inherited;
+  Band := TReportBand(Obj);
+  JSON.AddPair('BandType',            TJSONNumber.Create(Ord(Band.BandType)));
+  JSON.AddPair('Height',              TJSONNumber.Create(Band.Height));
+  JSON.AddPair('DataSetName',         Band.DataSetName);
+  JSON.AddPair('MasterField',         Band.MasterField);
+  JSON.AddPair('DetailField',         Band.DetailField);
+  JSON.AddPair('GroupField',          Band.GroupField);
+  JSON.AddPair('GroupLevel',          TJSONNumber.Create(Band.GroupLevel));
+  JSON.AddPair('StartNewPage',        TJSONBool.Create(Band.StartNewPage));
+  JSON.AddPair('CanGrow',             TJSONBool.Create(Band.CanGrow));
+  JSON.AddPair('CanShrink',           TJSONBool.Create(Band.CanShrink));
+  JSON.AddPair('BackColor',           TJSONNumber.Create(Band.BackColor));
+  JSON.AddPair('BackColorTransparent',TJSONBool.Create(Band.BackColorTransparent));
+  JSON.AddPair('BackColorCondition',  Band.BackColorCondition);
+  JSON.AddPair('OverridePageSettings',TJSONBool.Create(Band.OverridePageSettings));
+  JSON.AddPair('PageSettings',        PageSettingsToJSON(Band.PageSettings));
+  JSON.AddPair('OnBeforePrint',       Band.OnBeforePrint);
+  JSON.AddPair('OnAfterPrint',        Band.OnAfterPrint);
+
+  ChildArr := TJSONArray.Create;
+  for Child in Band.Children do
+    ChildArr.AddElement(ObjectToJSON(Child));
+  JSON.AddPair('Children', ChildArr);
+end;
+
+class procedure TReportBandSerializer.LoadProperties(Obj: TReportObject; JSON: TJSONObject; AVersion: Integer);
+var
+  Band: TReportBand;
+  ChildArr: TJSONArray;
+  i: Integer;
+begin
+  inherited;
+  Band := TReportBand(Obj);
+  Band.BandType             := TReportBandType(Trunc(JSON.GetValue<Double>('BandType',    0)));
+  Band.Height               := Trunc(JSON.GetValue<Double>('Height',       40));
+  Band.DataSetName          := JSON.GetValue<string>('DataSetName',   '');
+  Band.MasterField          := JSON.GetValue<string>('MasterField',   '');
+  Band.DetailField          := JSON.GetValue<string>('DetailField',   '');
+  Band.GroupField           := JSON.GetValue<string>('GroupField',    '');
+  Band.GroupLevel           := Trunc(JSON.GetValue<Double>('GroupLevel',   0));
+  Band.StartNewPage         := JSON.GetValue<Boolean>('StartNewPage', False);
+  Band.CanGrow              := JSON.GetValue<Boolean>('CanGrow',      False);
+  Band.CanShrink            := JSON.GetValue<Boolean>('CanShrink',    False);
+  Band.BackColor            := Trunc(JSON.GetValue<Double>('BackColor',    Integer(clWhite)));
+  Band.BackColorTransparent := JSON.GetValue<Boolean>('BackColorTransparent', True);
+  Band.BackColorCondition   := JSON.GetValue<string>('BackColorCondition', '');
+  Band.OverridePageSettings := JSON.GetValue<Boolean>('OverridePageSettings', False);
+  if Assigned(JSON.GetValue('PageSettings')) then
+    JSONToPageSettings(JSON.GetValue('PageSettings') as TJSONObject, Band.PageSettings);
+  Band.OnBeforePrint        := JSON.GetValue<string>('OnBeforePrint', '');
+  Band.OnAfterPrint         := JSON.GetValue<string>('OnAfterPrint',  '');
+
+  // In v1, there was no Children array persisted.
+  // We're loading v2+ here, but gracefully missing
+  if Assigned(JSON.GetValue('Children')) then ChildArr := JSON.GetValue('Children') as TJSONArray else ChildArr := nil;
+  if Assigned(ChildArr) then
+    for i := 0 to ChildArr.Count - 1 do
+      Band.Children.Add(
+        JSONToObjectEx(ChildArr.Items[i] as TJSONObject, AVersion));
+end;
+
+// ---------------------------------------------------------------------------
+// Single TReportObject <-> JSON
+// ---------------------------------------------------------------------------
+
+function ObjectToJSON(Obj: TReportObject): TJSONObject;
+begin
+  Result := TJSONObject.Create;
+  GetSerializer(TReportObjectClass(Obj.ClassType)).SaveProperties(Obj, Result);
 end;
 
 function JSONToObject(O: TJSONObject): TReportObject;
+begin
+  Result := JSONToObjectEx(O, 2); // Default to current version if called externally
+end;
+
+function JSONToObjectEx(O: TJSONObject; AVersion: Integer): TReportObject;
 var
-  Cls:        TReportObjectClass;
-  Obj:        TReportObject;
-  T:          TReportTextObject;
-  Sh:         TReportShapeObject;
-  Img:        TReportImageObject;
-  Memo:       TReportMemoObject;
-  Fld:        TReportFieldObject;
-  SubRep:     TReportSubReportObject;
-  Ln:         TReportLineObject;
-  Barcode:    TReportBarcodeObject;
-  Table:      TReportTableObject;
-  CT:         TReportCrossTabObject;
-  Chart:      TReportChartObject;
-  Band:       TReportBand;
-  ChildArr:   TJSONArray;
-  i:          Integer;
-  Style:      TFontStyles;
-  PicData:    string;
-  PicClass:   string;
-  PicBytes:   TBytes;
-  PicStream:  TMemoryStream;
-  PicGraphic: TGraphicClass;
-  PicClassRef: TPersistentClass;
-  G:          TGraphic;
+  Cls: TReportObjectClass;
 begin
   if O.GetValue('Class') <> nil then
     Cls := FindObjectClass(O.GetValue('Class').Value)
@@ -401,232 +826,17 @@ begin
     Cls := FindObjectClass(O.GetValue('Type').Value)
   else
     Cls := nil;
+    
   if not Assigned(Cls) then
     raise Exception.CreateFmt(
       'Unknown report object class: "%s"',
       [O.GetValue<string>('Class')]);
 
-  Obj := Cls.Create;
+  Result := Cls.Create;
   try
-    Obj.Name         := O.GetValue<string>('Name',   '');
-    Obj.Bounds       := JSONToRect(O.GetValue<TJSONObject>('Bounds'));
-    Obj.Visible      := O.GetValue<Boolean>('Visible',      True);
-    Obj.PrintWhen    := O.GetValue<string>('PrintWhen',     '');
-    Obj.OnBeforePrint:= O.GetValue<string>('OnBeforePrint', '');
-    Obj.OnAfterPrint := O.GetValue<string>('OnAfterPrint',  '');
-    Obj.AnchorRight  := O.GetValue<Boolean>('AnchorRight',  False);
-    Obj.AnchorBottom := O.GetValue<Boolean>('AnchorBottom', False);
-    Obj.PageBreakBefore := O.GetValue<Boolean>('PageBreakBefore', False);
-    Obj.PageBreakAfter  := O.GetValue<Boolean>('PageBreakAfter',  False);
-    Obj.Locked          := O.GetValue<Boolean>('Locked',          False);
-
-    if Obj is TReportTextObject then
-    begin
-      T := TReportTextObject(Obj);
-      T.Text        := O.GetValue<string>('Text',       '');
-      T.DataField   := O.GetValue<string>('DataField',  '');
-      T.Expression  := O.GetValue<string>('Expression', '');
-      T.Font.Name   := O.GetValue<string>('FontName',   'Tahoma');
-      T.Font.Size   := O.GetValue<Integer>('FontSize',  10);
-      T.Font.Color  := O.GetValue<Integer>('FontColor', 0);
-      Style := [];
-      if O.GetValue<Boolean>('FontBold',   False) then Include(Style, fsBold);
-      if O.GetValue<Boolean>('FontItalic', False) then Include(Style, fsItalic);
-      T.Font.Style     := Style;
-      T.HAlign         := TAlignment(O.GetValue<Integer>('HAlign',  0));
-      T.VAlign         := TVerticalAlignment(O.GetValue<Integer>('VAlign', 2));
-      T.Background     := O.GetValue<Integer>('Background',    Integer(clWhite));
-      T.Transparent    := O.GetValue<Boolean>('Transparent',   True);
-      T.BorderVisible  := O.GetValue<Boolean>('BorderVisible', False);
-      T.BorderColor    := O.GetValue<Integer>('BorderColor',   Integer(clBlack));
-      T.BorderWidth    := O.GetValue<Integer>('BorderWidth',   1);
-      T.WordWrap       := O.GetValue<Boolean>('WordWrap',      False);
-      T.AutoSize       := O.GetValue<Boolean>('AutoSize',      False);
-      T.PaddingLeft    := O.GetValue<Integer>('PaddingLeft',   2);
-      T.PaddingTop     := O.GetValue<Integer>('PaddingTop',    2);
-      T.PaddingRight   := O.GetValue<Integer>('PaddingRight',  2);
-      T.PaddingBottom  := O.GetValue<Integer>('PaddingBottom', 2);
-      T.FontColorCondition   := O.GetValue<string>('FontColorCondition',   '');
-      T.FontColorOnTrue      := O.GetValue<Integer>('FontColorOnTrue',      Integer(clRed));
-      T.BackgroundCondition  := O.GetValue<string>('BackgroundCondition',  '');
-      T.BackgroundOnTrue     := O.GetValue<Integer>('BackgroundOnTrue',     Integer(clYellow));
-      T.BorderColorCondition := O.GetValue<string>('BorderColorCondition', '');
-      T.BorderColorOnTrue    := O.GetValue<Integer>('BorderColorOnTrue',    Integer(clRed));
-    end;
-
-    if Obj is TReportShapeObject then
-    begin
-      Sh := TReportShapeObject(Obj);
-      Sh.ShapeType    := TReportShapeType(O.GetValue<Integer>('ShapeType', 0));
-      Sh.PenColor     := O.GetValue<Integer>('PenColor',   Integer(clBlack));
-      Sh.PenWidth     := O.GetValue<Integer>('PenWidth',   1);
-      Sh.PenStyle     := TPenStyle(O.GetValue<Integer>('PenStyle',   0));
-      Sh.BrushColor   := O.GetValue<Integer>('BrushColor', Integer(clWhite));
-      Sh.BrushStyle   := TBrushStyle(O.GetValue<Integer>('BrushStyle', 0));
-      Sh.CornerRadius := O.GetValue<Integer>('CornerRadius', 12);
-    end;
-
-    if Obj is TReportImageObject then
-    begin
-      Img := TReportImageObject(Obj);
-      Img.Stretch       := O.GetValue<Boolean>('Stretch',       True);
-      Img.Center        := O.GetValue<Boolean>('Center',        True);
-      Img.Proportional  := O.GetValue<Boolean>('Proportional',  True);
-      Img.BorderVisible := O.GetValue<Boolean>('BorderVisible', False);
-      Img.BorderColor   := O.GetValue<Integer>('BorderColor',   Integer(clBlack));
-      Img.BorderWidth   := O.GetValue<Integer>('BorderWidth',   1);
-      Img.DataField     := O.GetValue<string>('DataField',      '');
-      PicData  := O.GetValue<string>('PictureData',  '');
-      PicClass := O.GetValue<string>('PictureClass', '');
-      if (PicData <> '') and (PicClass <> '') then
-      begin
-        PicBytes  := TNetEncoding.Base64.DecodeStringToBytes(PicData);
-        if Length(PicBytes) > 0 then
-        begin
-          PicStream := TMemoryStream.Create;
-          try
-            PicStream.WriteBuffer(PicBytes[0], Length(PicBytes));
-            PicStream.Position := 0;
-            PicClassRef := GetClass(PicClass);
-            if Assigned(PicClassRef) and PicClassRef.InheritsFrom(TGraphic) then
-            begin
-              PicGraphic := TGraphicClass(PicClassRef);
-              G := PicGraphic.Create;
-              try
-                G.LoadFromStream(PicStream);
-                Img.Picture.Assign(G);
-              finally
-                G.Free;
-              end;
-            end;
-          finally
-            PicStream.Free;
-          end;
-        end;
-      end;
-    end;
-
-    if Obj is TReportMemoObject then
-    begin
-      Memo := TReportMemoObject(Obj);
-      Memo.AutoHeight := O.GetValue<Boolean>('AutoHeight', True);
-      Memo.MinHeight  := O.GetValue<Integer>('MinHeight',  20);
-    end;
-
-    if Obj is TReportFieldObject then
-    begin
-      Fld := TReportFieldObject(Obj);
-      Fld.DisplayFormat := O.GetValue<string>('DisplayFormat', '');
-      Fld.EditMask      := O.GetValue<string>('EditMask',      '');
-    end;
-
-    if Obj is TReportSubReportObject then
-    begin
-      SubRep := TReportSubReportObject(Obj);
-      SubRep.ReportJSON   := O.GetValue<string>('SubReportJSON', '');
-      SubRep.DataSetName  := O.GetValue<string>('DataSetName',   '');
-      SubRep.MasterField  := O.GetValue<string>('MasterField',   '');
-      SubRep.DetailField  := O.GetValue<string>('DetailField',   '');
-      SubRep.Transparent  := O.GetValue<Boolean>('Transparent',  True);
-      SubRep.Background   := O.GetValue<Integer>('Background',   Integer(clWhite));
-      SubRep.BorderVisible:= O.GetValue<Boolean>('BorderVisible', True);
-      SubRep.BorderColor  := O.GetValue<Integer>('BorderColor', Integer(clSilver));
-      SubRep.BorderWidth  := O.GetValue<Integer>('BorderWidth', 1);
-    end;
-
-    if Obj is TReportLineObject then
-    begin
-      Ln := TReportLineObject(Obj);
-      Ln.Orientation := TLineOrientation(O.GetValue<Integer>('Orientation', 0));
-      Ln.LineColor   := O.GetValue<Integer>('LineColor', Integer(clBlack));
-      Ln.LineWidth   := O.GetValue<Integer>('LineWidth', 1);
-      Ln.LineStyle   := TPenStyle(O.GetValue<Integer>('LineStyle', 0));
-      Ln.ExtendToPageBottom := O.GetValue<Boolean>('ExtendToPageBottom', False);
-    end;
-
-    if Obj is TReportBarcodeObject then
-    begin
-      Barcode := TReportBarcodeObject(Obj);
-      Barcode.Value           := O.GetValue<string>('Value', '1234567890');
-      Barcode.DataField       := O.GetValue<string>('DataField', '');
-      Barcode.Symbology       := TReportBarcodeSymbology(O.GetValue<Integer>('Symbology', 0));
-      Barcode.ShowText        := O.GetValue<Boolean>('ShowText', True);
-      Barcode.BarColor        := O.GetValue<Integer>('BarColor', Integer(clBlack));
-      Barcode.BackgroundColor := O.GetValue<Integer>('BackgroundColor', Integer(clWhite));
-    end;
-
-    if Obj is TReportTableObject then
-    begin
-      Table := TReportTableObject(Obj);
-      Table.Rows        := O.GetValue<Integer>('Rows', 4);
-      Table.Cols        := O.GetValue<Integer>('Cols', 4);
-      Table.HeaderRows  := O.GetValue<Integer>('HeaderRows', 1);
-      Table.GridColor   := O.GetValue<Integer>('GridColor', Integer(clGray));
-      Table.HeaderColor := O.GetValue<Integer>('HeaderColor', $00F0F0F0);
-    end
-    else if Obj is TReportCrossTabObject then
-    begin
-      CT := TReportCrossTabObject(Obj);
-      CT.DataSetName := O.GetValue<string>('DataSetName', '');
-      CT.RowField    := O.GetValue<string>('RowField', '');
-      CT.ColumnField := O.GetValue<string>('ColumnField', '');
-      CT.CellField   := O.GetValue<string>('CellField', '');
-      CT.Aggregate   := TCrossTabAggregate(O.GetValue<Integer>('Aggregate', Ord(caSum)));
-      CT.ShowRowGrandTotals := O.GetValue<Boolean>('ShowRowGrandTotals', True);
-      CT.ShowColGrandTotals := O.GetValue<Boolean>('ShowColGrandTotals', True);
-      CT.GridColor   := O.GetValue<Integer>('GridColor', Integer(clGray));
-      CT.HeaderColor := O.GetValue<Integer>('HeaderColor', $00F0F0F0);
-      CT.CellFormat  := O.GetValue<string>('CellFormat', '');
-      
-      var JFont := O.GetValue<TJSONObject>('Font');
-      if Assigned(JFont) then JSONToFont(JFont, CT.Font);
-      
-      var JHdrFont := O.GetValue<TJSONObject>('HeaderFont');
-      if Assigned(JHdrFont) then JSONToFont(JHdrFont, CT.HeaderFont);
-    end
-    else if Obj is TReportChartObject then
-    begin
-      Chart := TReportChartObject(Obj);
-      Chart.ChartType := TChartType(O.GetValue<Integer>('ChartType', 0));
-      Chart.DataSetName := O.GetValue<string>('DataSetName', '');
-      Chart.DataFieldLabel := O.GetValue<string>('DataFieldLabel', '');
-      Chart.DataFieldValue := O.GetValue<string>('DataFieldValue', '');
-      Chart.Title := O.GetValue<string>('Title', '');
-      Chart.ShowLegend := O.GetValue<Boolean>('ShowLegend', True);
-    end;
-
-    if Obj is TReportBand then
-    begin
-      Band := TReportBand(Obj);
-      Band.BandType             := TReportBandType(O.GetValue<Integer>('BandType',    0));
-      Band.Height               := O.GetValue<Integer>('Height',       40);
-      Band.DataSetName          := O.GetValue<string>('DataSetName',   '');
-      Band.MasterField          := O.GetValue<string>('MasterField',   '');
-      Band.DetailField          := O.GetValue<string>('DetailField',   '');
-      Band.GroupField           := O.GetValue<string>('GroupField',    '');
-      Band.GroupLevel           := O.GetValue<Integer>('GroupLevel',   0);
-      Band.StartNewPage         := O.GetValue<Boolean>('StartNewPage', False);
-      Band.CanGrow              := O.GetValue<Boolean>('CanGrow',      False);
-      Band.CanShrink            := O.GetValue<Boolean>('CanShrink',    False);
-      Band.BackColor            := O.GetValue<Integer>('BackColor',    Integer(clWhite));
-      Band.BackColorTransparent := O.GetValue<Boolean>('BackColorTransparent', True);
-      Band.BackColorCondition   := O.GetValue<string>('BackColorCondition', '');
-      Band.OverridePageSettings := O.GetValue<Boolean>('OverridePageSettings', False);
-      if Assigned(O.GetValue<TJSONObject>('PageSettings')) then
-        JSONToPageSettings(O.GetValue<TJSONObject>('PageSettings'), Band.PageSettings);
-      Band.OnBeforePrint        := O.GetValue<string>('OnBeforePrint', '');
-      Band.OnAfterPrint         := O.GetValue<string>('OnAfterPrint',  '');
-
-      ChildArr := O.GetValue<TJSONArray>('Children');
-      if Assigned(ChildArr) then
-        for i := 0 to ChildArr.Count - 1 do
-          Band.Children.Add(
-            JSONToObject(ChildArr.Items[i] as TJSONObject));
-    end;
-
-    Result := Obj;
+    GetSerializer(Cls).LoadProperties(Result, O, AVersion);
   except
-    Obj.Free;
+    Result.Free;
     raise;
   end;
 end;
@@ -653,14 +863,14 @@ var
   M: TReportMargins;
 begin
   if not Assigned(O) then Exit;
-  PS.PaperSize    := TReportPaperSize(O.GetValue<Integer>('PaperSize',   0));
-  PS.Orientation  := TReportOrientation(O.GetValue<Integer>('Orientation', 0));
-  PS.CustomWidth  := O.GetValue<Integer>('CustomWidth',  793);
-  PS.CustomHeight := O.GetValue<Integer>('CustomHeight', 1122);
-  M.Left   := O.GetValue<Integer>('MarginLeft',   40);
-  M.Top    := O.GetValue<Integer>('MarginTop',    40);
-  M.Right  := O.GetValue<Integer>('MarginRight',  40);
-  M.Bottom := O.GetValue<Integer>('MarginBottom', 40);
+  PS.PaperSize    := TReportPaperSize(Trunc(O.GetValue<Double>('PaperSize',   0)));
+  PS.Orientation  := TReportOrientation(Trunc(O.GetValue<Double>('Orientation', 0)));
+  PS.CustomWidth  := Trunc(O.GetValue<Double>('CustomWidth',  793));
+  PS.CustomHeight := Trunc(O.GetValue<Double>('CustomHeight', 1122));
+  M.Left   := Trunc(O.GetValue<Double>('MarginLeft',   40));
+  M.Top    := Trunc(O.GetValue<Double>('MarginTop',    40));
+  M.Right  := Trunc(O.GetValue<Double>('MarginRight',  40));
+  M.Bottom := Trunc(O.GetValue<Double>('MarginBottom', 40));
   PS.Margins := M;
 end;
 
@@ -674,7 +884,7 @@ var
 begin
   J := ObjectToJSON(Obj);
   try
-    Result := JSONToObject(J);
+    Result := JSONToObjectEx(J, 2);
   finally
     J.Free;
   end;
@@ -735,7 +945,7 @@ begin
         begin
           if Arr.Items[I] is TJSONObject then
           begin
-            Obj := JSONToObject(TJSONObject(Arr.Items[I]));
+            Obj := JSONToObjectEx(TJSONObject(Arr.Items[I]), 2);
             if Assigned(Obj) then
             begin
               SetLength(Result, Length(Result) + 1);
@@ -833,6 +1043,11 @@ begin
     if not Assigned(Root) then
       raise Exception.Create('Invalid JSON format in report');
 
+    
+    var Version: Integer := 1;
+    if Assigned(Root.GetValue('Version')) then
+      Version := Trunc(Root.GetValue<Double>('Version'));
+
     Result := TReportModel.Create;
     try
       Result.Title       := Root.GetValue<string>('Title',       '');
@@ -858,7 +1073,7 @@ begin
       if Assigned(Arr) then
         for i := 0 to Arr.Count - 1 do
           Result.Objects.Add(
-            JSONToObject(Arr.Items[i] as TJSONObject));
+            JSONToObjectEx(Arr.Items[i] as TJSONObject, Version));
     except
       Result.Free;
       raise;
@@ -875,4 +1090,8 @@ begin
   Result := LoadFromJSON(TFile.ReadAllText(FN, TEncoding.UTF8));
 end;
 
+initialization
+finalization
+  if Assigned(GSerializers) then
+    GSerializers.Free;
 end.

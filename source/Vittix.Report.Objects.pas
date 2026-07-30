@@ -3,7 +3,7 @@ unit Vittix.Report.Objects;
 interface
 
 uses
-  System.Classes,
+  System.UITypes, System.Classes,
   System.Types,
   System.SysUtils,
   System.Generics.Collections,

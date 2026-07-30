@@ -60,7 +60,7 @@
         <DCC_S>false</DCC_S>
         <DCC_ImageBase>00400000</DCC_ImageBase>
         <SanitizedProjectName>VittixDesigner</SanitizedProjectName>
-        <DCC_Namespace>Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
+        <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
         <VerInfo_Locale>16393</VerInfo_Locale>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=;CFBundleName=</VerInfo_Keys>
     </PropertyGroup>
@@ -146,8 +146,13 @@
         <DCCReference Include="..\Vittix.Report.Utils.pas"/>
         <DCCReference Include="..\Vittix.Report.Objects.Barcode.pas"/>
         <DCCReference Include="..\Vittix.Report.Objects.Table.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Objects.Chart.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Objects.CrossTab.pas"/>
         <DCCReference Include="..\Vittix.Report.ScriptHost.Adapter.pas"/>
         <DCCReference Include="..\Vittix.Report.Export.PDF.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Export.VectorPDF.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Export.VectorPDF.SVG.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Export.VectorPDF.EMF.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

@@ -27,7 +27,7 @@ unit Vittix.Report.Engine;
 interface
 
 uses
-  System.Classes,
+  System.UITypes, System.Classes,
   System.SysUtils,
   System.Generics.Collections,
   Vcl.Graphics,
@@ -41,6 +41,7 @@ uses
   Vittix.Report.Scripting,
   Vittix.Report.LayoutCache,
   Vittix.Report.LayoutPagination,
+  Vittix.Report.LayoutBookmarks,
   Vittix.Report.UserDataSet,
   Vittix.Report.Export.Commands,
   Vittix.Report.Interfaces;   // IReportProgress
@@ -185,8 +186,6 @@ type
     function  PrimarySourceActive: Boolean;
     function  SourceFieldValue(ADataSet: TDataSet; AUserDataSet: TVittixUserDataSet;
       const AFieldName: string): Variant;
-    function  CaptureDataSetBookmark(ADataSet: TDataSet; out ABookmark: TBookmark): Boolean;
-    procedure RestoreDataSetBookmark(ADataSet: TDataSet; ABookmark: TBookmark; AHasBookmark: Boolean);
     function  ComputeFirstDetailRowsHeight: Integer;
     procedure PrintDetailBandRecords(ABand: TReportBand; ADetailDS: TDataSet;
       ADetailUDS: TVittixUserDataSet);
@@ -1148,26 +1147,6 @@ begin
   Result := SafeSourceFieldValue(ADataSet, AUserDataSet, AFieldName);
 end;
 
-function TReportEngine.CaptureDataSetBookmark(
-  ADataSet: TDataSet; out ABookmark: TBookmark): Boolean;
-begin
-  ABookmark := nil;
-  Result := Assigned(ADataSet) and DataSetSupportsBookmarks(ADataSet);
-  if Result then
-    ABookmark := ADataSet.GetBookmark;
-end;
-
-procedure TReportEngine.RestoreDataSetBookmark(
-  ADataSet: TDataSet; ABookmark: TBookmark; AHasBookmark: Boolean);
-begin
-  if not AHasBookmark then
-    Exit;
-  if Assigned(ADataSet) and (ABookmark <> nil) and ADataSet.BookmarkValid(ABookmark) then
-    ADataSet.GotoBookmark(ABookmark);
-  if Assigned(ADataSet) and (ABookmark <> nil) then
-    ADataSet.FreeBookmark(ABookmark);
-end;
-
 function TReportEngine.ComputeFirstDetailRowsHeight: Integer;
 var
   Band: TReportBand;
@@ -1214,7 +1193,7 @@ begin
       Continue;
     end;
 
-    HasSaveBM := CaptureDataSetBookmark(DetailDS, SaveBM);
+    HasSaveBM := Vittix.Report.LayoutBookmarks.CaptureDataSetBookmark(DetailDS, SaveBM);
     DetailDS.DisableControls;
     try
       HasMasterField :=
@@ -1239,7 +1218,7 @@ begin
         DetailDS.Next;
       end;
     finally
-      RestoreDataSetBookmark(DetailDS, SaveBM, HasSaveBM);
+      Vittix.Report.LayoutBookmarks.RestoreDataSetBookmark(DetailDS, SaveBM, HasSaveBM);
       DetailDS.EnableControls;
     end;
   end;
@@ -1325,13 +1304,13 @@ begin
       Continue;
     end;
 
-    HasSaveBM := CaptureDataSetBookmark(DetailDS, SaveBM);
+    HasSaveBM := Vittix.Report.LayoutBookmarks.CaptureDataSetBookmark(DetailDS, SaveBM);
 
     DetailDS.DisableControls;
     try
       PrintDetailBandRecords(Band, DetailDS, nil);
     finally
-      RestoreDataSetBookmark(DetailDS, SaveBM, HasSaveBM);
+      Vittix.Report.LayoutBookmarks.RestoreDataSetBookmark(DetailDS, SaveBM, HasSaveBM);
       DetailDS.EnableControls;
     end;
   end;
