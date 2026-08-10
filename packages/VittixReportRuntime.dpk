@@ -53,6 +53,7 @@ contains
   Vittix.Report.Core            in '..\source\Vittix.Report.Core.pas',
   Vittix.Report.Expressions     in '..\source\Vittix.Report.Expressions.pas',
   Vittix.Report.Aggregates      in '..\source\Vittix.Report.Aggregates.pas',
+  Vittix.Report.LayoutBookmarks in '..\source\Vittix.Report.LayoutBookmarks.pas',
   Vittix.Report.LayoutCache     in '..\source\Vittix.Report.LayoutCache.pas',
   Vittix.Report.LayoutHelpers   in '..\source\Vittix.Report.LayoutHelpers.pas',
   Vittix.Report.LayoutPagination in '..\source\Vittix.Report.LayoutPagination.pas',

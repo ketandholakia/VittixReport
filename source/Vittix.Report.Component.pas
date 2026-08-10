@@ -57,14 +57,18 @@ uses
   Vittix.Report.UserDataSet;
 
 type
+  TReportLargeReportEvent = procedure(Sender: TObject; APageCount: Integer; var AContinue: Boolean) of object;
+
   TVittixReport = class(TComponent)
   private
     FDataSource   : TDataSource;
     FReportJSON   : string;
     FParameters   : TStrings;
     FTwoPassRendering: Boolean;
+    FLargeReportThreshold: Integer;
     // Ordered list — first entry is the primary dataset
     FUserDataSets : TList<TVittixUserDataSet>;
+    FOnLargeReport: TReportLargeReportEvent;
 
     function  GetReportJSON: string;
     procedure SetReportJSON(const V: string);
@@ -79,6 +83,13 @@ type
     procedure BuildNamedUserDataSets(
       out APrimary: TVittixUserDataSet;
       out ANamedDS: TDictionary<string, TVittixUserDataSet>);
+
+    /// <summary>
+    ///   After engine preparation, fires OnLargeReport if the page count
+    ///   exceeds FLargeReportThreshold.  The host can set AContinue=False
+    ///   to abort the operation.
+    /// </summary>
+    function CheckLargeReport(APageCount: Integer): Boolean;
 
   protected
     procedure Notification(AComponent: TComponent;
@@ -140,6 +151,21 @@ type
 
     property TwoPassRendering: Boolean
       read FTwoPassRendering write FTwoPassRendering default True;
+
+    /// <summary>
+    ///   Page count threshold that triggers the OnLargeReport event.
+    ///   Default is 500.  Set to 0 to disable the check.
+    /// </summary>
+    property LargeReportThreshold: Integer
+      read FLargeReportThreshold write FLargeReportThreshold default 500;
+
+    /// <summary>
+    ///   Fired after engine preparation when the page count exceeds
+    ///   LargeReportThreshold.  The host application can set AContinue=False
+    ///   to cancel the preview/export/print operation.
+    /// </summary>
+    property OnLargeReport: TReportLargeReportEvent
+      read FOnLargeReport write FOnLargeReport;
   end;
 
 // procedure Register;  // registration moved to Vittix.Report.Reg
@@ -165,6 +191,7 @@ begin
   FParameters := TStringList.Create;
   FUserDataSets := TList<TVittixUserDataSet>.Create;
   FTwoPassRendering := True;
+  FLargeReportThreshold := 500;
 end;
 
 destructor TVittixReport.Destroy;
@@ -933,6 +960,18 @@ begin
     NamedDS.Free;
     Model.Free;
   end;
+end;
+
+// ---------------------------------------------------------------------------
+//  CheckLargeReport
+// ---------------------------------------------------------------------------
+
+function TVittixReport.CheckLargeReport(APageCount: Integer): Boolean;
+begin
+  Result := True; // default: continue
+  if (FLargeReportThreshold > 0) and (APageCount > FLargeReportThreshold) and
+     Assigned(FOnLargeReport) then
+    FOnLargeReport(Self, APageCount, Result);
 end;
 
 end.
