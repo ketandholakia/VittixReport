@@ -14,7 +14,9 @@ uses
   Test.Vittix.Report.Engine in 'Test.Vittix.Report.Engine.pas',
   Test.Vittix.Report.Undo in 'Test.Vittix.Report.Undo.pas',
   Test.Vittix.Report.Objects.Chart in 'Test.Vittix.Report.Objects.Chart.pas',
-  Test.Vittix.Report.Serializer in 'Test.Vittix.Report.Serializer.pas';
+  Test.Vittix.Report.Serializer in 'Test.Vittix.Report.Serializer.pas',
+  Test.Vittix.Report.Expressions in 'Test.Vittix.Report.Expressions.pas',
+  Test.Vittix.Report.Characterization in 'Test.Vittix.Report.Characterization.pas';
 
 var
   runner : ITestRunner;
@@ -38,12 +40,26 @@ begin
     logger := TDUnitXConsoleLogger.Create(true);
     runner.AddLogger(logger);
     //Generate an NUnit compatible XML File
-    nunitLogger := TDUnitXXMLNUnitFileLogger.Create(TDUnitX.Options.XMLOutputFile);
-    runner.AddLogger(nunitLogger);
+    try
+      nunitLogger := TDUnitXXMLNUnitFileLogger.Create(TDUnitX.Options.XMLOutputFile);
+      runner.AddLogger(nunitLogger);
+    except
+      // XML logger may fail if directory doesn't exist; ignore
+    end;
     runner.FailsOnNoAsserts := False; //when true, Evaluates an empty test as a failure
 
     //Run tests
     results := runner.Execute;
+
+    // Print summary to stdout so it can be captured
+    Writeln;
+    Writeln(Format('Tests Run: %d, Passed: %d, Failed: %d, Errors: %d, Skipped: %d',
+      [results.TestCount,
+       results.PassCount,
+       results.FailureCount,
+       results.ErrorCount,
+       results.IgnoredCount]));
+
     if not results.AllPassed then
       System.ExitCode := EXIT_ERRORS;
 
