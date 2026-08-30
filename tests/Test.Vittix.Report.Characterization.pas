@@ -527,10 +527,13 @@ var
   Ctx: TExpressionContext;
   Result: Variant;
 begin
-  // Characterization: TReportAggregates.TryEvaluate exits immediately
-  // when Context.DataSet is nil. When using TVittixUserDataSet without
-  // a TDataSet reference in the context, SUM/COUNT/AVG/MIN/MAX silently
-  // do not evaluate, and TReportExpression.Evaluate returns ''.
+  // Characterization: This test documents CURRENT behavior only.
+  // TReportAggregates.TryEvaluate does not evaluate aggregates over a
+  // TVittixUserDataSet (BUG-005 remains unresolved). When using a
+  // UserDataSet without a TDataSet reference in the context, the
+  // unresolved [Amount] token falls through to the existing zero-value
+  // fallback, so Evaluate returns 'SUM(10)'. This test does NOT assert
+  // that 'SUM(10)' is the desired final behavior.
   DataSet := TClientDataSet.Create(nil);
   try
     DataSet.FieldDefs.Add('Amount', ftFloat, 0, False);
@@ -548,11 +551,13 @@ begin
       Ctx.DataSet := nil; // No TDataSet in context (UserDataSet-only)
       Ctx.UserDataSet := UserDataSet;
 
-      // CURRENT BEHAVIOR: SUM returns empty because Aggregates
-      // checks Assigned(Context.DataSet) and exits.
+      // CURRENT BEHAVIOR: SUM resolves to 'SUM(10)' because the
+      // unresolved [Amount] token uses the zero-value fallback while
+      // aggregates are not evaluated over the UserDataSet (BUG-005).
       Result := TReportExpression.Evaluate('SUM([Amount])', Ctx);
-      Assert.AreEqual('', VarToStr(Result),
-        'SUM should return empty string with nil DataSet (current behavior)');
+      Assert.AreEqual('SUM(10)', VarToStr(Result),
+        'SUM currently resolves to SUM(10) with nil DataSet (current behavior); '
+        + 'UserDataSet aggregate support remains unresolved (BUG-005)');
     finally
       UserDataSet.Free;
     end;

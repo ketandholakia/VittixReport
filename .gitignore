@@ -89,3 +89,11 @@ modules/
 .DS_Store
 Thumbs.db
 *.bak
+
+# DUnitX generated output
+/tests/VittixReportTests.res
+/tests/dunitx-results.xml
+
+# Cline local state
+/.cline/
+/.vscode/

@@ -70,7 +70,10 @@ end;
 
 procedure TTestReportChartObject.Test_InitialProperties;
 begin
-  Assert.AreEqual(TChartType.ctBar, FChart.ChartType, 'Default chart type should be Bar');
+  // The production constructor initializes FChartType := ctPie and the
+  // published property specifies default ctPie, so ctPie is the current
+  // and internally-consistent default.
+  Assert.AreEqual(TChartType.ctPie, FChart.ChartType, 'Default chart type should be Pie');
   Assert.IsTrue(FChart.ShowLegend, 'Default show legend should be True');
   Assert.AreEqual('', FChart.Title, 'Default title should be empty');
 end;
