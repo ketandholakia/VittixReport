@@ -42,6 +42,16 @@ type
     [Test] procedure Test_StrictEqualsSyntaxRejected;
     [Test] procedure Test_StrictFalseSyntaxRejected;
     [Test] procedure Test_Pause_Switch;
+    [Test] procedure Test_StrictWithFilterRejected;
+    [Test] procedure Test_FilterBeforeStrictRejected;
+    [Test] procedure Test_StrictWithScriptsRejected;
+    [Test] procedure Test_ScriptsBeforeStrictRejected;
+    [Test] procedure Test_StrictWithScriptTraceRejected;
+    [Test] procedure Test_ScriptTraceBeforeStrictRejected;
+    [Test] procedure Test_StrictWithKeepVectorPdfAccepted;
+    [Test] procedure Test_StrictWithOutputAccepted;
+    [Test] procedure Test_StrictWithBaselineAccepted;
+    [Test] procedure Test_StrictWithReportsAccepted;
   end;
 
 implementation
@@ -253,6 +263,92 @@ var
 begin
   Assert.IsTrue(Parse(['-pause'], Options));
   Assert.IsTrue(Options.Pause);
+end;
+
+procedure TRunnerOptionsTests.Test_StrictWithFilterRejected;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsFalse(Parse(['--strict', '--filter', 'foo.vrt'], Options));
+  Assert.IsNotEmpty(Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_FilterBeforeStrictRejected;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsFalse(Parse(['--filter', 'foo.vrt', '--strict'], Options));
+  Assert.IsNotEmpty(Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_StrictWithScriptsRejected;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsFalse(Parse(['--strict', '--scripts'], Options));
+  Assert.IsNotEmpty(Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_ScriptsBeforeStrictRejected;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsFalse(Parse(['--scripts', '--strict'], Options));
+  Assert.IsNotEmpty(Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_StrictWithScriptTraceRejected;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsFalse(Parse(['--strict', '--script-trace'], Options));
+  Assert.IsNotEmpty(Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_ScriptTraceBeforeStrictRejected;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsFalse(Parse(['--script-trace', '--strict'], Options));
+  Assert.IsNotEmpty(Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_StrictWithKeepVectorPdfAccepted;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['--strict', '--keep-vector-pdf'], Options));
+  Assert.AreEqual('', Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_StrictWithOutputAccepted;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['--strict', '--output', 'D:\out'], Options));
+  Assert.IsTrue(Options.&Strict);
+  Assert.AreEqual('D:\out', Options.OutputPath);
+  Assert.AreEqual('', Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_StrictWithBaselineAccepted;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['--strict', '--baseline', 'D:\base.json'], Options));
+  Assert.IsTrue(Options.&Strict);
+  Assert.AreEqual('D:\base.json', Options.BaselineFile);
+  Assert.AreEqual('', Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_StrictWithReportsAccepted;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['--strict', '--reports', 'D:\reports'], Options));
+  Assert.IsTrue(Options.&Strict);
+  Assert.AreEqual('D:\reports', Options.ReportsPath);
+  Assert.AreEqual('', Options.ErrorMessage);
 end;
 
 initialization

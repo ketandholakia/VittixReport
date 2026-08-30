@@ -39,6 +39,7 @@ uses
   Vittix.Report.Export.XLSX,
   Vittix.Report.Serializer,
   Vittix.Runner.Options,
+  Vittix.Runner.Baseline,
   Vittix.Report.Objects.Barcode,
   Vittix.Report.Objects.Table,
   Vittix.Report.Objects.CrossTab,
@@ -560,6 +561,12 @@ var
   StartMem, EndMem: Int64;
   BaselineFile: string;
   BaselineJSON: TJSONObject;
+  StrictBaseline: TRegressionBaseline;
+  StrictParseError: TBaselineParseError;
+  ActualResults: TArray<TReportPageResult>;
+  Reconciled: TBaselineReconciliationResult;
+  StrictIssue: TBaselineIssue;
+  StrictFailed: Boolean;
   BaselineModified: Boolean;
   ExpectedPages: Integer;
   ScriptAdapter: TReportScriptHostAdapter;
@@ -605,7 +612,13 @@ begin
   begin
     Writeln(Options.ErrorMessage);
     Writeln('Run VittixRunner --help for usage information.');
-    Halt(1);
+    // Phase 3C-2c-2: a strict run that fails CLI validation is a strict
+    // configuration error (exit 2). Non-strict parse failures keep the
+    // existing exit code 1.
+    if Options.&Strict then
+      Halt(2)
+    else
+      Halt(1);
   end;
 
   if Options.Help then
@@ -694,6 +707,25 @@ begin
   if Options.BaselineFile <> '' then
     BaselineFile := TPath.GetFullPath(Options.BaselineFile);
   BaselineModified := False;
+  BaselineJSON := nil;
+  StrictBaseline := nil;
+  StrictFailed := False;
+  // Phase 3C-2c-2: strict mode uses the validated read-only baseline loader
+  // (TRegressionBaseline.LoadFromFile), never the tolerant raw TJSONObject
+  // path below, and never fabricates an empty baseline object. A missing,
+  // empty, malformed or invalid baseline is a strict configuration error
+  // (exit 2); no reports are executed in that case.
+  if Options.&Strict then
+  begin
+    if not TRegressionBaseline.LoadFromFile(BaselineFile, StrictBaseline, StrictParseError) then
+    begin
+      Writeln('Error: strict regression baseline could not be loaded: ', BaselineFile);
+      if StrictParseError.Message <> '' then
+        Writeln('Error: ', StrictParseError.Message);
+      Halt(2);
+    end;
+  end
+  else
   if TFile.Exists(BaselineFile) then
   begin
     BaselineJSON := TJSONObject.ParseJSONValue(TFile.ReadAllText(BaselineFile, TEncoding.UTF8)) as TJSONObject;
@@ -1044,19 +1076,34 @@ begin
             end;
             if not ScriptTraceOnly then
             begin
-              // Check against pagination baseline
-              if TryGetBaselinePageCount(BaselineJSON, JustName, ExpectedPages) then
+              if not Options.&Strict then
               begin
-                if ExpectedPages <> PageCount then
+                // Non-strict: existing tolerant baseline comparison and
+                // auto-registration behavior (unchanged).
+                // Check against pagination baseline
+                if TryGetBaselinePageCount(BaselineJSON, JustName, ExpectedPages) then
                 begin
-                  TestFailed := True;
-                  ErrorMsg := Format('Pagination mismatch: Expected %d pages, got %d', [ExpectedPages, PageCount]);
+                  if ExpectedPages <> PageCount then
+                  begin
+                    TestFailed := True;
+                    ErrorMsg := Format('Pagination mismatch: Expected %d pages, got %d', [ExpectedPages, PageCount]);
+                  end;
+                end
+                else
+                begin
+                  BaselineJSON.AddPair(JustName, TJSONNumber.Create(PageCount));
+                  BaselineModified := True;
                 end;
               end
               else
               begin
-                BaselineJSON.AddPair(JustName, TJSONNumber.Create(PageCount));
-                BaselineModified := True;
+                // Phase 3C-2c-2: strict mode bypasses the legacy mutable
+                // baseline path entirely. Only successful executions reach
+                // this point; failures are handled by the exception handler
+                // below and never produce an actual result.
+                SetLength(ActualResults, Length(ActualResults) + 1);
+                ActualResults[High(ActualResults)].ReportName := JustName;
+                ActualResults[High(ActualResults)].PageCount := PageCount;
               end;
             end
             else
@@ -1132,7 +1179,10 @@ begin
 
   if BaselineModified then
     TFile.WriteAllText(BaselineFile, BaselineJSON.Format(2), TEncoding.UTF8);
-  BaselineJSON.Free;
+  // Phase 3C-2c-2: BaselineJSON stays nil in strict mode, so strict runs
+  // can never write or free it (structurally read-only).
+  if Assigned(BaselineJSON) then
+    BaselineJSON.Free;
 
   EndGDI := GetGuiResources(GetCurrentProcess, GR_GDIOBJECTS);
   EndUser := GetGuiResources(GetCurrentProcess, GR_USEROBJECTS);
@@ -1148,6 +1198,51 @@ begin
   Writeln(Format(' Memory Alloc: %d KB -> %d KB (Delta: %d KB)', [StartMem div 1024, EndMem div 1024, (EndMem - StartMem) div 1024]));
   Writeln('================================================');
 
+  // Phase 3C-2c-2: strict-only summary. Reconciliation uses the existing
+  // deterministic TRegressionBaseline.Reconcile implementation; the strict
+  // baseline object is freed here (it owns its internal dictionary).
+  if Options.&Strict then
+  begin
+    try
+      Reconciled := TRegressionBaseline.Reconcile(StrictBaseline, ActualResults);
+      StrictFailed := StrictHasFailures(Reconciled, FailCount);
+
+      Writeln('================================================');
+      Writeln(' Strict Baseline Validation');
+      Writeln('------------------------------------------------');
+      Writeln(Format(' Reports discovered : %d', [Length(Files)]));
+      Writeln(Format(' Reports checked    : %d', [Length(ActualResults)]));
+      Writeln(Format(' Matched            : %d', [Reconciled.MatchingCount]));
+      Writeln(Format(' Mismatches         : %d', [Reconciled.PageMismatchCount]));
+      Writeln(Format(' Missing baseline   : %d', [Reconciled.MissingBaselineCount]));
+      Writeln(Format(' Orphan baseline    : %d', [Reconciled.OrphanBaselineCount]));
+      Writeln(Format(' Skipped            : %d', [SkipCount]));
+      Writeln(Format(' Execution errors   : %d', [FailCount]));
+      Writeln('------------------------------------------------');
+      for StrictIssue in Reconciled.Issues do
+        case StrictIssue.Kind of
+          bikPageCountMismatch:
+            Writeln(Format('[FAIL] %-40s | Expected pages: %d, actual pages: %d',
+              [StrictIssue.ReportName, StrictIssue.ExpectedPages, StrictIssue.ActualPages]));
+          bikMissingBaseline:
+            Writeln(Format('[FAIL] %-40s | Missing baseline entry (actual pages: %d)',
+              [StrictIssue.ReportName, StrictIssue.ActualPages]));
+          bikOrphanBaseline:
+            Writeln(Format('[FAIL] %-40s | Orphan baseline entry (expected pages: %d)',
+              [StrictIssue.ReportName, StrictIssue.ExpectedPages]));
+        end;
+      Writeln('------------------------------------------------');
+      if StrictFailed then
+        Writeln(' Strict result: FAIL')
+      else
+        Writeln(' Strict result: PASS');
+      Writeln('================================================');
+    finally
+      StrictBaseline.Free;
+      StrictBaseline := nil;
+    end;
+  end;
+
   // Keep console open if running inside the Delphi IDE debugger or if -pause argument is used
   {$WARN SYMBOL_PLATFORM OFF}
   if (DebugHook <> 0) or Options.Pause then
@@ -1157,7 +1252,17 @@ begin
   end;
   {$WARN SYMBOL_PLATFORM ON}
 
-  if FailCount > 0 then
+  if Options.&Strict then
+  begin
+    // Phase 3C-2c-2: strict regression failure (reconciliation issues,
+    // execution failures, or [LEAK]) -> exit 1. Configuration errors
+    // already exited with 2 above.
+    if StrictFailed then
+      Halt(1)
+    else
+      Halt(0);
+  end
+  else if FailCount > 0 then
     Halt(1)
   else
     Halt(0);

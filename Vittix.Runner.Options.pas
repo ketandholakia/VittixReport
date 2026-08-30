@@ -59,6 +59,42 @@ type
   // or a positional argument.
   TOptKind = (okSwitch, okValue, okPositional);
 
+{ Deterministic post-parse validation of strict-mode combinations.
+
+  Strict validation requires the complete report set, so subset/trace options
+  that skip reports are rejected. Verified against Vittix.Runner.Console.pas:
+  --scripts / --script-trace skip non-script reports entirely, and --filter /
+  a positional report name restrict the run to a single report.
+
+  Future mutual exclusion (NOT implemented here; --update-baseline does not
+  exist yet): once --update-baseline is added it must also be rejected here.
+  --strict is read-only validation; --update-baseline is an explicit mutation,
+  and the two must never silently coexist. }
+function ValidateStrictCombinations(var AOptions: TRunnerOptions): Boolean;
+begin
+  Result := True;
+  if not AOptions.&Strict then
+    Exit;
+
+  if AOptions.Filter <> '' then
+  begin
+    AOptions.ErrorMessage := 'Error: --strict cannot be combined with --filter';
+    Exit(False);
+  end;
+
+  if AOptions.ScriptOnly then
+  begin
+    AOptions.ErrorMessage := 'Error: --strict cannot be combined with --scripts';
+    Exit(False);
+  end;
+
+  if AOptions.ScriptTraceOnly then
+  begin
+    AOptions.ErrorMessage := 'Error: --strict cannot be combined with --script-trace';
+    Exit(False);
+  end;
+end;
+
 function BooleanSwitchValue(const AArg: string; out AIsHelp: Boolean): Boolean;
 begin
   Result := SameText(AArg, SwitchHelp[0]) or SameText(AArg, SwitchHelp[1]) or
@@ -261,6 +297,9 @@ begin
 
     Inc(I);
   end;
+
+  if Result then
+    Result := ValidateStrictCombinations(AOptions);
 end;
 
 function ParseOptionsFromCommandLine(out AOptions: TRunnerOptions): Boolean;

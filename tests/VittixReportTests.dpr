@@ -17,7 +17,10 @@ uses
   Test.Vittix.Report.Serializer in 'Test.Vittix.Report.Serializer.pas',
   Test.Vittix.Report.Expressions in 'Test.Vittix.Report.Expressions.pas',
   Test.Vittix.Report.Characterization in 'Test.Vittix.Report.Characterization.pas',
-  Test.Vittix.Runner.Options in 'Test.Vittix.Runner.Options.pas';
+  Test.Vittix.Runner.Options in 'Test.Vittix.Runner.Options.pas',
+  Vittix.Runner.Options in '..\Vittix.Runner.Options.pas',
+  Vittix.Runner.Baseline in '..\Vittix.Runner.Baseline.pas',
+  Test.Vittix.Runner.Baseline in 'Test.Vittix.Runner.Baseline.pas';
 
 var
   runner : ITestRunner;

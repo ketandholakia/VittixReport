@@ -49,6 +49,12 @@
         <DelphiCompile Include="Test.Vittix.Runner.Options.pas">
             <DCCReference>MainSource</DCCReference>
         </DelphiCompile>
+        <DelphiCompile Include="..\Vittix.Runner.Baseline.pas">
+            <DCCReference>MainSource</DCCReference>
+        </DelphiCompile>
+        <DelphiCompile Include="Test.Vittix.Runner.Baseline.pas">
+            <DCCReference>MainSource</DCCReference>
+        </DelphiCompile>
     </ItemGroup>
     <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Delphi.Targets')"/>
 </Project>
