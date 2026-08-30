@@ -25,6 +25,9 @@ type
     ScriptOnly: Boolean;
     ScriptTraceOnly: Boolean;
     KeepVectorPDF: Boolean;
+    // "strict" is a reserved word in Delphi, so the escaped identifier
+    // &Strict is used to expose the field as "Strict".
+    &Strict: Boolean;
     Pause: Boolean;
     Help: Boolean;
     ErrorMessage: string;
@@ -42,6 +45,7 @@ const
   SwitchScripts = '--scripts';
   SwitchScriptTrace = '--script-trace';
   SwitchKeepVectorPDF = '--keep-vector-pdf';
+  SwitchStrict = '--strict';
   SwitchPause = '-pause';
 
   OptReports = '--reports';
@@ -59,7 +63,8 @@ function BooleanSwitchValue(const AArg: string; out AIsHelp: Boolean): Boolean;
 begin
   Result := SameText(AArg, SwitchHelp[0]) or SameText(AArg, SwitchHelp[1]) or
     SameText(AArg, SwitchScripts) or SameText(AArg, SwitchScriptTrace) or
-    SameText(AArg, SwitchKeepVectorPDF) or SameText(AArg, SwitchPause);
+    SameText(AArg, SwitchKeepVectorPDF) or SameText(AArg, SwitchStrict) or
+    SameText(AArg, SwitchPause);
   AIsHelp := SameText(AArg, SwitchHelp[0]) or SameText(AArg, SwitchHelp[1]);
 end;
 
@@ -203,6 +208,8 @@ begin
             AOptions.ScriptTraceOnly := True
           else if SameText(Arg, SwitchKeepVectorPDF) then
             AOptions.KeepVectorPDF := True
+          else if SameText(Arg, SwitchStrict) then
+            AOptions.&Strict := True
           else if SameText(Arg, SwitchPause) then
             AOptions.Pause := True;
         end;

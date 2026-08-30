@@ -37,6 +37,10 @@ type
     [Test] procedure Test_Scripts_Switch;
     [Test] procedure Test_ScriptTrace_Switch;
     [Test] procedure Test_KeepVectorPDF_Switch;
+    [Test] procedure Test_StrictFlag;
+    [Test] procedure Test_StrictWithExistingOptions;
+    [Test] procedure Test_StrictEqualsSyntaxRejected;
+    [Test] procedure Test_StrictFalseSyntaxRejected;
     [Test] procedure Test_Pause_Switch;
   end;
 
@@ -207,6 +211,40 @@ var
 begin
   Assert.IsTrue(Parse(['--keep-vector-pdf'], Options));
   Assert.IsTrue(Options.KeepVectorPDF);
+end;
+
+procedure TRunnerOptionsTests.Test_StrictFlag;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['--strict'], Options));
+  Assert.IsTrue(Options.&Strict);
+  Assert.AreEqual('', Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_StrictWithExistingOptions;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['--strict', '--keep-vector-pdf'], Options));
+  Assert.IsTrue(Options.&Strict);
+  Assert.IsTrue(Options.KeepVectorPDF);
+end;
+
+procedure TRunnerOptionsTests.Test_StrictEqualsSyntaxRejected;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsFalse(Parse(['--strict=true'], Options));
+  Assert.IsNotEmpty(Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_StrictFalseSyntaxRejected;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsFalse(Parse(['--strict=false'], Options));
+  Assert.IsNotEmpty(Options.ErrorMessage);
 end;
 
 procedure TRunnerOptionsTests.Test_Pause_Switch;
