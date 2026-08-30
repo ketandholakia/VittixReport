@@ -348,9 +348,40 @@ begin
   Result := Acc;
 end;
 
-function TryEvalComparison(const S: string; out B: Boolean): Boolean;
+function FindComparisonOperator(const S: string; out AOp: string; out APos: Integer): Boolean;
 const
   Ops: array[0..5] of string = ('<=', '>=', '<>', '=', '<', '>');
+var
+  J, I: Integer;
+  InQuote: Boolean;
+  OpLen: Integer;
+begin
+  Result := False;
+  AOp := '';
+  APos := 0;
+
+  for J := Low(Ops) to High(Ops) do
+  begin
+    OpLen := Length(Ops[J]);
+    InQuote := False;
+    for I := 1 to Length(S) do
+    begin
+      if S[I] = '''' then
+        InQuote := not InQuote;
+
+      if not InQuote and (I + OpLen - 1 <= Length(S)) and
+         (Copy(S, I, OpLen) = Ops[J]) then
+      begin
+        AOp := Ops[J];
+        APos := I;
+        Result := True;
+        Exit;
+      end;
+    end;
+  end;
+end;
+
+function TryEvalComparison(const S: string; out B: Boolean): Boolean;
 var
   Op: string;
   P: Integer;
@@ -361,45 +392,40 @@ begin
   Result := False;
   B := False;
 
-  for Op in Ops do
+  if not FindComparisonOperator(S, Op, P) then
+    Exit;
+
+  LStr := Trim(Copy(S, 1, P - 1));
+  RStr := Trim(Copy(S, P + Length(Op), MaxInt));
+
+  if (Length(LStr) >= 2) and (LStr[1] = '''') and (LStr[Length(LStr)] = '''') then
+    LStr := Copy(LStr, 2, Length(LStr) - 2);
+  if (Length(RStr) >= 2) and (RStr[1] = '''') and (RStr[Length(RStr)] = '''') then
+    RStr := Copy(RStr, 2, Length(RStr) - 2);
+
+  LIsNum := TryStrToFloat(LStr, LDbl);
+  RIsNum := TryStrToFloat(RStr, RDbl);
+
+  if LIsNum and RIsNum then
   begin
-    P := Pos(Op, S);
-    if P > 0 then
-    begin
-      LStr := Trim(Copy(S, 1, P - 1));
-      RStr := Trim(Copy(S, P + Length(Op), MaxInt));
-
-      if (Length(LStr) >= 2) and (LStr[1] = '''') and (LStr[Length(LStr)] = '''') then
-        LStr := Copy(LStr, 2, Length(LStr) - 2);
-      if (Length(RStr) >= 2) and (RStr[1] = '''') and (RStr[Length(RStr)] = '''') then
-        RStr := Copy(RStr, 2, Length(RStr) - 2);
-
-      LIsNum := TryStrToFloat(LStr, LDbl);
-      RIsNum := TryStrToFloat(RStr, RDbl);
-
-      if LIsNum and RIsNum then
-      begin
-        if Op = '<=' then B := LDbl <= RDbl
-        else if Op = '>=' then B := LDbl >= RDbl
-        else if Op = '<>' then B := LDbl <> RDbl
-        else if Op = '=' then B := LDbl = RDbl
-        else if Op = '<' then B := LDbl < RDbl
-        else if Op = '>' then B := LDbl > RDbl;
-      end
-      else
-      begin
-        if Op = '<=' then B := CompareText(LStr, RStr) <= 0
-        else if Op = '>=' then B := CompareText(LStr, RStr) >= 0
-        else if Op = '<>' then B := not SameText(LStr, RStr)
-        else if Op = '=' then B := SameText(LStr, RStr)
-        else if Op = '<' then B := CompareText(LStr, RStr) < 0
-        else if Op = '>' then B := CompareText(LStr, RStr) > 0;
-      end;
-
-      Result := True;
-      Exit;
-    end;
+    if Op = '<=' then B := LDbl <= RDbl
+    else if Op = '>=' then B := LDbl >= RDbl
+    else if Op = '<>' then B := LDbl <> RDbl
+    else if Op = '=' then B := LDbl = RDbl
+    else if Op = '<' then B := LDbl < RDbl
+    else if Op = '>' then B := LDbl > RDbl;
+  end
+  else
+  begin
+    if Op = '<=' then B := CompareText(LStr, RStr) <= 0
+    else if Op = '>=' then B := CompareText(LStr, RStr) >= 0
+    else if Op = '<>' then B := not SameText(LStr, RStr)
+    else if Op = '=' then B := SameText(LStr, RStr)
+    else if Op = '<' then B := CompareText(LStr, RStr) < 0
+    else if Op = '>' then B := CompareText(LStr, RStr) > 0;
   end;
+
+  Result := True;
 end;
 
 // ---------------------------------------------------------------------------
@@ -443,7 +469,16 @@ begin
     Exit;
   end;
 
-  // Step 4 — quoted string literal
+  // Step 4 — comparison operators (must be checked before quoted-string literal
+  // so that expressions such as 'hello' = 'hello' are evaluated as comparisons)
+  var BoolValue: Boolean;
+  if TryEvalComparison(S, BoolValue) then
+  begin
+    Result := BoolValue;
+    Exit;
+  end;
+
+  // Step 4b — quoted string literal
   if (Length(S) >= 2)
      and (S[1] = '''')
      and (S[Length(S)] = '''') then
@@ -452,7 +487,7 @@ begin
     Exit;
   end;
 
-  // Step 4b — boolean literals
+  // Step 4c — boolean literals
   if SameText(S, 'true') then
   begin
     Result := True;
@@ -461,14 +496,6 @@ begin
   if SameText(S, 'false') then
   begin
     Result := False;
-    Exit;
-  end;
-
-  // Step 4c — comparison operators
-  var BoolValue: Boolean;
-  if TryEvalComparison(S, BoolValue) then
-  begin
-    Result := BoolValue;
     Exit;
   end;
 

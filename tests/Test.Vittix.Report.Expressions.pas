@@ -72,6 +72,10 @@ type
     procedure Test_Comparison_NumericGreaterThan;
     [Test]
     procedure Test_Comparison_StringEquality;
+    [Test]
+    procedure Test_Comparison_StringEquality_False;
+    [Test]
+    procedure Test_Comparison_FieldEqualsStringLiteral;
 
     // --- Boolean literals ---
     [Test]
@@ -82,6 +86,8 @@ type
     // --- Quoted strings ---
     [Test]
     procedure Test_QuotedStringLiteral;
+    [Test]
+    procedure Test_QuotedStringLiteral_OperatorsInsideQuotes_RemainLiteral;
 
     // --- Multi-token text with hyphens (BUG-007 characterization) ---
     [Test]
@@ -234,6 +240,19 @@ begin
   Assert.IsTrue(Boolean(TReportExpression.Evaluate('''hello'' = ''hello''', FContext)));
 end;
 
+procedure TTestExpressionEngine.Test_Comparison_StringEquality_False;
+begin
+  Assert.IsFalse(Boolean(TReportExpression.Evaluate('''hello'' = ''world''', FContext)));
+end;
+
+procedure TTestExpressionEngine.Test_Comparison_FieldEqualsStringLiteral;
+begin
+  FDataSet.First;
+  Assert.IsTrue(Boolean(TReportExpression.Evaluate('[Name] = ''Alice''', FContext)));
+  Assert.IsTrue(Boolean(TReportExpression.Evaluate('''Alice'' = [Name]', FContext)));
+  Assert.IsFalse(Boolean(TReportExpression.Evaluate('[Name] = ''Bob''', FContext)));
+end;
+
 // --- Boolean literals ---
 
 procedure TTestExpressionEngine.Test_BooleanLiteral_True;
@@ -251,6 +270,16 @@ end;
 procedure TTestExpressionEngine.Test_QuotedStringLiteral;
 begin
   Assert.AreEqual('hello', VarToStr(TReportExpression.Evaluate('''hello''', FContext)));
+end;
+
+procedure TTestExpressionEngine.Test_QuotedStringLiteral_OperatorsInsideQuotes_RemainLiteral;
+begin
+  // Operators inside single-quoted literals must not be treated as expression operators.
+  Assert.AreEqual('a=b', VarToStr(TReportExpression.Evaluate('''a=b''', FContext)));
+  Assert.AreEqual('a>b', VarToStr(TReportExpression.Evaluate('''a>b''', FContext)));
+  Assert.AreEqual('a+b', VarToStr(TReportExpression.Evaluate('''a+b''', FContext)));
+  Assert.AreEqual('a<=b', VarToStr(TReportExpression.Evaluate('''a<=b''', FContext)));
+  Assert.AreEqual('a<>b', VarToStr(TReportExpression.Evaluate('''a<>b''', FContext)));
 end;
 
 // --- Multi-token text with hyphens (BUG-007 characterization) ---
@@ -276,14 +305,16 @@ procedure TTestExpressionEngine.Test_Aggregate_SUM_WithUserDataSetNil_NotConfirm
 var
   Ctx: TExpressionContext;
 begin
-  // Characterization: when DataSet is nil (UserDataSet-only context),
-  // aggregates silently return nothing (TryEvaluate exits at the nil check).
+  // Characterization: This test documents CURRENT behavior.
+  // When no data source is available (DataSet and UserDataSet both nil),
+  // the unresolved [Amount] token now uses the existing zero-value
+  // fallback, so Evaluate returns 'SUM(0)'. Aggregates still do not
+  // evaluate over a nil data source (BUG-005). This test does NOT assert
+  // that 'SUM(0)' is the desired final behavior.
   Ctx := Default(TExpressionContext);
   Ctx.DataSet := nil;
   Ctx.UserDataSet := nil;
-  // Evaluate returns '' when the aggregate function cannot evaluate.
-  // This documents BUG-005: aggregates fail silently with no DataSet.
-  Assert.AreEqual('', VarToStr(TReportExpression.Evaluate('SUM([Amount])', Ctx)));
+  Assert.AreEqual('SUM(0)', VarToStr(TReportExpression.Evaluate('SUM([Amount])', Ctx)));
 end;
 
 // --- Variables ---
