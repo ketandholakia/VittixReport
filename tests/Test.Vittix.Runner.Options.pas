@@ -1,0 +1,223 @@
+unit Test.Vittix.Runner.Options;
+
+{
+  Phase 3C-1: deterministic unit tests for CLI option parsing.
+  Tests call ParseOptions directly with explicit argument arrays and never
+  depend on the actual process command line.
+}
+
+interface
+
+uses
+  DUnitX.TestFramework,
+  Vittix.Runner.Options;
+
+type
+  [TestFixture]
+  TRunnerOptionsTests = class
+  private
+    function Parse(const AArgs: array of string;
+      out AOptions: TRunnerOptions): Boolean;
+  public
+    [Test] procedure Test_Defaults_NoOptions;
+    [Test] procedure Test_ExplicitReports_OverridesProbe;
+    [Test] procedure Test_ExplicitBaseline_OverridesDefault;
+    [Test] procedure Test_ExplicitSampleData_OverridesDefault;
+    [Test] procedure Test_ExplicitOutput_OverridesDefault;
+    [Test] procedure Test_FilterSpaceSyntax;
+    [Test] procedure Test_FilterEqualsSyntax;
+    [Test] procedure Test_PositionalFilter_Preserved;
+    [Test] procedure Test_FilterAndPositional_Conflict;
+    [Test] procedure Test_DuplicateValueOption_Error;
+    [Test] procedure Test_OptionWithoutValue_Error;
+    [Test] procedure Test_UnknownOption_Error;
+    [Test] procedure Test_ReportsAndBaseline_Independent;
+    [Test] procedure Test_Help_LongSwitch;
+    [Test] procedure Test_Help_ShortSwitch;
+    [Test] procedure Test_Scripts_Switch;
+    [Test] procedure Test_ScriptTrace_Switch;
+    [Test] procedure Test_KeepVectorPDF_Switch;
+    [Test] procedure Test_Pause_Switch;
+  end;
+
+implementation
+
+function TRunnerOptionsTests.Parse(const AArgs: array of string;
+  out AOptions: TRunnerOptions): Boolean;
+var
+  Args: TArray<string>;
+  I: Integer;
+begin
+  SetLength(Args, Length(AArgs));
+  for I := 0 to High(AArgs) do
+    Args[I] := AArgs[I];
+  Result := ParseOptions(Args, AOptions);
+end;
+
+procedure TRunnerOptionsTests.Test_Defaults_NoOptions;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse([], Options));
+  Assert.AreEqual('', Options.ReportsPath);
+  Assert.AreEqual('', Options.BaselineFile);
+  Assert.AreEqual('', Options.SampleDataFile);
+  Assert.AreEqual('', Options.OutputPath);
+  Assert.AreEqual('', Options.Filter);
+  Assert.AreEqual('', Options.ErrorMessage);
+  Assert.IsFalse(Options.ScriptOnly);
+  Assert.IsFalse(Options.ScriptTraceOnly);
+  Assert.IsFalse(Options.KeepVectorPDF);
+  Assert.IsFalse(Options.Pause);
+  Assert.IsFalse(Options.Help);
+end;
+
+procedure TRunnerOptionsTests.Test_ExplicitReports_OverridesProbe;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['--reports', 'C:\temp\reports'], Options));
+  Assert.AreEqual('C:\temp\reports', Options.ReportsPath);
+end;
+
+procedure TRunnerOptionsTests.Test_ExplicitBaseline_OverridesDefault;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['--baseline', 'C:\temp\my.json'], Options));
+  Assert.AreEqual('C:\temp\my.json', Options.BaselineFile);
+end;
+
+procedure TRunnerOptionsTests.Test_ExplicitSampleData_OverridesDefault;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['--sample-data', 'C:\temp\data.json'], Options));
+  Assert.AreEqual('C:\temp\data.json', Options.SampleDataFile);
+end;
+
+procedure TRunnerOptionsTests.Test_ExplicitOutput_OverridesDefault;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['--output', 'C:\temp\out'], Options));
+  Assert.AreEqual('C:\temp\out', Options.OutputPath);
+end;
+
+procedure TRunnerOptionsTests.Test_FilterSpaceSyntax;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['--filter', '40_export_xlsx.vrt'], Options));
+  Assert.AreEqual('40_export_xlsx.vrt', Options.Filter);
+end;
+
+procedure TRunnerOptionsTests.Test_FilterEqualsSyntax;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['--filter=40_export_xlsx.vrt'], Options));
+  Assert.AreEqual('40_export_xlsx.vrt', Options.Filter);
+end;
+
+procedure TRunnerOptionsTests.Test_PositionalFilter_Preserved;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['40_export_xlsx.vrt'], Options));
+  Assert.AreEqual('40_export_xlsx.vrt', Options.Filter);
+end;
+
+procedure TRunnerOptionsTests.Test_FilterAndPositional_Conflict;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsFalse(Parse(['--filter', 'a.vrt', 'b.vrt'], Options));
+  Assert.IsNotEmpty(Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_DuplicateValueOption_Error;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsFalse(Parse(['--output', 'a', '--output', 'b'], Options));
+  Assert.IsNotEmpty(Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_OptionWithoutValue_Error;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsFalse(Parse(['--baseline'], Options));
+  Assert.IsNotEmpty(Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_UnknownOption_Error;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsFalse(Parse(['--bogus'], Options));
+  Assert.IsNotEmpty(Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_ReportsAndBaseline_Independent;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['--reports', 'D:\rep', '--baseline', 'D:\base.json'], Options));
+  Assert.AreEqual('D:\rep', Options.ReportsPath);
+  Assert.AreEqual('D:\base.json', Options.BaselineFile);
+end;
+
+procedure TRunnerOptionsTests.Test_Help_LongSwitch;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['--help'], Options));
+  Assert.IsTrue(Options.Help);
+end;
+
+procedure TRunnerOptionsTests.Test_Help_ShortSwitch;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['-h'], Options));
+  Assert.IsTrue(Options.Help);
+end;
+
+procedure TRunnerOptionsTests.Test_Scripts_Switch;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['--scripts'], Options));
+  Assert.IsTrue(Options.ScriptOnly);
+end;
+
+procedure TRunnerOptionsTests.Test_ScriptTrace_Switch;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['--script-trace'], Options));
+  Assert.IsTrue(Options.ScriptTraceOnly);
+end;
+
+procedure TRunnerOptionsTests.Test_KeepVectorPDF_Switch;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['--keep-vector-pdf'], Options));
+  Assert.IsTrue(Options.KeepVectorPDF);
+end;
+
+procedure TRunnerOptionsTests.Test_Pause_Switch;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['-pause'], Options));
+  Assert.IsTrue(Options.Pause);
+end;
+
+initialization
+  TDUnitX.RegisterTestFixture(TRunnerOptionsTests);
+
+end.

@@ -38,6 +38,7 @@ uses
   Vittix.Report.Export.HTML,
   Vittix.Report.Export.XLSX,
   Vittix.Report.Serializer,
+  Vittix.Runner.Options,
   Vittix.Report.Objects.Barcode,
   Vittix.Report.Objects.Table,
   Vittix.Report.Objects.CrossTab,
@@ -66,6 +67,7 @@ function HasExactSwitch(const ASwitch: string): Boolean;
 var
   I: Integer;
 begin
+  // Retained for compatibility; Phase 3C-1 parsing is in Vittix.Runner.Options.
   Result := False;
   for I := 1 to ParamCount do
     if SameText(ParamStr(I), ASwitch) then
@@ -427,11 +429,16 @@ begin
   Writeln('Usage: VittixRunner [options] [reportfile.vrt]');
   Writeln('');
   Writeln('Options:');
-  Writeln('  --scripts          Run only script-bearing regression reports.');
-  Writeln('  --script-trace     Print script trace diagnostics without pagination checks.');
-  Writeln('  --keep-vector-pdf  Keep vector PDF smoke outputs under build\vector-pdf-smoke.');
-  Writeln('  -pause             Keep console open after completion.');
-  Writeln('  -h, --help         Show this help.');
+  Writeln('  --reports <dir>     Use <dir> as the reports directory (no probing).');
+  Writeln('  --baseline <file>   Use <file> as the pagination baseline.');
+  Writeln('  --sample-data <f>   Use <f> as the sample data file.');
+  Writeln('  --output <dir>      Root directory for retained/export artifacts.');
+  Writeln('  --filter <report>   Run only <report> (also: --filter=<report>).');
+  Writeln('  --scripts           Run only script-bearing regression reports.');
+  Writeln('  --script-trace      Print script trace diagnostics without pagination checks.');
+  Writeln('  --keep-vector-pdf   Keep vector PDF smoke outputs under build\vector-pdf-smoke.');
+  Writeln('  -pause              Keep console open after completion.');
+  Writeln('  -h, --help          Show this help.');
 end;
 
 procedure TraceScriptObject(const AAdapter: TReportScriptHostAdapter; const AObject: TReportObject;
@@ -536,6 +543,9 @@ end;
 
 class procedure TVittixConsoleRunner.Run;
 var
+  Options: TRunnerOptions;
+  Args: TArray<string>;
+  SampleDataFile: string;
   ReportsPath: string;
   Files: TArray<string>;
   FileName, JustName, TargetFile: string;
@@ -584,7 +594,21 @@ begin
   Writeln(' VittixReport Headless Regression Runner');
   Writeln('================================================');
 
-  if HasExactSwitch('--help') or HasExactSwitch('-h') then
+  // Phase 3C-1: all CLI parsing is delegated to Vittix.Runner.Options.
+  // Arguments are acquired here (process-global state stays in the console
+  // entry point); parsing itself is deterministic and unit-tested.
+  SetLength(Args, ParamCount);
+  for I := 1 to ParamCount do
+    Args[I - 1] := ParamStr(I);
+
+  if not ParseOptions(Args, Options) then
+  begin
+    Writeln(Options.ErrorMessage);
+    Writeln('Run VittixRunner --help for usage information.');
+    Halt(1);
+  end;
+
+  if Options.Help then
   begin
     WriteUsage;
     Halt(0);
@@ -592,56 +616,66 @@ begin
 
   RegisterBuiltInReportObjects;
 
-  // Locate the reports directory dynamically based on executable location
-  ReportsPath := TPath.GetFullPath(TPath.Combine(ExtractFilePath(ParamStr(0)), '..\reports'));
-  if not TDirectory.Exists(ReportsPath) then
-    ReportsPath := TPath.GetFullPath(TPath.Combine(ExtractFilePath(ParamStr(0)), '..\..\reports'));
-  if not TDirectory.Exists(ReportsPath) then
-    ReportsPath := TPath.GetFullPath(TPath.Combine(ExtractFilePath(ParamStr(0)), '..\..\..\reports')); // Finds it from bin\Win32\Debug\
-
-  if not TDirectory.Exists(ReportsPath) then
+  // Reports directory: explicit --reports is used exclusively (no probing).
+  if Options.ReportsPath <> '' then
   begin
-    Writeln('Error: Could not locate "reports" directory at ', ReportsPath);
-    {$WARN SYMBOL_PLATFORM OFF}
-    if (DebugHook <> 0) or FindCmdLineSwitch('pause', True) then
+    ReportsPath := TPath.GetFullPath(Options.ReportsPath);
+    if not TDirectory.Exists(ReportsPath) then
     begin
-      Writeln('Press ENTER to exit...');
-      Readln;
+      Writeln('Error: --reports directory not found: ', ReportsPath);
+      Writeln('Run VittixRunner --help for usage information.');
+      Halt(1);
     end;
-    {$WARN SYMBOL_PLATFORM ON}
-    Halt(1);
+  end
+  else
+  begin
+    // Locate the reports directory dynamically based on executable location
+    ReportsPath := TPath.GetFullPath(TPath.Combine(ExtractFilePath(ParamStr(0)), '..\reports'));
+    if not TDirectory.Exists(ReportsPath) then
+      ReportsPath := TPath.GetFullPath(TPath.Combine(ExtractFilePath(ParamStr(0)), '..\..\reports'));
+    if not TDirectory.Exists(ReportsPath) then
+      ReportsPath := TPath.GetFullPath(TPath.Combine(ExtractFilePath(ParamStr(0)), '..\..\..\reports')); // Finds it from bin\Win32\Debug\
+
+    if not TDirectory.Exists(ReportsPath) then
+    begin
+      Writeln('Error: Could not locate "reports" directory at ', ReportsPath);
+      {$WARN SYMBOL_PLATFORM OFF}
+      if (DebugHook <> 0) or FindCmdLineSwitch('pause', True) then
+      begin
+        Writeln('Press ENTER to exit...');
+        Readln;
+      end;
+      {$WARN SYMBOL_PLATFORM ON}
+      Halt(1);
+    end;
   end;
 
   Writeln('Target: ', ReportsPath);
-  
-  TargetFile := '';
-  for I := 1 to ParamCount do
-  begin
-    if not ParamStr(I).StartsWith('-') then
-    begin
-      TargetFile := ParamStr(I);
-      Writeln('Filter: ', TargetFile);
-      Break;
-    end;
-  end;
+
+  TargetFile := Options.Filter;
+  if TargetFile <> '' then
+    Writeln('Filter: ', TargetFile);
   Writeln('------------------------------------------------');
 
-  ScriptOnly := HasExactSwitch('--scripts');
-  ScriptTraceOnly := HasExactSwitch('--script-trace');
-  KeepVectorPDF := HasExactSwitch('--keep-vector-pdf');
+  ScriptOnly := Options.ScriptOnly;
+  ScriptTraceOnly := Options.ScriptTraceOnly;
+  KeepVectorPDF := Options.KeepVectorPDF;
   if ScriptOnly then
     Writeln('Mode: script-focused reports only');
   if ScriptTraceOnly then
     Writeln('Mode: script trace only');
-  if KeepVectorPDF then
-  begin
+  // Runner-owned output directory for all smoke/export artifacts.
+  // Determined relative to the executable (never the process CWD) and
+  // created unconditionally so export smoke tests work from any CWD.
+  // Phase 3C-1: --output overrides the default root.
+  if Options.OutputPath <> '' then
+    VectorPdfOutputPath := TPath.GetFullPath(Options.OutputPath)
+  else
     VectorPdfOutputPath := TPath.GetFullPath(TPath.Combine(
       ExtractFilePath(ParamStr(0)), '..\vector-pdf-smoke'));
-    TDirectory.CreateDirectory(VectorPdfOutputPath);
+  TDirectory.CreateDirectory(VectorPdfOutputPath);
+  if KeepVectorPDF then
     Writeln('Vector PDF output: ', VectorPdfOutputPath);
-  end
-  else
-    VectorPdfOutputPath := '';
 
   Files := TDirectory.GetFiles(ReportsPath, '*.vrt');
   TArray.Sort<string>(Files); // Ensure deterministic execution order
@@ -657,6 +691,8 @@ begin
   {$WARN SYMBOL_DEPRECATED ON}
   
   BaselineFile := TPath.Combine(ReportsPath, 'regression_baselines.json');
+  if Options.BaselineFile <> '' then
+    BaselineFile := TPath.GetFullPath(Options.BaselineFile);
   BaselineModified := False;
   if TFile.Exists(BaselineFile) then
   begin
@@ -672,8 +708,21 @@ begin
   ScriptAdapter := TReportScriptHostAdapter.Create;
   try
     // Dynamically load the exact same data the visual designer uses!
-    if TFile.Exists(TPath.Combine(ReportsPath, 'sample_data.json')) then
-      MemTable.LoadFromFile(TPath.Combine(ReportsPath, 'sample_data.json'), sfJSON);
+    // Phase 3C-1: --sample-data overrides the default; an explicit file
+    // must exist.
+    SampleDataFile := TPath.Combine(ReportsPath, 'sample_data.json');
+    if Options.SampleDataFile <> '' then
+    begin
+      SampleDataFile := TPath.GetFullPath(Options.SampleDataFile);
+      if not TFile.Exists(SampleDataFile) then
+      begin
+        Writeln('Error: --sample-data file not found: ', SampleDataFile);
+        Writeln('Run VittixRunner --help for usage information.');
+        Halt(1);
+      end;
+    end;
+    if TFile.Exists(SampleDataFile) then
+      MemTable.LoadFromFile(SampleDataFile, sfJSON);
 
     for FileName in Files do
     begin
@@ -896,7 +945,8 @@ begin
             if not TFile.Exists(VectorPdfFile) then
               raise Exception.Create('Vector PDF smoke output was not created');
             if IsExportXLSXReport then
-              TReportXLSXExporter.ExportToFile(ExportDoc.Pages, 'build\vector-pdf-smoke\' + ExtractFileName(FileName) + '.xlsx');
+              TReportXLSXExporter.ExportToFile(ExportDoc.Pages,
+                TPath.Combine(VectorPdfOutputPath, ExtractFileName(FileName) + '.xlsx'));
             Header := TFile.ReadAllBytes(VectorPdfFile);
             if (Length(Header) < 5) or
                (TEncoding.ASCII.GetString(Header, 0, 5) <> '%PDF-') then
@@ -956,8 +1006,8 @@ begin
             if IsExportHTMLReport then
             begin
               if KeepVectorPDF then
-                HtmlFile := 'build\vector-pdf-smoke\' +
-                  TPath.GetFileNameWithoutExtension(JustName) + '.html'
+                HtmlFile := TPath.Combine(VectorPdfOutputPath,
+                  TPath.GetFileNameWithoutExtension(JustName) + '.html')
               else
                 HtmlFile := TPath.Combine(TPath.GetTempPath,
                   TPath.GetFileNameWithoutExtension(JustName) + '_' +
@@ -1100,7 +1150,7 @@ begin
 
   // Keep console open if running inside the Delphi IDE debugger or if -pause argument is used
   {$WARN SYMBOL_PLATFORM OFF}
-  if (DebugHook <> 0) or FindCmdLineSwitch('pause', True) then
+  if (DebugHook <> 0) or Options.Pause then
   begin
     Writeln('Press ENTER to exit...');
     Readln;

@@ -21,7 +21,7 @@
         <DCC_S>false</DCC_S>
         <DCC_F>false</DCC_F>
         <DCC_K>false</DCC_K>
-        <DCC_UnitSearchPath>..\source;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>..;..\source;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;$(DCC_Namespace)</DCC_Namespace>
     </PropertyGroup>
     <ItemGroup>
@@ -44,6 +44,9 @@
             <DCCReference>MainSource</DCCReference>
         </DelphiCompile>
         <DelphiCompile Include="Test.Vittix.Report.Characterization.pas">
+            <DCCReference>MainSource</DCCReference>
+        </DelphiCompile>
+        <DelphiCompile Include="Test.Vittix.Runner.Options.pas">
             <DCCReference>MainSource</DCCReference>
         </DelphiCompile>
     </ItemGroup>
