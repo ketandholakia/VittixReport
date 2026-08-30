@@ -127,6 +127,7 @@ type
     FFooterBand:        TReportBand;
     FSummaryBand:       TReportBand;
     FOverlayBand:       TReportBand;   // btOverlay — drawn last over the full page
+    FPrintingFooter:    Boolean;       // guards against recursive page breaks inside footer rendering
 
     FGroupStartBookmark:    TBookmark;
     FGroupEndBookmark:      TBookmark;
@@ -294,6 +295,8 @@ begin
   FGroupFooters := TObjectList<TReportBand>.Create(False);
   FDetailBands  := TObjectList<TReportBand>.Create(False);
 
+  FPrintingFooter := False;
+
   // Page dimensions are read from PageSettings in Prepare; seed defaults here
   // so StartNewPage can be called safely before Prepare sets them.
   FPageWidth  := 793;
@@ -441,7 +444,12 @@ begin
       if Assigned(FFooterBand) and (FFooterBand.Height > 0) then
       begin
         FCurrentY := FPageHeight - FReport.PageSettings.Margins.Bottom - FFooterBand.Height;
-        PrintBand(FFooterBand);
+        FPrintingFooter := True;
+        try
+          PrintBand(FFooterBand);
+        finally
+          FPrintingFooter := False;
+        end;
       end;
 
       { overlay drawn last — spans the full printable area }
@@ -722,6 +730,8 @@ procedure TReportEngine.ProcessMasterDataLoop(
   var ARowNumber: Integer; var AHasOpenedGroups: Boolean);
 var
   BreakLevel: Integer;
+  SaveBM: TBookmark;
+  HasSaveBM: Boolean;
 begin
   if not PrimarySourceActive then
     Exit;
@@ -749,6 +759,7 @@ begin
   if not Assigned(FDataSet) or not FDataSet.Active then
     Exit;
 
+  HasSaveBM := Vittix.Report.LayoutBookmarks.CaptureDataSetBookmark(FDataSet, SaveBM);
   FDataSet.DisableControls;
   try
     FDataSet.First;
@@ -769,6 +780,7 @@ begin
       FDataSet.Next;
     end;
   finally
+    Vittix.Report.LayoutBookmarks.RestoreDataSetBookmark(FDataSet, SaveBM, HasSaveBM);
     FDataSet.EnableControls;
   end;
 end;
@@ -940,7 +952,8 @@ begin
   if not ABand.Visible then Exit;
 
   if (ABand.StartNewPage or BandHasChildPageBreak(ABand, True)) and
-     (FCurrentY > FReport.PageSettings.Margins.Top) then
+     (FCurrentY > FReport.PageSettings.Margins.Top) and
+     not FPrintingFooter then
   begin
     if ABand.OverridePageSettings then
       ApplyPageSettings(ABand.PageSettings);
@@ -1080,7 +1093,7 @@ begin
 
   Inc(FCurrentY, EffectiveH);
 
-  if BandHasChildPageBreak(ABand, False) then
+  if BandHasChildPageBreak(ABand, False) and not FPrintingFooter then
   begin
     StartNewPage;
     PrintPageHeader;
