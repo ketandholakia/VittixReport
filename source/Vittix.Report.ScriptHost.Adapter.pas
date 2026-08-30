@@ -314,7 +314,7 @@ end;
 
 procedure TReportScriptHostAdapter.Cmd_Visible(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
 var
-  N: Integer;
+  B: Boolean;
 begin
     if SameText(Value, 'True') then
       B := True
@@ -335,7 +335,7 @@ end;
 
 procedure TReportScriptHostAdapter.Cmd_Anchorright(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
 var
-  N: Integer;
+  B: Boolean;
 begin
     if SameText(Value, 'True') then
       B := True
@@ -355,7 +355,7 @@ end;
 
 procedure TReportScriptHostAdapter.Cmd_Anchorbottom(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
 var
-  N: Integer;
+  B: Boolean;
 begin
     if SameText(Value, 'True') then
       B := True
@@ -375,7 +375,7 @@ end;
 
 procedure TReportScriptHostAdapter.Cmd_Background(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
 var
-  N: Integer;
+  C: TColor;
 begin
     if not (AObject is TReportTextObject) then
     begin
@@ -399,7 +399,7 @@ end;
 
 procedure TReportScriptHostAdapter.Cmd_Fontcolor(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
 var
-  N: Integer;
+  C: TColor;
 begin
     if not (AObject is TReportTextObject) and not (AObject is TReportImageObject) then
     begin
@@ -517,7 +517,7 @@ end;
 
 procedure TReportScriptHostAdapter.Cmd_Fontbold(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
 var
-  N: Integer;
+  B: Boolean;
 begin
     if not (AObject is TReportTextObject) then
     begin
@@ -547,7 +547,7 @@ end;
 
 procedure TReportScriptHostAdapter.Cmd_Fontitalic(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
 var
-  N: Integer;
+  B: Boolean;
 begin
     if not (AObject is TReportTextObject) then
     begin
@@ -691,7 +691,7 @@ end;
 
 procedure TReportScriptHostAdapter.Cmd_Fontcolorontrue(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
 var
-  N: Integer;
+  C: TColor;
 begin
     if not (AObject is TReportTextObject) then
     begin
@@ -714,7 +714,7 @@ end;
 
 procedure TReportScriptHostAdapter.Cmd_Backgroundontrue(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
 var
-  N: Integer;
+  C: TColor;
 begin
     if not (AObject is TReportTextObject) then
     begin
@@ -769,7 +769,7 @@ end;
 
 procedure TReportScriptHostAdapter.Cmd_Bordercolorontrue(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
 var
-  N: Integer;
+  C: TColor;
 begin
     if not (AObject is TReportTextObject) then
     begin
@@ -792,7 +792,7 @@ end;
 
 procedure TReportScriptHostAdapter.Cmd_Bordercolor(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
 var
-  N: Integer;
+  C: TColor;
 begin
     if not (AObject is TReportTextObject) then
     begin
@@ -824,7 +824,7 @@ end;
 
 procedure TReportScriptHostAdapter.Cmd_Stretch(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
 var
-  N: Integer;
+  B: Boolean;
 begin
     if not (AObject is TReportImageObject) then
     begin
@@ -851,7 +851,7 @@ end;
 
 procedure TReportScriptHostAdapter.Cmd_Center(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
 var
-  N: Integer;
+  B: Boolean;
 begin
     if not (AObject is TReportImageObject) then
     begin
@@ -878,7 +878,7 @@ end;
 
 procedure TReportScriptHostAdapter.Cmd_Proportional(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
 var
-  N: Integer;
+  B: Boolean;
 begin
     if not (AObject is TReportImageObject) then
     begin
@@ -1153,7 +1153,7 @@ end;
 
 procedure TReportScriptHostAdapter.Cmd_Text(AObject: TReportObject; const Value, AScript: string; var Context: TExpressionContext; var ACanPrint: Boolean; var AResult: TScriptHostCommandResult);
 var
-  N: Integer;
+  Arg: string; F: TField; Lit: string; N: Integer;
 begin
     if (Length(Value) >= 8) and SameText(Copy(Value, 1, 6), 'Field(') and
        (Value[Length(Value)] = ')') then

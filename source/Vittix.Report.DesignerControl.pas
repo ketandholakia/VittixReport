@@ -1819,11 +1819,11 @@ begin
     
   if TargetBandY < 0 then Exit;
 
-  Canvas.Pen.Color := ; // Fuchsia
+  Canvas.Pen.Color := clFuchsia; // Fuchsia
   Canvas.Pen.Style := psSolid;
   Canvas.Pen.Width := 1;
 
-  ContentLeft := PageLeft + Scale(FReport.Page.MarginLeft);
+  ContentLeft := PageLeft + Scale(FReport.PageSettings.Margins.Left);
 
   for I := 0 to High(Guides) do
   begin
