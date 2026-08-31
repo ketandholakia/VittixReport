@@ -17,7 +17,6 @@ uses
   System.Diagnostics,
   System.Classes,
   System.Generics.Collections,
-  System.JSON,
   Winapi.Windows,
   Data.DB,
   FireDAC.Comp.Client,
@@ -34,6 +33,7 @@ uses
   Vittix.Runner.Options,
   Vittix.Runner.Discovery,
   Vittix.Runner.Baseline,
+  Vittix.Runner.Baseline.Legacy,
   Vittix.Runner.Results,
   Vittix.Runner.Formatting,
   Vittix.Runner.TextFormatter,
@@ -153,24 +153,6 @@ begin
   RegisterReportObject(TReportTableObject);
 end;
 
-function TryGetBaselinePageCount(ABaselineJSON: TJSONObject;
-  const AReportName: string; out APageCount: Integer): Boolean;
-var
-  I: Integer;
-  Pair: TJSONPair;
-begin
-  Result := False;
-  if not Assigned(ABaselineJSON) then
-    Exit;
-
-  for I := ABaselineJSON.Count - 1 downto 0 do
-  begin
-    Pair := ABaselineJSON.Pairs[I];
-    if SameText(Pair.JsonString.Value, AReportName) then
-      Exit(TryStrToInt(Pair.JsonValue.Value, APageCount));
-  end;
-end;
-
 { TVittixConsoleRunner }
 
 class procedure TVittixConsoleRunner.Run;
@@ -187,7 +169,7 @@ var
   StartUser, EndUser: DWORD;
   StartMem, EndMem: Int64;
   BaselineFile: string;
-  BaselineJSON: TJSONObject;
+  LegacyBaseline: TLegacyBaseline;
   StrictBaseline: TRegressionBaseline;
   StrictParseError: TBaselineParseError;
   ActualResults: TArray<TReportPageResult>;
@@ -414,11 +396,11 @@ begin
   if Options.BaselineFile <> '' then
     BaselineFile := TPath.GetFullPath(Options.BaselineFile);
   BaselineModified := False;
-  BaselineJSON := nil;
+  LegacyBaseline := nil;
   StrictBaseline := nil;
   StrictFailed := False;
   // Phase 3C-2c-2: strict mode uses the validated read-only baseline loader
-  // (TRegressionBaseline.LoadFromFile), never the tolerant raw TJSONObject
+  // (TRegressionBaseline.LoadFromFile), never the tolerant TLegacyBaseline
   // path below, and never fabricates an empty baseline object. A missing,
   // empty, malformed or invalid baseline is a strict configuration error
   // (exit 2); no reports are executed in that case.
@@ -433,14 +415,8 @@ begin
     end;
   end
   else
-  if TFile.Exists(BaselineFile) then
-  begin
-    BaselineJSON := TJSONObject.ParseJSONValue(TFile.ReadAllText(BaselineFile, TEncoding.UTF8)) as TJSONObject;
-    if not Assigned(BaselineJSON) then
-      BaselineJSON := TJSONObject.Create;
-  end
-  else
-  BaselineJSON := TJSONObject.Create;
+    // Phase 3E-4: tolerant load moved to TLegacyBaseline.LoadOrEmpty.
+    LegacyBaseline := TLegacyBaseline.LoadOrEmpty(BaselineFile);
 
   // Note: You may need to adapt this dummy dataset to exactly match what the designer uses
   MemTable := TFDMemTable.Create(nil);
@@ -589,7 +565,7 @@ begin
           // Non-strict: existing tolerant baseline comparison and
           // auto-registration behavior (unchanged).
           // Check against pagination baseline
-          if TryGetBaselinePageCount(BaselineJSON, JustName, ExpectedPages) then
+          if LegacyBaseline.TryGetExpectedPages(JustName, ExpectedPages) then
           begin
             if ExpectedPages <> PageCount then
             begin
@@ -603,7 +579,7 @@ begin
           end
           else
           begin
-            BaselineJSON.AddPair(JustName, TJSONNumber.Create(PageCount));
+            LegacyBaseline.RegisterReport(JustName, PageCount);
             BaselineModified := True;
           end;
         end
@@ -730,16 +706,20 @@ begin
     ScriptAdapter.Free;
   end;
 
-  if BaselineModified then
-    TFile.WriteAllText(BaselineFile, BaselineJSON.Format(2), TEncoding.UTF8);
-  // Phase 3C-2c-2: BaselineJSON stays nil in strict mode, so strict runs
-  // can never write or free it (structurally read-only).
-  if Assigned(BaselineJSON) then
-    BaselineJSON.Free;
+  try
+    // Phase 3E-4: the save decision (BaselineModified) stays here; the
+    // serialization itself belongs to TLegacyBaseline. LegacyBaseline is
+    // nil in strict mode, so strict runs can never write or free it
+    // (structurally read-only).
+    if BaselineModified then
+      LegacyBaseline.SaveToFile(BaselineFile);
+  finally
+    LegacyBaseline.Free;
+  end;
 
   // Phase 3D-2: record non-strict baseline auto-registration. This flag
   // alone never turns the run into a failure. Strict runs keep it False:
-  // BaselineJSON stays nil and BaselineModified is never set in strict
+  // LegacyBaseline stays nil and BaselineModified is never set in strict
   // mode (structurally read-only).
   RunResult.BaselineUpdated := BaselineModified;
 

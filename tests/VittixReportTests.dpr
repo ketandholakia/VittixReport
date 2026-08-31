@@ -23,6 +23,8 @@ uses
   Test.Vittix.Runner.Discovery in 'Test.Vittix.Runner.Discovery.pas',
   Vittix.Runner.Baseline in '..\Vittix.Runner.Baseline.pas',
   Test.Vittix.Runner.Baseline in 'Test.Vittix.Runner.Baseline.pas',
+  Vittix.Runner.Baseline.Legacy in '..\Vittix.Runner.Baseline.Legacy.pas',
+  Test.Vittix.Runner.Baseline.Legacy in 'Test.Vittix.Runner.Baseline.Legacy.pas',
   Vittix.Runner.Results in '..\Vittix.Runner.Results.pas',
   Test.Vittix.Runner.Results in 'Test.Vittix.Runner.Results.pas',
   Vittix.Runner.Formatting in '..\Vittix.Runner.Formatting.pas',
