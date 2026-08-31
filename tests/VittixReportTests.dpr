@@ -19,6 +19,8 @@ uses
   Test.Vittix.Report.Characterization in 'Test.Vittix.Report.Characterization.pas',
   Test.Vittix.Runner.Options in 'Test.Vittix.Runner.Options.pas',
   Vittix.Runner.Options in '..\Vittix.Runner.Options.pas',
+  Vittix.Runner.Discovery in '..\Vittix.Runner.Discovery.pas',
+  Test.Vittix.Runner.Discovery in 'Test.Vittix.Runner.Discovery.pas',
   Vittix.Runner.Baseline in '..\Vittix.Runner.Baseline.pas',
   Test.Vittix.Runner.Baseline in 'Test.Vittix.Runner.Baseline.pas',
   Vittix.Runner.Results in '..\Vittix.Runner.Results.pas',

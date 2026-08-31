@@ -32,6 +32,7 @@ uses
   Vittix.Report.Scripting,
   Vittix.Report.UserDataSet,
   Vittix.Runner.Options,
+  Vittix.Runner.Discovery,
   Vittix.Runner.Baseline,
   Vittix.Runner.Results,
   Vittix.Runner.Formatting,
@@ -205,9 +206,10 @@ var
   KeepVectorPDF: Boolean;
   VectorPdfOutputPath: string;
   ReportText: string;
-  HasObjectScript: Boolean;
   ScriptBeforeCount: Integer;
   ScriptAfterCount: Integer;
+  Classif: TReportClassification;
+  RunMode: TReportRunMode;
   Obj: TReportObject;
   // Phase 3E-2: report execution is delegated to TVittixReportExecutor.
   // The executor owns the report model, engine, datasets and temp export
@@ -347,6 +349,13 @@ begin
   ScriptTraceOnly := Options.ScriptTraceOnly;
   KeepVectorPDF := Options.KeepVectorPDF;
 
+  if ScriptTraceOnly then
+    RunMode := rmScriptTraceOnly
+  else if ScriptOnly then
+    RunMode := rmScriptOnly
+  else
+    RunMode := rmAll;
+
   if not IsJsonMode then
   begin
     Writeln('Target: ', ReportsPath);
@@ -375,8 +384,7 @@ begin
   if KeepVectorPDF and not IsJsonMode then
     Writeln('Vector PDF output: ', VectorPdfOutputPath);
 
-  Files := TDirectory.GetFiles(ReportsPath, '*.vrt');
-  TArray.Sort<string>(Files); // Ensure deterministic execution order
+  Files := TReportDiscovery.EnumerateReports(ReportsPath);
 
   PassCount := 0;
   FailCount := 0;
@@ -477,27 +485,18 @@ begin
       // truth for [LEAK] classification and FailCount.
       RecLeakDelta := 0;
 
-      JustName := ExtractFileName(FileName);
-      ReportText := '';
-      HasObjectScript := False;
-      ScriptBeforeCount := 0;
-      ScriptAfterCount := 0;
+      Classif := TReportDiscovery.ClassifyReport(FileName, TargetFile, RunMode);
+      JustName := Classif.ReportName;
+      ScriptBeforeCount := Classif.ScriptBeforeCount;
+      ScriptAfterCount := Classif.ScriptAfterCount;
 
-      if (TargetFile <> '') and not SameText(JustName, TargetFile) then
+      // Phase 3E-3: excluded reports are dropped before any skip
+      // recording, output, or execution (legacy precedence preserved).
+      if Classif.Action = raExcluded then
         Continue;
 
-      if ScriptOnly or ScriptTraceOnly then
-      begin
-        ReportText := TFile.ReadAllText(FileName, TEncoding.UTF8);
-        ScriptBeforeCount := CountOccurrences(ReportText, '"OnBeforePrint": "');
-        ScriptAfterCount := CountOccurrences(ReportText, '"OnAfterPrint": "');
-        HasObjectScript := (ScriptBeforeCount > 0) or (ScriptAfterCount > 0);
-        if not HasObjectScript then
-          Continue;
-      end;
-
       // Enforce TESTING.md rules for excluded files
-      if JustName.StartsWith('test') or JustName.Equals('16_large_preview_warning.vrt') then
+      if Classif.Action = raSkip then
       begin
         // Phase 3D-2: record skipped report. No page counts are fabricated.
         Rec := Default(TReportExecutionResult);
@@ -514,6 +513,8 @@ begin
         Inc(SkipCount);
         Continue;
       end;
+
+      // Phase 3E-3: raRun falls through to the existing execution path.
 
       TestStartGDI := GetGuiResources(GetCurrentProcess, GR_GDIOBJECTS);
       TestFailed := False;
