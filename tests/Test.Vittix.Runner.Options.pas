@@ -52,6 +52,25 @@ type
     [Test] procedure Test_StrictWithOutputAccepted;
     [Test] procedure Test_StrictWithBaselineAccepted;
     [Test] procedure Test_StrictWithReportsAccepted;
+    // Phase 3D-5: --format options
+    [Test] procedure Test_Format_DefaultIsText;
+    [Test] procedure Test_Format_Text;
+    [Test] procedure Test_Format_TextEquals;
+    [Test] procedure Test_Format_Json;
+    [Test] procedure Test_Format_JsonEquals;
+    [Test] procedure Test_Format_JsonUpperCase;
+    [Test] procedure Test_Format_CaseInsensitiveValue;
+    [Test] procedure Test_Format_InvalidValue;
+    [Test] procedure Test_Format_DuplicateFormat;
+    [Test] procedure Test_Format_DuplicateTextText;
+    [Test] procedure Test_Format_MissingValue;
+    [Test] procedure Test_Format_EmptyValue;
+    [Test] procedure Test_Format_StrictWithJson;
+    [Test] procedure Test_Format_FilterWithJson;
+    [Test] procedure Test_Format_ScriptsWithJson;
+    [Test] procedure Test_Format_ScriptTraceWithJsonRejected;
+    [Test] procedure Test_Format_KeepVectorPdfWithJson;
+    [Test] procedure Test_Format_PauseWithJsonRejected;
   end;
 
 implementation
@@ -349,6 +368,167 @@ begin
   Assert.IsTrue(Options.&Strict);
   Assert.AreEqual('D:\reports', Options.ReportsPath);
   Assert.AreEqual('', Options.ErrorMessage);
+end;
+// =============================================
+// Phase 3D-5: --format options tests
+// =============================================
+
+procedure TRunnerOptionsTests.Test_Format_DefaultIsText;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse([], Options));
+  Assert.AreEqual(ofText, Options.OutputFormat);
+  Assert.AreEqual('', Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_Format_Text;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['--format', 'text'], Options));
+  Assert.AreEqual(ofText, Options.OutputFormat);
+  Assert.AreEqual('', Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_Format_TextEquals;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['--format=text'], Options));
+  Assert.AreEqual(ofText, Options.OutputFormat);
+  Assert.AreEqual('', Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_Format_Json;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['--format', 'json'], Options));
+  Assert.AreEqual(ofJson, Options.OutputFormat);
+  Assert.AreEqual('', Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_Format_JsonEquals;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['--format=json'], Options));
+  Assert.AreEqual(ofJson, Options.OutputFormat);
+  Assert.AreEqual('', Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_Format_JsonUpperCase;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['--format', 'JSON'], Options));
+  Assert.AreEqual(ofJson, Options.OutputFormat);
+  Assert.AreEqual('', Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_Format_CaseInsensitiveValue;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['--format', 'Json'], Options));
+  Assert.AreEqual(ofJson, Options.OutputFormat);
+  Assert.AreEqual('', Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_Format_InvalidValue;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsFalse(Parse(['--format', 'xml'], Options));
+  Assert.IsNotEmpty(Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_Format_DuplicateFormat;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsFalse(Parse(['--format', 'json', '--format', 'text'], Options));
+  Assert.IsNotEmpty(Options.ErrorMessage);
+end;
+procedure TRunnerOptionsTests.Test_Format_DuplicateTextText;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsFalse(Parse(['--format', 'text', '--format', 'text'], Options));
+  Assert.IsNotEmpty(Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_Format_MissingValue;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsFalse(Parse(['--format'], Options));
+  Assert.IsNotEmpty(Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_Format_EmptyValue;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsFalse(Parse(['--format='], Options));
+  Assert.IsNotEmpty(Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_Format_StrictWithJson;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['--strict', '--format', 'json'], Options));
+  Assert.IsTrue(Options.&Strict);
+  Assert.AreEqual(ofJson, Options.OutputFormat);
+  Assert.AreEqual('', Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_Format_FilterWithJson;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['--filter', 'report.vrt', '--format', 'json'], Options));
+  Assert.AreEqual('report.vrt', Options.Filter);
+  Assert.AreEqual(ofJson, Options.OutputFormat);
+  Assert.AreEqual('', Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_Format_ScriptsWithJson;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['--scripts', '--format', 'json'], Options));
+  Assert.IsTrue(Options.ScriptOnly);
+  Assert.AreEqual(ofJson, Options.OutputFormat);
+  Assert.AreEqual('', Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_Format_ScriptTraceWithJsonRejected;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsFalse(Parse(['--script-trace', '--format', 'json'], Options));
+  Assert.IsNotEmpty(Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_Format_KeepVectorPdfWithJson;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsTrue(Parse(['--keep-vector-pdf', '--format', 'json'], Options));
+  Assert.IsTrue(Options.KeepVectorPDF);
+  Assert.AreEqual(ofJson, Options.OutputFormat);
+  Assert.AreEqual('', Options.ErrorMessage);
+end;
+
+procedure TRunnerOptionsTests.Test_Format_PauseWithJsonRejected;
+var
+  Options: TRunnerOptions;
+begin
+  Assert.IsFalse(Parse(['-pause', '--format', 'json'], Options));
+  Assert.IsNotEmpty(Options.ErrorMessage);
 end;
 
 initialization

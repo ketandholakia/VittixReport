@@ -20,7 +20,14 @@ uses
   Test.Vittix.Runner.Options in 'Test.Vittix.Runner.Options.pas',
   Vittix.Runner.Options in '..\Vittix.Runner.Options.pas',
   Vittix.Runner.Baseline in '..\Vittix.Runner.Baseline.pas',
-  Test.Vittix.Runner.Baseline in 'Test.Vittix.Runner.Baseline.pas';
+  Test.Vittix.Runner.Baseline in 'Test.Vittix.Runner.Baseline.pas',
+  Vittix.Runner.Results in '..\Vittix.Runner.Results.pas',
+  Test.Vittix.Runner.Results in 'Test.Vittix.Runner.Results.pas',
+  Vittix.Runner.Formatting in '..\Vittix.Runner.Formatting.pas',
+  Vittix.Runner.TextFormatter in '..\Vittix.Runner.TextFormatter.pas',
+    Test.Vittix.Runner.Formatting in 'Test.Vittix.Runner.Formatting.pas',
+  Vittix.Runner.JsonFormatter in '..\Vittix.Runner.JsonFormatter.pas',
+  Test.Vittix.Runner.JsonFormatter in 'Test.Vittix.Runner.JsonFormatter.pas';
 
 var
   runner : ITestRunner;

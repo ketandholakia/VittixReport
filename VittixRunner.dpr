@@ -6,6 +6,7 @@ program VittixRunner;
 uses
   System.SysUtils,
   Vittix.Runner.Options in 'Vittix.Runner.Options.pas',
+  Vittix.Runner.Execution in 'Vittix.Runner.Execution.pas',
   Vittix.Runner.Console in 'Vittix.Runner.Console.pas';
 
 begin

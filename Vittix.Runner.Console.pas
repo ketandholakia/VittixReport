@@ -30,39 +30,19 @@ uses
   Vittix.Report.Bands,
   Vittix.Report.Context,
   Vittix.Report.Scripting,
-  Vittix.Report.Engine,
   Vittix.Report.UserDataSet,
-  Vittix.Report.Export.Commands,
-  Vittix.Report.Export.VectorPDF,
-  Vittix.Report.Export.VectorPDF.EMF,
-  Vittix.Report.Export.HTML,
-  Vittix.Report.Export.XLSX,
-  Vittix.Report.Serializer,
   Vittix.Runner.Options,
   Vittix.Runner.Baseline,
+  Vittix.Runner.Results,
+  Vittix.Runner.Formatting,
+  Vittix.Runner.TextFormatter,
+  Vittix.Runner.JsonFormatter,
+  Vittix.Runner.Execution,
+  Vittix.Runner.ExportVerification,
   Vittix.Report.Objects.Barcode,
   Vittix.Report.Objects.Table,
   Vittix.Report.Objects.CrossTab,
   Vittix.Report.ScriptHost.Adapter;
-
-function CountOccurrences(const Haystack, Needle: string): Integer;
-var
-  P: Integer;
-  SearchFrom: Integer;
-begin
-  Result := 0;
-  if (Haystack = '') or (Needle = '') then
-    Exit;
-  SearchFrom := 1;
-  while True do
-  begin
-    P := PosEx(Needle, Haystack, SearchFrom);
-    if P = 0 then
-      Break;
-    Inc(Result);
-    SearchFrom := P + Length(Needle);
-  end;
-end;
 
 function HasExactSwitch(const ASwitch: string): Boolean;
 var
@@ -73,356 +53,6 @@ begin
   for I := 1 to ParamCount do
     if SameText(ParamStr(I), ASwitch) then
       Exit(True);
-end;
-
-function BytesContainAscii(const ABytes: TBytes; const AText: AnsiString): Boolean;
-var
-  I: Integer;
-  J: Integer;
-begin
-  Result := False;
-  if (Length(ABytes) = 0) or (Length(AText) = 0) or
-     (Length(ABytes) < Length(AText)) then
-    Exit;
-
-  for I := 0 to Length(ABytes) - Length(AText) do
-  begin
-    Result := True;
-    for J := 1 to Length(AText) do
-      if ABytes[I + J - 1] <> Ord(AText[J]) then
-      begin
-        Result := False;
-        Break;
-      end;
-    if Result then
-      Exit;
-  end;
-end;
-
-function CountAsciiOccurrences(const ABytes: TBytes; const AText: AnsiString): Integer;
-var
-  I: Integer;
-  J: Integer;
-  Match: Boolean;
-begin
-  Result := 0;
-  if (Length(ABytes) = 0) or (Length(AText) = 0) or
-     (Length(ABytes) < Length(AText)) then
-    Exit;
-
-  for I := 0 to Length(ABytes) - Length(AText) do
-  begin
-    Match := True;
-    for J := 1 to Length(AText) do
-      if ABytes[I + J - 1] <> Ord(AText[J]) then
-      begin
-        Match := False;
-        Break;
-      end;
-    if Match then
-      Inc(Result);
-  end;
-end;
-
-function PdfPointNumber(AValue: Integer): AnsiString;
-begin
-  Result := AnsiString(StringReplace(
-    FormatFloat('0.###', AValue * (72 / 96)),
-    FormatSettings.DecimalSeparator,
-    '.',
-    []));
-end;
-
-function ExportDocumentContainsText(ADocument: TReportExportDocument;
-  const AText: string): Boolean;
-var
-  Page: TReportExportPage;
-  Command: TReportExportCommand;
-begin
-  Result := False;
-  if not Assigned(ADocument) then
-    Exit;
-
-  for Page in ADocument.Pages do
-    for Command in Page.Commands do
-      if (Command is TReportExportTextCommand) and
-         ContainsText(TReportExportTextCommand(Command).Text, AText) then
-        Exit(True);
-end;
-
-procedure RequireExportText(ADocument: TReportExportDocument; const AText: string);
-begin
-  if not ExportDocumentContainsText(ADocument, AText) then
-    raise Exception.CreateFmt('Expected rendered dataset value not found: %s', [AText]);
-end;
-
-function CountExportTextCommands(ADocument: TReportExportDocument;
-  const AText: string): Integer;
-var
-  Page: TReportExportPage;
-  Command: TReportExportCommand;
-begin
-  Result := 0;
-  if not Assigned(ADocument) then
-    Exit;
-
-  for Page in ADocument.Pages do
-    for Command in Page.Commands do
-      if (Command is TReportExportTextCommand) and
-         SameText(TReportExportTextCommand(Command).Text, AText) then
-        Inc(Result);
-end;
-
-function ExportDocumentContainsImageSource(ADocument: TReportExportDocument;
-  const ASource: string): Boolean;
-var
-  Page: TReportExportPage;
-  Command: TReportExportCommand;
-begin
-  Result := False;
-  if not Assigned(ADocument) then
-    Exit;
-
-  for Page in ADocument.Pages do
-    for Command in Page.Commands do
-      if (Command is TReportExportImageCommand) and
-         SameText(TReportExportImageCommand(Command).Source, ASource) then
-        Exit(True);
-end;
-
-function CountExportImageCommands(ADocument: TReportExportDocument): Integer;
-var
-  Page: TReportExportPage;
-  Command: TReportExportCommand;
-begin
-  Result := 0;
-  if not Assigned(ADocument) then
-    Exit;
-
-  for Page in ADocument.Pages do
-    for Command in Page.Commands do
-      if Command is TReportExportImageCommand then
-        Inc(Result);
-end;
-
-procedure CreateVerificationPNG(const AFileName: string; const AColor: TColor);
-var
-  Bitmap: TBitmap;
-  PNG: TPngImage;
-begin
-  Bitmap := TBitmap.Create;
-  PNG := TPngImage.Create;
-  try
-    Bitmap.SetSize(16, 16);
-    Bitmap.Canvas.Brush.Color := AColor;
-    Bitmap.Canvas.FillRect(Rect(0, 0, Bitmap.Width, Bitmap.Height));
-    PNG.Assign(Bitmap);
-    PNG.SaveToFile(AFileName);
-  finally
-    PNG.Free;
-    Bitmap.Free;
-  end;
-end;
-
-function BuildImageBindingData(const ALogoFile, ASignatureFile,
-  AMissingImageFile: string): TFDMemTable;
-begin
-  Result := TFDMemTable.Create(nil);
-  Result.FieldDefs.Add('LOGO_PATH', ftString, 260);
-  Result.FieldDefs.Add('SIGNATURE_PATH', ftString, 260);
-  Result.FieldDefs.Add('MISSING_IMAGE_PATH', ftString, 260);
-  Result.CreateDataSet;
-  Result.Append;
-  Result.FieldByName('LOGO_PATH').AsString := ALogoFile;
-  Result.FieldByName('SIGNATURE_PATH').AsString := ASignatureFile;
-  Result.FieldByName('MISSING_IMAGE_PATH').AsString := AMissingImageFile;
-  Result.Post;
-  Result.First;
-end;
-
-function CreateInvoiceContractTable(const AValueField, AValue: string): TFDMemTable;
-begin
-  Result := TFDMemTable.Create(nil);
-  Result.FieldDefs.Add('INVOICE_ID', ftInteger);
-  Result.FieldDefs.Add(AValueField, ftString, 80);
-  Result.CreateDataSet;
-  Result.Append;
-  Result.FieldByName('INVOICE_ID').AsInteger := 101;
-  Result.FieldByName(AValueField).AsString := AValue;
-  Result.Post;
-  Result.First;
-end;
-
-procedure AddInvoiceContractDataSet(const AName, AValueField, AValue: string;
-  ADataSets: TObjectList<TFDMemTable>;
-  AUserDataSets: TObjectList<TVittixUserDataSet>;
-  ANamedDataSets: TDictionary<string, TVittixUserDataSet>;
-  out AUserDataSet: TVittixUserDataSet);
-var
-  DataSet: TFDMemTable;
-begin
-  DataSet := CreateInvoiceContractTable(AValueField, AValue);
-  ADataSets.Add(DataSet);
-  AUserDataSet := TVittixUserDataSet.Create(nil);
-  AUserDataSet.Name := AName;
-  AUserDataSet.DataSet := DataSet;
-  AUserDataSets.Add(AUserDataSet);
-  ANamedDataSets.Add(AName, AUserDataSet);
-end;
-
-procedure BuildInvoiceContractData(out APrimaryDataSet: TVittixUserDataSet;
-  out ANamedDataSets: TDictionary<string, TVittixUserDataSet>;
-  out ADataSets: TObjectList<TFDMemTable>;
-  out AUserDataSets: TObjectList<TVittixUserDataSet>);
-var
-  UserDataSet: TVittixUserDataSet;
-begin
-  APrimaryDataSet := nil;
-  ANamedDataSets := TDictionary<string, TVittixUserDataSet>.Create;
-  ADataSets := TObjectList<TFDMemTable>.Create(True);
-  AUserDataSets := TObjectList<TVittixUserDataSet>.Create(True);
-  AddInvoiceContractDataSet('Invoice', 'INVOICE_NO_STR', 'VX-INVOICE-001',
-    ADataSets, AUserDataSets, ANamedDataSets, APrimaryDataSet);
-  AddInvoiceContractDataSet('Items', 'ITEM_NAME', 'VX-ITEM-LINE',
-    ADataSets, AUserDataSets, ANamedDataSets, UserDataSet);
-  AddInvoiceContractDataSet('Company', 'COMPANY_NAME', 'VX-COMPANY',
-    ADataSets, AUserDataSets, ANamedDataSets, UserDataSet);
-  AddInvoiceContractDataSet('Party', 'PARTY_NAME', 'VX-PARTY',
-    ADataSets, AUserDataSets, ANamedDataSets, UserDataSet);
-  AddInvoiceContractDataSet('InvoiceCustom', 'CUSTOM_TEXT', 'VX-INVOICE-CUSTOM',
-    ADataSets, AUserDataSets, ANamedDataSets, UserDataSet);
-  AddInvoiceContractDataSet('ItemCustom', 'CUSTOM_ITEM_TEXT', 'VX-ITEM-CUSTOM',
-    ADataSets, AUserDataSets, ANamedDataSets, UserDataSet);
-end;
-
-procedure BuildInvoicePaginationData(out APrimaryDataSet: TVittixUserDataSet;
-  out ANamedDataSets: TDictionary<string, TVittixUserDataSet>;
-  out ADataSets: TObjectList<TFDMemTable>;
-  out AUserDataSets: TObjectList<TVittixUserDataSet>);
-var
-  InvoiceDataSet: TFDMemTable;
-  ItemsDataSet: TFDMemTable;
-  ItemsUserDataSet: TVittixUserDataSet;
-  I: Integer;
-begin
-  ANamedDataSets := TDictionary<string, TVittixUserDataSet>.Create;
-  ADataSets := TObjectList<TFDMemTable>.Create(True);
-  AUserDataSets := TObjectList<TVittixUserDataSet>.Create(True);
-
-  InvoiceDataSet := CreateInvoiceContractTable('INVOICE_NO_STR', 'VX-PAGED-INVOICE');
-  ADataSets.Add(InvoiceDataSet);
-  APrimaryDataSet := TVittixUserDataSet.Create(nil);
-  APrimaryDataSet.Name := 'Invoice';
-  APrimaryDataSet.DataSet := InvoiceDataSet;
-  AUserDataSets.Add(APrimaryDataSet);
-  ANamedDataSets.Add('Invoice', APrimaryDataSet);
-
-  ItemsDataSet := TFDMemTable.Create(nil);
-  ItemsDataSet.FieldDefs.Add('INVOICE_ID', ftInteger);
-  ItemsDataSet.FieldDefs.Add('ITEM_NAME', ftString, 80);
-  ItemsDataSet.FieldDefs.Add('QTY', ftInteger);
-  ItemsDataSet.CreateDataSet;
-  for I := 1 to 80 do
-  begin
-    ItemsDataSet.Append;
-    ItemsDataSet.FieldByName('INVOICE_ID').AsInteger := 101;
-    ItemsDataSet.FieldByName('ITEM_NAME').AsString := Format('VX-PAGED-ITEM-%2.2d', [I]);
-    ItemsDataSet.FieldByName('QTY').AsInteger := I;
-    ItemsDataSet.Post;
-  end;
-  ItemsDataSet.First;
-  ADataSets.Add(ItemsDataSet);
-  ItemsUserDataSet := TVittixUserDataSet.Create(nil);
-  ItemsUserDataSet.Name := 'Items';
-  ItemsUserDataSet.DataSet := ItemsDataSet;
-  AUserDataSets.Add(ItemsUserDataSet);
-  ANamedDataSets.Add('Items', ItemsUserDataSet);
-end;
-
-procedure BuildReportDataContractData(out APrimaryDataSet: TVittixUserDataSet;
-  out ANamedDataSets: TDictionary<string, TVittixUserDataSet>;
-  out ADataSets: TObjectList<TFDMemTable>;
-  out AUserDataSets: TObjectList<TVittixUserDataSet>);
-var
-  DataSet: TFDMemTable;
-  I: Integer;
-  RowValues: array[1..3] of string;
-begin
-  ANamedDataSets := TDictionary<string, TVittixUserDataSet>.Create;
-  ADataSets := TObjectList<TFDMemTable>.Create(True);
-  AUserDataSets := TObjectList<TVittixUserDataSet>.Create(True);
-
-  DataSet := TFDMemTable.Create(nil);
-  DataSet.FieldDefs.Add('PARTY_NAME', ftString, 80);
-  DataSet.FieldDefs.Add('BALANCE_TEXT', ftString, 80);
-  DataSet.CreateDataSet;
-  RowValues[1] := 'VX-REPORTDATA-PARTY-A';
-  RowValues[2] := 'VX-REPORTDATA-PARTY-B';
-  RowValues[3] := 'VX-REPORTDATA-PARTY-C';
-  for I := 1 to Length(RowValues) do
-  begin
-    DataSet.Append;
-    DataSet.FieldByName('PARTY_NAME').AsString := RowValues[I];
-    DataSet.FieldByName('BALANCE_TEXT').AsString := Format('VX-BALANCE-%d', [I]);
-    DataSet.Post;
-  end;
-  DataSet.First;
-  ADataSets.Add(DataSet);
-
-  APrimaryDataSet := TVittixUserDataSet.Create(nil);
-  APrimaryDataSet.Name := 'ReportData';
-  APrimaryDataSet.DataSet := DataSet;
-  AUserDataSets.Add(APrimaryDataSet);
-  ANamedDataSets.Add('ReportData', APrimaryDataSet);
-end;
-
-procedure BuildDetailBandsData(out APrimaryDataSet: TVittixUserDataSet;
-  out ANamedDataSets: TDictionary<string, TVittixUserDataSet>;
-  out ADataSets: TObjectList<TFDMemTable>;
-  out AUserDataSets: TObjectList<TVittixUserDataSet>);
-var
-  MasterDS, DetailDS: TFDMemTable;
-  UserDS: TVittixUserDataSet;
-  I, J: Integer;
-begin
-  ANamedDataSets := TDictionary<string, TVittixUserDataSet>.Create;
-  ADataSets := TObjectList<TFDMemTable>.Create(True);
-  AUserDataSets := TObjectList<TVittixUserDataSet>.Create(True);
-
-  MasterDS := TFDMemTable.Create(nil);
-  MasterDS.FieldDefs.Add('InvoiceNo', ftString, 20);
-  MasterDS.FieldDefs.Add('CustomerName', ftString, 80);
-  MasterDS.CreateDataSet;
-
-  DetailDS := TFDMemTable.Create(nil);
-  DetailDS.FieldDefs.Add('InvoiceNo', ftString, 20);
-  DetailDS.FieldDefs.Add('ItemName', ftString, 80);
-  DetailDS.FieldDefs.Add('Amount', ftFloat);
-  DetailDS.CreateDataSet;
-
-  for I := 1 to 5 do
-  begin
-    MasterDS.AppendRecord(['INV-' + IntToStr(I), 'Customer ' + IntToStr(I)]);
-    for J := 1 to 3 do
-      DetailDS.AppendRecord(['INV-' + IntToStr(I), 'Item ' + IntToStr(I) + '-' + IntToStr(J), I * 10.5 * J]);
-  end;
-  MasterDS.First;
-  DetailDS.First;
-
-  ADataSets.Add(MasterDS);
-  ADataSets.Add(DetailDS);
-
-  APrimaryDataSet := TVittixUserDataSet.Create(nil);
-  APrimaryDataSet.Name := 'MasterData';
-  APrimaryDataSet.DataSet := MasterDS;
-  AUserDataSets.Add(APrimaryDataSet);
-  ANamedDataSets.Add('MasterData', APrimaryDataSet);
-
-  UserDS := TVittixUserDataSet.Create(nil);
-  UserDS.Name := 'DetailData';
-  UserDS.DataSet := DetailDS;
-  AUserDataSets.Add(UserDS);
-  ANamedDataSets.Add('DetailData', UserDS);
 end;
 
 procedure WriteUsage;
@@ -550,11 +180,7 @@ var
   ReportsPath: string;
   Files: TArray<string>;
   FileName, JustName, TargetFile: string;
-  Report: TReportModel;
-  Engine: TReportEngine;
-  ExportDoc: TReportExportDocument;
   MemTable: TFDMemTable;
-  Stopwatch: TStopwatch;
   PassCount, FailCount, SkipCount, I: Integer;
   StartGDI, EndGDI: DWORD;
   StartUser, EndUser: DWORD;
@@ -565,8 +191,12 @@ var
   StrictParseError: TBaselineParseError;
   ActualResults: TArray<TReportPageResult>;
   Reconciled: TBaselineReconciliationResult;
-  StrictIssue: TBaselineIssue;
   StrictFailed: Boolean;
+  // Phase 3D-4: formatter boundary. Formatter owns no state and never
+  // executes or queries anything; it only renders supplied values.
+  Formatter: IRunResultFormatter;
+  FmtContext: TRunFormatContext;
+  IsJsonMode: Boolean;
   BaselineModified: Boolean;
   ExpectedPages: Integer;
   ScriptAdapter: TReportScriptHostAdapter;
@@ -579,27 +209,74 @@ var
   ScriptBeforeCount: Integer;
   ScriptAfterCount: Integer;
   Obj: TReportObject;
-  VectorPdfFile: string;
-  Header: TBytes;
-  StreamHeader: TBytes;
-  VectorPdfStream: TMemoryStream;
-  InvoicePrimaryDataSet: TVittixUserDataSet;
-  InvoiceNamedDataSets: TDictionary<string, TVittixUserDataSet>;
-  InvoiceDataSets: TObjectList<TFDMemTable>;
-  InvoiceUserDataSets: TObjectList<TVittixUserDataSet>;
-  IsInvoiceContractReport: Boolean;
-  IsRuntimeParameterReport: Boolean;
-  IsImageBindingReport: Boolean;
-  IsInvoicePaginationReport: Boolean;
-  IsReportDataContractReport: Boolean;
-  ImageBindingDataSet: TFDMemTable;
-  LogoImageFile: string;
-  SignatureImageFile: string;
-  MissingImageFile: string;
+  // Phase 3E-2: report execution is delegated to TVittixReportExecutor.
+  // The executor owns the report model, engine, datasets and temp export
+  // files; the console keeps GDI measurement, baseline policy, formatting
+  // and console output.
+  Executor: TVittixReportExecutor;
+  Config: TReportExecutionConfig;
+  TraceCallback: TScriptTraceEvent;
+  // Phase 3D-2: structured result recording (see Vittix.Runner.Results).
+  // Initialized with Default() below; FillChar must never be used here
+  // because the record contains managed fields (string / dynamic arrays).
+  RunResult: TRegressionRunResult;
+  Rec: TReportExecutionResult;
+
+  // Phase 3D-2: appends exactly one structured result per processed
+  // report, preserving the existing processing order. No second counter
+  // system: counts stay derived from RunResult.Reports.
+  procedure AppendReportResult(var ARunResult: TRegressionRunResult;
+    const AResult: TReportExecutionResult);
+  var
+    N: Integer;
+  begin
+    N := Length(ARunResult.Reports);
+    SetLength(ARunResult.Reports, N + 1);
+    ARunResult.Reports[N] := AResult;
+  end;
+
+  // Phase 3D-4: appends the presentation observation for the report that
+  // was just appended to RunResult.Reports (lock-step, same index). The
+  // context is presentation-only; result semantics stay in Results.pas.
+  procedure AppendObservation(const AReport: TReportExecutionResult;
+    var AContext: TRunFormatContext;
+    AElapsedMs: Int64;
+    AGdiCacheDelta: Integer;
+    AHtmlSmokeOk: Boolean;
+    AHasScriptCounts: Boolean;
+    AScriptBeforeCount: Integer;
+    AScriptAfterCount: Integer);
+  var
+    N: Integer;
+  begin
+    N := Length(AContext.ReportObservations);
+    SetLength(AContext.ReportObservations, N + 1);
+    AContext.ReportObservations[N].ReportName := AReport.ReportName;
+    AContext.ReportObservations[N].ElapsedMs := AElapsedMs;
+    AContext.ReportObservations[N].GdiCacheDelta := AGdiCacheDelta;
+    AContext.ReportObservations[N].HtmlSmokeOk := AHtmlSmokeOk;
+    AContext.ReportObservations[N].HasScriptCounts := AHasScriptCounts;
+    AContext.ReportObservations[N].ScriptBeforeCount := AScriptBeforeCount;
+    AContext.ReportObservations[N].ScriptAfterCount := AScriptAfterCount;
+  end;
+
+  // Phase 3D-5: diagnostic routing helper. In JSON mode pre-run errors must
+  // not pollute stdout; they are routed to stderr. Text mode keeps stdout.
+  procedure WriteDiagnostic(const Msg: string);
+  begin
+    if IsJsonMode then
+      WriteLn(ErrOutput, Msg)
+    else
+      Writeln(Msg);
+  end;
+
 begin
-  Writeln('================================================');
-  Writeln(' VittixReport Headless Regression Runner');
-  Writeln('================================================');
+  if not IsJsonMode then
+  begin
+    Writeln('================================================');
+    Writeln(' VittixReport Headless Regression Runner');
+    Writeln('================================================');
+  end;
 
   // Phase 3C-1: all CLI parsing is delegated to Vittix.Runner.Options.
   // Arguments are acquired here (process-global state stays in the console
@@ -610,8 +287,9 @@ begin
 
   if not ParseOptions(Args, Options) then
   begin
-    Writeln(Options.ErrorMessage);
-    Writeln('Run VittixRunner --help for usage information.');
+    IsJsonMode := Options.OutputFormat = ofJson;
+    WriteDiagnostic(Options.ErrorMessage);
+    WriteDiagnostic('Run VittixRunner --help for usage information.');
     // Phase 3C-2c-2: a strict run that fails CLI validation is a strict
     // configuration error (exit 2). Non-strict parse failures keep the
     // existing exit code 1.
@@ -620,6 +298,8 @@ begin
     else
       Halt(1);
   end;
+
+  IsJsonMode := Options.OutputFormat = ofJson;
 
   if Options.Help then
   begin
@@ -635,8 +315,8 @@ begin
     ReportsPath := TPath.GetFullPath(Options.ReportsPath);
     if not TDirectory.Exists(ReportsPath) then
     begin
-      Writeln('Error: --reports directory not found: ', ReportsPath);
-      Writeln('Run VittixRunner --help for usage information.');
+      WriteDiagnostic('Error: --reports directory not found: ' + ReportsPath);
+      WriteDiagnostic('Run VittixRunner --help for usage information.');
       Halt(1);
     end;
   end
@@ -651,9 +331,9 @@ begin
 
     if not TDirectory.Exists(ReportsPath) then
     begin
-      Writeln('Error: Could not locate "reports" directory at ', ReportsPath);
+      WriteDiagnostic('Error: Could not locate "reports" directory at ' + ReportsPath);
       {$WARN SYMBOL_PLATFORM OFF}
-      if (DebugHook <> 0) or FindCmdLineSwitch('pause', True) then
+      if not IsJsonMode and ((DebugHook <> 0) or FindCmdLineSwitch('pause', True)) then
       begin
         Writeln('Press ENTER to exit...');
         Readln;
@@ -663,20 +343,25 @@ begin
     end;
   end;
 
-  Writeln('Target: ', ReportsPath);
-
-  TargetFile := Options.Filter;
-  if TargetFile <> '' then
-    Writeln('Filter: ', TargetFile);
-  Writeln('------------------------------------------------');
-
   ScriptOnly := Options.ScriptOnly;
   ScriptTraceOnly := Options.ScriptTraceOnly;
   KeepVectorPDF := Options.KeepVectorPDF;
-  if ScriptOnly then
-    Writeln('Mode: script-focused reports only');
-  if ScriptTraceOnly then
-    Writeln('Mode: script trace only');
+
+  if not IsJsonMode then
+  begin
+    Writeln('Target: ', ReportsPath);
+
+    TargetFile := Options.Filter;
+    if TargetFile <> '' then
+      Writeln('Filter: ', TargetFile);
+    Writeln('------------------------------------------------');
+
+    if ScriptOnly then
+      Writeln('Mode: script-focused reports only');
+    if ScriptTraceOnly then
+      Writeln('Mode: script trace only');
+  end;
+
   // Runner-owned output directory for all smoke/export artifacts.
   // Determined relative to the executable (never the process CWD) and
   // created unconditionally so export smoke tests work from any CWD.
@@ -687,7 +372,7 @@ begin
     VectorPdfOutputPath := TPath.GetFullPath(TPath.Combine(
       ExtractFilePath(ParamStr(0)), '..\vector-pdf-smoke'));
   TDirectory.CreateDirectory(VectorPdfOutputPath);
-  if KeepVectorPDF then
+  if KeepVectorPDF and not IsJsonMode then
     Writeln('Vector PDF output: ', VectorPdfOutputPath);
 
   Files := TDirectory.GetFiles(ReportsPath, '*.vrt');
@@ -696,6 +381,20 @@ begin
   PassCount := 0;
   FailCount := 0;
   SkipCount := 0;
+
+  // Phase 3D-2: structured result recording. ReportsDiscovered is the
+  // number of .vrt files found before any skip/filter handling.
+  RunResult := Default(TRegressionRunResult);
+  RunResult.ReportsDiscovered := Length(Files);
+
+  // Phase 3D-4: formatter boundary. The context is presentation-only and
+  // starts empty; observations are appended in lock-step with
+  // RunResult.Reports during the loop below.
+  if IsJsonMode then
+    Formatter := TJsonRunFormatter.Create
+  else
+    Formatter := TTextRunFormatter.Create;
+  FmtContext := Default(TRunFormatContext);
 
   StartGDI := GetGuiResources(GetCurrentProcess, GR_GDIOBJECTS);
   StartUser := GetGuiResources(GetCurrentProcess, GR_USEROBJECTS);
@@ -719,9 +418,9 @@ begin
   begin
     if not TRegressionBaseline.LoadFromFile(BaselineFile, StrictBaseline, StrictParseError) then
     begin
-      Writeln('Error: strict regression baseline could not be loaded: ', BaselineFile);
+      WriteDiagnostic('Error: strict regression baseline could not be loaded: ' + BaselineFile);
       if StrictParseError.Message <> '' then
-        Writeln('Error: ', StrictParseError.Message);
+        WriteDiagnostic('Error: ' + StrictParseError.Message);
       Halt(2);
     end;
   end
@@ -738,6 +437,9 @@ begin
   // Note: You may need to adapt this dummy dataset to exactly match what the designer uses
   MemTable := TFDMemTable.Create(nil);
   ScriptAdapter := TReportScriptHostAdapter.Create;
+  // Phase 3E-2: the executor does not own MemTable/ScriptAdapter; they
+  // outlive every ExecuteReport call below.
+  Executor := TVittixReportExecutor.Create(MemTable, ScriptAdapter);
   try
     // Dynamically load the exact same data the visual designer uses!
     // Phase 3C-1: --sample-data overrides the default; an explicit file
@@ -748,8 +450,8 @@ begin
       SampleDataFile := TPath.GetFullPath(Options.SampleDataFile);
       if not TFile.Exists(SampleDataFile) then
       begin
-        Writeln('Error: --sample-data file not found: ', SampleDataFile);
-        Writeln('Run VittixRunner --help for usage information.');
+        WriteDiagnostic('Error: --sample-data file not found: ' + SampleDataFile);
+        WriteDiagnostic('Run VittixRunner --help for usage information.');
         Halt(1);
       end;
     end;
@@ -760,9 +462,20 @@ begin
     begin
       var TestStartGDI, TestEndGDI: DWORD;
       var PageCount: Integer;
-      var ElapsedMs: Int64;
       var TestFailed: Boolean;
       var ErrorMsg: string;
+      // Phase 3D-2: per-report recording state.
+      var HasRecExpectedPages: Boolean;
+      var RecExpectedPages: Integer;
+      var RecLeakDelta: Integer;
+
+      // Phase 3D-5: reset per-iteration leak delta so it does not
+      // carry forward from a previous leak-classified report into
+      // the structured-result status of the next report (which may
+      // have no leak at all). Legacy leak detection (TestEndGDI -
+      // TestStartGDI) is unaffected and remains the sole source of
+      // truth for [LEAK] classification and FailCount.
+      RecLeakDelta := 0;
 
       JustName := ExtractFileName(FileName);
       ReportText := '';
@@ -786,7 +499,18 @@ begin
       // Enforce TESTING.md rules for excluded files
       if JustName.StartsWith('test') or JustName.Equals('16_large_preview_warning.vrt') then
       begin
-        Writeln(Format('[SKIP] %-40s', [JustName]));
+        // Phase 3D-2: record skipped report. No page counts are fabricated.
+        Rec := Default(TReportExecutionResult);
+        Rec.ReportName := JustName;
+        Rec.Status := resSkipped;
+        Rec.HasPageCount := False;
+        Rec.HasExpectedPageCount := False;
+        AppendReportResult(RunResult, Rec);
+        // Phase 3D-4: emit the [SKIP] line at the same logical point via
+        // the formatter (same text, same position relative to SkipCount).
+        AppendObservation(Rec, FmtContext, 0, 0, False, False, 0, 0);
+        if not IsJsonMode then
+          Writeln(Formatter.FormatReportLine(Rec, FmtContext));
         Inc(SkipCount);
         Continue;
       end;
@@ -795,354 +519,174 @@ begin
       TestFailed := False;
       ErrorMsg := '';
       PageCount := 0;
-      ElapsedMs := 0;
-      VectorPdfFile := '';
-      IsInvoiceContractReport := SameText(JustName, '30_invoice_named_datasets_contract.vrt');
-      IsRuntimeParameterReport := SameText(JustName, '31_runtime_parameter_values.vrt');
-      IsImageBindingReport := SameText(JustName, '32_image_binding_values.vrt');
-      IsInvoicePaginationReport := SameText(JustName, '33_invoice_multipage_contract.vrt');
-      IsReportDataContractReport := SameText(JustName, '34_reportdata_contract.vrt');
-      var IsExportXLSXReport := SameText(JustName, '40_export_xlsx.vrt');
-      var IsDetailBandsReport := SameText(JustName, '39_detail_bands.vrt');
-      var IsTwoPassReport := SameText(JustName, '41_twopass_totalpages.vrt');
+      HasRecExpectedPages := False;
+      RecExpectedPages := 0;
+      RecLeakDelta := 0;
       var IsExportHTMLReport := SameText(JustName, '38_export_html.vrt');
-      InvoicePrimaryDataSet := nil;
-      InvoiceNamedDataSets := nil;
-      InvoiceDataSets := nil;
-      InvoiceUserDataSets := nil;
-      ImageBindingDataSet := nil;
-      LogoImageFile := '';
-      SignatureImageFile := '';
-      MissingImageFile := '';
-      var HtmlFile := '';
 
-      try
-        Report := TReportSerializer.LoadFromFile(FileName);
-        try
-          ExportDoc := nil;
-          if IsInvoiceContractReport then
-          begin
-            BuildInvoiceContractData(InvoicePrimaryDataSet, InvoiceNamedDataSets,
-              InvoiceDataSets, InvoiceUserDataSets);
-            Engine := TReportEngine.Create(Report, InvoicePrimaryDataSet,
-              InvoiceNamedDataSets, nil);
-          end
-          else if IsInvoicePaginationReport then
-          begin
-            BuildInvoicePaginationData(InvoicePrimaryDataSet, InvoiceNamedDataSets,
-              InvoiceDataSets, InvoiceUserDataSets);
-            Engine := TReportEngine.Create(Report, InvoicePrimaryDataSet,
-              InvoiceNamedDataSets, nil);
-          end
-          else if IsReportDataContractReport then
-          begin
-            BuildReportDataContractData(InvoicePrimaryDataSet, InvoiceNamedDataSets,
-              InvoiceDataSets, InvoiceUserDataSets);
-            Engine := TReportEngine.Create(Report, InvoicePrimaryDataSet,
-              InvoiceNamedDataSets, nil);
-          end
-          else if IsDetailBandsReport then
-          begin
-            BuildDetailBandsData(InvoicePrimaryDataSet, InvoiceNamedDataSets,
-              InvoiceDataSets, InvoiceUserDataSets);
-            Engine := TReportEngine.Create(Report, InvoicePrimaryDataSet,
-              InvoiceNamedDataSets, nil);
-          end
-          else if IsImageBindingReport then
-          begin
-            LogoImageFile := TPath.Combine(TPath.GetTempPath,
-              Format('vittix_logo_%d.png', [GetCurrentProcessId]));
-            SignatureImageFile := TPath.Combine(TPath.GetTempPath,
-              Format('vittix_signature_%d.png', [GetCurrentProcessId]));
-            MissingImageFile := TPath.Combine(TPath.GetTempPath,
-              Format('vittix_missing_%d.png', [GetCurrentProcessId]));
-            if TFile.Exists(MissingImageFile) then
-              TFile.Delete(MissingImageFile);
-            CreateVerificationPNG(LogoImageFile, clNavy);
-            CreateVerificationPNG(SignatureImageFile, clGreen);
-            ImageBindingDataSet := BuildImageBindingData(LogoImageFile,
-              SignatureImageFile, MissingImageFile);
-            Engine := TReportEngine.Create(Report, ImageBindingDataSet);
-          end
-          else
-            Engine := TReportEngine.Create(Report, MemTable);
-          try
-            ExportDoc := TReportExportDocument.Create;
-            Engine.ExportDocument := ExportDoc;
-            if IsRuntimeParameterReport then
-            begin
-              Engine.Parameters.Values['ReportTitle'] := 'VX-RUNTIME-TITLE';
-              Engine.Parameters.Values['AmountInWords'] := 'VX-AMOUNT-WORDS';
-              Engine.Parameters.Values['BankText'] := 'VX-BANK-TEXT';
-              Engine.Parameters.Values['FilterSummary'] := 'VX-FILTER-SUMMARY';
-            end;
-            if IsReportDataContractReport then
-            begin
-              Engine.Parameters.Values['ReportTitle'] := 'VX-GENERAL-REPORT-TITLE';
-              Engine.Parameters.Values['FilterSummary'] := 'VX-GENERAL-FILTER-SUMMARY';
-            end;
-            // Wire up the Script Adapter so object events execute during regression tests!
-            Engine.ScriptEngine.OnObjectBeforePrint := ScriptAdapter.EngineObjectBeforePrint;
-            Engine.ScriptEngine.OnObjectAfterPrint := ScriptAdapter.EngineObjectAfterPrint;
+      // Phase 3E-2: report execution delegated to TVittixReportExecutor
+      // (Vittix.Runner.Execution). GDI start measurement above, baseline
+      // policy, reconciliation, formatting and console output stay here.
+      Config := Default(TReportExecutionConfig);
+      Config.FileName := FileName;
+      Config.ReportName := JustName;
+      Config.ScriptOnly := ScriptOnly;
+      Config.ScriptTraceOnly := ScriptTraceOnly;
+      Config.ScriptBeforeCount := ScriptBeforeCount;
+      Config.ScriptAfterCount := ScriptAfterCount;
+      Config.KeepVectorPDF := KeepVectorPDF;
+      Config.VectorPdfOutputPath := VectorPdfOutputPath;
 
-            Stopwatch := TStopwatch.StartNew;
-            Engine.Prepare;
-            Stopwatch.Stop;
-            PageCount := Engine.Pages.Count;
-            ElapsedMs := Stopwatch.ElapsedMilliseconds;
-
-            if IsInvoiceContractReport then
-            begin
-              RequireExportText(ExportDoc, 'VX-INVOICE-001');
-              RequireExportText(ExportDoc, 'VX-ITEM-LINE');
-              RequireExportText(ExportDoc, 'VX-COMPANY');
-              RequireExportText(ExportDoc, 'VX-PARTY');
-              RequireExportText(ExportDoc, 'VX-INVOICE-CUSTOM');
-              RequireExportText(ExportDoc, 'VX-ITEM-CUSTOM');
-            end;
-
-            if IsRuntimeParameterReport then
-            begin
-              RequireExportText(ExportDoc, 'VX-RUNTIME-TITLE');
-              RequireExportText(ExportDoc, 'VX-AMOUNT-WORDS');
-              RequireExportText(ExportDoc, 'VX-BANK-TEXT');
-              RequireExportText(ExportDoc, 'VX-FILTER-SUMMARY');
-              RequireExportText(ExportDoc, 'VX-TEMPLATE-TITLE');
-            end;
-
-            if IsImageBindingReport then
-            begin
-              if not ExportDocumentContainsImageSource(ExportDoc, LogoImageFile) then
-                raise Exception.Create('Expected logo image export command not found');
-              if not ExportDocumentContainsImageSource(ExportDoc, SignatureImageFile) then
-                raise Exception.Create('Expected signature image export command not found');
-              if ExportDocumentContainsImageSource(ExportDoc, MissingImageFile) then
-                raise Exception.Create('Missing image unexpectedly produced an export command');
-              if CountExportImageCommands(ExportDoc) <> 2 then
-                raise Exception.CreateFmt('Expected 2 bound images, got %d',
-                  [CountExportImageCommands(ExportDoc)]);
-            end;
-
-            if IsInvoicePaginationReport then
-            begin
-              if PageCount < 2 then
-                raise Exception.CreateFmt('Expected multipage invoice output, got %d page(s)',
-                  [PageCount]);
-              RequireExportText(ExportDoc, 'VX-PAGED-INVOICE');
-              RequireExportText(ExportDoc, 'VX-PAGED-ITEM-80');
-              if CountExportTextCommands(ExportDoc, 'VX-INVOICE-PAGE-HEADER') <> PageCount then
-                raise Exception.CreateFmt('Invoice page header mismatch: pages=%d headers=%d',
-                  [PageCount, CountExportTextCommands(ExportDoc, 'VX-INVOICE-PAGE-HEADER')]);
-              if CountExportTextCommands(ExportDoc, 'VX-INVOICE-PAGE-FOOTER') <> PageCount then
-                raise Exception.CreateFmt('Invoice page footer mismatch: pages=%d footers=%d',
-                  [PageCount, CountExportTextCommands(ExportDoc, 'VX-INVOICE-PAGE-FOOTER')]);
-            end;
-
-            if IsReportDataContractReport then
-            begin
-              RequireExportText(ExportDoc, 'VX-GENERAL-REPORT-TITLE');
-              RequireExportText(ExportDoc, 'VX-GENERAL-FILTER-SUMMARY');
-              RequireExportText(ExportDoc, 'VX-REPORTDATA-PARTY-A');
-              RequireExportText(ExportDoc, 'VX-REPORTDATA-PARTY-C');
-              RequireExportText(ExportDoc, 'VX-BALANCE-3');
-            end;
-
-            if IsTwoPassReport then
-            begin
-              // Assert the page header token was evaluated (not left as a literal).
-              RequireExportText(ExportDoc, 'Page 1 of');
-              // Assert TotalPages was NOT resolved as 0 on any page.
-              // A resolved [TotalPages] must equal the actual page count (>0).
-              if ExportDocumentContainsText(ExportDoc, 'of 0') then
-                raise Exception.Create(
-                  'Two-pass failure: [TotalPages] was rendered as 0 on at least one page');
-              if PageCount < 2 then
-                raise Exception.CreateFmt(
-                  'Two-pass report expected at least 2 pages, got %d', [PageCount]);
-            end;
-
-            if ExportDoc.Pages.Count <> PageCount then
-              raise Exception.CreateFmt(
-                'Vector PDF command page mismatch: engine=%d command=%d',
-                [PageCount, ExportDoc.Pages.Count]);
-
-            if KeepVectorPDF then
-              VectorPdfFile := TPath.Combine(VectorPdfOutputPath,
-                TPath.GetFileNameWithoutExtension(JustName) + '_vector.pdf')
-            else
-              VectorPdfFile := TPath.Combine(TPath.GetTempPath,
-                TPath.GetFileNameWithoutExtension(JustName) + '_' +
-                IntToStr(GetCurrentProcessId) + '_headless_vector_smoke.pdf');
-            TReportVectorPDFExporter.ExportDocument(ExportDoc, VectorPdfFile);
-            if not TFile.Exists(VectorPdfFile) then
-              raise Exception.Create('Vector PDF smoke output was not created');
-            if IsExportXLSXReport then
-              TReportXLSXExporter.ExportToFile(ExportDoc.Pages,
-                TPath.Combine(VectorPdfOutputPath, ExtractFileName(FileName) + '.xlsx'));
-            Header := TFile.ReadAllBytes(VectorPdfFile);
-            if (Length(Header) < 5) or
-               (TEncoding.ASCII.GetString(Header, 0, 5) <> '%PDF-') then
-              raise Exception.Create('Vector PDF smoke output has invalid header');
-            if not BytesContainAscii(Header, '%%EOF') then
-              raise Exception.Create('Vector PDF smoke output has invalid EOF marker');
-            if not BytesContainAscii(Header, 'xref') then
-              raise Exception.Create('Vector PDF smoke output has no xref table');
-            if not BytesContainAscii(Header, 'trailer') then
-              raise Exception.Create('Vector PDF smoke output has no trailer');
-            if CountAsciiOccurrences(Header, '/Type /Page ') <> PageCount then
-              raise Exception.CreateFmt(
-                'Vector PDF page object mismatch: engine=%d pdf=%d',
-                [PageCount, CountAsciiOccurrences(Header, '/Type /Page ')]);
-            if not BytesContainAscii(Header, AnsiString('/Count ' + IntToStr(PageCount))) then
-              raise Exception.CreateFmt(
-                'Vector PDF page tree count mismatch: expected /Count %d',
-                [PageCount]);
-            if (PageCount > 0) and
-               (CountAsciiOccurrences(Header,
-                  AnsiString('/MediaBox [0 0 ' +
-                    string(PdfPointNumber(ExportDoc.Pages[0].Width)) + ' ' +
-                    string(PdfPointNumber(ExportDoc.Pages[0].Height)) + ']')) <> PageCount) then
-              raise Exception.CreateFmt(
-                'Vector PDF MediaBox mismatch: expected %d page(s) sized %s x %s points',
-                [PageCount,
-                 string(PdfPointNumber(ExportDoc.Pages[0].Width)),
-                 string(PdfPointNumber(ExportDoc.Pages[0].Height))]);
-            if CountAsciiOccurrences(Header, '/Contents ') <> PageCount then
-              raise Exception.CreateFmt(
-                'Vector PDF page content mismatch: engine=%d pdf=%d',
-                [PageCount, CountAsciiOccurrences(Header, '/Contents ')]);
-
-            VectorPdfStream := TMemoryStream.Create;
-            try
-              TReportVectorPDFExporter.ExportDocument(ExportDoc, VectorPdfStream);
-              SetLength(StreamHeader, Integer(VectorPdfStream.Size));
-              VectorPdfStream.Position := 0;
-              if Length(StreamHeader) > 0 then
-                VectorPdfStream.ReadBuffer(StreamHeader[0], Length(StreamHeader));
-            finally
-              VectorPdfStream.Free;
-            end;
-            if (Length(StreamHeader) < 5) or
-               (TEncoding.ASCII.GetString(StreamHeader, 0, 5) <> '%PDF-') then
-              raise Exception.Create('Vector PDF stream output has invalid header');
-            if not BytesContainAscii(StreamHeader, '%%EOF') or
-               not BytesContainAscii(StreamHeader, 'xref') or
-               not BytesContainAscii(StreamHeader, 'trailer') then
-              raise Exception.Create('Vector PDF stream output has invalid structure');
-            if CountAsciiOccurrences(StreamHeader, '/Type /Page ') <> PageCount then
-              raise Exception.CreateFmt(
-                'Vector PDF stream page mismatch: engine=%d stream=%d',
-                [PageCount, CountAsciiOccurrences(StreamHeader, '/Type /Page ')]);
-
-            // -- HTML export smoke test --
-            if IsExportHTMLReport then
-            begin
-              if KeepVectorPDF then
-                HtmlFile := TPath.Combine(VectorPdfOutputPath,
-                  TPath.GetFileNameWithoutExtension(JustName) + '.html')
-              else
-                HtmlFile := TPath.Combine(TPath.GetTempPath,
-                  TPath.GetFileNameWithoutExtension(JustName) + '_' +
-                  IntToStr(GetCurrentProcessId) + '_headless_html_smoke.html');
-              TReportHTMLExporter.ExportDocument(ExportDoc, HtmlFile);
-              if not TFile.Exists(HtmlFile) then
-                raise Exception.Create('HTML smoke output was not created');
-              var HtmlContent := TFile.ReadAllText(HtmlFile, TEncoding.UTF8);
-              if not ContainsText(HtmlContent, '<!DOCTYPE html>') then
-                raise Exception.Create('HTML smoke output has invalid header (missing DOCTYPE)');
-              if not ContainsText(HtmlContent, '<html>') then
-                raise Exception.Create('HTML smoke output has invalid header (missing <html>)');
-              if not ContainsText(HtmlContent, 'This is a test') then
-                raise Exception.Create(
-                  'HTML smoke output is missing expected sentinel text: "This is a test"');
-            end;
-            if ScriptOnly and Assigned(Report) and ((ScriptBeforeCount > 0) or (ScriptAfterCount > 0)) then
-            begin
-              Writeln(Format('  [TRACE] %s', [JustName]));
-              Writeln(Format('    Script objects: before=%d after=%d', [ScriptBeforeCount, ScriptAfterCount]));
-            end
-            else if ScriptTraceOnly and Assigned(Report) and ((ScriptBeforeCount > 0) or (ScriptAfterCount > 0)) then
-            begin
-              Writeln(Format('  [TRACE] %s', [JustName]));
-              Writeln(Format('    Script objects: before=%d after=%d', [ScriptBeforeCount, ScriptAfterCount]));
-              Writeln('');
-              for Obj in Report.Objects do
-                TraceScriptTree(ScriptAdapter, Obj, 2);
-            end;
-            if ScriptTraceOnly then
-            begin
-              Inc(PassCount);
-              Continue;
-            end;
-            if not ScriptTraceOnly then
-            begin
-              if not Options.&Strict then
-              begin
-                // Non-strict: existing tolerant baseline comparison and
-                // auto-registration behavior (unchanged).
-                // Check against pagination baseline
-                if TryGetBaselinePageCount(BaselineJSON, JustName, ExpectedPages) then
-                begin
-                  if ExpectedPages <> PageCount then
-                  begin
-                    TestFailed := True;
-                    ErrorMsg := Format('Pagination mismatch: Expected %d pages, got %d', [ExpectedPages, PageCount]);
-                  end;
-                end
-                else
-                begin
-                  BaselineJSON.AddPair(JustName, TJSONNumber.Create(PageCount));
-                  BaselineModified := True;
-                end;
-              end
-              else
-              begin
-                // Phase 3C-2c-2: strict mode bypasses the legacy mutable
-                // baseline path entirely. Only successful executions reach
-                // this point; failures are handled by the exception handler
-                // below and never produce an actual result.
-                SetLength(ActualResults, Length(ActualResults) + 1);
-                ActualResults[High(ActualResults)].ReportName := JustName;
-                ActualResults[High(ActualResults)].PageCount := PageCount;
-              end;
-            end
-            else
-            begin
-              TestFailed := False;
-              ErrorMsg := '';
-            end;
-          finally
-            ExportDoc.Free;
-            Engine.Free;
-          end;
-        finally
-          Report.Free;
-          InvoiceNamedDataSets.Free;
-          InvoiceUserDataSets.Free;
-          InvoiceDataSets.Free;
-          ImageBindingDataSet.Free;
-          if (LogoImageFile <> '') and TFile.Exists(LogoImageFile) then
-            TFile.Delete(LogoImageFile);
-          if (SignatureImageFile <> '') and TFile.Exists(SignatureImageFile) then
-            TFile.Delete(SignatureImageFile);
-        end;
-      except
-        on E: Exception do
+      // Phase 3E-2: script trace rendering moved behind a callback. The
+      // executor fires this at the exact legacy point (after export smoke
+      // verification, while the report model is alive). Branch structure,
+      // text and ordering are identical to the former inline block; the
+      // executor itself never writes to stdout.
+      TraceCallback := procedure(const AReport: TReportModel)
+      begin
+        if not IsJsonMode then
         begin
-          TestFailed := True;
-          ErrorMsg := Format('%s: %s', [E.ClassName, E.Message]);
+          Writeln(Format('  [TRACE] %s', [JustName]));
+          Writeln(Format('    Script objects: before=%d after=%d', [ScriptBeforeCount, ScriptAfterCount]));
+          if ScriptTraceOnly then
+          begin
+            Writeln('');
+            for var LObj in AReport.Objects do
+              TraceScriptTree(ScriptAdapter, LObj, 2);
+          end;
         end;
       end;
-      if not KeepVectorPDF and (VectorPdfFile <> '') and TFile.Exists(VectorPdfFile) then
-        TFile.Delete(VectorPdfFile);
-      if not KeepVectorPDF and (HtmlFile <> '') and TFile.Exists(HtmlFile) then
-        TFile.Delete(HtmlFile);
+
+      Rec := Executor.ExecuteReport(Config, TraceCallback);
+      TestFailed := Rec.Status = resFailed;
+      ErrorMsg := Rec.ErrorMessage;
+      PageCount := Rec.PageCount;
+
+      // Legacy --script-trace pass: recorded before the temporary export
+      // cleanup and the GDI end-measurement, exactly as the former
+      // Continue bypassed that block.
+      if ScriptTraceOnly and (Rec.Status = resPassed) then
+      begin
+        Inc(PassCount);
+        // Phase 3D-2: script-trace reports pass without reaching the
+        // legacy classification block below; record before continuing.
+        AppendReportResult(RunResult, Rec);
+        // Phase 3D-4: presentation observation for the trace-passed
+        // report. No [PASS] line is emitted in script-trace mode
+        // (legacy ordering preserved); the observation is still kept
+        // in lock-step with RunResult.Reports.
+        AppendObservation(Rec, FmtContext, Executor.LastElapsedMs,
+          0, IsExportHTMLReport,
+          True, ScriptBeforeCount, ScriptAfterCount);
+        Continue;
+      end;
+
+      if not ScriptTraceOnly then
+      begin
+        if not Options.&Strict then
+        begin
+          // Non-strict: existing tolerant baseline comparison and
+          // auto-registration behavior (unchanged).
+          // Check against pagination baseline
+          if TryGetBaselinePageCount(BaselineJSON, JustName, ExpectedPages) then
+          begin
+            if ExpectedPages <> PageCount then
+            begin
+              TestFailed := True;
+              ErrorMsg := Format('Pagination mismatch: Expected %d pages, got %d', [ExpectedPages, PageCount]);
+            end;
+            // Phase 3D-2: a baseline comparison actually occurred;
+            // record the existing baseline value (never fabricated).
+            HasRecExpectedPages := True;
+            RecExpectedPages := ExpectedPages;
+          end
+          else
+          begin
+            BaselineJSON.AddPair(JustName, TJSONNumber.Create(PageCount));
+            BaselineModified := True;
+          end;
+        end
+        else
+        begin
+          // Phase 3C-2c-2: strict mode bypasses the legacy mutable
+          // baseline path entirely. Only successful executions reach
+          // this point; failures are handled by the exception handler
+          // below and never produce an actual result.
+          SetLength(ActualResults, Length(ActualResults) + 1);
+          ActualResults[High(ActualResults)].ReportName := JustName;
+          ActualResults[High(ActualResults)].PageCount := PageCount;
+          // Phase 3D-2: strict reconciliation compares this report
+          // against the baseline after the loop; capture the expected
+          // value if the baseline contains it (read-only lookup).
+          HasRecExpectedPages :=
+            StrictBaseline.TryGetExpectedPages(JustName, RecExpectedPages);
+        end;
+      end
+      else
+      begin
+        TestFailed := False;
+        ErrorMsg := '';
+      end;
 
       TestEndGDI := GetGuiResources(GetCurrentProcess, GR_GDIOBJECTS);
 
+      // Phase 3D-4: the legacy [LEAK] classification value is determined by
+      // the exact conditions used by the output block below. It is captured
+      // before building the structured result so the result model keeps
+      // carrying GdiLeakDelta (Phase 3D-2 semantics, never reinterpreted).
+      if (not TestFailed) and (TestEndGDI > TestStartGDI) and
+         ((TestEndGDI - TestStartGDI) >= 25) then
+        RecLeakDelta := Integer(TestEndGDI - TestStartGDI)
+      else
+        RecLeakDelta := 0;
+
+      // Phase 3D-2: record the structured execution result, mirroring the
+      // legacy classification exactly (no behavior change). A legacy
+      // failure keeps its exact ErrorMessage ('EClass: message' or the
+      // non-strict 'Pagination mismatch: ...' text). Page counts are
+      // preserved when pagination had already succeeded.
+      Rec := Default(TReportExecutionResult);
+      Rec.ReportName := JustName;
       if TestFailed then
       begin
-        Writeln(Format('[FAIL] %-40s | %s', [JustName, ErrorMsg]));
+        Rec.Status := resFailed;
+        Rec.HasPageCount := PageCount > 0;
+        Rec.PageCount := PageCount;
+        Rec.ErrorMessage := ErrorMsg;
+        Rec.GdiLeakDelta := 0;
+      end
+      else
+      begin
+        if RecLeakDelta > 0 then
+          Rec.Status := resFailed
+        else
+          Rec.Status := resPassed;
+        Rec.HasPageCount := True;
+        Rec.PageCount := PageCount;
+        Rec.ErrorMessage := '';
+        Rec.GdiLeakDelta := RecLeakDelta;
+      end;
+      Rec.HasExpectedPageCount := HasRecExpectedPages;
+      Rec.ExpectedPageCount := RecExpectedPages;
+      AppendReportResult(RunResult, Rec);
+
+      // Phase 3D-4: presentation observation captured at the existing
+      // computation points. ElapsedMs, the measured GDI cache delta, the
+      // HTML smoke outcome and the script counts are supplied to the
+      // formatter; the formatter never re-measures or re-executes anything.
+      AppendObservation(Rec, FmtContext, Executor.LastElapsedMs,
+        Integer(TestEndGDI - TestStartGDI),
+        IsExportHTMLReport and not TestFailed,
+        ScriptOnly or ScriptTraceOnly,
+        ScriptBeforeCount, ScriptAfterCount);
+
+      // Phase 3D-4: every legacy classification emission point is preserved
+      // exactly (same branch structure, same ordering, same PASS/FAIL/LEAK
+      // text). Only the rendering moved into the formatter.
+      if TestFailed then
+      begin
+        if not IsJsonMode then
+          Writeln(Formatter.FormatReportLine(Rec, FmtContext));
         Inc(FailCount);
       end
       else if TestEndGDI > TestStartGDI then
@@ -1151,28 +695,36 @@ begin
         // Small GDI increases (< 25) during the first few reports are just normal cache allocations.
         if (TestEndGDI - TestStartGDI) < 25 then
         begin
-          if IsExportHTMLReport then
-            Writeln(Format('[PASS] %-40s | %3d pgs | %4d ms | Vector PDF OK | HTML OK | VCL Cache: +%d', [JustName, PageCount, ElapsedMs, TestEndGDI - TestStartGDI]))
-          else
-            Writeln(Format('[PASS] %-40s | %3d pgs | %4d ms | Vector PDF OK | VCL Cache: +%d', [JustName, PageCount, ElapsedMs, TestEndGDI - TestStartGDI]));
+          if not IsJsonMode then
+            Writeln(Formatter.FormatReportLine(Rec, FmtContext));
           Inc(PassCount);
         end
         else
         begin
-          Writeln(Format('[LEAK] %-40s | %3d pgs | %4d ms | GDI Delta: +%d', [JustName, PageCount, ElapsedMs, TestEndGDI - TestStartGDI]));
+          if not IsJsonMode then
+            Writeln(Formatter.FormatReportLine(Rec, FmtContext));
           Inc(FailCount);
+          // Phase 3D-2: preserve the measured leak delta; the page count
+          // stays recorded (never erased by leak classification).
+          RecLeakDelta := Integer(TestEndGDI - TestStartGDI);
+          // Phase 3D-5: correct the structured result for this report.
+          // The report was appended before leak detection with
+          // Status=resPassed and GdiLeakDelta=0. Update it so
+          // TRegressionRunResult accurately reflects the legacy [LEAK]
+          // classification (Status=resFailed, actual GDI delta preserved).
+          RunResult.Reports[High(RunResult.Reports)].Status := resFailed;
+          RunResult.Reports[High(RunResult.Reports)].GdiLeakDelta := RecLeakDelta;
         end;
       end
       else
       begin
-        if IsExportHTMLReport then
-          Writeln(Format('[PASS] %-40s | %3d pgs | %4d ms | Vector PDF OK | HTML OK', [JustName, PageCount, ElapsedMs]))
-        else
-          Writeln(Format('[PASS] %-40s | %3d pgs | %4d ms | Vector PDF OK', [JustName, PageCount, ElapsedMs]));
+        if not IsJsonMode then
+          Writeln(Formatter.FormatReportLine(Rec, FmtContext));
         Inc(PassCount);
       end;
     end;
   finally
+    Executor.Free;
     MemTable.Free;
     ScriptAdapter.Free;
   end;
@@ -1184,68 +736,84 @@ begin
   if Assigned(BaselineJSON) then
     BaselineJSON.Free;
 
+  // Phase 3D-2: record non-strict baseline auto-registration. This flag
+  // alone never turns the run into a failure. Strict runs keep it False:
+  // BaselineJSON stays nil and BaselineModified is never set in strict
+  // mode (structurally read-only).
+  RunResult.BaselineUpdated := BaselineModified;
+
   EndGDI := GetGuiResources(GetCurrentProcess, GR_GDIOBJECTS);
   EndUser := GetGuiResources(GetCurrentProcess, GR_USEROBJECTS);
   {$WARN SYMBOL_DEPRECATED OFF}
   EndMem := AllocMemSize;
   {$WARN SYMBOL_DEPRECATED ON}
 
-  Writeln('================================================');
-  Writeln(Format(' Results: %d Passed, %d Failed, %d Skipped', [PassCount, FailCount, SkipCount]));
-  Writeln('------------------------------------------------');
-  Writeln(Format(' GDI Handles : %d -> %d (Delta: %d)', [StartGDI, EndGDI, Integer(EndGDI) - Integer(StartGDI)]));
-  Writeln(Format(' USER Handles: %d -> %d (Delta: %d)', [StartUser, EndUser, Integer(EndUser) - Integer(StartUser)]));
-  Writeln(Format(' Memory Alloc: %d KB -> %d KB (Delta: %d KB)', [StartMem div 1024, EndMem div 1024, (EndMem - StartMem) div 1024]));
-  Writeln('================================================');
+  // Phase 3D-4: the runner supplies the process resource values; the
+  // formatter only renders them (it never queries the OS itself).
+  FmtContext.HasProcessSummary := True;
+  FmtContext.Process.StartGDI := StartGDI;
+  FmtContext.Process.EndGDI := EndGDI;
+  FmtContext.Process.StartUser := StartUser;
+  FmtContext.Process.EndUser := EndUser;
+  FmtContext.Process.StartMem := StartMem;
+  FmtContext.Process.EndMem := EndMem;
 
-  // Phase 3C-2c-2: strict-only summary. Reconciliation uses the existing
-  // deterministic TRegressionBaseline.Reconcile implementation; the strict
-  // baseline object is freed here (it owns its internal dictionary).
+  // Phase 3D-5: strict reconciliation must be complete before the JSON
+  // document is emitted because the document includes the reconciliation
+  // object. Text mode keeps its original two-part summary order.
   if Options.&Strict then
   begin
-    try
-      Reconciled := TRegressionBaseline.Reconcile(StrictBaseline, ActualResults);
-      StrictFailed := StrictHasFailures(Reconciled, FailCount);
+    Reconciled := TRegressionBaseline.Reconcile(StrictBaseline, ActualResults);
+    StrictFailed := StrictHasFailures(Reconciled, FailCount);
 
-      Writeln('================================================');
-      Writeln(' Strict Baseline Validation');
-      Writeln('------------------------------------------------');
-      Writeln(Format(' Reports discovered : %d', [Length(Files)]));
-      Writeln(Format(' Reports checked    : %d', [Length(ActualResults)]));
-      Writeln(Format(' Matched            : %d', [Reconciled.MatchingCount]));
-      Writeln(Format(' Mismatches         : %d', [Reconciled.PageMismatchCount]));
-      Writeln(Format(' Missing baseline   : %d', [Reconciled.MissingBaselineCount]));
-      Writeln(Format(' Orphan baseline    : %d', [Reconciled.OrphanBaselineCount]));
-      Writeln(Format(' Skipped            : %d', [SkipCount]));
-      Writeln(Format(' Execution errors   : %d', [FailCount]));
-      Writeln('------------------------------------------------');
-      for StrictIssue in Reconciled.Issues do
-        case StrictIssue.Kind of
-          bikPageCountMismatch:
-            Writeln(Format('[FAIL] %-40s | Expected pages: %d, actual pages: %d',
-              [StrictIssue.ReportName, StrictIssue.ExpectedPages, StrictIssue.ActualPages]));
-          bikMissingBaseline:
-            Writeln(Format('[FAIL] %-40s | Missing baseline entry (actual pages: %d)',
-              [StrictIssue.ReportName, StrictIssue.ActualPages]));
-          bikOrphanBaseline:
-            Writeln(Format('[FAIL] %-40s | Orphan baseline entry (expected pages: %d)',
-              [StrictIssue.ReportName, StrictIssue.ExpectedPages]));
+    // Phase 3D-2: expose the strict reconciliation through the
+    // structured result. Reconciliation itself is unchanged.
+    RunResult.BaselineCompared := True;
+    RunResult.Reconciliation := Reconciled;
+
+    // Phase 3D-4: the runner already computed the strict verdict
+    // (StrictHasFailures) and the legacy FailCount (which includes
+    // [LEAK] classifications). The formatter only reports those values;
+    // exit-code and strict-semantics decisions stay below / unchanged.
+    FmtContext.HasStrictSummary := True;
+    FmtContext.&Strict.Failed := StrictFailed;
+    FmtContext.&Strict.ExecutionErrorCount := FailCount;
+  end;
+
+  try
+    if IsJsonMode then
+    begin
+      // Phase 3D-5: build the complete JSON string before writing anything.
+      // Formatter failures are caught so stdout never receives partial JSON.
+      try
+        ReportText := Formatter.FormatRunSummary(RunResult, FmtContext);
+      except
+        on E: Exception do
+        begin
+          WriteLn(ErrOutput, 'Error: JSON formatter failed: ' + E.Message);
+          Halt(1);
         end;
-      Writeln('------------------------------------------------');
-      if StrictFailed then
-        Writeln(' Strict result: FAIL')
-      else
-        Writeln(' Strict result: PASS');
-      Writeln('================================================');
-    finally
+      end;
+      Writeln(ReportText);
+    end
+    else
+    begin
+      Writeln(Formatter.FormatRunSummary(RunResult, FmtContext));
+      if Options.&Strict then
+        Writeln(Formatter.FormatStrictSummary(RunResult, FmtContext));
+    end;
+  finally
+    if Options.&Strict and Assigned(StrictBaseline) then
+    begin
       StrictBaseline.Free;
       StrictBaseline := nil;
     end;
   end;
 
-  // Keep console open if running inside the Delphi IDE debugger or if -pause argument is used
+  // Keep console open if running inside the Delphi IDE debugger or if -pause argument is used.
+  // In JSON mode stdout must contain only the JSON document, so the prompt is suppressed.
   {$WARN SYMBOL_PLATFORM OFF}
-  if (DebugHook <> 0) or Options.Pause then
+  if not IsJsonMode and ((DebugHook <> 0) or Options.Pause) then
   begin
     Writeln('Press ENTER to exit...');
     Readln;

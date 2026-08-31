@@ -16,6 +16,8 @@ uses
   System.SysUtils;
 
 type
+  TOutputFormat = (ofText, ofJson);
+
   TRunnerOptions = record
     ReportsPath: string;
     BaselineFile: string;
@@ -30,6 +32,8 @@ type
     &Strict: Boolean;
     Pause: Boolean;
     Help: Boolean;
+    OutputFormat: TOutputFormat;
+    HasExplicitFormat: Boolean;
     ErrorMessage: string;
   end;
 
@@ -53,6 +57,7 @@ const
   OptSampleData = '--sample-data';
   OptOutput = '--output';
   OptFilter = '--filter';
+  OptFormat = '--format';
 
 type
   // Internal normalized token: either a switch, a value option with value,
@@ -95,6 +100,29 @@ begin
   end;
 end;
 
+{ Deterministic post-parse validation of JSON output combinations.
+
+  JSON mode requires machine-readable stdout, so interactive or trace options
+  that would corrupt or duplicate that stream are rejected. }
+function ValidateFormatCombinations(var AOptions: TRunnerOptions): Boolean;
+begin
+  Result := True;
+  if AOptions.OutputFormat <> ofJson then
+    Exit;
+
+  if AOptions.ScriptTraceOnly then
+  begin
+    AOptions.ErrorMessage := 'Error: --format json cannot be combined with --script-trace';
+    Exit(False);
+  end;
+
+  if AOptions.Pause then
+  begin
+    AOptions.ErrorMessage := 'Error: --format json cannot be combined with -pause';
+    Exit(False);
+  end;
+end;
+
 function BooleanSwitchValue(const AArg: string; out AIsHelp: Boolean): Boolean;
 begin
   Result := SameText(AArg, SwitchHelp[0]) or SameText(AArg, SwitchHelp[1]) or
@@ -109,7 +137,7 @@ end;
 function ClassifyArg(const AArg: string; out AKind: TOptKind;
   out AName, AValue: string; out AInlineValue, AIsHelp: Boolean): Boolean;
 var
-  OptNames: array[0..4] of string;
+  OptNames: array[0..5] of string;
   I, P: Integer;
 begin
   OptNames[0] := OptReports;
@@ -117,6 +145,7 @@ begin
   OptNames[2] := OptSampleData;
   OptNames[3] := OptOutput;
   OptNames[4] := OptFilter;
+  OptNames[5] := OptFormat;
 
   Result := True;
   AValue := '';
@@ -205,6 +234,22 @@ var
       if AOptions.Filter <> '' then
         Exit(False);
       AOptions.Filter := AValue;
+    end
+    else if AName = OptFormat then
+    begin
+      if AOptions.HasExplicitFormat then
+        Exit(False);
+      if SameText(AValue, 'text') then
+        AOptions.OutputFormat := ofText
+      else if SameText(AValue, 'json') then
+        AOptions.OutputFormat := ofJson
+      else
+      begin
+        AOptions.ErrorMessage :=
+          Format('Error: invalid format value ''%s''. Use text or json.', [AValue]);
+        Exit(False);
+      end;
+      AOptions.HasExplicitFormat := True;
     end;
   end;
 
@@ -274,6 +319,8 @@ begin
           end;
           if not AssignValueOption(Name, Value) then
           begin
+            if AOptions.ErrorMessage <> '' then
+              Exit(False);
             if Name = OptFilter then
               AOptions.ErrorMessage :=
                 'Error: duplicate report filter. Use either --filter or a positional report name, not both.'
@@ -300,6 +347,8 @@ begin
 
   if Result then
     Result := ValidateStrictCombinations(AOptions);
+  if Result then
+    Result := ValidateFormatCombinations(AOptions);
 end;
 
 function ParseOptionsFromCommandLine(out AOptions: TRunnerOptions): Boolean;
