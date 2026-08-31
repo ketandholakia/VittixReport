@@ -40,6 +40,7 @@ uses
   Vittix.Runner.JsonFormatter,
   Vittix.Runner.Execution,
   Vittix.Runner.ExportVerification,
+  Vittix.Runner.ScriptTrace,
   Vittix.Report.Objects.Barcode,
   Vittix.Report.Objects.Table,
   Vittix.Report.Objects.CrossTab,
@@ -71,71 +72,6 @@ begin
   Writeln('  --keep-vector-pdf   Keep vector PDF smoke outputs under build\vector-pdf-smoke.');
   Writeln('  -pause              Keep console open after completion.');
   Writeln('  -h, --help          Show this help.');
-end;
-
-procedure TraceScriptObject(const AAdapter: TReportScriptHostAdapter; const AObject: TReportObject;
-  const ALevel: Integer);
-var
-  Ctx: TExpressionContext;
-  DummyCanPrint: Boolean;
-  ResultBefore: TScriptHostCommandResult;
-  ResultAfter: TScriptHostCommandResult;
-  Indent: string;
-  ObjName: string;
-  TraceLine: string;
-begin
-  if not Assigned(AObject) then
-    Exit;
-
-  Indent := StringOfChar(' ', ALevel * 2);
-  ObjName := AObject.ClassName;
-  if AObject.Name <> '' then
-    ObjName := ObjName + ' "' + AObject.Name + '"';
-
-  DummyCanPrint := True;
-  Ctx := Default(TExpressionContext);
-
-  if AObject.OnBeforePrint <> '' then
-  begin
-    ResultBefore := AAdapter.ExecuteBeforeObject(AObject, AObject.OnBeforePrint, Ctx, DummyCanPrint);
-    Writeln(Indent + '[Before] ' + ObjName);
-    if ResultBefore.TraceMessage <> '' then
-    begin
-      TraceLine := StringReplace(ResultBefore.TraceMessage, sLineBreak, sLineBreak + Indent + '  ', [rfReplaceAll]);
-      Writeln(Indent + '  ' + ObjName + ':');
-      Writeln(Indent + '    ' + TraceLine);
-    end;
-  end;
-
-  if AObject.OnAfterPrint <> '' then
-  begin
-    ResultAfter := AAdapter.ExecuteAfterObject(AObject, AObject.OnAfterPrint, Ctx);
-    Writeln(Indent + '[After ] ' + ObjName);
-    if ResultAfter.TraceMessage <> '' then
-    begin
-      TraceLine := StringReplace(ResultAfter.TraceMessage, sLineBreak, sLineBreak + Indent + '  ', [rfReplaceAll]);
-      Writeln(Indent + '  ' + ObjName + ':');
-      Writeln(Indent + '    ' + TraceLine);
-    end;
-  end;
-end;
-
-procedure TraceScriptTree(const AAdapter: TReportScriptHostAdapter; const AObject: TReportObject;
-  const ALevel: Integer);
-var
-  Band: TReportBand;
-  Child: TReportObject;
-begin
-  if not Assigned(AObject) then
-    Exit;
-
-  TraceScriptObject(AAdapter, AObject, ALevel);
-  if AObject is TReportBand then
-  begin
-    Band := TReportBand(AObject);
-    for Child in Band.Children do
-      TraceScriptTree(AAdapter, Child, ALevel + 1);
-  end;
 end;
 
 procedure RegisterBuiltInReportObjects;
@@ -529,7 +465,14 @@ begin
           begin
             Writeln('');
             for var LObj in AReport.Objects do
-              TraceScriptTree(ScriptAdapter, LObj, 2);
+              WriteScriptTraceTree(
+                ScriptAdapter,
+                LObj,
+                2,
+                procedure(const ALine: string)
+                begin
+                  Writeln(ALine);
+                end);
           end;
         end;
       end;

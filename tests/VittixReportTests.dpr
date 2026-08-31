@@ -31,7 +31,9 @@ uses
   Vittix.Runner.TextFormatter in '..\Vittix.Runner.TextFormatter.pas',
     Test.Vittix.Runner.Formatting in 'Test.Vittix.Runner.Formatting.pas',
   Vittix.Runner.JsonFormatter in '..\Vittix.Runner.JsonFormatter.pas',
-  Test.Vittix.Runner.JsonFormatter in 'Test.Vittix.Runner.JsonFormatter.pas';
+  Test.Vittix.Runner.JsonFormatter in 'Test.Vittix.Runner.JsonFormatter.pas',
+  Vittix.Runner.ScriptTrace in '..\Vittix.Runner.ScriptTrace.pas',
+  Test.Vittix.Runner.ScriptTrace in 'Test.Vittix.Runner.ScriptTrace.pas';
 
 var
   runner : ITestRunner;
