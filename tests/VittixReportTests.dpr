@@ -38,6 +38,8 @@ uses
   Test.Vittix.Runner.ScriptTrace in 'Test.Vittix.Runner.ScriptTrace.pas',
   Vittix.Runner.ExportVerification in '..\Vittix.Runner.ExportVerification.pas',
   Test.Vittix.Runner.ExportVerification in 'Test.Vittix.Runner.ExportVerification.pas',
+  Vittix.Runner.ResultCollector in '..\Vittix.Runner.ResultCollector.pas',
+  Test.Vittix.Runner.ResultCollector in 'Test.Vittix.Runner.ResultCollector.pas',
   Vittix.Runner.Resources in '..\Vittix.Runner.Resources.pas',
   Test.Vittix.Runner.Resources in 'Test.Vittix.Runner.Resources.pas';
 

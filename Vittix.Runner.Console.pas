@@ -37,8 +37,9 @@ uses
   Vittix.Runner.Baseline.Policy,
   Vittix.Runner.Results,
   Vittix.Runner.Formatting,
-  Vittix.Runner.Resources,
+  Vittix.Runner.ResultCollector,
   Vittix.Runner.TextFormatter,
+  Vittix.Runner.Resources,
   Vittix.Runner.JsonFormatter,
   Vittix.Runner.Execution,
   Vittix.Runner.ExportVerification,
@@ -133,19 +134,7 @@ var
   RunResult: TRegressionRunResult;
   Rec: TReportExecutionResult;
 
-  // Phase 3D-2: appends exactly one structured result per processed
-  // report, preserving the existing processing order. No second counter
-  // system: counts stay derived from RunResult.Reports.
-  procedure AppendReportResult(var ARunResult: TRegressionRunResult;
-    const AResult: TReportExecutionResult);
-  var
-    N: Integer;
-  begin
-    N := Length(ARunResult.Reports);
-    SetLength(ARunResult.Reports, N + 1);
-    ARunResult.Reports[N] := AResult;
-  end;
-
+  // Phase 3D-2: appends the presentation observation for the report that
   // Phase 3D-4: appends the presentation observation for the report that
   // was just appended to RunResult.Reports (lock-step, same index). The
   // context is presentation-only; result semantics stay in Results.pas.
@@ -320,8 +309,7 @@ begin
 
   // Phase 3D-2: structured result recording. ReportsDiscovered is the
   // number of .vrt files found before any skip/filter handling.
-  RunResult := Default(TRegressionRunResult);
-  RunResult.ReportsDiscovered := Length(Files);
+  TRunResultCollector.Initialize(RunResult, Length(Files));
 
   // Phase 3D-4: formatter boundary. The context is presentation-only and
   // starts empty; observations are appended in lock-step with
@@ -421,7 +409,7 @@ begin
         Rec.Status := resSkipped;
         Rec.HasPageCount := False;
         Rec.HasExpectedPageCount := False;
-        AppendReportResult(RunResult, Rec);
+        TRunResultCollector.Append(RunResult, Rec);
         // Phase 3D-4: emit the [SKIP] line at the same logical point via
         // the formatter (same text, same position relative to SkipCount).
         AppendObservation(Rec, FmtContext, 0, 0, False, False, 0, 0);
@@ -495,7 +483,7 @@ begin
         Inc(PassCount);
         // Phase 3D-2: script-trace reports pass without reaching the
         // legacy classification block below; record before continuing.
-        AppendReportResult(RunResult, Rec);
+        TRunResultCollector.Append(RunResult, Rec);
         // Phase 3D-4: presentation observation for the trace-passed
         // report. No [PASS] line is emitted in script-trace mode
         // (legacy ordering preserved); the observation is still kept
@@ -592,7 +580,7 @@ begin
       end;
       Rec.HasExpectedPageCount := HasRecExpectedPages;
       Rec.ExpectedPageCount := RecExpectedPages;
-      AppendReportResult(RunResult, Rec);
+      TRunResultCollector.Append(RunResult, Rec);
 
       // Phase 3D-4: presentation observation captured at the existing
       // computation points. ElapsedMs, the measured GDI cache delta, the
