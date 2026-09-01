@@ -35,7 +35,9 @@ uses
   Vittix.Runner.ScriptTrace in '..\Vittix.Runner.ScriptTrace.pas',
   Test.Vittix.Runner.ScriptTrace in 'Test.Vittix.Runner.ScriptTrace.pas',
   Vittix.Runner.ExportVerification in '..\Vittix.Runner.ExportVerification.pas',
-  Test.Vittix.Runner.ExportVerification in 'Test.Vittix.Runner.ExportVerification.pas';
+  Test.Vittix.Runner.ExportVerification in 'Test.Vittix.Runner.ExportVerification.pas',
+  Vittix.Runner.Resources in '..\Vittix.Runner.Resources.pas',
+  Test.Vittix.Runner.Resources in 'Test.Vittix.Runner.Resources.pas';
 
 var
   runner : ITestRunner;

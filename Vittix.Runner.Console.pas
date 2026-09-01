@@ -36,6 +36,7 @@ uses
   Vittix.Runner.Baseline.Legacy,
   Vittix.Runner.Results,
   Vittix.Runner.Formatting,
+  Vittix.Runner.Resources,
   Vittix.Runner.TextFormatter,
   Vittix.Runner.JsonFormatter,
   Vittix.Runner.Execution,
@@ -90,9 +91,10 @@ var
   FileName, JustName, TargetFile: string;
   MemTable: TFDMemTable;
   PassCount, FailCount, SkipCount, I: Integer;
-  StartGDI, EndGDI: DWORD;
-  StartUser, EndUser: DWORD;
-  StartMem, EndMem: Int64;
+  // Phase 3F-4: raw resource counters come from Vittix.Runner.Resources.
+  // The console still owns when measurement begins/ends, delta calculation
+  // and leak classification.
+  StartResources, EndResources: TProcessResourceSnapshot;
   BaselineFile: string;
   LegacyBaseline: TLegacyBaseline;
   StrictBaseline: TRegressionBaseline;
@@ -329,11 +331,9 @@ begin
     Formatter := TTextRunFormatter.Create;
   FmtContext := Default(TRunFormatContext);
 
-  StartGDI := GetGuiResources(GetCurrentProcess, GR_GDIOBJECTS);
-  StartUser := GetGuiResources(GetCurrentProcess, GR_USEROBJECTS);
-  {$WARN SYMBOL_DEPRECATED OFF}
-  StartMem := AllocMemSize;
-  {$WARN SYMBOL_DEPRECATED ON}
+  // Phase 3F-4: measurement mechanics moved to Vittix.Runner.Resources;
+  // timing (captured here, before the report loop) is unchanged.
+  StartResources := CaptureProcessResourceSnapshot;
   
   BaselineFile := TPath.Combine(ReportsPath, 'regression_baselines.json');
   if Options.BaselineFile <> '' then
@@ -435,7 +435,7 @@ begin
 
       // Phase 3E-3: raRun falls through to the existing execution path.
 
-      TestStartGDI := GetGuiResources(GetCurrentProcess, GR_GDIOBJECTS);
+      TestStartGDI := CaptureGdiHandleCount;
       TestFailed := False;
       ErrorMsg := '';
       PageCount := 0;
@@ -555,7 +555,7 @@ begin
         ErrorMsg := '';
       end;
 
-      TestEndGDI := GetGuiResources(GetCurrentProcess, GR_GDIOBJECTS);
+      TestEndGDI := CaptureGdiHandleCount;
 
       // Phase 3D-4: the legacy [LEAK] classification value is determined by
       // the exact conditions used by the output block below. It is captured
@@ -673,21 +673,19 @@ begin
   // mode (structurally read-only).
   RunResult.BaselineUpdated := BaselineModified;
 
-  EndGDI := GetGuiResources(GetCurrentProcess, GR_GDIOBJECTS);
-  EndUser := GetGuiResources(GetCurrentProcess, GR_USEROBJECTS);
-  {$WARN SYMBOL_DEPRECATED OFF}
-  EndMem := AllocMemSize;
-  {$WARN SYMBOL_DEPRECATED ON}
+  // Phase 3F-4: measurement mechanics moved to Vittix.Runner.Resources;
+  // timing (captured here, after the report loop) is unchanged.
+  EndResources := CaptureProcessResourceSnapshot;
 
   // Phase 3D-4: the runner supplies the process resource values; the
   // formatter only renders them (it never queries the OS itself).
   FmtContext.HasProcessSummary := True;
-  FmtContext.Process.StartGDI := StartGDI;
-  FmtContext.Process.EndGDI := EndGDI;
-  FmtContext.Process.StartUser := StartUser;
-  FmtContext.Process.EndUser := EndUser;
-  FmtContext.Process.StartMem := StartMem;
-  FmtContext.Process.EndMem := EndMem;
+  FmtContext.Process.StartGDI := StartResources.GDI;
+  FmtContext.Process.EndGDI := EndResources.GDI;
+  FmtContext.Process.StartUser := StartResources.User;
+  FmtContext.Process.EndUser := EndResources.User;
+  FmtContext.Process.StartMem := StartResources.MemoryBytes;
+  FmtContext.Process.EndMem := EndResources.MemoryBytes;
 
   // Phase 3D-5: strict reconciliation must be complete before the JSON
   // document is emitted because the document includes the reconciliation
