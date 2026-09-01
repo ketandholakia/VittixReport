@@ -619,13 +619,14 @@ begin
           // Phase 3D-2: preserve the measured leak delta; the page count
           // stays recorded (never erased by leak classification).
           RecLeakDelta := Integer(TestEndGDI - TestStartGDI);
-          // Phase 3D-5: correct the structured result for this report.
-          // The report was appended before leak detection with
+          // Phase 3D-5 / Phase 3F-6: correct the structured result for this
+          // report. The report was appended before leak detection with
           // Status=resPassed and GdiLeakDelta=0. Update it so
           // TRegressionRunResult accurately reflects the legacy [LEAK]
           // classification (Status=resFailed, actual GDI delta preserved).
-          RunResult.Reports[High(RunResult.Reports)].Status := resFailed;
-          RunResult.Reports[High(RunResult.Reports)].GdiLeakDelta := RecLeakDelta;
+          // The result-aggregation boundary in TRunResultCollector.UpdateLast
+          // owns this in-place correction.
+          TRunResultCollector.UpdateLast(RunResult, resFailed, RecLeakDelta);
         end;
       end
       else
