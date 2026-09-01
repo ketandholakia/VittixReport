@@ -25,6 +25,8 @@ uses
   Test.Vittix.Runner.Baseline in 'Test.Vittix.Runner.Baseline.pas',
   Vittix.Runner.Baseline.Legacy in '..\Vittix.Runner.Baseline.Legacy.pas',
   Test.Vittix.Runner.Baseline.Legacy in 'Test.Vittix.Runner.Baseline.Legacy.pas',
+  Vittix.Runner.Baseline.Policy in '..\Vittix.Runner.Baseline.Policy.pas',
+  Test.Vittix.Runner.Baseline.Policy in 'Test.Vittix.Runner.Baseline.Policy.pas',
   Vittix.Runner.Results in '..\Vittix.Runner.Results.pas',
   Test.Vittix.Runner.Results in 'Test.Vittix.Runner.Results.pas',
   Vittix.Runner.Formatting in '..\Vittix.Runner.Formatting.pas',

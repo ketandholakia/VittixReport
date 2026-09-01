@@ -34,6 +34,7 @@ uses
   Vittix.Runner.Discovery,
   Vittix.Runner.Baseline,
   Vittix.Runner.Baseline.Legacy,
+  Vittix.Runner.Baseline.Policy,
   Vittix.Runner.Results,
   Vittix.Runner.Formatting,
   Vittix.Runner.Resources,
@@ -335,9 +336,7 @@ begin
   // timing (captured here, before the report loop) is unchanged.
   StartResources := CaptureProcessResourceSnapshot;
   
-  BaselineFile := TPath.Combine(ReportsPath, 'regression_baselines.json');
-  if Options.BaselineFile <> '' then
-    BaselineFile := TPath.GetFullPath(Options.BaselineFile);
+  BaselineFile := ResolveBaselineFilePath(ReportsPath, Options.BaselineFile);
   BaselineModified := False;
   LegacyBaseline := nil;
   StrictBaseline := nil;
@@ -349,11 +348,10 @@ begin
   // (exit 2); no reports are executed in that case.
   if Options.&Strict then
   begin
-    if not TRegressionBaseline.LoadFromFile(BaselineFile, StrictBaseline, StrictParseError) then
+    var Diagnostic: string;
+    if not LoadStrictBaseline(BaselineFile, StrictBaseline, Diagnostic) then
     begin
-      WriteDiagnostic('Error: strict regression baseline could not be loaded: ' + BaselineFile);
-      if StrictParseError.Message <> '' then
-        WriteDiagnostic('Error: ' + StrictParseError.Message);
+      WriteDiagnostic(Diagnostic);
       Halt(2);
     end;
   end
@@ -514,20 +512,19 @@ begin
         begin
           // Non-strict: existing tolerant baseline comparison and
           // auto-registration behavior (unchanged).
-          // Check against pagination baseline
-          if LegacyBaseline.TryGetExpectedPages(JustName, ExpectedPages) then
+          var Decision: TNonStrictReportDecision;
+          Decision := EvaluateNonStrictReport(LegacyBaseline, JustName, PageCount);
+          if Decision.Mismatch then
           begin
-            if ExpectedPages <> PageCount then
-            begin
-              TestFailed := True;
-              ErrorMsg := Format('Pagination mismatch: Expected %d pages, got %d', [ExpectedPages, PageCount]);
-            end;
-            // Phase 3D-2: a baseline comparison actually occurred;
-            // record the existing baseline value (never fabricated).
+            TestFailed := True;
+            ErrorMsg := Decision.ErrorMessage;
+          end;
+          if Decision.HasExpectedPages then
+          begin
             HasRecExpectedPages := True;
-            RecExpectedPages := ExpectedPages;
+            RecExpectedPages := Decision.ExpectedPages;
           end
-          else
+          else if Decision.ShouldRegister then
           begin
             LegacyBaseline.RegisterReport(JustName, PageCount);
             BaselineModified := True;
@@ -708,6 +705,13 @@ begin
     FmtContext.&Strict.Failed := StrictFailed;
     FmtContext.&Strict.ExecutionErrorCount := FailCount;
   end;
+
+  // Phase 3F-5: free the strict baseline after reconciliation (Console owns
+  // it; the legacy baseline is already freed above). This also fixes a
+  // pre-existing leak where StrictBaseline was created by LoadFromFile but
+  // never freed.
+  if Options.&Strict and Assigned(StrictBaseline) then
+    StrictBaseline.Free;
 
   try
     if IsJsonMode then
