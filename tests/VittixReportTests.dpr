@@ -33,7 +33,9 @@ uses
   Vittix.Runner.JsonFormatter in '..\Vittix.Runner.JsonFormatter.pas',
   Test.Vittix.Runner.JsonFormatter in 'Test.Vittix.Runner.JsonFormatter.pas',
   Vittix.Runner.ScriptTrace in '..\Vittix.Runner.ScriptTrace.pas',
-  Test.Vittix.Runner.ScriptTrace in 'Test.Vittix.Runner.ScriptTrace.pas';
+  Test.Vittix.Runner.ScriptTrace in 'Test.Vittix.Runner.ScriptTrace.pas',
+  Vittix.Runner.ExportVerification in '..\Vittix.Runner.ExportVerification.pas',
+  Test.Vittix.Runner.ExportVerification in 'Test.Vittix.Runner.ExportVerification.pas';
 
 var
   runner : ITestRunner;

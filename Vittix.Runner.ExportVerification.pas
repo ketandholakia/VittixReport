@@ -12,6 +12,13 @@ uses
   FireDAC.Comp.Client,
   Vittix.Report.Export.Commands;
 
+function IsHtmlSmokeReport(const AReportName: string): Boolean;
+
+{ Phase 3F-1: single source of truth for which report receives HTML export
+  smoke verification. Previously hardcoded independently in
+  Vittix.Runner.Console and Vittix.Runner.Execution; both now call this
+  predicate so they cannot drift. }
+
 function CountOccurrences(const Haystack, Needle: string): Integer;
 
 function BytesContainAscii(const ABytes: TBytes; const AText: AnsiString): Boolean;
@@ -39,6 +46,11 @@ function BuildImageBindingData(const ALogoFile, ASignatureFile,
   AMissingImageFile: string): TFDMemTable;
 
 implementation
+
+function IsHtmlSmokeReport(const AReportName: string): Boolean;
+begin
+  Result := SameText(AReportName, '38_export_html.vrt');
+end;
 
 function CountOccurrences(const Haystack, Needle: string): Integer;
 var

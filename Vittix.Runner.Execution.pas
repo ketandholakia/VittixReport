@@ -246,7 +246,7 @@ begin
   IsExportXLSXReport := SameText(AConfig.ReportName, '40_export_xlsx.vrt');
   IsDetailBandsReport := SameText(AConfig.ReportName, '39_detail_bands.vrt');
   IsTwoPassReport := SameText(AConfig.ReportName, '41_twopass_totalpages.vrt');
-  IsExportHTMLReport := SameText(AConfig.ReportName, '38_export_html.vrt');
+  IsExportHTMLReport := IsHtmlSmokeReport(AConfig.ReportName);
 
   try
     Report := TReportSerializer.LoadFromFile(AConfig.FileName);

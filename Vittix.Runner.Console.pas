@@ -423,7 +423,7 @@ begin
       HasRecExpectedPages := False;
       RecExpectedPages := 0;
       RecLeakDelta := 0;
-      var IsExportHTMLReport := SameText(JustName, '38_export_html.vrt');
+      var IsExportHTMLReport := IsHtmlSmokeReport(JustName);
 
       // Phase 3E-2: report execution delegated to TVittixReportExecutor
       // (Vittix.Runner.Execution). GDI start measurement above, baseline
