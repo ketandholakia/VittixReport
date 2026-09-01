@@ -46,17 +46,6 @@ uses
   Vittix.Report.Objects.CrossTab,
   Vittix.Report.ScriptHost.Adapter;
 
-function HasExactSwitch(const ASwitch: string): Boolean;
-var
-  I: Integer;
-begin
-  // Retained for compatibility; Phase 3C-1 parsing is in Vittix.Runner.Options.
-  Result := False;
-  for I := 1 to ParamCount do
-    if SameText(ParamStr(I), ASwitch) then
-      Exit(True);
-end;
-
 procedure WriteUsage;
 begin
   Writeln('Usage: VittixRunner [options] [reportfile.vrt]');
@@ -128,7 +117,6 @@ var
   ScriptAfterCount: Integer;
   Classif: TReportClassification;
   RunMode: TReportRunMode;
-  Obj: TReportObject;
   // Phase 3E-2: report execution is delegated to TVittixReportExecutor.
   // The executor owns the report model, engine, datasets and temp export
   // files; the console keeps GDI measurement, baseline policy, formatting
