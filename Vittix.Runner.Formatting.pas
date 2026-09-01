@@ -44,6 +44,18 @@ interface
 uses
   Vittix.Runner.Results;
 
+const
+  {
+    Phase 3F-3: the single authoritative GDI leak threshold.
+
+    Legacy semantic, unchanged: a per-report GDI handle delta of
+    GdiLeakThreshold or more is classified as [LEAK] (a failed result).
+    Both classification sites (the runner's RecLeakDelta computation and
+    the text formatter's [LEAK] rendering) must use this constant; no
+    production code keeps its own copy of the value.
+  }
+  GdiLeakThreshold = 25;
+
 type
   {
     Process-level resource observations for the run summary. The runner

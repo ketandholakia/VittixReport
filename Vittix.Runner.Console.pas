@@ -178,13 +178,23 @@ var
       Writeln(Msg);
   end;
 
-begin
-  if not IsJsonMode then
+  // Phase 3F-2: banner emission helper. The banner must only appear in text
+  // mode, so it is emitted from the call sites below that run after
+  // IsJsonMode has been derived from ParseOptions. The banner text itself is
+  // unchanged.
+  procedure WriteBanner;
   begin
     Writeln('================================================');
     Writeln(' VittixReport Headless Regression Runner');
     Writeln('================================================');
   end;
+
+begin
+  // Phase 3F-2: no output happens before ParseOptions. Previously the banner
+  // was emitted here, reading IsJsonMode before it was initialized, which
+  // also sent the text banner to stdout in --format json mode and broke
+  // stdout purity (banner lines before the single JSON document). The banner
+  // is now emitted after the output format is known.
 
   // Phase 3C-1: all CLI parsing is delegated to Vittix.Runner.Options.
   // Arguments are acquired here (process-global state stays in the console
@@ -196,6 +206,10 @@ begin
   if not ParseOptions(Args, Options) then
   begin
     IsJsonMode := Options.OutputFormat = ofJson;
+    // Phase 3F-2: text-mode CLI errors keep the banner/diagnostic/usage
+    // ordering; JSON-mode CLI errors keep stdout empty.
+    if not IsJsonMode then
+      WriteBanner;
     WriteDiagnostic(Options.ErrorMessage);
     WriteDiagnostic('Run VittixRunner --help for usage information.');
     // Phase 3C-2c-2: a strict run that fails CLI validation is a strict
@@ -208,6 +222,11 @@ begin
   end;
 
   IsJsonMode := Options.OutputFormat = ofJson;
+
+  // Phase 3F-2: the banner is emitted only now that IsJsonMode is
+  // initialized, so JSON mode stdout contains exactly one JSON document.
+  if not IsJsonMode then
+    WriteBanner;
 
   if Options.Help then
   begin
@@ -543,7 +562,7 @@ begin
       // before building the structured result so the result model keeps
       // carrying GdiLeakDelta (Phase 3D-2 semantics, never reinterpreted).
       if (not TestFailed) and (TestEndGDI > TestStartGDI) and
-         ((TestEndGDI - TestStartGDI) >= 25) then
+         ((TestEndGDI - TestStartGDI) >= GdiLeakThreshold) then
         RecLeakDelta := Integer(TestEndGDI - TestStartGDI)
       else
         RecLeakDelta := 0;
@@ -600,8 +619,8 @@ begin
       else if TestEndGDI > TestStartGDI then
       begin
         // The VCL Graphics.pas unit globally caches Pens, Brushes, and Fonts.
-        // Small GDI increases (< 25) during the first few reports are just normal cache allocations.
-        if (TestEndGDI - TestStartGDI) < 25 then
+        // Small GDI increases (below GdiLeakThreshold) during the first few reports are just normal cache allocations.
+        if (TestEndGDI - TestStartGDI) < GdiLeakThreshold then
         begin
           if not IsJsonMode then
             Writeln(Formatter.FormatReportLine(Rec, FmtContext));

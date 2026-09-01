@@ -83,7 +83,7 @@ begin
         Result := Format('[FAIL] %-40s | %s',
           [AReport.ReportName, AReport.ErrorMessage]);
   else { resPassed }
-    if Obs.GdiCacheDelta >= 25 then
+    if Obs.GdiCacheDelta >= GdiLeakThreshold then
       // Legacy [LEAK] classification (the threshold is unchanged).
       Result := Format('[LEAK] %-40s | %3d pgs | %4d ms | GDI Delta: +%d',
         [AReport.ReportName, AReport.PageCount, Obs.ElapsedMs,
