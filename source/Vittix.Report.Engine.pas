@@ -1674,6 +1674,38 @@ var
       Inc(XBar, UnitW);
     end;
   end;
+
+  procedure CaptureElementsBarcodeBars(
+    const AElements: string;
+    const ARect: TRect;
+    ABarTop: Integer;
+    ABarBottom: Integer;
+    ADrawWidth: Integer;
+    ABarColor: TColor);
+  var
+    I: Integer;
+    UnitW: Integer;
+    TotalUnits: Integer;
+    XBar: Integer;
+    BarWidth: Integer;
+  begin
+    TotalUnits := BarcodeElementTotalUnits(AElements);
+    if TotalUnits <= 0 then
+      Exit;
+
+    UnitW := Max(1, ADrawWidth div TotalUnits);
+    XBar := ARect.Left + 4;
+    for I := 1 to Length(AElements) do
+    begin
+      BarWidth := UnitW * (Ord(AElements[I]) - 48);
+      if Odd(I) then
+        AddBarcodeBar(Rect(XBar, ABarTop,
+          Min(XBar + BarWidth, ARect.Left + 4 + ADrawWidth), ABarBottom), ABarColor);
+      Inc(XBar, BarWidth);
+      if XBar >= ARect.Left + 4 + ADrawWidth then
+        Exit;
+    end;
+  end;
 begin
   if not IsCapturingExportCommands or not Assigned(FCurrentExportPage) or
      not Assigned(AObject) then
@@ -1928,10 +1960,16 @@ begin
       BarBottom := R.Bottom - 4;
 
     DrawW := Max(1, R.Right - R.Left - 8);
-    if BarcodeObj.Symbology = bsCode39 then
-      CaptureCode39BarcodeBars(BarcodeText, R, BarTop, BarBottom, DrawW, BarcodeObj.BarColor)
+    case BarcodeObj.Symbology of
+      bsCode39:
+        CaptureCode39BarcodeBars(BarcodeText, R, BarTop, BarBottom, DrawW, BarcodeObj.BarColor);
+      bsCode128, bsEAN13:
+        CaptureElementsBarcodeBars(
+          EncodeBarcodeElements(BarcodeObj.Symbology, BarcodeText),
+          R, BarTop, BarBottom, DrawW, BarcodeObj.BarColor);
     else
       CaptureLegacyBarcodeBars(BarcodeText, R, BarTop, BarBottom, DrawW, BarcodeObj.BarColor);
+    end;
 
     if BarcodeObj.ShowText then
     begin
