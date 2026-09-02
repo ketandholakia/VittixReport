@@ -76,11 +76,19 @@ type
 
 procedure RegisterReportObject(AClass: TReportObjectClass);
 function GetRegisteredReportObjects: TArray<TReportObjectClass>;
-procedure SetReportNamedDataSets(ANamedDataSets: TDictionary<string, TDataSet>);
-procedure SetReportObjectRenderHooks(
-  const ABeforePrint: TReportObjectBeforePrintEvent;
-  const AAfterPrint: TReportObjectAfterPrintEvent);
-procedure ClearReportObjectRenderHooks;
+{ Phase 4G-1: SetReportNamedDataSets, SetReportObjectRenderHooks,
+  and ClearReportObjectRenderHooks were the public mutators of the four
+  removed render globals. They had no callers inside the repository and
+  have been deleted. Named datasets and before/after object hooks are now
+  reached exclusively through TExpressionContext.Hooks (IReportRenderHooks)
+  which the engine populates on every render path. }
+{ Phase 4G-1: pure predicate for an object printWhen evaluation.
+  Exposed publicly only so the dedicated render-internals test fixture
+  can drive it directly. The guard short-circuit for the in-flight
+  AObject is read from Context.PrecheckedObjectForPrintWhen. }
+function ShouldPrintObject(AObj: TReportObject;
+  const Context: TExpressionContext): Boolean;
+
 procedure DrawReportObjectWithHooks(
   AObject: TReportObject;
   C: TCanvas;
@@ -329,10 +337,6 @@ uses
 var
   GRegistry: TList<TReportObjectClass>;
   GRegistryCS: TCriticalSection;
-  GNamedDataSets: TDictionary<string, TDataSet>;
-  GBeforeObjectPrint: TReportObjectBeforePrintEvent;
-  GAfterObjectPrint: TReportObjectAfterPrintEvent;
-  GPrecheckedObjectForPrintWhen: TReportObject;
 
 {$IFDEF DEBUG}
 procedure DebugLogDataFieldIssue(AObj: TReportObject; const ADataField, AReason: string;
@@ -344,29 +348,15 @@ begin
 end;
 {$ENDIF}
 
-function ShouldPrintObject(AObj: TReportObject;
-  const Context: TExpressionContext): Boolean; forward;
-
-procedure SetReportObjectRenderHooks(
-  const ABeforePrint: TReportObjectBeforePrintEvent;
-  const AAfterPrint: TReportObjectAfterPrintEvent);
-begin
-  GBeforeObjectPrint := ABeforePrint;
-  GAfterObjectPrint := AAfterPrint;
-end;
-
-procedure ClearReportObjectRenderHooks;
-begin
-  GBeforeObjectPrint := nil;
-  GAfterObjectPrint := nil;
-end;
-
 procedure DrawReportObjectWithHooks(
   AObject: TReportObject;
   C: TCanvas;
   const Context: TExpressionContext);
 var
   CanPrint: Boolean;
+  // Phase 4G-1: per-render reentrancy guard. Mutated on a local copy
+  // so the callers const Context is not modified.
+  Ctx: TExpressionContext;
 begin
   if not Assigned(AObject) then
     Exit;
@@ -383,11 +373,12 @@ begin
   if not CanPrint then
     Exit;
 
-  GPrecheckedObjectForPrintWhen := AObject;
+  Ctx := Context;
+  Ctx.PrecheckedObjectForPrintWhen := AObject;
   try
-    AObject.Draw(C, Context);
+    AObject.Draw(C, Ctx);
   finally
-    GPrecheckedObjectForPrintWhen := nil;
+    Ctx.PrecheckedObjectForPrintWhen := nil;
   end;
 
   if Assigned(Context.Hooks) then
@@ -567,7 +558,9 @@ begin
   if not Assigned(AObj) then
     Exit;
 
-  if AObj = GPrecheckedObjectForPrintWhen then
+  // Phase 4G-1: per-render reentrancy guard.
+  if (Context.PrecheckedObjectForPrintWhen <> nil) and
+     (AObj = TReportObject(Context.PrecheckedObjectForPrintWhen)) then
     Exit(True);
 
   if not AObj.Visible then
@@ -1791,11 +1784,6 @@ begin
   end
   else if FMinHeight > 0 then
     Result := FBounds.Top + FMinHeight;
-end;
-
-procedure SetReportNamedDataSets(ANamedDataSets: TDictionary<string, TDataSet>);
-begin
-  GNamedDataSets := ANamedDataSets;
 end;
 
 { ================= Sub-report Object ================= }

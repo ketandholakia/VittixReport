@@ -19,6 +19,15 @@ unit Vittix.Report.Context;
     [FieldName]     Value of a dataset field
     SUM([F]), COUNT([F]), AVG([F]), MIN([F]), MAX([F])  — aggregate functions
 
+  Phase 4G-1: PrecheckedObjectForPrintWhen is a per-render reentrancy guard.
+  It is set by DrawReportObjectWithHooks (Vittix.Report.Objects.pas) just
+  before AObject.Draw and cleared in the matching finally. ShouldPrintObject
+  reads it to short-circuit re-evaluation of Self.PrintWhen while Self is
+  being drawn. Replaces the previous unit-level global of the same name.
+  Typed as TObject to avoid a unit cycle (TExpressionContext is a leaf
+  unit that must not import any other VittixReport unit); the only writer
+  always assigns a real TReportObject, so the cast at the read site is safe.
+
   Dependency
   ----------
   This unit must NOT reference any other VittixReport unit
@@ -61,6 +70,15 @@ type
     
     { Hooks and Context State }
     Hooks: IReportRenderHooks;
+
+    { Phase 4G-1: per-render reentrancy guard. Set by
+      DrawReportObjectWithHooks (Vittix.Report.Objects.pas) immediately
+      before AObject.Draw; cleared in the matching finally. Read by
+      ShouldPrintObject to short-circuit Self.PrintWhen re-evaluation
+      while Self is being drawn. nil for any context that was not
+      produced by the render path (preserves the pre-R1 behavior in
+      tests and direct callers that build a context by hand). }
+    PrecheckedObjectForPrintWhen: TObject;
   end;
 
   IReportRenderHooks = interface

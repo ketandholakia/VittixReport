@@ -41,7 +41,8 @@ uses
   Vittix.Runner.ResultCollector in '..\Vittix.Runner.ResultCollector.pas',
   Test.Vittix.Runner.ResultCollector in 'Test.Vittix.Runner.ResultCollector.pas',
   Vittix.Runner.Resources in '..\Vittix.Runner.Resources.pas',
-  Test.Vittix.Runner.Resources in 'Test.Vittix.Runner.Resources.pas';
+  Test.Vittix.Runner.Resources in 'Test.Vittix.Runner.Resources.pas',
+  Test.Vittix.Report.Objects in 'Test.Vittix.Report.Objects.pas';
 
 var
   runner : ITestRunner;
