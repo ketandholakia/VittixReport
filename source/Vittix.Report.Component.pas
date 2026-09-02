@@ -69,6 +69,13 @@ type
     // Ordered list — first entry is the primary dataset
     FUserDataSets : TList<TVittixUserDataSet>;
     FOnLargeReport: TReportLargeReportEvent;
+    FProgress     : IReportProgress;
+    FOnBeforePrintReport: TReportBeforePrintReportEvent;
+    FOnAfterPrintReport : TReportAfterPrintReportEvent;
+    FOnBeforeBand : TReportBeforeBandEvent;
+    FOnAfterBand  : TReportAfterBandEvent;
+    FOnBeforeObject: TReportBeforeObjectEvent;
+    FOnAfterObject : TReportAfterObjectEvent;
 
     function  GetReportJSON: string;
     procedure SetReportJSON(const V: string);
@@ -84,6 +91,15 @@ type
       out APrimary: TVittixUserDataSet;
       out ANamedDS: TDictionary<string, TVittixUserDataSet>);
 
+  public
+    /// <summary>
+    ///   Creates a TReportEngine for AModel wired with this component's
+    ///   datasets, Parameters, TwoPassRendering, Progress and print events.
+    ///   The caller owns the returned engine and must call Prepare (or use
+    ///   TReportRenderer.Render) before consuming its pages.
+    /// </summary>
+    function  CreateEngine(const AModel: TReportModel): TReportEngine;
+
     /// <summary>
     ///   After engine preparation, fires OnLargeReport if the page count
     ///   exceeds FLargeReportThreshold.  The host can set AContinue=False
@@ -92,6 +108,14 @@ type
     function CheckLargeReport(APageCount: Integer): Boolean;
 
   protected
+    /// <summary>
+    ///   Configures ARenderer from component state before rendering.
+    ///   TReportRenderer.Render overwrites the engine's TwoPassRendering
+    ///   from the renderer's own flag, so Execute and Print must mirror the
+    ///   component's setting onto the renderer before Render is called.
+    /// </summary>
+    procedure ConfigureRenderer(ARenderer: TReportRenderer);
+
     procedure Notification(AComponent: TComponent;
                            Operation: TOperation); override;
 
@@ -166,6 +190,34 @@ type
     /// </summary>
     property OnLargeReport: TReportLargeReportEvent
       read FOnLargeReport write FOnLargeReport;
+
+    /// <summary>
+    ///   Optional progress/cancellation callback forwarded to every engine
+    ///   created by CreateEngine (used by Execute, Print and all exports).
+    ///   Not published — interface-typed properties cannot be streamed.
+    /// </summary>
+    property Progress: IReportProgress
+      read FProgress write FProgress;
+
+    // Engine print events — relayed to the engine created by CreateEngine.
+
+    property OnBeforePrintReport: TReportBeforePrintReportEvent
+      read FOnBeforePrintReport write FOnBeforePrintReport;
+
+    property OnAfterPrintReport: TReportAfterPrintReportEvent
+      read FOnAfterPrintReport write FOnAfterPrintReport;
+
+    property OnBeforeBand: TReportBeforeBandEvent
+      read FOnBeforeBand write FOnBeforeBand;
+
+    property OnAfterBand: TReportAfterBandEvent
+      read FOnAfterBand write FOnAfterBand;
+
+    property OnBeforeObject: TReportBeforeObjectEvent
+      read FOnBeforeObject write FOnBeforeObject;
+
+    property OnAfterObject: TReportAfterObjectEvent
+      read FOnAfterObject write FOnAfterObject;
   end;
 
 // procedure Register;  // registration moved to Vittix.Report.Reg
@@ -346,6 +398,41 @@ begin
 end;
 
 // ---------------------------------------------------------------------------
+//  CreateEngine — single engine-construction path for Execute / Print / Export
+// ---------------------------------------------------------------------------
+
+function TVittixReport.CreateEngine(const AModel: TReportModel): TReportEngine;
+var
+  Primary  : TDataSet;
+  NamedDS  : TDictionary<string, TDataSet>;
+  PrimaryUDS: TVittixUserDataSet;
+  NamedUDS : TDictionary<string, TVittixUserDataSet>;
+begin
+  BuildNamedDataSets(Primary, NamedDS);
+  BuildNamedUserDataSets(PrimaryUDS, NamedUDS);
+  try
+    // The engine copies both named-dataset maps in its constructor, so the
+    // caller-side dictionaries can be released as soon as it returns.
+    if Assigned(PrimaryUDS) then
+      Result := TReportEngine.Create(AModel, PrimaryUDS, NamedUDS, FProgress)
+    else
+      Result := TReportEngine.Create(AModel, Primary, NamedDS, FProgress);
+  finally
+    NamedUDS.Free;
+    NamedDS.Free;
+  end;
+
+  Result.Parameters.Assign(FParameters);
+  Result.TwoPassRendering := FTwoPassRendering;
+  Result.OnBeforePrintReport := FOnBeforePrintReport;
+  Result.OnAfterPrintReport := FOnAfterPrintReport;
+  Result.OnBeforeBand := FOnBeforeBand;
+  Result.OnAfterBand := FOnAfterBand;
+  Result.OnBeforeObject := FOnBeforeObject;
+  Result.OnAfterObject := FOnAfterObject;
+end;
+
+// ---------------------------------------------------------------------------
 //  Report file I/O
 // ---------------------------------------------------------------------------
 
@@ -442,16 +529,22 @@ begin
 end;
 
 // ---------------------------------------------------------------------------
+//  Renderer configuration (shared by Execute and Print)
+// ---------------------------------------------------------------------------
+
+procedure TVittixReport.ConfigureRenderer(ARenderer: TReportRenderer);
+begin
+  ARenderer.Parameters.Assign(FParameters);
+  ARenderer.TwoPassRendering := FTwoPassRendering;
+end;
+
+// ---------------------------------------------------------------------------
 //  Execute — modal preview
 // ---------------------------------------------------------------------------
 
 procedure TVittixReport.Execute;
 var
   Model    : TReportModel;
-  Primary  : TDataSet;
-  NamedDS  : TDictionary<string, TDataSet>;
-  PrimaryUDS: TVittixUserDataSet;
-  NamedUDS : TDictionary<string, TVittixUserDataSet>;
   Renderer : TReportRenderer;
   Frm      : TForm;
   Preview  : TVittixReportPreview;
@@ -466,23 +559,16 @@ begin
       'No report design loaded. Call LoadFromFile first.');
 
   Model := TReportSerializer.LoadFromJSON(FReportJSON);
-  BuildNamedDataSets(Primary, NamedDS);
-  BuildNamedUserDataSets(PrimaryUDS, NamedUDS);
   try
     Renderer := TReportRenderer.Create;
     try
-      Renderer.Parameters.Assign(FParameters);
-      Renderer.TwoPassRendering := FTwoPassRendering;
-      var Engine: TReportEngine;
-        if Assigned(PrimaryUDS) then
-          Engine := TReportEngine.Create(Model, PrimaryUDS, NamedUDS, nil)
-        else
-          Engine := TReportEngine.Create(Model, Primary, NamedDS, nil);
-        try
-          Renderer.Render(Engine, Model.PageSettings.PageWidth, Model.PageSettings.PageHeight);
-        finally
-          Engine.Free;
-        end;
+      ConfigureRenderer(Renderer);
+      var Engine := CreateEngine(Model);
+      try
+        Renderer.Render(Engine, Model.PageSettings.PageWidth, Model.PageSettings.PageHeight);
+      finally
+        Engine.Free;
+      end;
 
       NavHelp := TPreviewNavHelper.Create;
       try
@@ -574,8 +660,6 @@ begin
       Renderer.Free;
     end;
   finally
-    NamedUDS.Free;
-    NamedDS.Free;
     Model.Free;
   end;
 end;
@@ -587,40 +671,27 @@ end;
 procedure TVittixReport.Print;
 var
   Model  : TReportModel;
-  Primary: TDataSet;
-  NamedDS: TDictionary<string, TDataSet>;
-  PrimaryUDS: TVittixUserDataSet;
-  NamedUDS: TDictionary<string, TVittixUserDataSet>;
   Renderer: TReportRenderer;
 begin
   if FReportJSON = '' then
     raise Exception.Create('No report design loaded.');
 
   Model := TReportSerializer.LoadFromJSON(FReportJSON);
-  BuildNamedDataSets(Primary, NamedDS);
-  BuildNamedUserDataSets(PrimaryUDS, NamedUDS);
   try
     Renderer := TReportRenderer.Create;
     try
-      Renderer.Parameters.Assign(FParameters);
-      Renderer.TwoPassRendering := FTwoPassRendering;
-      var Engine: TReportEngine;
-        if Assigned(PrimaryUDS) then
-          Engine := TReportEngine.Create(Model, PrimaryUDS, NamedUDS, nil)
-        else
-          Engine := TReportEngine.Create(Model, Primary, NamedDS, nil);
-        try
-          Renderer.Render(Engine, Model.PageSettings.PageWidth, Model.PageSettings.PageHeight);
-        finally
-          Engine.Free;
-        end;
+      ConfigureRenderer(Renderer);
+      var Engine := CreateEngine(Model);
+      try
+        Renderer.Render(Engine, Model.PageSettings.PageWidth, Model.PageSettings.PageHeight);
+      finally
+        Engine.Free;
+      end;
       Renderer.Print;
+    finally
+      Renderer.Free;
+    end;
   finally
-    Renderer.Free;
-  end;
-  finally
-    NamedUDS.Free;
-    NamedDS.Free;
     Model.Free;
   end;
 end;
@@ -632,34 +703,21 @@ end;
 procedure TVittixReport.ExportToPDF(const AFileName: string);
 var
   Model  : TReportModel;
-  Primary: TDataSet;
-  NamedDS: TDictionary<string, TDataSet>;
-  PrimaryUDS: TVittixUserDataSet;
-  NamedUDS: TDictionary<string, TVittixUserDataSet>;
   Engine : TReportEngine;
 begin
   if FReportJSON = '' then
     raise Exception.Create('No report design loaded.');
 
   Model := TReportSerializer.LoadFromJSON(FReportJSON);
-  BuildNamedDataSets(Primary, NamedDS);
-  BuildNamedUserDataSets(PrimaryUDS, NamedUDS);
   try
-    if Assigned(PrimaryUDS) then
-      Engine := TReportEngine.Create(Model, PrimaryUDS, NamedUDS, nil)
-    else
-      Engine := TReportEngine.Create(Model, Primary, NamedDS, nil);
+    Engine := CreateEngine(Model);
     try
-      Engine.Parameters.Assign(FParameters);
-      Engine.TwoPassRendering := FTwoPassRendering;
       Engine.Prepare;
       TReportPDFExporter.ExportToFile(Engine.Pages, AFileName);
     finally
       Engine.Free;
     end;
   finally
-    NamedUDS.Free;
-    NamedDS.Free;
     Model.Free;
   end;
 end;
@@ -667,10 +725,6 @@ end;
 procedure TVittixReport.ExportToVectorPDF(const AFileName: string);
 var
   Model  : TReportModel;
-  Primary: TDataSet;
-  NamedDS: TDictionary<string, TDataSet>;
-  PrimaryUDS: TVittixUserDataSet;
-  NamedUDS: TDictionary<string, TVittixUserDataSet>;
   Engine : TReportEngine;
   ExportDoc: TReportExportDocument;
 begin
@@ -678,17 +732,10 @@ begin
     raise Exception.Create('No report design loaded.');
 
   Model := TReportSerializer.LoadFromJSON(FReportJSON);
-  BuildNamedDataSets(Primary, NamedDS);
-  BuildNamedUserDataSets(PrimaryUDS, NamedUDS);
   ExportDoc := TReportExportDocument.Create;
   try
-    if Assigned(PrimaryUDS) then
-      Engine := TReportEngine.Create(Model, PrimaryUDS, NamedUDS, nil)
-    else
-      Engine := TReportEngine.Create(Model, Primary, NamedDS, nil);
+    Engine := CreateEngine(Model);
     try
-      Engine.Parameters.Assign(FParameters);
-      Engine.TwoPassRendering := FTwoPassRendering;
       Engine.ExportDocument := ExportDoc;
       Engine.Prepare;
       TReportVectorPDFExporter.ExportDocument(ExportDoc, AFileName);
@@ -697,8 +744,6 @@ begin
     end;
   finally
     ExportDoc.Free;
-    NamedUDS.Free;
-    NamedDS.Free;
     Model.Free;
   end;
 end;
@@ -706,10 +751,6 @@ end;
 procedure TVittixReport.ExportToVectorPDF(AStream: TStream);
 var
   Model  : TReportModel;
-  Primary: TDataSet;
-  NamedDS: TDictionary<string, TDataSet>;
-  PrimaryUDS: TVittixUserDataSet;
-  NamedUDS: TDictionary<string, TVittixUserDataSet>;
   Engine : TReportEngine;
   ExportDoc: TReportExportDocument;
 begin
@@ -719,17 +760,10 @@ begin
     raise EArgumentNilException.Create('AStream');
 
   Model := TReportSerializer.LoadFromJSON(FReportJSON);
-  BuildNamedDataSets(Primary, NamedDS);
-  BuildNamedUserDataSets(PrimaryUDS, NamedUDS);
   ExportDoc := TReportExportDocument.Create;
   try
-    if Assigned(PrimaryUDS) then
-      Engine := TReportEngine.Create(Model, PrimaryUDS, NamedUDS, nil)
-    else
-      Engine := TReportEngine.Create(Model, Primary, NamedDS, nil);
+    Engine := CreateEngine(Model);
     try
-      Engine.Parameters.Assign(FParameters);
-      Engine.TwoPassRendering := FTwoPassRendering;
       Engine.ExportDocument := ExportDoc;
       Engine.Prepare;
       TReportVectorPDFExporter.ExportDocument(ExportDoc, AStream);
@@ -738,8 +772,6 @@ begin
     end;
   finally
     ExportDoc.Free;
-    NamedUDS.Free;
-    NamedDS.Free;
     Model.Free;
   end;
 end;
@@ -747,10 +779,6 @@ end;
 procedure TVittixReport.ExportToHTML(const AFileName: string);
 var
   Model  : TReportModel;
-  Primary: TDataSet;
-  NamedDS: TDictionary<string, TDataSet>;
-  PrimaryUDS: TVittixUserDataSet;
-  NamedUDS: TDictionary<string, TVittixUserDataSet>;
   Engine : TReportEngine;
   ExportDoc: TReportExportDocument;
 begin
@@ -758,17 +786,10 @@ begin
     raise Exception.Create('No report design loaded.');
 
   Model := TReportSerializer.LoadFromJSON(FReportJSON);
-  BuildNamedDataSets(Primary, NamedDS);
-  BuildNamedUserDataSets(PrimaryUDS, NamedUDS);
   ExportDoc := TReportExportDocument.Create;
   try
-    if Assigned(PrimaryUDS) then
-      Engine := TReportEngine.Create(Model, PrimaryUDS, NamedUDS, nil)
-    else
-      Engine := TReportEngine.Create(Model, Primary, NamedDS, nil);
+    Engine := CreateEngine(Model);
     try
-      Engine.Parameters.Assign(FParameters);
-      Engine.TwoPassRendering := FTwoPassRendering;
       Engine.ExportDocument := ExportDoc;
       Engine.Prepare;
       TReportHTMLExporter.ExportDocument(ExportDoc, AFileName);
@@ -777,8 +798,6 @@ begin
     end;
   finally
     ExportDoc.Free;
-    NamedUDS.Free;
-    NamedDS.Free;
     Model.Free;
   end;
 end;
@@ -786,10 +805,6 @@ end;
 procedure TVittixReport.ExportToHTML(AStream: TStream);
 var
   Model  : TReportModel;
-  Primary: TDataSet;
-  NamedDS: TDictionary<string, TDataSet>;
-  PrimaryUDS: TVittixUserDataSet;
-  NamedUDS: TDictionary<string, TVittixUserDataSet>;
   Engine : TReportEngine;
   ExportDoc: TReportExportDocument;
 begin
@@ -799,17 +814,10 @@ begin
     raise EArgumentNilException.Create('AStream');
 
   Model := TReportSerializer.LoadFromJSON(FReportJSON);
-  BuildNamedDataSets(Primary, NamedDS);
-  BuildNamedUserDataSets(PrimaryUDS, NamedUDS);
   ExportDoc := TReportExportDocument.Create;
   try
-    if Assigned(PrimaryUDS) then
-      Engine := TReportEngine.Create(Model, PrimaryUDS, NamedUDS, nil)
-    else
-      Engine := TReportEngine.Create(Model, Primary, NamedDS, nil);
+    Engine := CreateEngine(Model);
     try
-      Engine.Parameters.Assign(FParameters);
-      Engine.TwoPassRendering := FTwoPassRendering;
       Engine.ExportDocument := ExportDoc;
       Engine.Prepare;
       TReportHTMLExporter.ExportDocument(ExportDoc, AStream);
@@ -818,8 +826,6 @@ begin
     end;
   finally
     ExportDoc.Free;
-    NamedUDS.Free;
-    NamedDS.Free;
     Model.Free;
   end;
 end;
@@ -827,10 +833,6 @@ end;
 procedure TVittixReport.ExportToXLSX(const AFileName: string);
 var
   Model  : TReportModel;
-  Primary: TDataSet;
-  NamedDS: TDictionary<string, TDataSet>;
-  PrimaryUDS: TVittixUserDataSet;
-  NamedUDS: TDictionary<string, TVittixUserDataSet>;
   Engine : TReportEngine;
   ExportDoc: TReportExportDocument;
 begin
@@ -838,17 +840,10 @@ begin
     raise Exception.Create('No report design loaded.');
 
   Model := TReportSerializer.LoadFromJSON(FReportJSON);
-  BuildNamedDataSets(Primary, NamedDS);
-  BuildNamedUserDataSets(PrimaryUDS, NamedUDS);
   ExportDoc := TReportExportDocument.Create;
   try
-    if Assigned(PrimaryUDS) then
-      Engine := TReportEngine.Create(Model, PrimaryUDS, NamedUDS, nil)
-    else
-      Engine := TReportEngine.Create(Model, Primary, NamedDS, nil);
+    Engine := CreateEngine(Model);
     try
-      Engine.Parameters.Assign(FParameters);
-      Engine.TwoPassRendering := FTwoPassRendering;
       Engine.ExportDocument := ExportDoc;
       Engine.Prepare;
       TReportXLSXExporter.ExportToFile(ExportDoc.Pages, AFileName);
@@ -857,8 +852,6 @@ begin
     end;
   finally
     ExportDoc.Free;
-    NamedUDS.Free;
-    NamedDS.Free;
     Model.Free;
   end;
 end;
@@ -866,10 +859,6 @@ end;
 procedure TVittixReport.ExportToXLSX(AStream: TStream);
 var
   Model  : TReportModel;
-  Primary: TDataSet;
-  NamedDS: TDictionary<string, TDataSet>;
-  PrimaryUDS: TVittixUserDataSet;
-  NamedUDS: TDictionary<string, TVittixUserDataSet>;
   Engine : TReportEngine;
   ExportDoc: TReportExportDocument;
 begin
@@ -879,17 +868,10 @@ begin
     raise EArgumentNilException.Create('AStream');
 
   Model := TReportSerializer.LoadFromJSON(FReportJSON);
-  BuildNamedDataSets(Primary, NamedDS);
-  BuildNamedUserDataSets(PrimaryUDS, NamedUDS);
   ExportDoc := TReportExportDocument.Create;
   try
-    if Assigned(PrimaryUDS) then
-      Engine := TReportEngine.Create(Model, PrimaryUDS, NamedUDS, nil)
-    else
-      Engine := TReportEngine.Create(Model, Primary, NamedDS, nil);
+    Engine := CreateEngine(Model);
     try
-      Engine.Parameters.Assign(FParameters);
-      Engine.TwoPassRendering := FTwoPassRendering;
       Engine.ExportDocument := ExportDoc;
       Engine.Prepare;
       TReportXLSXExporter.ExportToStream(ExportDoc.Pages, AStream);
@@ -898,8 +880,6 @@ begin
     end;
   finally
     ExportDoc.Free;
-    NamedUDS.Free;
-    NamedDS.Free;
     Model.Free;
   end;
 end;
@@ -927,10 +907,6 @@ procedure TVittixReport.ExportWith(const AExporter: IReportExporter;
   const AFileName: string);
 var
   Model  : TReportModel;
-  Primary: TDataSet;
-  NamedDS: TDictionary<string, TDataSet>;
-  PrimaryUDS: TVittixUserDataSet;
-  NamedUDS: TDictionary<string, TVittixUserDataSet>;
   Engine : TReportEngine;
 begin
   if not Assigned(AExporter) then
@@ -940,24 +916,15 @@ begin
     raise Exception.Create('No report design loaded.');
 
   Model := TReportSerializer.LoadFromJSON(FReportJSON);
-  BuildNamedDataSets(Primary, NamedDS);
-  BuildNamedUserDataSets(PrimaryUDS, NamedUDS);
   try
-    if Assigned(PrimaryUDS) then
-      Engine := TReportEngine.Create(Model, PrimaryUDS, NamedUDS, nil)
-    else
-      Engine := TReportEngine.Create(Model, Primary, NamedDS, nil);
+    Engine := CreateEngine(Model);
     try
-      Engine.Parameters.Assign(FParameters);
-      Engine.TwoPassRendering := FTwoPassRendering;
       Engine.Prepare;
       AExporter.ExportPages(Engine.Pages, AFileName);
     finally
       Engine.Free;
     end;
   finally
-    NamedUDS.Free;
-    NamedDS.Free;
     Model.Free;
   end;
 end;
