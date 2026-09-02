@@ -8,6 +8,10 @@ unit Vittix.Runner.Options;
   Free of process-global state (ParamCount/ParamStr) and filesystem access,
   so parsing is deterministic and unit-testable. The console runner builds
   the argument array from ParamStr and validates path existence afterwards.
+
+  Phase 3F-7: the only console I/O owned by this unit is the CLI help text
+  emitted by WriteOptionsUsage. No other procedure here writes to stdout/
+  stderr; parsing and validation stay side-effect free.
 }
 
 interface
@@ -41,6 +45,13 @@ function ParseOptions(const Args: TArray<string>;
   out AOptions: TRunnerOptions): Boolean;
 
 function ParseOptionsFromCommandLine(out AOptions: TRunnerOptions): Boolean;
+
+{ Emit the CLI help text to stdout.
+
+  Phase 3F-7: extracted from Vittix.Runner.Console.pas so that all option-
+  related presentation lives in the options unit. The emitted text is the
+  existing usage output, byte-for-byte unchanged. }
+procedure WriteOptionsUsage;
 
 implementation
 
@@ -360,6 +371,30 @@ begin
   for I := 1 to ParamCount do
     Args[I - 1] := ParamStr(I);
   Result := ParseOptions(Args, AOptions);
+end;
+
+{ Phase 3F-7: extracted from Vittix.Runner.Console.pas.
+
+  The emitted text is intentionally byte-for-byte identical to the previous
+  WriteUsage body in Console.pas. Wording, ordering, spacing, blank lines,
+  and option ordering are preserved exactly. Future help-text revisions
+  belong in a separately approved phase and must update both this procedure
+  and the CLI contract tests. }
+procedure WriteOptionsUsage;
+begin
+  Writeln('Usage: VittixRunner [options] [reportfile.vrt]');
+  Writeln('');
+  Writeln('Options:');
+  Writeln('  --reports <dir>     Use <dir> as the reports directory (no probing).');
+  Writeln('  --baseline <file>   Use <file> as the pagination baseline.');
+  Writeln('  --sample-data <f>   Use <f> as the sample data file.');
+  Writeln('  --output <dir>      Root directory for retained/export artifacts.');
+  Writeln('  --filter <report>   Run only <report> (also: --filter=<report>).');
+  Writeln('  --scripts           Run only script-bearing regression reports.');
+  Writeln('  --script-trace      Print script trace diagnostics without pagination checks.');
+  Writeln('  --keep-vector-pdf   Keep vector PDF smoke outputs under build\vector-pdf-smoke.');
+  Writeln('  -pause              Keep console open after completion.');
+  Writeln('  -h, --help          Show this help.');
 end;
 
 end.

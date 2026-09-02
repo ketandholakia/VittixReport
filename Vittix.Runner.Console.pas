@@ -49,23 +49,6 @@ uses
   Vittix.Report.Objects.CrossTab,
   Vittix.Report.ScriptHost.Adapter;
 
-procedure WriteUsage;
-begin
-  Writeln('Usage: VittixRunner [options] [reportfile.vrt]');
-  Writeln('');
-  Writeln('Options:');
-  Writeln('  --reports <dir>     Use <dir> as the reports directory (no probing).');
-  Writeln('  --baseline <file>   Use <file> as the pagination baseline.');
-  Writeln('  --sample-data <f>   Use <f> as the sample data file.');
-  Writeln('  --output <dir>      Root directory for retained/export artifacts.');
-  Writeln('  --filter <report>   Run only <report> (also: --filter=<report>).');
-  Writeln('  --scripts           Run only script-bearing regression reports.');
-  Writeln('  --script-trace      Print script trace diagnostics without pagination checks.');
-  Writeln('  --keep-vector-pdf   Keep vector PDF smoke outputs under build\vector-pdf-smoke.');
-  Writeln('  -pause              Keep console open after completion.');
-  Writeln('  -h, --help          Show this help.');
-end;
-
 procedure RegisterBuiltInReportObjects;
 begin
   RegisterReportObject(TReportBand);
@@ -222,7 +205,9 @@ begin
 
   if Options.Help then
   begin
-    WriteUsage;
+    // Phase 3F-7: help text now lives in Vittix.Runner.Options
+    // (WriteOptionsUsage) alongside the option constants and parser.
+    WriteOptionsUsage;
     Halt(0);
   end;
 

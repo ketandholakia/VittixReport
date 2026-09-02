@@ -71,6 +71,12 @@ type
     [Test] procedure Test_Format_ScriptTraceWithJsonRejected;
     [Test] procedure Test_Format_KeepVectorPdfWithJson;
     [Test] procedure Test_Format_PauseWithJsonRejected;
+    // Phase 3F-7: help-output procedure lives in the options unit.
+    // The procedure only writes to stdout; the DUnitX test environment
+    // has no reliable stdout capture, so the test verifies the procedure
+    // is callable and emits without raising. The CLI `--help` run is the
+    // authoritative byte-for-byte verification.
+    [Test] procedure Test_WriteOptionsUsage_DoesNotRaise;
   end;
 
 implementation
@@ -529,6 +535,19 @@ var
 begin
   Assert.IsFalse(Parse(['-pause', '--format', 'json'], Options));
   Assert.IsNotEmpty(Options.ErrorMessage);
+end;
+
+{ Phase 3F-7: smoke test for the extracted help-output procedure.
+
+  We deliberately do not capture stdout here because the existing DUnitX
+  test infrastructure has no console-capture framework. The behavioral
+  contract verified by this test is "the procedure exists and emits
+  without raising". The byte-for-byte contract is verified by the
+  `bin\Win32\Debug\VittixRunner.exe --help` CLI run. }
+procedure TRunnerOptionsTests.Test_WriteOptionsUsage_DoesNotRaise;
+begin
+  WriteOptionsUsage;
+  Assert.Pass('WriteOptionsUsage executed without raising');
 end;
 
 initialization
