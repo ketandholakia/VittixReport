@@ -1499,6 +1499,9 @@ var
   BarBottom: Integer;
   DrawW: Integer;
   ImageSource: string;
+  TempFile: string;
+  Png: TPngImage;
+  Bmp: Vcl.Graphics.TBitmap;
   BarcodeText: string;
   Fld: TField;
   PW: Integer;
@@ -1904,6 +1907,42 @@ begin
       ImageCmd.Center := ImageObj.Center;
       ImageCmd.Proportional := ImageObj.Proportional;
       FCurrentExportPage.Commands.Add(ImageCmd);
+    end
+    else if Assigned(ImageObj.Picture.Graphic) and
+            not ImageObj.Picture.Graphic.Empty then
+    begin
+      // Embedded design-time picture (no usable data-bound source): capture
+      // the existing graphic as a temporary PNG registered with the export
+      // document, so it exports like file-path images and is deleted with
+      // the document.  The object's own graphic is not modified.
+      if (ImageObj.Picture.Width > 0) and (ImageObj.Picture.Height > 0) then
+      begin
+        Bmp := Vcl.Graphics.TBitmap.Create;
+        Png := TPngImage.Create;
+        try
+          Bmp.SetSize(ImageObj.Picture.Width, ImageObj.Picture.Height);
+          Bmp.Canvas.Brush.Color := clWhite;
+          Bmp.Canvas.FillRect(Rect(0, 0, Bmp.Width, Bmp.Height));
+          Bmp.Canvas.Draw(0, 0, ImageObj.Picture.Graphic);
+          Png.Assign(Bmp);
+
+          TempFile := TPath.Combine(TPath.GetTempPath,
+            'vittix_export_' + TGUID.NewGuid.ToString + '.png');
+          Png.SaveToFile(TempFile);
+
+          ImageCmd := TReportExportImageCommand.Create;
+          ImageCmd.Bounds := R;
+          ImageCmd.Source := TempFile;
+          ImageCmd.Stretch := ImageObj.Stretch;
+          ImageCmd.Center := ImageObj.Center;
+          ImageCmd.Proportional := ImageObj.Proportional;
+          FCurrentExportPage.Commands.Add(ImageCmd);
+          FExportDocument.AddTempFile(TempFile);
+        finally
+          Png.Free;
+          Bmp.Free;
+        end;
+      end;
     end;
   end
   else if AObject is TReportLineObject then

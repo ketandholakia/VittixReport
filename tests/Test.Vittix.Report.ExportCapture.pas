@@ -42,6 +42,10 @@ type
     [Test] procedure Test_HiddenCrossTab_NoImageCommand;
     [Test] procedure Test_ImageCommands_KeepLogicalBounds;
     [Test] procedure Test_DocumentFree_DeletesTempFiles;
+    [Test] procedure Test_EmbeddedPicture_ProducesImageCommand;
+    [Test] procedure Test_EmbeddedPicture_TempFileDeletedOnDocumentFree;
+    [Test] procedure Test_HiddenEmbeddedPicture_NoCommand;
+    [Test] procedure Test_EmbeddedPicture_HTMLExport_ContainsImage;
   end;
 
 implementation
@@ -49,7 +53,11 @@ implementation
 uses
   System.Types,
   System.UITypes,
-  System.IOUtils;
+  Vcl.Graphics,
+  System.IOUtils,
+  System.NetEncoding,
+  Vittix.Report.Serializer,
+  Vittix.Report.Export.HTML;
 
 function TExportCaptureTests.BuildDataSet: TClientDataSet;
 begin
@@ -280,6 +288,198 @@ begin
   end;
   Assert.IsFalse(TFile.Exists(TempPath),
     'export document must delete registered temp images on free');
+end;
+
+procedure TExportCaptureTests.Test_EmbeddedPicture_ProducesImageCommand;
+var
+  Model: TReportModel;
+  DS: TClientDataSet;
+  Band: TReportBand;
+  Img: TReportImageObject;
+  Chart, CrossTab: TReportObject;
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Commands: TArray<TReportExportImageCommand>;
+  PngBytes: TBytes;
+begin
+  // Embedded design-time picture: DataField empty, graphic set via the
+  // public Picture property (as the designer does through PictureData).
+  Engine := BuildEngine(True, True, Chart, CrossTab, Doc, Model, DS);
+  try
+    Band := Model.Objects[0] as TReportBand;
+    Img := TReportImageObject.Create;
+    Img.Name := 'imgEmbedded';
+    Img.Bounds := Rect(20, 150, 220, 190);
+    Img.DataField := '';
+    Img.Stretch := True;
+    Img.Center := False;
+    Img.Proportional := False;
+    var Bmp := TBitmap.Create;
+    try
+      Bmp.SetSize(24, 16);
+      Bmp.Canvas.Brush.Color := clRed;
+      Bmp.Canvas.FillRect(Rect(0, 0, 24, 16));
+      Img.Picture.Assign(Bmp);
+    finally
+      Bmp.Free;
+    end;
+    Band.Children.Add(Img);
+
+    Engine.Prepare;
+
+    Commands := CollectBySize(Doc, 200, 40);
+    Assert.IsTrue(Length(Commands) = 1,
+      Format('embedded image commands=%d', [Length(Commands)]));
+    Assert.IsTrue(TFile.Exists(Commands[0].Source), 'temp PNG missing');
+    PngBytes := TFile.ReadAllBytes(Commands[0].Source);
+    Assert.IsTrue(Length(PngBytes) > 8, 'temp PNG is empty');
+    Assert.IsTrue((PngBytes[0] = $89) and (PngBytes[1] = Ord('P')),
+      'temp file is not a PNG');
+    // Presentation flags preserved from the object.
+    Assert.IsTrue(Commands[0].Stretch);
+    Assert.IsFalse(Commands[0].Center);
+    Assert.IsFalse(Commands[0].Proportional);
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_EmbeddedPicture_TempFileDeletedOnDocumentFree;
+var
+  Model: TReportModel;
+  DS: TClientDataSet;
+  Band: TReportBand;
+  Img: TReportImageObject;
+  Chart, CrossTab: TReportObject;
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Commands: TArray<TReportExportImageCommand>;
+  TempPath: string;
+begin
+  Engine := BuildEngine(True, True, Chart, CrossTab, Doc, Model, DS);
+  try
+    Band := Model.Objects[0] as TReportBand;
+    Img := TReportImageObject.Create;
+    Img.Bounds := Rect(20, 150, 220, 190);
+    Img.DataField := '';
+    var Bmp := TBitmap.Create;
+    try
+      Bmp.SetSize(16, 16);
+      Bmp.Canvas.Brush.Color := clBlue;
+      Bmp.Canvas.FillRect(Rect(0, 0, 16, 16));
+      Img.Picture.Assign(Bmp);
+    finally
+      Bmp.Free;
+    end;
+    Band.Children.Add(Img);
+
+    Engine.Prepare;
+    Commands := CollectBySize(Doc, 200, 40);
+    Assert.IsTrue(Length(Commands) = 1);
+    TempPath := Commands[0].Source;
+    Assert.IsTrue(TFile.Exists(TempPath));
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+  Assert.IsFalse(TFile.Exists(TempPath),
+    'export document must delete the embedded-picture temp PNG on free');
+end;
+
+procedure TExportCaptureTests.Test_HiddenEmbeddedPicture_NoCommand;
+var
+  Model: TReportModel;
+  DS: TClientDataSet;
+  Band: TReportBand;
+  Img: TReportImageObject;
+  Chart, CrossTab: TReportObject;
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Commands: TArray<TReportExportImageCommand>;
+begin
+  Engine := BuildEngine(True, True, Chart, CrossTab, Doc, Model, DS);
+  try
+    Band := Model.Objects[0] as TReportBand;
+    Img := TReportImageObject.Create;
+    Img.Bounds := Rect(20, 150, 220, 190);
+    Img.DataField := '';
+    Img.Visible := False;
+    var Bmp := TBitmap.Create;
+    try
+      Bmp.SetSize(16, 16);
+      Bmp.Canvas.Brush.Color := clBlue;
+      Bmp.Canvas.FillRect(Rect(0, 0, 16, 16));
+      Img.Picture.Assign(Bmp);
+    finally
+      Bmp.Free;
+    end;
+    Band.Children.Add(Img);
+
+    Engine.Prepare;
+    Commands := CollectBySize(Doc, 200, 40);
+    Assert.IsTrue(Length(Commands) = 0, 'hidden embedded image must not be captured');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_EmbeddedPicture_HTMLExport_ContainsImage;
+var
+  Model: TReportModel;
+  DS: TClientDataSet;
+  Band: TReportBand;
+  Img: TReportImageObject;
+  Chart, CrossTab: TReportObject;
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Ms: TStringStream;
+  HTML: string;
+begin
+  // Real-pipeline check: embedded picture -> engine capture -> actual HTML
+  // exporter output contains the image.
+  Engine := BuildEngine(True, True, Chart, CrossTab, Doc, Model, DS);
+  try
+    Band := Model.Objects[0] as TReportBand;
+    Img := TReportImageObject.Create;
+    Img.Bounds := Rect(20, 150, 220, 190);
+    Img.DataField := '';
+    Img.Stretch := True;
+    var Bmp := TBitmap.Create;
+    try
+      Bmp.SetSize(24, 16);
+      Bmp.Canvas.Brush.Color := clRed;
+      Bmp.Canvas.FillRect(Rect(0, 0, 24, 16));
+      Img.Picture.Assign(Bmp);
+    finally
+      Bmp.Free;
+    end;
+    Band.Children.Add(Img);
+
+    Engine.Prepare;
+    Ms := TStringStream.Create('', TEncoding.UTF8);
+    try
+      TReportHTMLExporter.ExportDocument(Doc, Ms);
+      HTML := Ms.DataString;
+    finally
+      Ms.Free;
+    end;
+    Assert.Contains(HTML, '<img class="vrt-img"');
+    Assert.Contains(HTML, 'data:image/png;base64,');
+    Assert.Contains(HTML, '</html>');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
 end;
 
 initialization
