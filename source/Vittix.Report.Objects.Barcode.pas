@@ -11,19 +11,40 @@ uses
   System.Generics.Collections,
   Data.DB,
   Vcl.Graphics,
+  QlpIQrCode,
+  QlpQrCode,
+  QlpIQrSegment,
+  QlpQrSegment,
+  QlpQRCodeGenLibTypes,
   Vittix.Report.Objects,
   Vittix.Report.Context,
   Vittix.Report.Expressions,
   Vittix.Report.Utils;
 
 type
-  TReportBarcodeSymbology = (bsLegacy, bsCode39, bsCode128, bsEAN13);
+  TReportBarcodeSymbology = (bsLegacy, bsCode39, bsCode128, bsEAN13, bsQR);
+
+  { QR error correction level. Ordinals are persisted numerically — do not
+    reorder. }
+  TReportQRErrorCorrection = (qrLow, qrMedium, qrQuartile, qrHigh);
+
+  { 2D module matrix for matrix symbologies (QR). Row-major; Dark[Y * Size + X]
+    is True when the module at column X, row Y is dark.  Mask is the QR
+    pattern number (0..7) chosen by the encoder; Version the QR version. }
+  TBarcodeModuleMatrix = record
+    Size: Integer;
+    Version: Integer;
+    Mask: Integer;
+    Dark: array of Boolean;
+    function IsDark(AX, AY: Integer): Boolean;
+  end;
 
   TReportBarcodeObject = class(TReportObject)
   private
     FValue: string;
     FDataField: string;
     FSymbology: TReportBarcodeSymbology;
+    FErrorCorrection: TReportQRErrorCorrection;
     FShowText: Boolean;
     FBarColor: TColor;
     FBackgroundColor: TColor;
@@ -35,6 +56,9 @@ type
     property Value: string read FValue write FValue;
     property DataField: string read FDataField write FDataField;
     property Symbology: TReportBarcodeSymbology read FSymbology write FSymbology default bsLegacy;
+    { QR only — ignored by the 1D symbologies. }
+    property ErrorCorrection: TReportQRErrorCorrection
+      read FErrorCorrection write FErrorCorrection default qrMedium;
     property ShowText: Boolean read FShowText write FShowText default True;
     property BarColor: TColor read FBarColor write FBarColor default clBlack;
     property BackgroundColor: TColor read FBackgroundColor write FBackgroundColor default clWhite;
@@ -67,6 +91,23 @@ function EncodeBarcodeElements(ASymbology: TReportBarcodeSymbology;
 { Total module count of an element pattern. }
 function BarcodeElementTotalUnits(const AElements: string): Integer;
 
+{ QR helpers ---------------------------------------------------------------- }
+
+{ Encodes AValue (UTF-8 byte mode, automatic version and segment selection)
+  as a module matrix.  Empty input yields an empty matrix (Size = 0). }
+function EncodeQRMatrix(const AValue: string;
+  AEcc: TReportQRErrorCorrection): TBarcodeModuleMatrix;
+
+{
+  Converts a module matrix into merged row-run rectangles fitted into the
+  barcode object's drawable area, centered, with a 2-module quiet zone on
+  every side.  Shared by the canvas draw path and the engine export-capture
+  path so both produce identical geometry.  Returns an empty array when the
+  matrix is empty.
+}
+function QRMatrixToRects(const AMatrix: TBarcodeModuleMatrix;
+  const R: TRect; BarTop, BarBottom, DrawW: Integer): TArray<TRect>;
+
 implementation
 
 {$IFDEF DEBUG}
@@ -78,6 +119,100 @@ begin
   Vittix.Report.Utils.DebugLogDataFieldIssue(AObj.ClassName, AObj.Name, ADataField, AReason, ADataSet);
 end;
 {$ENDIF}
+
+{ ================= QR matrix ================= }
+
+function TBarcodeModuleMatrix.IsDark(AX, AY: Integer): Boolean;
+begin
+  Result := (AX >= 0) and (AY >= 0) and (AX < Size) and (AY < Size) and
+            Dark[AY * Size + AX];
+end;
+
+function EncodeQRMatrix(const AValue: string;
+  AEcc: TReportQRErrorCorrection): TBarcodeModuleMatrix;
+var
+  Qr: IQrCode;
+  LibEcc: TQrCode.TEcc;
+  Segs: TQRCodeGenLibGenericArray<IQrSegment>;
+  X, Y: Integer;
+begin
+  Result.Size := 0;
+  Result.Version := 0;
+  Result.Mask := -1;
+  Result.Dark := nil;
+  if AValue = '' then
+    Exit;
+
+  case AEcc of
+    qrLow:      LibEcc := TQrCode.TEcc.eccLow;
+    qrQuartile: LibEcc := TQrCode.TEcc.eccQuartile;
+    qrHigh:     LibEcc := TQrCode.TEcc.eccHigh;
+  else
+    LibEcc := TQrCode.TEcc.eccMedium;
+  end;
+
+  // Byte mode via UTF-8; the library picks the smallest valid version and
+  // optimizes numeric/alphanumeric segments automatically.  ECC boosting
+  // is disabled so the requested error correction level is honored exactly.
+  Segs := TQrSegment.MakeSegments(AValue, TEncoding.UTF8);
+  Qr := TQrCode.EncodeSegments(Segs, LibEcc, 1, 40, -1, False);
+
+  Result.Size := Qr.Size;
+  Result.Version := Qr.Version;
+  Result.Mask := Qr.Mask;
+  SetLength(Result.Dark, Result.Size * Result.Size);
+  for Y := 0 to Result.Size - 1 do
+    for X := 0 to Result.Size - 1 do
+      Result.Dark[Y * Result.Size + X] := Qr.GetModule(X, Y);
+end;
+
+function QRMatrixToRects(const AMatrix: TBarcodeModuleMatrix;
+  const R: TRect; BarTop, BarBottom, DrawW: Integer): TArray<TRect>;
+var
+  X, Y, RunStart, RunLen: Integer;
+  AvailableW, AvailableH, TotalModules, Module, Side, Quiet: Integer;
+  OriginX, OriginY, MaxX: Integer;
+begin
+  Result := nil;
+  if AMatrix.Size <= 0 then
+    Exit;
+
+  // Square modules fitted into the available area, with a 2-module quiet
+  // zone on every side.  Centered within the drawable area.
+  AvailableW := DrawW - 4;                       // existing 4px object inset
+  AvailableH := Max(1, BarBottom - BarTop);
+  TotalModules := AMatrix.Size + 4;              // matrix + quiet zone
+  Module := Max(1, Min(AvailableW, AvailableH) div TotalModules);
+  Side := Module * AMatrix.Size;
+  Quiet := 2 * Module;
+  OriginX := R.Left + 4 + (DrawW - Side) div 2;
+  OriginY := BarTop + (AvailableH - Side) div 2;
+  MaxX := R.Left + 4 + DrawW;
+
+  // Merge consecutive dark modules per row into single rectangles.
+  for Y := 0 to AMatrix.Size - 1 do
+  begin
+    X := 0;
+    while X < AMatrix.Size do
+    begin
+      if not AMatrix.IsDark(X, Y) then
+      begin
+        Inc(X);
+        Continue;
+      end;
+      RunStart := X;
+      while (X < AMatrix.Size) and AMatrix.IsDark(X, Y) do
+        Inc(X);
+      RunLen := X - RunStart;
+      SetLength(Result, Length(Result) + 1);
+      Result[High(Result)] := Rect(
+        Min(OriginX + RunStart * Module, MaxX),
+        Min(OriginY + Y * Module + Quiet, BarBottom),
+        Min(OriginX + (RunStart + RunLen) * Module, MaxX),
+        Min(OriginY + (Y + 1) * Module + Quiet, BarBottom));
+    end;
+  end;
+end;
 
 function ShouldPrintBarcodeObject(AObj: TReportObject;
   const Context: TExpressionContext): Boolean;
@@ -701,12 +836,27 @@ begin
   end;
 end;
 
+procedure DrawQRMatrix(C: TCanvas; const AMatrix: TBarcodeModuleMatrix;
+  const R: TRect; BarTop, BarBottom, DrawW: Integer);
+var
+  Rects: TArray<TRect>;
+  I: Integer;
+begin
+  Rects := QRMatrixToRects(AMatrix, R, BarTop, BarBottom, DrawW);
+  for I := 0 to High(Rects) do
+  begin
+    C.Brush.Color := C.Pen.Color;
+    C.FillRect(Rects[I]);
+  end;
+end;
+
 constructor TReportBarcodeObject.Create;
 begin
   inherited;
   Bounds := Rect(10, 10, 220, 60);
   FValue := '1234567890';
   FSymbology := bsLegacy;
+  FErrorCorrection := qrMedium;
   FShowText := True;
   FBarColor := clBlack;
   FBackgroundColor := clWhite;
@@ -779,6 +929,9 @@ begin
       DrawCode39Barcode(C, S, R, BarTop, BarBottom, DrawW);
     bsCode128, bsEAN13:
       DrawBarcodeElements(C, EncodeBarcodeElements(FSymbology, S),
+        R, BarTop, BarBottom, DrawW);
+    bsQR:
+      DrawQRMatrix(C, EncodeQRMatrix(S, FErrorCorrection),
         R, BarTop, BarBottom, DrawW);
   else
     DrawLegacyBarcode(C, S, R, BarTop, BarBottom, DrawW);

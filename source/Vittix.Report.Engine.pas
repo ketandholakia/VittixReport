@@ -1706,6 +1706,22 @@ var
         Exit;
     end;
   end;
+
+  procedure CaptureQRMatrixRects(
+    const AMatrix: TBarcodeModuleMatrix;
+    const ARect: TRect;
+    ABarTop: Integer;
+    ABarBottom: Integer;
+    ADrawWidth: Integer;
+    ABarColor: TColor);
+  var
+    Rects: TArray<TRect>;
+    I: Integer;
+  begin
+    Rects := QRMatrixToRects(AMatrix, ARect, ABarTop, ABarBottom, ADrawWidth);
+    for I := 0 to High(Rects) do
+      AddBarcodeBar(Rects[I], ABarColor);
+  end;
 begin
   if not IsCapturingExportCommands or not Assigned(FCurrentExportPage) or
      not Assigned(AObject) then
@@ -1966,6 +1982,10 @@ begin
       bsCode128, bsEAN13:
         CaptureElementsBarcodeBars(
           EncodeBarcodeElements(BarcodeObj.Symbology, BarcodeText),
+          R, BarTop, BarBottom, DrawW, BarcodeObj.BarColor);
+      bsQR:
+        CaptureQRMatrixRects(
+          EncodeQRMatrix(BarcodeText, BarcodeObj.ErrorCorrection),
           R, BarTop, BarBottom, DrawW, BarcodeObj.BarColor);
     else
       CaptureLegacyBarcodeBars(BarcodeText, R, BarTop, BarBottom, DrawW, BarcodeObj.BarColor);

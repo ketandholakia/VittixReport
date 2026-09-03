@@ -44,6 +44,7 @@ uses
   Test.Vittix.Runner.Resources in 'Test.Vittix.Runner.Resources.pas',
   Test.Vittix.Report.Objects in 'Test.Vittix.Report.Objects.pas',
   Test.Vittix.Report.Objects.Barcode in 'Test.Vittix.Report.Objects.Barcode.pas',
+  Test.Vittix.Report.Objects.QR in 'Test.Vittix.Report.Objects.QR.pas',
   Test.Vittix.Report.Component in 'Test.Vittix.Report.Component.pas';
 
 var

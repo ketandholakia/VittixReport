@@ -607,6 +607,7 @@ begin
   JSON.AddPair('Value',           Barcode.Value);
   JSON.AddPair('DataField',       Barcode.DataField);
   JSON.AddPair('Symbology',       TJSONNumber.Create(Ord(Barcode.Symbology)));
+  JSON.AddPair('ErrorCorrection', TJSONNumber.Create(Ord(Barcode.ErrorCorrection)));
   JSON.AddPair('ShowText',        TJSONBool.Create(Barcode.ShowText));
   JSON.AddPair('BarColor',        TJSONNumber.Create(Barcode.BarColor));
   JSON.AddPair('BackgroundColor', TJSONNumber.Create(Barcode.BackgroundColor));
@@ -621,6 +622,7 @@ begin
   Barcode.Value           := JSON.GetValue<string>('Value', '1234567890');
   Barcode.DataField       := JSON.GetValue<string>('DataField', '');
   Barcode.Symbology       := TReportBarcodeSymbology(Trunc(JSON.GetValue<Double>('Symbology', 0)));
+  Barcode.ErrorCorrection := TReportQRErrorCorrection(Trunc(JSON.GetValue<Double>('ErrorCorrection', Ord(qrMedium))));
   Barcode.ShowText        := JSON.GetValue<Boolean>('ShowText', True);
   Barcode.BarColor        := Trunc(JSON.GetValue<Double>('BarColor', Integer(clBlack)));
   Barcode.BackgroundColor := Trunc(JSON.GetValue<Double>('BackgroundColor', Integer(clWhite)));
