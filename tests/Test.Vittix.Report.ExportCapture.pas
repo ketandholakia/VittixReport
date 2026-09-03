@@ -30,6 +30,10 @@ type
   TExportCaptureTests = class
   private
     function BuildDataSet: TClientDataSet;
+    function BuildBase64Engine(const AFieldValue: string;
+      out ADoc: TReportExportDocument;
+      out AModel: TReportModel;
+      out ADS: TClientDataSet): TReportEngine;
     function BuildEngine(AChartVisible, ACrossTabVisible: Boolean;
       out AChart, ACrossTab: TReportObject;
       out ADoc: TReportExportDocument;
@@ -46,6 +50,9 @@ type
     [Test] procedure Test_EmbeddedPicture_TempFileDeletedOnDocumentFree;
     [Test] procedure Test_HiddenEmbeddedPicture_NoCommand;
     [Test] procedure Test_EmbeddedPicture_HTMLExport_ContainsImage;
+    [Test] procedure Test_Base64Field_DataURI_RendersAndExports;
+    [Test] procedure Test_Base64Field_BareBase64_Renders;
+    [Test] procedure Test_Base64Field_Invalid_NoCommandNoException;
   end;
 
 implementation
@@ -54,6 +61,7 @@ uses
   System.Types,
   System.UITypes,
   Vcl.Graphics,
+  Vcl.Imaging.pngimage,
   System.IOUtils,
   System.NetEncoding,
   Vittix.Report.Serializer,
@@ -474,6 +482,143 @@ begin
     Assert.Contains(HTML, '<img class="vrt-img"');
     Assert.Contains(HTML, 'data:image/png;base64,');
     Assert.Contains(HTML, '</html>');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+{ Encodes a small real bitmap as base64 PNG text (optionally wrapped as a
+  data-URI).  Real encoder output, not fabricated bytes. }
+function RealPngBase64(const AAsDataURI: Boolean): string;
+var
+  Bmp: TBitmap;
+  Png: TPngImage;
+  Ms: TMemoryStream;
+  Bts: TBytes;
+begin
+  Bmp := TBitmap.Create;
+  Png := TPngImage.Create;
+  Ms := TMemoryStream.Create;
+  try
+    Bmp.SetSize(24, 16);
+    Bmp.Canvas.Brush.Color := clGreen;
+    Bmp.Canvas.FillRect(Rect(0, 0, 24, 16));
+    Png.Assign(Bmp);
+    Png.SaveToStream(Ms);
+    SetLength(Bts, Ms.Size);
+    if Ms.Size > 0 then
+      Move(Ms.Memory^, Bts[0], Ms.Size);
+    Result := TNetEncoding.Base64.EncodeBytesToString(Bts);
+    if AAsDataURI then
+      Result := 'data:image/png;base64,' + Result;
+  finally
+    Ms.Free;
+    Png.Free;
+    Bmp.Free;
+  end;
+end;
+
+function TExportCaptureTests.BuildBase64Engine(const AFieldValue: string;
+  out ADoc: TReportExportDocument;
+  out AModel: TReportModel;
+  out ADS: TClientDataSet): TReportEngine;
+var
+  Model: TReportModel;
+  Band: TReportBand;
+  Img: TReportImageObject;
+  DS: TClientDataSet;
+begin
+  DS := TClientDataSet.Create(nil);
+  DS.FieldDefs.Add('ImgB64', ftString, 2000);
+  DS.CreateDataSet;
+  DS.AppendRecord([AFieldValue]);
+  DS.First;
+
+  Model := TReportModel.Create;
+  Band := TReportBand.Create;
+  Band.BandType := btPageHeader;
+  Band.Height := 400;
+  Img := TReportImageObject.Create;
+  Img.Bounds := Rect(20, 150, 220, 190);
+  Img.DataField := 'ImgB64';
+  Band.Children.Add(Img);
+  Model.Objects.Add(Band);
+
+  ADoc := TReportExportDocument.Create;
+  Result := TReportEngine.Create(Model, DS, nil, nil);
+  Result.ExportDocument := ADoc;
+  AModel := Model;
+  ADS := DS;
+end;
+
+procedure TExportCaptureTests.Test_Base64Field_DataURI_RendersAndExports;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Commands: TArray<TReportExportImageCommand>;
+  Model: TReportModel;
+  DS: TClientDataSet;
+begin
+  Engine := BuildBase64Engine(RealPngBase64(True), Doc, Model, DS);
+  try
+    Engine.Prepare;
+    Commands := CollectBySize(Doc, 200, 40);
+    Assert.IsTrue(Length(Commands) = 1,
+      Format('data-URI image commands=%d', [Length(Commands)]));
+    Assert.IsTrue(TFile.Exists(Commands[0].Source), 'export temp PNG missing');
+    // The rendered image must reach the real HTML exporter as base64 output.
+    var Ms := TStringStream.Create('', TEncoding.UTF8);
+    try
+      TReportHTMLExporter.ExportDocument(Doc, Ms);
+      Assert.Contains(Ms.DataString, 'data:image/png;base64,');
+    finally
+      Ms.Free;
+    end;
+  finally
+    Doc.Free;
+    Engine.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_Base64Field_BareBase64_Renders;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  Commands: TArray<TReportExportImageCommand>;
+begin
+  Engine := BuildBase64Engine(RealPngBase64(False), Doc, Model, DS);
+  try
+    Engine.Prepare;
+    Commands := CollectBySize(Doc, 200, 40);
+    Assert.IsTrue(Length(Commands) = 1,
+      Format('bare base64 image commands=%d', [Length(Commands)]));
+  finally
+    Doc.Free;
+    Engine.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_Base64Field_Invalid_NoCommandNoException;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  Commands: TArray<TReportExportImageCommand>;
+begin
+  // Not a path, not decodable base64: best-effort placeholder, no crash,
+  // no image command.
+  Engine := BuildBase64Engine('not!!a@@valid^^image', Doc, Model, DS);
+  try
+    Engine.Prepare;
+    Commands := CollectBySize(Doc, 200, 40);
+    Assert.IsTrue(Length(Commands) = 0,
+      Format('invalid base64 commands=%d', [Length(Commands)]));
   finally
     Doc.Free;
     Engine.Free;

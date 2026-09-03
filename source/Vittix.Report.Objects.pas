@@ -6,6 +6,8 @@ uses
   System.UITypes, System.Classes,
   System.Types,
   System.SysUtils,
+  System.NetEncoding,
+  System.StrUtils,
   System.Generics.Collections,
   System.MaskUtils,
   Vcl.Graphics,
@@ -1030,6 +1032,102 @@ begin
   Result := SafeSourceFieldAsString(Context.DataSet, Context.UserDataSet, FDataField);
 end;
 
+function TryLoadPictureFromBase64(APicture: TPicture; const AText: string): Boolean;
+{
+  Loads an inline base64 image value (the documented DataField alternative
+  to a file path) into APicture.  Accepts either a full data-URI
+  ("data:image/png;base64,....") or a bare base64 string; the graphic format
+  is detected from the decoded magic bytes and loaded with the matching
+  registered graphic class.  Best-effort: any failure leaves APicture empty
+  and returns False (same contract as TryLoadPictureFromFile).
+}
+const
+  Base64Chars = ['A'..'Z', 'a'..'z', '0'..'9', '+', '/', '='];
+var
+  Payload: string;
+  Bytes: TBytes;
+  Stream: TMemoryStream;
+  G: TGraphic;
+  I: Integer;
+begin
+  Result := False;
+  if not Assigned(APicture) then
+    Exit;
+
+  // Fixed-width DB string fields are commonly space-padded and base64
+  // encoders commonly wrap lines; strip all whitespace up front so padded
+  // and wrapped values still decode.
+  Payload := '';
+  for I := 1 to Length(AText) do
+    if not CharInSet(AText[I], [#32, #9, #13, #10]) then
+      Payload := Payload + AText[I];
+  if StartsText('data:', Payload) then
+  begin
+    // data-URI: everything after the (case-insensitive) "base64," marker.
+    I := Pos('base64,', LowerCase(Payload));
+    if I > 0 then
+      Payload := Copy(Payload, I + Length('base64,'), MaxInt)
+    else
+      Payload := '';
+  end
+  else
+  begin
+    // Bare base64: require a plausible alphabet before attempting decode.
+    if (Length(Payload) < 8) then
+      Payload := '';
+    for I := 1 to Length(Payload) do
+      if not (Payload[I] in Base64Chars) then
+      begin
+        Payload := '';
+        Break;
+      end;
+  end;
+  if Payload = '' then
+    Exit;
+
+  try
+    Bytes := TNetEncoding.Base64.DecodeStringToBytes(Payload);
+  except
+    Exit;
+  end;
+  if Length(Bytes) < 8 then
+    Exit;
+
+  // Format sniff from magic bytes; EMF/WMF are not supported inline.
+  if (Length(Bytes) >= 4) and (Bytes[0] = $89) and (Bytes[1] = $50) and
+     (Bytes[2] = $4E) and (Bytes[3] = $47) then
+    G := TPngImage.Create
+  else if (Bytes[0] = $FF) and (Bytes[1] = $D8) and (Bytes[2] = $FF) then
+    G := TJPEGImage.Create
+  else if (Length(Bytes) >= 4) and (Bytes[0] = Ord('G')) and
+          (Bytes[1] = Ord('I')) and (Bytes[2] = Ord('F')) and
+          (Bytes[3] = Ord('8')) then
+    G := TGIFImage.Create
+  else if (Bytes[0] = Ord('B')) and (Bytes[1] = Ord('M')) then
+    G := Vcl.Graphics.TBitmap.Create
+  else
+    Exit;
+  try
+    try
+      Stream := TMemoryStream.Create;
+      try
+        Stream.WriteBuffer(Bytes[0], Length(Bytes));
+        Stream.Position := 0;
+        G.LoadFromStream(Stream);
+        APicture.Assign(G);
+        Result := Assigned(APicture.Graphic) and (not APicture.Graphic.Empty);
+      finally
+        Stream.Free;
+      end;
+    except
+      APicture.Assign(nil);
+      Result := False;
+    end;
+  finally
+    G.Free;
+  end;
+end;
+
 function TryLoadPictureFromFile(APicture: TPicture; const AFileName: string): Boolean;
 var
   Ext: string;
@@ -1149,6 +1247,19 @@ begin
             FPicture.Assign(FCachedPicture);
         except
           // silently ignore invalid image data/path
+          FCachedImageValid := False;
+          FCachedPicture.Assign(nil);
+        end;
+      end
+      else
+      begin
+        // Documented alternative source: inline base64 image value
+        // (data-URI or bare base64).  Same cache semantics as file paths.
+        try
+          FCachedImageValid := TryLoadPictureFromBase64(FCachedPicture, PathOrBase64);
+          if FCachedImageValid then
+            FPicture.Assign(FCachedPicture);
+        except
           FCachedImageValid := False;
           FCachedPicture.Assign(nil);
         end;
