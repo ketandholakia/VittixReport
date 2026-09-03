@@ -70,6 +70,47 @@ begin
   end;
 end;
 
+function PathToFileURI(const APath: string): string;
+{
+  Converts a filesystem path to a properly percent-encoded file:/// URI.
+  RFC 3986 unreserved characters (A-Z a-z 0-9 - . _ ~) plus the path
+  separators '/' and the drive-letter ':' are kept literal; every other
+  byte of the UTF-8 representation is percent-encoded, so spaces, '#',
+  '%', '?' and non-ASCII filenames produce correct URIs.  The result is
+  NOT yet HTML-escaped — callers must escape it again when placing it
+  inside a quoted HTML attribute.
+}
+const
+  SafeBytes = [Ord('A')..Ord('Z'), Ord('a')..Ord('z'), Ord('0')..Ord('9'),
+    Ord('-'), Ord('.'), Ord('_'), Ord('~'), Ord('/'), Ord(':')];
+var
+  PathBytes: TBytes;
+  B: Byte;
+begin
+  Result := 'file:///';
+  PathBytes := TEncoding.UTF8.GetBytes(StringReplace(APath, '\', '/', [rfReplaceAll]));
+  for B in PathBytes do
+  begin
+    if Byte(B) in SafeBytes then
+      Result := Result + Chr(B)
+    else
+      Result := Result + '%' + IntToHex(B, 2);
+  end;
+end;
+
+function EscapeHTMLAttr(const S: string): string;
+{
+  Escapes S for safe inclusion inside a double-quoted HTML attribute.
+  TNetEncoding.HTML.Encode covers & < > but leaves quote characters
+  untouched, which is insufficient for attribute context — quotes would
+  terminate the attribute (and, inside style values, the CSS string).
+}
+begin
+  Result := TNetEncoding.HTML.Encode(S);
+  Result := StringReplace(Result, '"', '&quot;', [rfReplaceAll]);
+  Result := StringReplace(Result, '''', '&#39;', [rfReplaceAll]);
+end;
+
 class procedure TReportHTMLExporter.ExportDocument(ADocument: TReportExportDocument; const AFileName: string);
 var
   Fs: TFileStream;
@@ -161,7 +202,7 @@ begin
                 Writer.Write(Format('<div class="vrt-text%s" style="left:%dpx; top:%dpx; width:%dpx; height:%dpx; ',
                   [IfThen(TextCmd.WordWrap, ' wrap', ''), TextCmd.Bounds.Left, TextCmd.Bounds.Top, TextCmd.Bounds.Width, TextCmd.Bounds.Height]));
                 Writer.Write(Format('font-family:''%s'',sans-serif; font-size:%dpt; color:%s; text-align:%s; font-style:%s; font-weight:%s; text-decoration:%s;">',
-                  [TextCmd.FontName, TextCmd.FontSize, ColorToHTML(TextCmd.FontColor), AlignStr, FontStyleStr, FontWeightStr, FontDecorationStr]));
+                  [EscapeHTMLAttr(TextCmd.FontName), TextCmd.FontSize, ColorToHTML(TextCmd.FontColor), AlignStr, FontStyleStr, FontWeightStr, FontDecorationStr]));
                 
                 // Escape HTML chars
                 var EncodedText := StringReplace(TextCmd.Text, '&', '&amp;', [rfReplaceAll]);
@@ -228,8 +269,8 @@ begin
                 else
                 begin
                   // Fallback to absolute local file path if base64 fails
-                  var ImgSrc := StringReplace(ImageCmd.Source, '\', '/', [rfReplaceAll]);
-                  Writer.WriteLine(Format('<img class="vrt-img" style="left:%dpx; top:%dpx; width:%dpx; height:%dpx; object-fit:%s;" src="file:///%s" />',
+                  var ImgSrc := EscapeHTMLAttr(PathToFileURI(ImageCmd.Source));
+                  Writer.WriteLine(Format('<img class="vrt-img" style="left:%dpx; top:%dpx; width:%dpx; height:%dpx; object-fit:%s;" src="%s" />',
                     [ImageCmd.Bounds.Left, ImageCmd.Bounds.Top, ImageCmd.Bounds.Width, ImageCmd.Bounds.Height,
                      IfThen(ImageCmd.Stretch, 'fill', IfThen(ImageCmd.Proportional, 'contain', 'none')),
                      ImgSrc]));
