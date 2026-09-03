@@ -257,10 +257,13 @@ implementation
 uses
   Winapi.Windows,
   System.Math,
+  System.IOUtils,
+  Vcl.Imaging.PNGImage,
   Vittix.Report.Expressions,    // TReportExpression.Evaluate — for PrintWhen
   Vittix.Report.Utils,          // DataSetSupportsBookmarks, SafeRecordCount
   Vittix.Report.Objects.Barcode,
   Vittix.Report.Objects.Table,
+  Vittix.Report.Objects.Chart,
   Vittix.Report.Objects.CrossTab,
   System.Types,
   System.Generics.Defaults;
@@ -1722,6 +1725,59 @@ var
     for I := 0 to High(Rects) do
       AddBarcodeBar(Rects[I], ABarColor);
   end;
+
+  { Chart/CrossTab objects have no per-primitive capture; render the object
+    through its existing Draw onto a temporary bitmap and capture it as an
+    image command (1:1 logical resolution, white page background).  The PNG
+    file is registered with the export document, which deletes it when the
+    document is freed — after all exporters have consumed the command. }
+  procedure CaptureRenderableObjectAsImage(AObj: TReportObject);
+  var
+    R: TRect;
+    Bmp: Vcl.Graphics.TBitmap;
+    Png: TPngImage;
+    ImgCmd: TReportExportImageCommand;
+    TempFile: string;
+    SavedOrg: TPoint;
+  begin
+    R := AObj.Bounds;
+    OffsetRect(R, ViewportOrg.X, ViewportOrg.Y);
+    if (R.Width <= 0) or (R.Height <= 0) then
+      Exit;
+
+    Bmp := Vcl.Graphics.TBitmap.Create;
+    try
+      Bmp.SetSize(R.Width, R.Height);
+      Bmp.Canvas.Brush.Color := clWhite;
+      Bmp.Canvas.FillRect(Rect(0, 0, Bmp.Width, Bmp.Height));
+      GetViewportOrgEx(Bmp.Canvas.Handle, SavedOrg);
+      SetViewportOrgEx(Bmp.Canvas.Handle, -AObj.Bounds.Left, -AObj.Bounds.Top, nil);
+      try
+        AObj.Draw(Bmp.Canvas, Context);
+      finally
+        SetViewportOrgEx(Bmp.Canvas.Handle, SavedOrg.X, SavedOrg.Y, nil);
+      end;
+
+      TempFile := TPath.Combine(TPath.GetTempPath,
+        'vittix_export_' + TGUID.NewGuid.ToString + '.png');
+      Png := TPngImage.Create;
+      try
+        Png.Assign(Bmp);
+        Png.SaveToFile(TempFile);
+      finally
+        Png.Free;
+      end;
+
+      ImgCmd := TReportExportImageCommand.Create;
+      ImgCmd.Bounds := R;
+      ImgCmd.Source := TempFile;
+      ImgCmd.Stretch := True;
+      FCurrentExportPage.Commands.Add(ImgCmd);
+      FExportDocument.AddTempFile(TempFile);
+    finally
+      Bmp.Free;
+    end;
+  end;
 begin
   if not IsCapturingExportCommands or not Assigned(FCurrentExportPage) or
      not Assigned(AObject) then
@@ -2061,7 +2117,9 @@ begin
       LineCmd.Y2 := R.Bottom;
       FCurrentExportPage.Commands.Add(LineCmd);
     end;
-  end;
+  end
+  else if (AObject is TReportChartObject) or (AObject is TReportCrossTabObject) then
+    CaptureRenderableObjectAsImage(AObject);
 end;
 
 

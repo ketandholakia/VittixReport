@@ -5,6 +5,8 @@ interface
 uses
   System.Classes,
   System.Generics.Collections,
+  System.SysUtils,
+  System.IOUtils,
   System.Types,
   Vcl.Graphics;
 
@@ -91,10 +93,15 @@ type
   TReportExportDocument = class
   private
     FPages: TObjectList<TReportExportPage>;
+    FTempFiles: TStringList;
   public
     constructor Create;
     destructor Destroy; override;
     function AddPage(AWidth, AHeight: Integer): TReportExportPage;
+    { Registers a temporary image file created during export-command capture.
+      The document deletes any registered file that still exists when it is
+      freed (exporters run before the document is freed at all call sites). }
+    procedure AddTempFile(const APath: string);
     property Pages: TObjectList<TReportExportPage> read FPages;
   end;
 
@@ -166,9 +173,25 @@ begin
 end;
 
 destructor TReportExportDocument.Destroy;
+var
+  F: string;
 begin
+  if Assigned(FTempFiles) then
+  begin
+    for F in FTempFiles do
+      if TFile.Exists(F) then
+        TFile.Delete(F);
+    FTempFiles.Free;
+  end;
   FPages.Free;
   inherited;
+end;
+
+procedure TReportExportDocument.AddTempFile(const APath: string);
+begin
+  if not Assigned(FTempFiles) then
+    FTempFiles := TStringList.Create;
+  FTempFiles.Add(APath);
 end;
 
 function TReportExportDocument.AddPage(AWidth, AHeight: Integer): TReportExportPage;

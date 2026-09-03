@@ -58,6 +58,9 @@
         <DelphiCompile Include="Test.Vittix.Report.Objects.QR.pas">
             <DCCReference>MainSource</DCCReference>
         </DelphiCompile>
+        <DelphiCompile Include="Test.Vittix.Report.ExportCapture.pas">
+            <DCCReference>MainSource</DCCReference>
+        </DelphiCompile>
         <DelphiCompile Include="Test.Vittix.Runner.Options.pas">
             <DCCReference>MainSource</DCCReference>
         </DelphiCompile>
