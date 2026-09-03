@@ -821,18 +821,29 @@ end;
 function JSONToObjectEx(O: TJSONObject; AVersion: Integer): TReportObject;
 var
   Cls: TReportObjectClass;
+  DiscriminatorValue: string;
 begin
+  // Resolve the object class from the primary 'Class' discriminator, with
+  // the legacy 'Type' key accepted as a fallback.  The resolved value is
+  // kept for diagnostics so the unknown-class error always names what the
+  // document actually contained, even when only 'Type' (or neither key)
+  // is present.
   if O.GetValue('Class') <> nil then
-    Cls := FindObjectClass(O.GetValue('Class').Value)
+    DiscriminatorValue := O.GetValue('Class').Value
   else if O.GetValue('Type') <> nil then
-    Cls := FindObjectClass(O.GetValue('Type').Value)
+    DiscriminatorValue := O.GetValue('Type').Value
+  else
+    DiscriminatorValue := '';
+
+  if DiscriminatorValue <> '' then
+    Cls := FindObjectClass(DiscriminatorValue)
   else
     Cls := nil;
-    
+
   if not Assigned(Cls) then
     raise Exception.CreateFmt(
       'Unknown report object class: "%s"',
-      [O.GetValue<string>('Class')]);
+      [DiscriminatorValue]);
 
   Result := Cls.Create;
   try
