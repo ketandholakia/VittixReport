@@ -39,6 +39,13 @@ type
     [Test] procedure Test_MissingDiscriminator_FailsLoud;
     [Test] procedure Test_Chart_RoundTrip_SpecializedProperties;
     [Test] procedure Test_Barcode_RoundTrip_SpecializedProperties;
+    [Test] procedure Test_GetClass_GraphicClassesRegistered;
+    [Test] procedure Test_PictureRoundTrip_PNG;
+    [Test] procedure Test_PictureRoundTrip_BMP;
+    [Test] procedure Test_PictureRoundTrip_JPEG;
+    [Test] procedure Test_Picture_UnknownClass_SkipsSilently;
+    [Test] procedure Test_Picture_CorruptData_LeavesEmptyAndLoads;
+    [Test] procedure Test_Picture_MissingKeys_LeavesEmpty;
   end;
 
 implementation
@@ -47,6 +54,13 @@ uses
   System.StrUtils,
   System.Types,
   System.UITypes,
+  System.IOUtils,
+  System.NetEncoding,
+  Vcl.Graphics,
+  Vcl.Imaging.pngimage,
+  Vcl.Imaging.Jpeg,
+  Vittix.Report.Bands,
+  Vittix.Report.Model,
   Vittix.Report.Objects.Chart,
   Vittix.Report.Objects.Barcode;
 
@@ -254,6 +268,252 @@ begin
     end;
   finally
     Barcode.Free;
+  end;
+end;
+
+{ Writes a small real image of the given format to a temp file and loads it
+  into the image object's Picture.  Real encoder output, not fabricated bytes. }
+procedure LoadRealImage(Img: TReportImageObject; const AFormat: string);
+var
+  Bmp: TBitmap;
+  TempFile: string;
+begin
+  Bmp := TBitmap.Create;
+  try
+    Bmp.SetSize(24, 16);
+    Bmp.Canvas.Brush.Color := clBlue;
+    Bmp.Canvas.FillRect(Rect(0, 0, 24, 16));
+    Bmp.Canvas.Brush.Color := clYellow;
+    Bmp.Canvas.FillRect(Rect(4, 4, 8, 8));
+    TempFile := TPath.Combine(TPath.GetTempPath,
+      'vittix_4i5_rt_' + TGUID.NewGuid.ToString + '.' + AFormat);
+    if AFormat = 'bmp' then
+      Bmp.SaveToFile(TempFile)
+    else if AFormat = 'png' then
+    begin
+      var Png := TPngImage.Create;
+      try
+        Png.Assign(Bmp);
+        Png.SaveToFile(TempFile);
+      finally
+        Png.Free;
+      end;
+    end
+    else
+    begin
+      var Jpg := TJPEGImage.Create;
+      try
+        Jpg.Assign(Bmp);
+        Jpg.SaveToFile(TempFile);
+      finally
+        Jpg.Free;
+      end;
+    end;
+  finally
+    Bmp.Free;
+  end;
+  Img.Picture.LoadFromFile(TempFile);
+  TFile.Delete(TempFile);
+end;
+
+
+{ Builds a real model containing one image object (no picture), serializes it,
+  and injects the given PictureData/PictureClass pairs into the image object's
+  JSON - producing a valid report with exact control over the embedded-picture
+  keys.  Returns the modified JSON text. }
+function BuildImageReportJSON(const APicData, APicClass: string): string;
+var
+  M: TReportModel;
+  Band: TReportBand;
+  Img: TReportImageObject;
+  Root, Obj: TJSONObject;
+begin
+  M := TReportModel.Create;
+  try
+    Band := TReportBand.Create;
+    Band.BandType := btPageHeader;
+    Img := TReportImageObject.Create;
+    Img.Name := 'imgX';
+    Img.DataField := '';
+    Band.Children.Add(Img);
+    M.Objects.Add(Band);
+    Result := TReportSerializer.SaveToJSON(M);
+  finally
+    M.Free;
+  end;
+
+  Root := TJSONObject.ParseJSONValue(Result) as TJSONObject;
+  try
+    Obj := (((Root.GetValue('Objects') as TJSONArray).Items[0]
+      as TJSONObject).GetValue('Children') as TJSONArray).Items[0] as TJSONObject;
+    if APicData <> '' then
+      Obj.AddPair('PictureData', APicData);
+    if APicClass <> '' then
+      Obj.AddPair('PictureClass', APicClass);
+    Result := Root.ToJSON;
+  finally
+    Root.Free;
+  end;
+end;
+
+procedure TSerializerRegistryTests.Test_GetClass_GraphicClassesRegistered;
+begin
+  // Serializer initialization must make the streaming registry resolve the
+  // graphic classes it serializes through PictureClass.
+  Assert.IsNotNull(GetClass('TBitmap'), 'TBitmap not registered');
+  Assert.IsNotNull(GetClass('TPNGImage'), 'TPNGImage not registered');
+  Assert.IsNotNull(GetClass('TJPEGImage'), 'TJPEGImage not registered');
+end;
+
+procedure TSerializerRegistryTests.Test_PictureRoundTrip_PNG;
+var
+  Img, Loaded: TReportImageObject;
+  JSON: string;
+  List: TArray<TReportObject>;
+begin
+  Img := TReportImageObject.Create;
+  try
+    Img.DataField := '';
+    LoadRealImage(Img, 'png');
+    Assert.AreEqual('TPngImage', Img.Picture.Graphic.ClassName);
+    JSON := TReportSerializer.SerializeObjectListToJSON([Img]);
+
+    List := TReportSerializer.DeserializeObjectListFromJSON(JSON);
+    try
+      Loaded := List[0] as TReportImageObject;
+      Assert.IsTrue(Assigned(Loaded.Picture.Graphic), 'picture lost');
+      Assert.IsFalse(Loaded.Picture.Graphic.Empty);
+      Assert.AreEqual('TPngImage', Loaded.Picture.Graphic.ClassName);
+      Assert.AreEqual(24, Loaded.Picture.Width);
+      Assert.AreEqual(16, Loaded.Picture.Height);
+    finally
+      for var I := 0 to High(List) do
+        List[I].Free;
+    end;
+  finally
+    Img.Free;
+  end;
+end;
+
+procedure TSerializerRegistryTests.Test_PictureRoundTrip_BMP;
+var
+  Img, Loaded: TReportImageObject;
+  JSON: string;
+  List: TArray<TReportObject>;
+begin
+  Img := TReportImageObject.Create;
+  try
+    Img.DataField := '';
+    LoadRealImage(Img, 'bmp');
+    Assert.AreEqual('TBitmap', Img.Picture.Graphic.ClassName);
+    JSON := TReportSerializer.SerializeObjectListToJSON([Img]);
+
+    List := TReportSerializer.DeserializeObjectListFromJSON(JSON);
+    try
+      Loaded := List[0] as TReportImageObject;
+      Assert.IsTrue(Assigned(Loaded.Picture.Graphic), 'picture lost');
+      Assert.AreEqual('TBitmap', Loaded.Picture.Graphic.ClassName);
+      Assert.AreEqual(24, Loaded.Picture.Width);
+      Assert.AreEqual(16, Loaded.Picture.Height);
+    finally
+      for var I := 0 to High(List) do
+        List[I].Free;
+    end;
+  finally
+    Img.Free;
+  end;
+end;
+
+procedure TSerializerRegistryTests.Test_PictureRoundTrip_JPEG;
+var
+  Img, Loaded: TReportImageObject;
+  JSON: string;
+  List: TArray<TReportObject>;
+begin
+  Img := TReportImageObject.Create;
+  try
+    Img.DataField := '';
+    LoadRealImage(Img, 'jpg');
+    Assert.AreEqual('TJPEGImage', Img.Picture.Graphic.ClassName);
+    JSON := TReportSerializer.SerializeObjectListToJSON([Img]);
+
+    List := TReportSerializer.DeserializeObjectListFromJSON(JSON);
+    try
+      Loaded := List[0] as TReportImageObject;
+      Assert.IsTrue(Assigned(Loaded.Picture.Graphic), 'picture lost');
+      Assert.AreEqual('TJPEGImage', Loaded.Picture.Graphic.ClassName);
+      Assert.IsTrue(Loaded.Picture.Width > 0);
+      Assert.IsTrue(Loaded.Picture.Height > 0);
+    finally
+      for var I := 0 to High(List) do
+        List[I].Free;
+    end;
+  finally
+    Img.Free;
+  end;
+end;
+
+procedure TSerializerRegistryTests.Test_Picture_UnknownClass_SkipsSilently;
+var
+  M2: TReportModel;
+  Band: TReportBand;
+  Loaded: TReportImageObject;
+begin
+  // Unknown PictureClass must be skipped (forward compatibility), the
+  // object must still load, and the picture stays empty.
+  M2 := TReportSerializer.LoadFromJSON(BuildImageReportJSON('AAAA', 'TUnknownGraphic'));
+  try
+    Band := M2.Objects[0] as TReportBand;
+    Loaded := Band.Children[0] as TReportImageObject;
+    Assert.AreEqual('imgX', Loaded.Name);
+    Assert.IsFalse(Assigned(Loaded.Picture.Graphic) and
+      not Loaded.Picture.Graphic.Empty, 'unknown class must leave picture empty');
+  finally
+    M2.Free;
+  end;
+end;
+
+procedure TSerializerRegistryTests.Test_Picture_CorruptData_LeavesEmptyAndLoads;
+var
+  M2: TReportModel;
+  Band: TReportBand;
+  Loaded: TReportImageObject;
+begin
+  // Registered class (TPNGImage) with invalid bytes: the report must load,
+  // the picture stays empty, and a sibling object still deserializes.
+  M2 := TReportSerializer.LoadFromJSON(
+    BuildImageReportJSON(
+      TNetEncoding.Base64.EncodeBytesToString(TBytes.Create(0,1,2,3,4,5,6,7)),
+      'TPNGImage'));
+  try
+    Band := M2.Objects[0] as TReportBand;
+    Loaded := Band.Children[0] as TReportImageObject;
+    Assert.AreEqual('imgX', Loaded.Name);
+    Assert.IsFalse(Assigned(Loaded.Picture.Graphic) and
+      not Loaded.Picture.Graphic.Empty, 'corrupt data must leave picture empty');
+    // The rest of the report (band, page settings, object properties) still
+    // loaded correctly around the failed image data.
+    Assert.AreEqual(btPageHeader, Band.BandType);
+    Assert.IsTrue(Loaded.Stretch, 'sibling property defaults still loaded');
+  finally
+    M2.Free;
+  end;
+end;
+
+procedure TSerializerRegistryTests.Test_Picture_MissingKeys_LeavesEmpty;
+var
+  M2: TReportModel;
+  Loaded: TReportImageObject;
+begin
+  // No PictureData/PictureClass at all: existing default behavior.
+  M2 := TReportSerializer.LoadFromJSON(BuildImageReportJSON('', ''));
+  try
+    Loaded := (M2.Objects[0] as TReportBand).Children[0] as TReportImageObject;
+    Assert.AreEqual('imgX', Loaded.Name);
+    Assert.IsFalse(Assigned(Loaded.Picture.Graphic) and
+      not Loaded.Picture.Graphic.Empty);
+  finally
+    M2.Free;
   end;
 end;
 

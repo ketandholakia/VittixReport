@@ -70,6 +70,7 @@ uses
   Vcl.Controls,
   Vcl.Imaging.pngimage,
   Vcl.Imaging.Jpeg,
+  Vcl.Imaging.gifimg,
   Vittix.Report.Objects.Table,
   Vittix.Report.Objects.CrossTab,
   Vittix.Report.Objects.Chart,
@@ -475,8 +476,16 @@ begin
           PicGraphic := TGraphicClass(PicClassRef);
           G := PicGraphic.Create;
           try
-            G.LoadFromStream(PicStream);
-            Img.Picture.Assign(G);
+            try
+              G.LoadFromStream(PicStream);
+              Img.Picture.Assign(G);
+            except
+              // Corrupt/invalid embedded image data: keep the picture empty
+              // (best-effort, matching the Draw path's handling of invalid
+              // image files) instead of aborting the whole report load.
+              // Only the graphic decode/assign operation is guarded; JSON
+              // and property errors elsewhere still propagate.
+            end;
           finally
             G.Free;
           end;
@@ -1104,6 +1113,15 @@ begin
 end;
 
 initialization
+  // The embedded-image load path resolves PictureClass through the Classes
+  // streaming registry (GetClass).  Runtime VCL does not register graphic
+  // classes there (that is IDE/designer-package behavior), so without this
+  // registration every embedded picture is silently dropped on load.
+  // Register exactly the graphic classes TPicture supports for the formats
+  // this project serializes; unknown stored classes keep the existing
+  // forward-compatible skip behavior in LoadProperties.
+  RegisterClasses([Vcl.Graphics.TBitmap, TIcon, TMetafile,
+    TPngImage, TJPEGImage, TGIFImage]);
 finalization
   if Assigned(GSerializers) then
     GSerializers.Free;
