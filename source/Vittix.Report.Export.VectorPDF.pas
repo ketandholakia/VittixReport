@@ -13,6 +13,7 @@ uses
   Vcl.Graphics,
   Vcl.Imaging.jpeg,
   Vcl.Imaging.pngimage,
+  Vcl.Imaging.GIFImg,
   Vittix.Report.Export.VectorPDF.SVG,
   Vittix.Report.Export.VectorPDF.EMF,
   Vittix.Report.Export.Commands;
@@ -783,6 +784,63 @@ var
     end;
   end;
 
+  // Builds a white-flattened raw-RGB FlateDecode Image XObject from any
+  // VCL graphic, using the shared pf24bit ScanLine pixel extraction also
+  // used by the PNG loader (no alpha/SMask support, consistent with it).
+  function BuildFlateRGBXObject(const AGraphic: TGraphic;
+    const AName: AnsiString; out AXObject: TPdfImageXObject): Boolean;
+  var
+    Bitmap: TBitmap;
+    RawBytes: TBytes;
+    Row: PByteArray;
+    X, Y, Offset, W, H: Integer;
+  begin
+    Result := False;
+    if not Assigned(AGraphic) or (AGraphic.Width <= 0) or
+       (AGraphic.Height <= 0) then
+      Exit;
+
+    Bitmap := TBitmap.Create;
+    try
+      Bitmap.PixelFormat := pf24bit;
+      Bitmap.SetSize(AGraphic.Width, AGraphic.Height);
+      W := Bitmap.Width;
+      H := Bitmap.Height;
+      Bitmap.Canvas.Brush.Color := clWhite;
+      Bitmap.Canvas.FillRect(Rect(0, 0, W, H));
+      Bitmap.Canvas.Draw(0, 0, AGraphic);
+
+      SetLength(RawBytes, W * H * 3);
+      Offset := 0;
+      for Y := 0 to H - 1 do
+      begin
+        Row := PByteArray(Bitmap.ScanLine[Y]);
+        for X := 0 to W - 1 do
+        begin
+          // pf24bit ScanLine rows are packed BGR; PDF /DeviceRGB wants RGB.
+          RawBytes[Offset]     := Row[X * 3 + 2]; // R
+          RawBytes[Offset + 1] := Row[X * 3 + 1]; // G
+          RawBytes[Offset + 2] := Row[X * 3];     // B
+          Inc(Offset, 3);
+        end;
+      end;
+    finally
+      Bitmap.Free;
+    end;
+
+    AXObject.Name := AName;
+    AXObject.Width := W;
+    AXObject.Height := H;
+    AXObject.ColorSpace := '/DeviceRGB';
+    AXObject.BitsPerComponent := 8;
+    AXObject.Filter := '/FlateDecode';
+    AXObject.Bytes := CompressBytes(RawBytes);
+    AXObject.SMaskName := '';
+    AXObject.SMaskObjectNo := 0;
+    SetLength(AXObject.SMaskBytes, 0);
+    Result := Length(AXObject.Bytes) > 0;
+  end;
+
   // Loads a PNG file, flattens it onto white (no alpha channel support
   // yet, unchanged from the previous implementation), and stores it as a
   // FlateDecode raw-RGB Image XObject. Uses ScanLine instead of
@@ -792,10 +850,6 @@ var
     const AName: AnsiString; out AXObject: TPdfImageXObject): Boolean;
   var
     PNG: TPngImage;
-    Bitmap: TBitmap;
-    RawBytes: TBytes;
-    Row: PByteArray;
-    X, Y, Offset, W, H: Integer;
   begin
     Result := False;
     if (AImage.Source = '') or not FileExists(AImage.Source) or
@@ -805,50 +859,45 @@ var
     PNG := TPngImage.Create;
     try
       PNG.LoadFromFile(AImage.Source);
-      if (PNG.Width <= 0) or (PNG.Height <= 0) then
-        Exit;
-
-      Bitmap := TBitmap.Create;
-      try
-        Bitmap.PixelFormat := pf24bit;
-        Bitmap.SetSize(PNG.Width, PNG.Height);
-        W := Bitmap.Width;
-        H := Bitmap.Height;
-        Bitmap.Canvas.Brush.Color := clWhite;
-        Bitmap.Canvas.FillRect(Rect(0, 0, W, H));
-        Bitmap.Canvas.Draw(0, 0, PNG);
-
-        SetLength(RawBytes, W * H * 3);
-        Offset := 0;
-        for Y := 0 to H - 1 do
-        begin
-          Row := PByteArray(Bitmap.ScanLine[Y]);
-          for X := 0 to W - 1 do
-          begin
-            // pf24bit ScanLine rows are packed BGR; PDF /DeviceRGB wants RGB.
-            RawBytes[Offset]     := Row[X * 3 + 2]; // R
-            RawBytes[Offset + 1] := Row[X * 3 + 1]; // G
-            RawBytes[Offset + 2] := Row[X * 3];     // B
-            Inc(Offset, 3);
-          end;
-        end;
-      finally
-        Bitmap.Free;
-      end;
-
-      AXObject.Name := AName;
-      AXObject.Width := W;
-      AXObject.Height := H;
-      AXObject.ColorSpace := '/DeviceRGB';
-      AXObject.BitsPerComponent := 8;
-      AXObject.Filter := '/FlateDecode';
-      AXObject.Bytes := CompressBytes(RawBytes);
-      AXObject.SMaskName := '';
-      AXObject.SMaskObjectNo := 0;
-      SetLength(AXObject.SMaskBytes, 0);
-      Result := Length(AXObject.Bytes) > 0;
+      Result := BuildFlateRGBXObject(PNG, AName, AXObject);
     finally
       PNG.Free;
+    end;
+  end;
+
+  // Loads a BMP or GIF file and stores it as the same white-flattened
+  // FlateDecode raw-RGB Image XObject used for PNG (first GIF frame for
+  // animated files).  These formats render in preview/print/HTML but had
+  // no VectorPDF representation and were silently skipped; this keeps the
+  // fix VectorPDF-local and leaves the command model format-neutral.
+  // Any decode failure returns False so the caller's graceful-skip
+  // behavior is preserved.
+  function TryLoadRasterFileXObject(AImage: TReportExportImageCommand;
+    const AName: AnsiString; out AXObject: TPdfImageXObject): Boolean;
+  var
+    Ext: string;
+    G: TGraphic;
+  begin
+    Result := False;
+    if (AImage.Source = '') or not FileExists(AImage.Source) then
+      Exit;
+    Ext := LowerCase(ExtractFileExt(AImage.Source));
+    if (Ext <> '.bmp') and (Ext <> '.gif') then
+      Exit;
+
+    if Ext = '.bmp' then
+      G := TBitmap.Create
+    else
+      G := TGIFImage.Create;
+    try
+      try
+        G.LoadFromFile(AImage.Source);
+      except
+        Exit; // malformed/unreadable image: graceful skip
+      end;
+      Result := BuildFlateRGBXObject(G, AName, AXObject);
+    finally
+      G.Free;
     end;
   end;
 
@@ -1171,7 +1220,8 @@ var
           ImageName := AnsiString('Im' + IntToStr(Length(AImages) + 1));
 
           if TryLoadJPEGXObject(ImageCmd, ImageName, XObject) or
-             TryLoadPNGXObject(ImageCmd, ImageName, XObject) then
+             TryLoadPNGXObject(ImageCmd, ImageName, XObject) or
+             TryLoadRasterFileXObject(ImageCmd, ImageName, XObject) then
           begin
             SetLength(AImages, Length(AImages) + 1);
             AImages[High(AImages)] := XObject;
