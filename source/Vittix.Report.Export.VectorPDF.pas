@@ -943,6 +943,7 @@ var
     LineCmd: TReportExportLineCommand;
     RectCmd: TReportExportRectangleCommand;
     FillCmd: TReportExportFillRectangleCommand;
+    EllipseCmd: TReportExportEllipseCommand;
     R: TRect;
     Lines: TArray<string>;
     LineIndex: Integer;
@@ -1121,6 +1122,47 @@ var
             PdfNumber(R.Width) + ' ' + PdfNumber(R.Height) + ' re' + #10 +
             'f' + #10 +
             'Q' + #10;
+        end;
+
+        eckEllipse:
+        begin
+          EllipseCmd := TReportExportEllipseCommand(Command);
+          R := EllipseCmd.Bounds;
+          // Approximate the ellipse with four cubic Bezier arcs (kappa =
+          // 0.55228475) so the output stays vector content.
+          var Kappa: Double := 0.5522847498;
+          var ECx := R.Left + R.Width / 2;
+          var ECy := PdfY(APage, R.Top + R.Height div 2);
+          var ERx := R.Width / 2;
+          var ERy := R.Height / 2;
+          var Kx := ERx * Kappa;
+          var Ky := ERy * Kappa;
+          // Ellipse anchor points in PDF coordinates (Y grows upward).
+          var EE := PdfNumber(ECx + ERx) + ' ' + PdfNumber(ECy);          // right
+          var EN := PdfNumber(ECx) + ' ' + PdfNumber(ECy + ERy);          // top
+          var EW := PdfNumber(ECx - ERx) + ' ' + PdfNumber(ECy);          // left
+          var ES := PdfNumber(ECx) + ' ' + PdfNumber(ECy - ERy);          // bottom
+          Result := Result + 'q' + #10;
+          if EllipseCmd.HasBorder then
+            Result := Result +
+              PdfColor(EllipseCmd.BorderColor) + ' RG' + #10 +
+              PdfNumber(EllipseCmd.BorderWidth) + ' w' + #10;
+          if EllipseCmd.HasFill then
+            Result := Result + PdfColor(EllipseCmd.FillColor) + ' rg' + #10;
+          Result := Result +
+            'm ' + EE + #10 +
+            'c ' + EE + ' ' + PdfNumber(ECx + ERx) + ' ' + PdfNumber(ECy + Ky) + ' ' + EN + #10 +
+            'c ' + PdfNumber(ECx + Kx) + ' ' + PdfNumber(ECy + ERy) + ' ' + EW + ' ' + EN + #10 +
+            'c ' + EW + ' ' + PdfNumber(ECx - Kx) + ' ' + PdfNumber(ECy - Ky) + ' ' + ES + #10 +
+            'c ' + PdfNumber(ECx - Kx) + ' ' + PdfNumber(ECy - ERy) + ' ' + EE + ' ' + ES + #10 +
+            'h' + #10;
+          if EllipseCmd.HasFill and EllipseCmd.HasBorder then
+            Result := Result + 'B' + #10
+          else if EllipseCmd.HasFill then
+            Result := Result + 'f' + #10
+          else
+            Result := Result + 'S' + #10;
+          Result := Result + 'Q' + #10;
         end;
 
         eckImage:

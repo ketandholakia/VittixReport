@@ -34,6 +34,7 @@ type
     [Test] procedure Test_MissingImage_FallsBackToFileURI;
     [Test] procedure Test_InvalidPNG_DataURIPinned;
     [Test] procedure Test_NormalOutput_StructurallyValid;
+    [Test] procedure Test_EllipseCommand_VectorRepresentation;
   end;
 
 implementation
@@ -216,6 +217,51 @@ begin
   Assert.Contains(HTML, 'Report output');
   Assert.Contains(HTML, 'width: 793px; height: 1122px;');
 end;
+
+procedure TExportHTMLTests.Test_EllipseCommand_VectorRepresentation;
+var
+  Doc: TReportExportDocument;
+  Page: TReportExportPage;
+  Cmd: TReportExportEllipseCommand;
+  Ms: TStringStream;
+  HTML: string;
+begin
+  // In-memory document with a single ellipse command (fill + border).
+  Doc := TReportExportDocument.Create;
+  try
+    Page := Doc.AddPage(793, 1122);
+    Cmd := TReportExportEllipseCommand.Create;
+    Cmd.Bounds := Rect(20, 30, 220, 130);
+    Cmd.HasFill := True;
+    Cmd.FillColor := $000000FF;  // clRed -> #ff0000
+    Cmd.HasBorder := True;
+    Cmd.BorderColor := $00FF0000; // clBlue -> #0000ff
+    Cmd.BorderWidth := 2;
+    Page.Commands.Add(Cmd);
+
+    Ms := TStringStream.Create('', TEncoding.UTF8);
+    try
+      TReportHTMLExporter.ExportDocument(Doc, Ms);
+      HTML := Ms.DataString;
+
+      // A real SVG ellipse element must be present (not just a div).
+      Assert.Contains(HTML, '<ellipse cx="');
+      Assert.Contains(HTML, 'cy="');
+      // Geometry: bounds 200x100 -> rx=100, ry=50, offset by border padding.
+      Assert.Contains(HTML, 'rx="100"');
+      Assert.Contains(HTML, 'ry="50"');
+      // Fill/border information is represented.
+      Assert.Contains(HTML, 'fill="#ff0000"');
+      Assert.Contains(HTML, 'stroke="#0000ff"');
+      Assert.Contains(HTML, 'stroke-width="2"');
+    finally
+      Ms.Free;
+    end;
+  finally
+    Doc.Free;
+  end;
+end;
+
 
 initialization
   TDUnitX.RegisterTestFixture(TExportHTMLTests);

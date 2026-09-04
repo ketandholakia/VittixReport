@@ -16,7 +16,8 @@ type
     eckLine,
     eckRectangle,
     eckFillRectangle,
-    eckImage
+    eckImage,
+    eckEllipse
   );
 
   TReportExportCommand = class
@@ -64,6 +65,21 @@ type
   public
     Bounds: TRect;
     FillColor: TColor;
+    constructor Create;
+  end;
+
+  { Ellipse shape (stEllipse). A single command carries both fill and border
+    state because a GDI Ellipse draws brush and pen together. HasFill is true
+    only when the source brush is a solid fill; HasBorder is true only when
+    the source pen is visible (non-clear). }
+  TReportExportEllipseCommand = class(TReportExportCommand)
+  public
+    Bounds: TRect;
+    BorderColor: TColor;
+    BorderWidth: Integer;
+    FillColor: TColor;
+    HasFill: Boolean;
+    HasBorder: Boolean;
     constructor Create;
   end;
 
@@ -142,6 +158,16 @@ constructor TReportExportFillRectangleCommand.Create;
 begin
   inherited Create(eckFillRectangle);
   FillColor := clWhite;
+end;
+
+constructor TReportExportEllipseCommand.Create;
+begin
+  inherited Create(eckEllipse);
+  BorderColor := clBlack;
+  BorderWidth := 1;
+  FillColor := clWhite;
+  HasFill := False;
+  HasBorder := True;
 end;
 
 constructor TReportExportImageCommand.Create;

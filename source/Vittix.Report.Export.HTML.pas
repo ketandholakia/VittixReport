@@ -134,6 +134,7 @@ var
   LineCmd: TReportExportLineCommand;
   RectCmd: TReportExportRectangleCommand;
   FillCmd: TReportExportFillRectangleCommand;
+  EllipseCmd: TReportExportEllipseCommand;
   ImageCmd: TReportExportImageCommand;
 
   AlignStr: string;
@@ -163,6 +164,7 @@ begin
     Writer.WriteLine('  .vrt-rect { position: absolute; box-sizing: border-box; }');
     Writer.WriteLine('  .vrt-fill { position: absolute; box-sizing: border-box; }');
     Writer.WriteLine('  .vrt-line { position: absolute; pointer-events: none; }');
+    Writer.WriteLine('  .vrt-ellipse { position: absolute; pointer-events: none; }');
     Writer.WriteLine('  .vrt-img { position: absolute; }');
     Writer.WriteLine('  @media print {');
     Writer.WriteLine('    body { background: white; margin: 0; padding: 0; display: block; }');
@@ -255,6 +257,29 @@ begin
                 Writer.WriteLine('</svg>');
               end;
               
+            eckEllipse:
+              begin
+                EllipseCmd := TReportExportEllipseCommand(Command);
+                var Ex := EllipseCmd.Bounds.Left;
+                var Ey := EllipseCmd.Bounds.Top;
+                var Ew := EllipseCmd.Bounds.Width;
+                var Eh := EllipseCmd.Bounds.Height;
+                // padding so the stroke is not clipped by the svg viewport
+                var EPad := EllipseCmd.BorderWidth;
+                var EStroke := 'none';
+                if EllipseCmd.HasBorder then
+                  EStroke := ColorToHTML(EllipseCmd.BorderColor);
+                var EFill := 'none';
+                if EllipseCmd.HasFill then
+                  EFill := ColorToHTML(EllipseCmd.FillColor);
+                Writer.WriteLine(Format('<svg class="vrt-ellipse" style="left:%dpx; top:%dpx;" width="%d" height="%d">',
+                  [Ex - EPad, Ey - EPad, Ew + EPad*2, Eh + EPad*2]));
+                Writer.WriteLine(Format('  <ellipse cx="%d" cy="%d" rx="%d" ry="%d" fill="%s" stroke="%s" stroke-width="%d" />',
+                  [Ew div 2 + EPad, Eh div 2 + EPad, Ew div 2, Eh div 2,
+                   EFill, EStroke, EllipseCmd.BorderWidth]));
+                Writer.WriteLine('</svg>');
+              end;
+
             eckImage:
               begin
                 ImageCmd := TReportExportImageCommand(Command);

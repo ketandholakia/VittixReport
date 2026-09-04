@@ -1487,6 +1487,7 @@ var
   LineCmd: TReportExportLineCommand;
   RectCmd: TReportExportRectangleCommand;
   FillCmd: TReportExportFillRectangleCommand;
+  EllipseCmd: TReportExportEllipseCommand;
   R: TRect;
   TextR: TRect;
   RowHeight: Integer;
@@ -1982,7 +1983,11 @@ begin
     OffsetRect(R, ViewportOrg.X, ViewportOrg.Y);
 
     case ShapeObj.ShapeType of
-      stRectangle:
+      stRectangle, stRoundRect:
+      { stRoundRect reuses the rectangle representation: fill/border are
+        preserved via the existing fill-rectangle/rectangle commands so the
+        shape no longer disappears from graphical exports. Corner rounding
+        itself is not representable in the current command model. }
       begin
         if ShapeObj.BrushStyle = bsSolid then
         begin
@@ -2024,6 +2029,24 @@ begin
             LineCmd.Y2 := R.Bottom;
           end;
           FCurrentExportPage.Commands.Add(LineCmd);
+        end;
+      end;
+
+      stEllipse:
+      { Mirror the GDI Ellipse semantics: fill only when the brush is a solid
+        fill, border only when the pen is visible. If neither is visible the
+        shape renders nothing in preview either, so no command is emitted. }
+      begin
+        if (ShapeObj.BrushStyle = bsSolid) or (ShapeObj.PenStyle <> psClear) then
+        begin
+          EllipseCmd := TReportExportEllipseCommand.Create;
+          EllipseCmd.Bounds := R;
+          EllipseCmd.FillColor := ShapeObj.BrushColor;
+          EllipseCmd.HasFill := ShapeObj.BrushStyle = bsSolid;
+          EllipseCmd.BorderColor := ShapeObj.PenColor;
+          EllipseCmd.BorderWidth := ShapeObj.PenWidth;
+          EllipseCmd.HasBorder := ShapeObj.PenStyle <> psClear;
+          FCurrentExportPage.Commands.Add(EllipseCmd);
         end;
       end;
     end;

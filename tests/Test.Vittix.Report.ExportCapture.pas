@@ -34,6 +34,10 @@ type
       out ADoc: TReportExportDocument;
       out AModel: TReportModel;
       out ADS: TClientDataSet): TReportEngine;
+    function BuildShapeEngine(AShape: TReportShapeObject;
+      out ADoc: TReportExportDocument;
+      out AModel: TReportModel;
+      out ADS: TClientDataSet): TReportEngine;
     function BuildEngine(AChartVisible, ACrossTabVisible: Boolean;
       out AChart, ACrossTab: TReportObject;
       out ADoc: TReportExportDocument;
@@ -53,19 +57,29 @@ type
     [Test] procedure Test_Base64Field_DataURI_RendersAndExports;
     [Test] procedure Test_Base64Field_BareBase64_Renders;
     [Test] procedure Test_Base64Field_Invalid_NoCommandNoException;
+    [Test] procedure Test_Ellipse_FillAndBorder_Captured;
+    [Test] procedure Test_Ellipse_FillOnly_NoBorder;
+    [Test] procedure Test_Ellipse_BorderOnly_NoFill;
+    [Test] procedure Test_RoundRect_ProducesCommands;
+    [Test] procedure Test_Rectangle_Capture_Regression;
+    [Test] procedure Test_Line_Capture_Regression;
+    [Test] procedure Test_Ellipse_HTMLExport_ContainsVectorEllipse;
+    [Test] procedure Test_Ellipse_VectorPDF_ContainsBezierContent;
   end;
 
 implementation
 
 uses
   System.Types,
+  System.StrUtils,
   System.UITypes,
   Vcl.Graphics,
   Vcl.Imaging.pngimage,
   System.IOUtils,
   System.NetEncoding,
   Vittix.Report.Serializer,
-  Vittix.Report.Export.HTML;
+  Vittix.Report.Export.HTML,
+  Vittix.Report.Export.VectorPDF;
 
 function TExportCaptureTests.BuildDataSet: TClientDataSet;
 begin
@@ -554,6 +568,56 @@ begin
   ADS := DS;
 end;
 
+{ Builds a one-band engine containing a single shape object.  Uses an
+  in-memory dataset so nothing depends on report fixtures. }
+function TExportCaptureTests.BuildShapeEngine(AShape: TReportShapeObject;
+  out ADoc: TReportExportDocument;
+  out AModel: TReportModel;
+  out ADS: TClientDataSet): TReportEngine;
+var
+  Model: TReportModel;
+  Band: TReportBand;
+  DS: TClientDataSet;
+begin
+  DS := TClientDataSet.Create(nil);
+  DS.FieldDefs.Add('Name', ftString, 20);
+  DS.CreateDataSet;
+  DS.AppendRecord(['row1']);
+  DS.First;
+
+  AShape.Name := 'shape1';
+  AShape.Bounds := Rect(30, 40, 230, 140);
+
+  Model := TReportModel.Create;
+  Band := TReportBand.Create;
+  Band.BandType := btPageHeader;
+  Band.Height := 400;
+  Band.Children.Add(AShape);
+  Model.Objects.Add(Band);
+
+  ADoc := TReportExportDocument.Create;
+  Result := TReportEngine.Create(Model, DS, nil, nil);
+  Result.ExportDocument := ADoc;
+  AModel := Model;
+  ADS := DS;
+end;
+
+{ Collects ellipse commands from all pages. }
+function CollectEllipseCommands(ADoc: TReportExportDocument): TArray<TReportExportEllipseCommand>;
+var
+  Page: TReportExportPage;
+  Cmd: TReportExportCommand;
+begin
+  SetLength(Result, 0);
+  for Page in ADoc.Pages do
+    for Cmd in Page.Commands do
+      if Cmd is TReportExportEllipseCommand then
+      begin
+        SetLength(Result, Length(Result) + 1);
+        Result[High(Result)] := TReportExportEllipseCommand(Cmd);
+      end;
+end;
+
 procedure TExportCaptureTests.Test_Base64Field_DataURI_RendersAndExports;
 var
   Doc: TReportExportDocument;
@@ -626,6 +690,347 @@ begin
     DS.Free;
   end;
 end;
+
+procedure TExportCaptureTests.Test_Ellipse_FillAndBorder_Captured;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  Shape: TReportShapeObject;
+  Ellipses: TArray<TReportExportEllipseCommand>;
+begin
+  Shape := TReportShapeObject.Create;
+  Shape.ShapeType := stEllipse;
+  Shape.BrushColor := clRed;
+  Shape.BrushStyle := bsSolid;
+  Shape.PenColor := clBlue;
+  Shape.PenWidth := 3;
+  Shape.PenStyle := psSolid;
+  Engine := BuildShapeEngine(Shape, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    Ellipses := CollectEllipseCommands(Doc);
+    Assert.IsTrue(Length(Ellipses) = 1, Format('ellipse commands=%d', [Length(Ellipses)]));
+    // Bounds are page coordinates (object bounds offset by the band
+    // position), so assert on the offset-independent size.
+    Assert.IsTrue((Ellipses[0].Bounds.Width = 200) and (Ellipses[0].Bounds.Height = 100),
+      Format('ellipse bounds=(%d,%d,%d,%d)', [Ellipses[0].Bounds.Left, Ellipses[0].Bounds.Top,
+        Ellipses[0].Bounds.Right, Ellipses[0].Bounds.Bottom]));
+    Assert.IsTrue(Ellipses[0].HasFill, 'solid fill must be captured');
+    Assert.IsTrue(Ellipses[0].FillColor = clRed, 'fill color not preserved');
+    Assert.IsTrue(Ellipses[0].HasBorder, 'visible border must be captured');
+    Assert.IsTrue(Ellipses[0].BorderColor = clBlue, 'border color not preserved');
+    Assert.IsTrue(Ellipses[0].BorderWidth = 3, 'border width not preserved');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_Ellipse_FillOnly_NoBorder;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  Shape: TReportShapeObject;
+  Ellipses: TArray<TReportExportEllipseCommand>;
+begin
+  Shape := TReportShapeObject.Create;
+  Shape.ShapeType := stEllipse;
+  Shape.BrushColor := clGreen;
+  Shape.BrushStyle := bsSolid;
+  Shape.PenStyle := psClear;
+  Engine := BuildShapeEngine(Shape, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    Ellipses := CollectEllipseCommands(Doc);
+    Assert.IsTrue(Length(Ellipses) = 1, Format('ellipse commands=%d', [Length(Ellipses)]));
+    Assert.IsTrue(Ellipses[0].HasFill, 'fill must be captured');
+    Assert.IsFalse(Ellipses[0].HasBorder, 'clear pen must not produce a border');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_Ellipse_BorderOnly_NoFill;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  Shape: TReportShapeObject;
+  Ellipses: TArray<TReportExportEllipseCommand>;
+begin
+  Shape := TReportShapeObject.Create;
+  Shape.ShapeType := stEllipse;
+  Shape.BrushStyle := bsClear;
+  Shape.PenColor := clBlack;
+  Shape.PenStyle := psSolid;
+  Engine := BuildShapeEngine(Shape, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    Ellipses := CollectEllipseCommands(Doc);
+    Assert.IsTrue(Length(Ellipses) = 1, Format('ellipse commands=%d', [Length(Ellipses)]));
+    Assert.IsFalse(Ellipses[0].HasFill, 'non-solid brush must not produce a fill');
+    Assert.IsTrue(Ellipses[0].HasBorder, 'border must be captured');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+
+procedure TExportCaptureTests.Test_RoundRect_ProducesCommands;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  Shape: TReportShapeObject;
+  Page: TReportExportPage;
+  Cmd: TReportExportCommand;
+  FillCount, BorderCount, OtherCount: Integer;
+begin
+  Shape := TReportShapeObject.Create;
+  Shape.ShapeType := stRoundRect;
+  Shape.BrushColor := clYellow;
+  Shape.BrushStyle := bsSolid;
+  Shape.PenColor := clNavy;
+  Shape.PenWidth := 2;
+  Shape.PenStyle := psSolid;
+  Engine := BuildShapeEngine(Shape, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    // Round-rect must survive export capture: same representation as a
+    // rectangle (fill-rectangle + rectangle border commands).
+    FillCount := 0;
+    BorderCount := 0;
+    OtherCount := 0;
+    for Page in Doc.Pages do
+      for Cmd in Page.Commands do
+      begin
+        if Cmd is TReportExportFillRectangleCommand then
+        begin
+          Inc(FillCount);
+          Assert.IsTrue(TReportExportFillRectangleCommand(Cmd).FillColor = clYellow,
+            'round-rect fill color not preserved');
+          Assert.IsTrue(TReportExportFillRectangleCommand(Cmd).Bounds.Width = 200,
+            'round-rect bounds not preserved');
+        end
+        else if Cmd is TReportExportRectangleCommand then
+        begin
+          Inc(BorderCount);
+          Assert.IsTrue(TReportExportRectangleCommand(Cmd).BorderColor = clNavy,
+            'round-rect border color not preserved');
+          Assert.IsTrue(TReportExportRectangleCommand(Cmd).BorderWidth = 2,
+            'round-rect border width not preserved');
+        end
+        else
+          Inc(OtherCount);
+      end;
+    Assert.IsTrue(FillCount = 1, Format('round-rect fill commands=%d', [FillCount]));
+    Assert.IsTrue(BorderCount = 1, Format('round-rect border commands=%d', [BorderCount]));
+    Assert.IsTrue(OtherCount = 0, 'round-rect must not produce unexpected commands');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_Rectangle_Capture_Regression;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  Shape: TReportShapeObject;
+  Page: TReportExportPage;
+  Cmd: TReportExportCommand;
+  FillCount, BorderCount, OtherCount: Integer;
+begin
+  Shape := TReportShapeObject.Create;
+  Shape.ShapeType := stRectangle;
+  Shape.BrushColor := clRed;
+  Shape.BrushStyle := bsSolid;
+  Shape.PenColor := clBlack;
+  Shape.PenStyle := psSolid;
+  Engine := BuildShapeEngine(Shape, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    // Existing rectangle structure: exactly one fill-rectangle + one
+    // rectangle border command, no ellipse commands.
+    FillCount := 0;
+    BorderCount := 0;
+    OtherCount := 0;
+    for Page in Doc.Pages do
+      for Cmd in Page.Commands do
+      begin
+        if Cmd is TReportExportFillRectangleCommand then Inc(FillCount)
+        else if Cmd is TReportExportRectangleCommand then Inc(BorderCount)
+        else Inc(OtherCount);
+      end;
+    Assert.IsTrue(FillCount = 1, Format('rectangle fill commands=%d', [FillCount]));
+    Assert.IsTrue(BorderCount = 1, Format('rectangle border commands=%d', [BorderCount]));
+    Assert.IsTrue(OtherCount = 0, 'rectangle must not acquire new command kinds');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_Line_Capture_Regression;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  Shape: TReportShapeObject;
+  Page: TReportExportPage;
+  Cmd: TReportExportCommand;
+  Lines: TArray<TReportExportLineCommand>;
+  OtherCount: Integer;
+begin
+  Shape := TReportShapeObject.Create;
+  Shape.ShapeType := stLine;
+  Shape.PenColor := clMaroon;
+  Shape.PenWidth := 2;
+  Engine := BuildShapeEngine(Shape, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    SetLength(Lines, 0);
+    OtherCount := 0;
+    for Page in Doc.Pages do
+      for Cmd in Page.Commands do
+      begin
+        if Cmd is TReportExportLineCommand then
+        begin
+          SetLength(Lines, Length(Lines) + 1);
+          Lines[High(Lines)] := TReportExportLineCommand(Cmd);
+        end
+        else
+          Inc(OtherCount);
+      end;
+    Assert.IsTrue(Length(Lines) = 1, Format('line commands=%d', [Length(Lines)]));
+    Assert.IsTrue(OtherCount = 0, 'line shape must not acquire new command kinds');
+    // Horizontal line: mid Y of the object bounds, unchanged semantics
+    // (both endpoints share the same page Y; absolute value includes the
+    // band offset).
+    Assert.IsTrue((Lines[0].Color = clMaroon) and (Lines[0].Width = 2));
+    Assert.IsTrue((Lines[0].Y1 = Lines[0].Y2) and (Lines[0].X1 < Lines[0].X2),
+      Format('line=(%d,%d)-(%d,%d)', [Lines[0].X1, Lines[0].Y1, Lines[0].X2, Lines[0].Y2]));
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+
+procedure TExportCaptureTests.Test_Ellipse_HTMLExport_ContainsVectorEllipse;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  Shape: TReportShapeObject;
+  Ellipses: TArray<TReportExportEllipseCommand>;
+  Ms: TStringStream;
+begin
+  Shape := TReportShapeObject.Create;
+  Shape.ShapeType := stEllipse;
+  Shape.BrushColor := clRed;
+  Shape.BrushStyle := bsSolid;
+  Shape.PenColor := clBlue;
+  Shape.PenWidth := 3;
+  Engine := BuildShapeEngine(Shape, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    Ellipses := CollectEllipseCommands(Doc);
+    Assert.IsTrue(Length(Ellipses) = 1);
+
+    Ms := TStringStream.Create('', TEncoding.UTF8);
+    try
+      TReportHTMLExporter.ExportDocument(Doc, Ms);
+      // A real vector ellipse element with the captured geometry.
+      Assert.Contains(Ms.DataString, '<ellipse cx="');
+      Assert.Contains(Ms.DataString, 'rx="100"');
+      Assert.Contains(Ms.DataString, 'ry="50"');
+      // Fill and border information is represented.
+      Assert.Contains(Ms.DataString, '#ff0000');  // clRed fill
+      Assert.Contains(Ms.DataString, '#0000ff');  // clBlue border
+      Assert.Contains(Ms.DataString, 'stroke-width="3"');
+    finally
+      Ms.Free;
+    end;
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_Ellipse_VectorPDF_ContainsBezierContent;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  Shape: TReportShapeObject;
+  Ellipses: TArray<TReportExportEllipseCommand>;
+  Ms: TStringStream;
+  Pdf: string;
+begin
+  Shape := TReportShapeObject.Create;
+  Shape.ShapeType := stEllipse;
+  Shape.BrushColor := clRed;
+  Shape.BrushStyle := bsSolid;
+  Shape.PenColor := clBlue;
+  Shape.PenWidth := 3;
+  Engine := BuildShapeEngine(Shape, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    Ellipses := CollectEllipseCommands(Doc);
+    Assert.IsTrue(Length(Ellipses) = 1);
+
+    Ms := TStringStream.Create('', TEncoding.UTF8);
+    try
+      TReportVectorPDFExporter.ExportDocument(Doc, Ms);
+      Pdf := Ms.DataString;
+      // Structural content-stream assertions: an ellipse is drawn as a
+      // closed path of four cubic Bezier arcs (m/c/h) with fill+stroke
+      // (B) — no rasterized image fallback.
+      Assert.Contains(Pdf, #10'c ');
+      Assert.Contains(Pdf, 'h'#10'B'#10);
+      // Border color operator (RG) and fill operator (rg) both present.
+      Assert.Contains(Pdf, ' RG'#10);
+      Assert.Contains(Pdf, ' rg'#10);
+      Assert.IsFalse(ContainsText(Pdf, '/Im'), 'ellipse must not be rasterized');
+    finally
+      Ms.Free;
+    end;
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
 
 initialization
   TDUnitX.RegisterTestFixture(TExportCaptureTests);
