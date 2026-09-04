@@ -38,6 +38,7 @@ type
     FontStyle: TFontStyles;
     FontColor: TColor;
     HAlign: TAlignment;
+    VAlign: TVerticalAlignment;
     WordWrap: Boolean;
     constructor Create;
   end;
@@ -137,6 +138,7 @@ begin
   FontStyle := [];
   FontColor := clBlack;
   HAlign := taLeftJustify;
+  VAlign := taVerticalCenter;
   WordWrap := False;
 end;
 

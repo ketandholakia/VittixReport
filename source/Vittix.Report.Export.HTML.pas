@@ -138,6 +138,7 @@ var
   ImageCmd: TReportExportImageCommand;
 
   AlignStr: string;
+  FlexRowStr: string;
   FontStyleStr: string;
   FontWeightStr: string;
   FontDecorationStr: string;
@@ -192,6 +193,27 @@ begin
                 if TextCmd.HAlign = taRightJustify then AlignStr := 'right'
                 else if TextCmd.HAlign = taCenter then AlignStr := 'center';
 
+                // Single-line (non-wrapped) text honors the object's vertical
+                // alignment via a flex container (mirrors preview).  Wrapped
+                // text is left untouched: preview treats wrap as top-aligned.
+                FlexRowStr := '';
+                if not TextCmd.WordWrap then
+                begin
+                  case TextCmd.VAlign of
+                    taVerticalCenter: FlexRowStr := ' display:flex; align-items:center;';
+                    taAlignBottom:    FlexRowStr := ' display:flex; align-items:flex-end;';
+                  end;
+                  if FlexRowStr <> '' then
+                  begin
+                    if TextCmd.HAlign = taRightJustify then
+                      FlexRowStr := FlexRowStr + ' justify-content:flex-end;'
+                    else if TextCmd.HAlign = taCenter then
+                      FlexRowStr := FlexRowStr + ' justify-content:center;'
+                    else
+                      FlexRowStr := FlexRowStr + ' justify-content:flex-start;';
+                  end;
+                end;
+
                 FontStyleStr := 'normal';
                 if fsItalic in TextCmd.FontStyle then FontStyleStr := 'italic';
 
@@ -201,8 +223,8 @@ begin
                 FontDecorationStr := 'none';
                 if fsUnderline in TextCmd.FontStyle then FontDecorationStr := 'underline';
 
-                Writer.Write(Format('<div class="vrt-text%s" style="left:%dpx; top:%dpx; width:%dpx; height:%dpx; ',
-                  [IfThen(TextCmd.WordWrap, ' wrap', ''), TextCmd.Bounds.Left, TextCmd.Bounds.Top, TextCmd.Bounds.Width, TextCmd.Bounds.Height]));
+                Writer.Write(Format('<div class="vrt-text%s" style="left:%dpx; top:%dpx; width:%dpx; height:%dpx;%s ',
+                  [IfThen(TextCmd.WordWrap, ' wrap', ''), TextCmd.Bounds.Left, TextCmd.Bounds.Top, TextCmd.Bounds.Width, TextCmd.Bounds.Height, FlexRowStr]));
                 Writer.Write(Format('font-family:''%s'',sans-serif; font-size:%dpt; color:%s; text-align:%s; font-style:%s; font-weight:%s; text-decoration:%s;">',
                   [EscapeHTMLAttr(TextCmd.FontName), TextCmd.FontSize, ColorToHTML(TextCmd.FontColor), AlignStr, FontStyleStr, FontWeightStr, FontDecorationStr]));
                 

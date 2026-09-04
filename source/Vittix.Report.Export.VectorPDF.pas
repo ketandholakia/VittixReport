@@ -1011,6 +1011,8 @@ var
     GlyphX: Double;
     GlyphY: Integer;
     GlyphHex: AnsiString;
+    VOffsetY: Integer;
+    SingleLineH: Integer;
   begin
     Result := '';
     for Command in APage.Commands do
@@ -1024,6 +1026,28 @@ var
             Lines := WrapTextLines(TextCmd);
             LineHeightPx := Round(TextCmd.FontSize * 1.2);
 
+            // Single-line (non-wrapped) text honors the object's vertical
+            // alignment, mirroring preview: shift the top-aligned baseline
+            // downward to center/bottom.  Wrapped text is unchanged (preview
+            // treats wrap as top-aligned too).  This is an integer pixel
+            // offset added to the baseline positions below.
+            VOffsetY := 0;
+            if (not TextCmd.WordWrap) and (TextCmd.VAlign <> taAlignTop) and
+               (TextCmd.Bounds.Height > 0) and (Length(Lines) = 1) then
+            begin
+              SetMeasureFont(TextCmd);
+              SingleLineH := MeasureBmp.Canvas.TextHeight(Lines[0]);
+              if SingleLineH < TextCmd.Bounds.Height then
+              begin
+                case TextCmd.VAlign of
+                  taVerticalCenter:
+                    VOffsetY := (TextCmd.Bounds.Height - SingleLineH) div 2;
+                  taAlignBottom:
+                    VOffsetY := TextCmd.Bounds.Height - SingleLineH;
+                end;
+              end;
+            end;
+
             if SupportsPdfAnsiText(TextCmd.Text) then
             begin
               Result := Result +
@@ -1033,7 +1057,7 @@ var
 
               for LineIndex := 0 to High(Lines) do
               begin
-                LineY := TextCmd.Bounds.Top + TextCmd.FontSize + (LineIndex * LineHeightPx);
+                LineY := TextCmd.Bounds.Top + TextCmd.FontSize + VOffsetY + (LineIndex * LineHeightPx);
                 Result := Result +
                   'BT' + #10 +
                   PdfNumber(PdfTextX(TextCmd, Lines[LineIndex])) + ' ' +
@@ -1077,7 +1101,7 @@ var
                       LineX := TextCmd.Bounds.Left;
                   end;
 
-                  LineY := TextCmd.Bounds.Top + TextCmd.FontSize + (LineIndex * LineHeightPx);
+                  LineY := TextCmd.Bounds.Top + TextCmd.FontSize + VOffsetY + (LineIndex * LineHeightPx);
                   CursorXPx := 0;
                   for Glyph in ShapedGlyphs do
                   begin
@@ -1113,7 +1137,7 @@ var
                     AImages[High(AImages)] := XObject;
 
                     LineX := PdfTextX(TextCmd, Lines[LineIndex]);
-                    LineY := TextCmd.Bounds.Top + (LineIndex * LineHeightPx);
+                    LineY := TextCmd.Bounds.Top + VOffsetY + (LineIndex * LineHeightPx);
                     Result := Result +
                       'q' + #10 +
                       PdfNumber(RasterWidthPx) + ' 0 0 ' +

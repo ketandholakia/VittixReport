@@ -35,6 +35,10 @@ type
     [Test] procedure Test_InvalidPNG_DataURIPinned;
     [Test] procedure Test_NormalOutput_StructurallyValid;
     [Test] procedure Test_EllipseCommand_VectorRepresentation;
+    [Test] procedure Test_TextVAlign_Center_HTML;
+    [Test] procedure Test_TextVAlign_Bottom_HTML;
+    [Test] procedure Test_TextVAlign_Top_NoFlex;
+    [Test] procedure Test_TextVAlign_WordWrap_NoFlex;
   end;
 
 implementation
@@ -263,6 +267,81 @@ begin
 end;
 
 
+{ Renders a single text command with the given alignment settings. }
+function TextDocFull(AVAlign: TVerticalAlignment; AHAlign: TAlignment;
+  AWordWrap: Boolean; const AText: string): string;
+var
+  Doc: TReportExportDocument;
+  Page: TReportExportPage;
+  Cmd: TReportExportTextCommand;
+  Ms: TStringStream;
+begin
+  Doc := TReportExportDocument.Create;
+  try
+    Page := Doc.AddPage(793, 1122);
+    Cmd := TReportExportTextCommand.Create;
+    Cmd.Bounds := Rect(10, 10, 300, 80);
+    Cmd.Text := AText;
+    Cmd.VAlign := AVAlign;
+    Cmd.HAlign := AHAlign;
+    Cmd.WordWrap := AWordWrap;
+    Page.Commands.Add(Cmd);
+
+    Ms := TStringStream.Create('', TEncoding.UTF8);
+    try
+      TReportHTMLExporter.ExportDocument(Doc, Ms);
+      Result := Ms.DataString;
+    finally
+      Ms.Free;
+    end;
+  finally
+    Doc.Free;
+  end;
+end;
+
+procedure TExportHTMLTests.Test_TextVAlign_Center_HTML;
+var
+  HTML: string;
+begin
+  HTML := TextDocFull(taVerticalCenter, taLeftJustify, False, 'Hello');
+  Assert.Contains(HTML, 'display:flex');
+  Assert.Contains(HTML, 'align-items:center');
+  Assert.Contains(HTML, 'justify-content:flex-start');
+
+  // Horizontal alignment is preserved alongside the flex vertical behavior.
+  HTML := TextDocFull(taVerticalCenter, taCenter, False, 'Hello');
+  Assert.Contains(HTML, 'justify-content:center');
+  Assert.Contains(HTML, 'text-align:center');
+  HTML := TextDocFull(taVerticalCenter, taRightJustify, False, 'Hello');
+  Assert.Contains(HTML, 'justify-content:flex-end');
+end;
+
+procedure TExportHTMLTests.Test_TextVAlign_Bottom_HTML;
+begin
+  Assert.Contains(TextDocFull(taAlignBottom, taLeftJustify, False, 'Hi'),
+    'align-items:flex-end');
+end;
+
+procedure TExportHTMLTests.Test_TextVAlign_Top_NoFlex;
+var
+  HTML: string;
+begin
+  HTML := TextDocFull(taAlignTop, taLeftJustify, False, 'Hi');
+  Assert.IsFalse(ContainsText(HTML, 'display:flex'),
+    'top-aligned single-line text must not become a flex container');
+end;
+
+procedure TExportHTMLTests.Test_TextVAlign_WordWrap_NoFlex;
+var
+  HTML: string;
+begin
+  // Word-wrap path must not receive the new vertical-alignment behavior,
+  // mirroring preview semantics.
+  HTML := TextDocFull(taVerticalCenter, taLeftJustify, True, 'some long wrapped text here');
+  Assert.Contains(HTML, ' wrap');
+  Assert.IsFalse(ContainsText(HTML, 'display:flex'),
+    'wrapped text must not receive vertical-alignment flex behavior');
+end;
 initialization
   TDUnitX.RegisterTestFixture(TExportHTMLTests);
 

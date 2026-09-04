@@ -1829,6 +1829,7 @@ begin
     TextCmd.FontStyle := TextObj.Font.Style;
     TextCmd.FontColor := DrawFontColor;
     TextCmd.HAlign := TextObj.HAlign;
+    TextCmd.VAlign := TextObj.VAlign;
     TextCmd.WordWrap := TextObj.WordWrap;
     FCurrentExportPage.Commands.Add(TextCmd);
   end

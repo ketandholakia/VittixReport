@@ -38,6 +38,10 @@ type
       out ADoc: TReportExportDocument;
       out AModel: TReportModel;
       out ADS: TClientDataSet): TReportEngine;
+    function BuildTextEngine(AVAlign: TVerticalAlignment; AWordWrap: Boolean;
+      out ADoc: TReportExportDocument;
+      out AModel: TReportModel;
+      out ADS: TClientDataSet): TReportEngine;
     function BuildEngine(AChartVisible, ACrossTabVisible: Boolean;
       out AChart, ACrossTab: TReportObject;
       out ADoc: TReportExportDocument;
@@ -70,6 +74,10 @@ type
     [Test] procedure Test_FilePathPNG_VectorPDF_Regression;
     [Test] procedure Test_FilePathJPEG_VectorPDF_Regression;
     [Test] procedure Test_FilePathInvalidRaster_GracefulSkip;
+    [Test] procedure Test_TextVAlign_Top_Captured;
+    [Test] procedure Test_TextVAlign_Center_Captured;
+    [Test] procedure Test_TextVAlign_Bottom_Captured;
+    [Test] procedure Test_TextVAlign_VectorPDF_Distinct;
   end;
 
 implementation
@@ -600,6 +608,44 @@ begin
   Band.BandType := btPageHeader;
   Band.Height := 400;
   Band.Children.Add(AShape);
+  Model.Objects.Add(Band);
+
+  ADoc := TReportExportDocument.Create;
+  Result := TReportEngine.Create(Model, DS, nil, nil);
+  Result.ExportDocument := ADoc;
+  AModel := Model;
+  ADS := DS;
+end;
+
+{ Builds a one-band engine containing a single single-line text object. }
+function TExportCaptureTests.BuildTextEngine(AVAlign: TVerticalAlignment; AWordWrap: Boolean;
+  out ADoc: TReportExportDocument;
+  out AModel: TReportModel;
+  out ADS: TClientDataSet): TReportEngine;
+var
+  Model: TReportModel;
+  Band: TReportBand;
+  Txt: TReportTextObject;
+  DS: TClientDataSet;
+begin
+  DS := TClientDataSet.Create(nil);
+  DS.FieldDefs.Add('Name', ftString, 20);
+  DS.CreateDataSet;
+  DS.AppendRecord(['row1']);
+  DS.First;
+
+  Txt := TReportTextObject.Create;
+  Txt.Name := 'txt1';
+  Txt.Text := 'Phase 4I-10 vertical alignment';
+  Txt.Bounds := Rect(30, 40, 230, 140);
+  Txt.VAlign := AVAlign;
+  Txt.WordWrap := AWordWrap;
+
+  Model := TReportModel.Create;
+  Band := TReportBand.Create;
+  Band.BandType := btPageHeader;
+  Band.Height := 400;
+  Band.Children.Add(Txt);
   Model.Objects.Add(Band);
 
   ADoc := TReportExportDocument.Create;
@@ -1274,6 +1320,161 @@ begin
 end;
 
 
+{ ===== Single-line vertical alignment (Phase 4I-10) ===== }
+
+function CollectTextCommands(ADoc: TReportExportDocument): TArray<TReportExportTextCommand>;
+var
+  Page: TReportExportPage;
+  Cmd: TReportExportCommand;
+begin
+  SetLength(Result, 0);
+  for Page in ADoc.Pages do
+    for Cmd in Page.Commands do
+      if Cmd is TReportExportTextCommand then
+      begin
+        SetLength(Result, Length(Result) + 1);
+        Result[High(Result)] := TReportExportTextCommand(Cmd);
+      end;
+end;
+
+{ Extracts the Y component of the first "x y Td" text-position operator,
+  which is the baseline Y in PDF coordinates (page flipped). }
+function TdBaselineY(const APdf: string): Double;
+var
+  P: Integer;
+  Tail: string;
+  Tokens: TArray<string>;
+begin
+  Result := -1;
+  P := Pos(' Td', APdf);
+  if P <= 0 then Exit;
+  Tail := Trim(Copy(APdf, 1, P - 1));
+  Tokens := Tail.Split([' ']);
+  if Length(Tokens) >= 2 then
+    Result := StrToFloat(StringReplace(Tokens[High(Tokens)], ',', '.', [rfReplaceAll]), FormatSettings);
+end;
+
+procedure TExportCaptureTests.Test_TextVAlign_Top_Captured;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  Txts: TArray<TReportExportTextCommand>;
+begin
+  Engine := BuildTextEngine(taAlignTop, False, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    Txts := CollectTextCommands(Doc);
+    Assert.IsTrue(Length(Txts) = 1, Format('text commands=%d', [Length(Txts)]));
+    Assert.IsTrue(Txts[0].VAlign = taAlignTop, 'top VAlign not captured');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_TextVAlign_Center_Captured;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  Txts: TArray<TReportExportTextCommand>;
+begin
+  Engine := BuildTextEngine(taVerticalCenter, False, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    Txts := CollectTextCommands(Doc);
+    Assert.IsTrue(Length(Txts) = 1, Format('text commands=%d', [Length(Txts)]));
+    Assert.IsTrue(Txts[0].VAlign = taVerticalCenter, 'center VAlign not captured');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_TextVAlign_Bottom_Captured;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  Txts: TArray<TReportExportTextCommand>;
+begin
+  Engine := BuildTextEngine(taAlignBottom, False, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    Txts := CollectTextCommands(Doc);
+    Assert.IsTrue(Length(Txts) = 1, Format('text commands=%d', [Length(Txts)]));
+    Assert.IsTrue(Txts[0].VAlign = taAlignBottom, 'bottom VAlign not captured');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_TextVAlign_VectorPDF_Distinct;
+
+  function DoExport(const AVAlign: TVerticalAlignment): string;
+  var
+    Doc: TReportExportDocument;
+    Engine: TReportEngine;
+    Model: TReportModel;
+    DS: TClientDataSet;
+    Ms: TBytesStream;
+    I: Integer;
+  begin
+    Engine := BuildTextEngine(AVAlign, False, Doc, Model, DS);
+    try
+      Engine.Prepare;
+      Ms := TBytesStream.Create;
+      try
+        TReportVectorPDFExporter.ExportDocument(Doc, Ms);
+        SetLength(Result, Ms.Size);
+        for I := 0 to Ms.Size - 1 do
+          Result[I + 1] := Chr(Ms.Bytes[I]);
+      finally
+        Ms.Free;
+      end;
+    finally
+      Doc.Free;
+      Engine.Free;
+      Model.Free;
+      DS.Free;
+    end;
+  end;
+
+var
+  PdfTop, PdfCenter, PdfBottom: string;
+  YTop, YCenter, YBottom: Double;
+begin
+  PdfTop    := DoExport(taAlignTop);
+  PdfCenter := DoExport(taVerticalCenter);
+  PdfBottom := DoExport(taAlignBottom);
+
+  Assert.Contains(PdfTop, ' Td', 'top PDF missing Td');
+  Assert.Contains(PdfCenter, ' Td', 'center PDF missing Td');
+  Assert.Contains(PdfBottom, ' Td', 'bottom PDF missing Td');
+
+  YTop    := TdBaselineY(PdfTop);
+  YCenter := TdBaselineY(PdfCenter);
+  YBottom := TdBaselineY(PdfBottom);
+
+  // PDF Y is flipped (page height - logical).  top (smallest logical) is
+  // the largest PDF Y; bottom (largest logical) is the smallest.
+  Assert.IsTrue(YTop > YCenter, Format('top=%g <= center=%g', [YTop, YCenter]));
+  Assert.IsTrue(YCenter > YBottom, Format('center=%g <= bottom=%g', [YCenter, YBottom]));
+  // Baseline stays within a plausible page range.
+  Assert.IsTrue((YTop < 5000) and (YBottom > -500),
+    Format('baselines out of range top=%g bottom=%g', [YTop, YBottom]));
+end;
 initialization
   TDUnitX.RegisterTestFixture(TExportCaptureTests);
 
