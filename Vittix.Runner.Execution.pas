@@ -68,7 +68,8 @@ uses
   Vittix.Report.ScriptHost.Adapter,
   Vittix.Runner.Results,
   Vittix.Runner.ExportVerification,
-  Vittix.Runner.DataSetup;
+  Vittix.Runner.DataSetup,
+  System.Zip;
 
 type
   {
@@ -179,6 +180,34 @@ begin
   ATraceEvent(AReport);
 end;
 
+procedure VerifyXlsxSmoke(const AFileName, AExpectedText: string);
+var
+  Zip: TZipFile;
+  Buffer: TBytes;
+  Sheet: string;
+begin
+  // Phase 4I-7 smoke hardening: the XLSX output must exist, be a readable
+  // ZIP package, contain the worksheet part and include expected report text.
+  if not TFile.Exists(AFileName) then
+    raise Exception.Create('XLSX smoke output was not created');
+  Zip := TZipFile.Create;
+  try
+    try
+      Zip.Open(AFileName, zmRead);
+    except
+      raise Exception.Create('XLSX smoke output is not a readable ZIP package');
+    end;
+    if Zip.IndexOf('xl/worksheets/sheet1.xml') < 0 then
+      raise Exception.Create('XLSX smoke output has no worksheet part');
+    Zip.Read('xl/worksheets/sheet1.xml', Buffer);
+    Sheet := TEncoding.UTF8.GetString(Buffer);
+  finally
+    Zip.Free;
+  end;
+  if Pos(AExpectedText, Sheet) = 0 then
+    raise Exception.Create('XLSX smoke output is missing expected report text');
+end;
+
 function TVittixReportExecutor.ExecuteReport(
   const AConfig: TReportExecutionConfig;
   const ATraceEvent: TScriptTraceEvent): TReportExecutionResult;
@@ -208,6 +237,7 @@ var
   SignatureImageFile: string;
   MissingImageFile: string;
   VectorPdfFile: string;
+  XlsxFile: string;
   HtmlFile: string;
   Header: TBytes;
   StreamHeader: TBytes;
@@ -411,9 +441,12 @@ begin
         if not TFile.Exists(VectorPdfFile) then
           raise Exception.Create('Vector PDF smoke output was not created');
         if IsExportXLSXReport then
-          TReportXLSXExporter.ExportToFile(ExportDoc.Pages,
-            TPath.Combine(AConfig.VectorPdfOutputPath,
-              ExtractFileName(AConfig.FileName) + '.xlsx'));
+        begin
+          XlsxFile := TPath.Combine(AConfig.VectorPdfOutputPath,
+            ExtractFileName(AConfig.FileName) + '.xlsx');
+          TReportXLSXExporter.ExportToFile(ExportDoc.Pages, XlsxFile);
+          VerifyXlsxSmoke(XlsxFile, 'Simple MasterData Report');
+        end;
         Header := TFile.ReadAllBytes(VectorPdfFile);
         if (Length(Header) < 5) or
            (TEncoding.ASCII.GetString(Header, 0, 5) <> '%PDF-') then

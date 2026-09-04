@@ -64,6 +64,9 @@
         <DelphiCompile Include="Test.Vittix.Report.Export.HTML.pas">
             <DCCReference>MainSource</DCCReference>
         </DelphiCompile>
+        <DelphiCompile Include="Test.Vittix.Report.Export.XLSX.pas">
+            <DCCReference>MainSource</DCCReference>
+        </DelphiCompile>
         <DelphiCompile Include="Test.Vittix.Report.Serializer.Registry.pas">
             <DCCReference>MainSource</DCCReference>
         </DelphiCompile>
