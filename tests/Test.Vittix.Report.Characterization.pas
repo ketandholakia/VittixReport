@@ -72,9 +72,11 @@ type
     [Test]
     procedure Test_Renderer_StoresBothBitmapAndMetafile;
 
-    // --- 4. Memo AllowHTML serialization round-trip ---
-    [Test]
-    procedure Test_MemoAllowHTML_SerializationLosesProperty_CurrentBehavior;
+// --- 4. Memo AllowHTML serialization round-trip ---
+     [Test]
+     procedure Test_MemoAllowHTML_SerializationPreservesProperty;
+     [Test]
+     procedure Test_MemoAllowHTML_MissingKey_DefaultsFalse;
 
     // --- 5. Font Underline/StrikeOut serialization round-trip ---
     [Test]
@@ -408,22 +410,24 @@ end;
 
 { --- 4. Memo AllowHTML serialization round-trip --- }
 
-procedure TTestCharacterization.Test_MemoAllowHTML_SerializationLosesProperty_CurrentBehavior;
+procedure TTestCharacterization.Test_MemoAllowHTML_SerializationPreservesProperty;
 var
   M1, M2: TReportModel;
   Band: TReportBand;
   Memo: TReportMemoObject;
+  RoundTripped: TReportMemoObject;
   JSON: string;
 begin
-  // Characterization: AllowHTML is NOT serialized by TReportMemoObjectSerializer.
-  // SaveProperties only writes AutoHeight and MinHeight.
-  // LoadProperties only reads AutoHeight and MinHeight.
-  // After a round-trip, AllowHTML reverts to its default (False).
+  // Regression: AllowHTML is now serialized by TReportMemoObjectSerializer
+  // alongside AutoHeight and MinHeight.  After a round-trip, all three keep
+  // their non-default values.
   M1 := TReportModel.Create;
   try
     Band := TReportBand.Create;
     Memo := TReportMemoObject.Create;
     Memo.AllowHTML := True;
+    Memo.AutoHeight := False;
+    Memo.MinHeight := 45;
     Band.Children.Add(Memo);
     M1.Objects.Add(Band);
 
@@ -436,15 +440,76 @@ begin
       Assert.IsTrue(TReportBand(M2.Objects[0]).Children[0] is TReportMemoObject,
         'Child should be TReportMemoObject');
 
-      // CURRENT BEHAVIOR: AllowHTML is lost (reverts to default False).
-      // After fix, this should be True.
-      Assert.IsFalse(TReportMemoObject(TReportBand(M2.Objects[0]).Children[0]).AllowHTML,
-        'AllowHTML should be False after round-trip (current behavior: lost)');
+      RoundTripped := TReportMemoObject(TReportBand(M2.Objects[0]).Children[0]);
+      // Corrected behavior: AllowHTML survives the round-trip.
+      Assert.IsTrue(RoundTripped.AllowHTML, 'AllowHTML should be True after round-trip');
+      // Sibling memo properties must round-trip unchanged.
+      Assert.AreEqual(45, RoundTripped.MinHeight, 'MinHeight not preserved');
+      Assert.IsFalse(RoundTripped.AutoHeight, 'AutoHeight not preserved');
     finally
       M2.Free;
     end;
   finally
     M1.Free;
+  end;
+end;
+
+procedure TTestCharacterization.Test_MemoAllowHTML_MissingKey_DefaultsFalse;
+var
+  M2: TReportModel;
+  Band: TReportBand;
+  Memo: TReportMemoObject;
+  JSON: string;
+begin
+  // Backward compatibility: a report saved before AllowHTML was serialized
+  // has no 'AllowHTML' key.  Loading it must default to False and must not
+  // raise.
+  JSON :=
+    '{' +
+    '  "Version": 2,' +
+    '  "Title": "",' +
+    '  "Author": "",' +
+    '  "Description": "",' +
+    '  "PageSettings": {' +
+    '    "PaperSize": 9,' +   // psA4
+    '    "Orientation": 0,' + // poPortrait
+    '    "MarginLeft": 40,' +
+    '    "MarginTop": 40,' +
+    '    "MarginRight": 40,' +
+    '    "MarginBottom": 40,' +
+    '    "CustomWidth": 0,' +
+    '    "CustomHeight": 0' +
+    '  },' +
+    '  "FieldNames": [],' +
+    '  "DataSetNames": [],' +
+    '  "Objects": [' +
+    '    {' +
+    '      "Class": "TReportBand",' +
+    '      "BandType": 4,' +   // btMasterData
+    '      "Bounds": {"L":0,"T":0,"R":10,"B":10},' +
+    '      "Children": [' +
+    '        {' +
+    '          "Class": "TReportMemoObject",' +
+    '          "AutoHeight": true,' +
+    '          "MinHeight": 20,' +
+    '          "Text": "no html key"' +
+    '        }' +
+    '      ]' +
+    '    }' +
+    '  ]' +
+    '}';
+  M2 := TReportSerializer.LoadFromJSON(JSON);
+  try
+    Assert.AreEqual(1, M2.Objects.Count, 'Should have 1 object');
+    Assert.IsTrue(M2.Objects[0] is TReportBand, 'Object should be TReportBand');
+    Band := TReportBand(M2.Objects[0]);
+    Assert.AreEqual(1, Band.Children.Count, 'Should have 1 child');
+    Assert.IsTrue(Band.Children[0] is TReportMemoObject, 'Child should be TReportMemoObject');
+    Memo := TReportMemoObject(Band.Children[0]);
+    Assert.IsFalse(Memo.AllowHTML, 'missing AllowHTML must default to False');
+    Assert.IsTrue(Memo.AutoHeight, 'existing AutoHeight should load');
+  finally
+    M2.Free;
   end;
 end;
 

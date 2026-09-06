@@ -507,6 +507,7 @@ begin
   Memo := TReportMemoObject(Obj);
   JSON.AddPair('AutoHeight', TJSONBool.Create(Memo.AutoHeight));
   JSON.AddPair('MinHeight',  TJSONNumber.Create(Memo.MinHeight));
+  JSON.AddPair('AllowHTML',  TJSONBool.Create(Memo.AllowHTML));
 end;
 
 class procedure TReportMemoObjectSerializer.LoadProperties(Obj: TReportObject; JSON: TJSONObject; AVersion: Integer);
@@ -517,6 +518,7 @@ begin
   Memo := TReportMemoObject(Obj);
   Memo.AutoHeight := JSON.GetValue<Boolean>('AutoHeight', True);
   Memo.MinHeight  := Trunc(JSON.GetValue<Double>('MinHeight',  20));
+  Memo.AllowHTML  := JSON.GetValue<Boolean>('AllowHTML',  False);
 end;
 
 { TReportFieldObjectSerializer }
