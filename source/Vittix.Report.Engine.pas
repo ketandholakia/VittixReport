@@ -1838,8 +1838,8 @@ begin
       var Memo := TReportMemoObject(AObject);
       if Memo.AllowHTML then
       begin
-        var Runs: TArray<TMemoRun>;
-        ParseMemoRuns(TextCmd.Text, TextCmd.FontStyle, TextCmd.FontColor,
+        var Runs: TArray<Vittix.Report.MemoExport.TMemoRun>;
+        Vittix.Report.MemoExport.ParseMemoRuns(TextCmd.Text, TextCmd.FontStyle, TextCmd.FontColor,
           TextCmd.FontName, TextCmd.FontSize, True, Runs);
         SetLength(TextCmd.Runs, Length(Runs));
         for var I := 0 to High(Runs) do

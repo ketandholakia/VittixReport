@@ -28,10 +28,11 @@ implementation
 function DecodeHtmlEntities(const S: string): string;
 begin
   Result := S;
-  Result := StringReplace(Result, '&amp;', '&', [rfReplaceAll]);
-  Result := StringReplace(Result, '&lt;', '<', [rfReplaceAll]);
-  Result := StringReplace(Result, '&gt;', '>', [rfReplaceAll]);
-  Result := StringReplace(Result, '&nbsp;', ' ', [rfReplaceAll]);
+  Result := StringReplace(Result, '&lt;', '<', [rfReplaceAll, rfIgnoreCase]);
+  Result := StringReplace(Result, '&gt;', '>', [rfReplaceAll, rfIgnoreCase]);
+  Result := StringReplace(Result, '&amp;', '&', [rfReplaceAll, rfIgnoreCase]);
+  Result := StringReplace(Result, '&quot;', '"', [rfReplaceAll, rfIgnoreCase]);
+  Result := StringReplace(Result, '&nbsp;', ' ', [rfReplaceAll, rfIgnoreCase]);
 end;
 
 procedure AddMemoRun(var Runs: TArray<TMemoRun>; const AText: string;
@@ -66,6 +67,10 @@ var
   Tag: string;
   StateStack: TArray<TMemoState>;
   CurState: TMemoState;
+  Attrs: TArray<string>;
+  P: Integer;
+  AName, AVal: string;
+  TagL: string;
 
   procedure PushState;
   begin
@@ -82,30 +87,42 @@ var
     end;
   end;
 
-  function ParseColor(const S: string): TColor;
+  function ParseColor(const SC: string): TColor;
   var
     L: string;
   begin
-    if S = '' then Exit(BaseColor);
-    if (Length(S) > 0) and (S[1] = '#') then
+    if SC = '' then Exit(BaseColor);
+    if (Length(SC) > 0) and (SC[1] = '#') then
     begin
-      if Length(S) = 7 then
-        Result := RGB(StrToIntDef('$' + Copy(S, 2, 2), 0),
-                      StrToIntDef('$' + Copy(S, 4, 2), 0),
-                      StrToIntDef('$' + Copy(S, 6, 2), 0))
+      if Length(SC) = 7 then
+        Result := RGB(StrToIntDef('$' + Copy(SC, 2, 2), 0),
+                      StrToIntDef('$' + Copy(SC, 4, 2), 0),
+                      StrToIntDef('$' + Copy(SC, 6, 2), 0))
       else
         Result := BaseColor;
     end
     else
     begin
-      L := LowerCase(S);
+      L := LowerCase(SC);
       if L = 'red' then Result := clRed
       else if L = 'blue' then Result := clBlue
       else if L = 'green' then Result := clGreen
       else if L = 'black' then Result := clBlack
       else if L = 'white' then Result := clWhite
       else if L = 'yellow' then Result := clYellow
-      else Result := StringToColor(S);
+      else if L = 'gray' then Result := clGray
+      else if L = 'silver' then Result := clSilver
+      else if L = 'maroon' then Result := clMaroon
+      else if L = 'olive' then Result := clOlive
+      else if L = 'navy' then Result := clNavy
+      else if L = 'purple' then Result := clPurple
+      else if L = 'teal' then Result := clTeal
+      else if L = 'fuchsia' then Result := clFuchsia
+      else if L = 'aqua' then Result := clAqua
+      else if Copy(L, 1, 2) = 'cl' then
+        Result := StringToColor(SC)
+      else
+        Result := BaseColor;
     end;
   end;
 
@@ -116,8 +133,9 @@ begin
   CurState.Color := BaseColor;
   CurState.FontName := BaseFontName;
   CurState.Size := BaseSize;
-
+  Buf := '';
   I := 1;
+
   while I <= Length(S) do
   begin
     if AllowHTML and (S[I] = '<') then
@@ -130,58 +148,52 @@ begin
         Buf := '';
 
         Tag := Trim(Copy(S, I + 1, J - I - 1));
-        var OrigTag := Tag;
-        Tag := LowerCase(Tag);
+        TagL := LowerCase(Tag);
 
-        if (Tag = 'b') or (Tag = 'strong') then
+        if TagL = 'b' then
         begin
           PushState;
           Include(CurState.Style, fsBold);
         end
-        else if (Tag = '/b') or (Tag = '/strong') then
-          PopState
-        else if (Tag = 'i') or (Tag = 'em') then
+        else if TagL = '/b' then PopState
+        else if TagL = 'i' then
         begin
           PushState;
           Include(CurState.Style, fsItalic);
         end
-        else if (Tag = '/i') or (Tag = '/em') then
-          PopState
-        else if (Tag = 'u') then
+        else if TagL = '/i' then PopState
+        else if TagL = 'u' then
         begin
           PushState;
           Include(CurState.Style, fsUnderline);
         end
-        else if (Tag = '/u') then
-         PopState
-        else if Copy(Tag, 1, 5) = 'font ' then
+        else if TagL = '/u' then PopState
+        else if (TagL = 'br') or (TagL = 'br/') or (TagL = 'br /') then
+          AddMemoRun(Runs, '', CurState.Style, CurState.Color, CurState.FontName, CurState.Size, True)
+        else if (TagL = 'p') or (TagL = '/p') then
+          AddMemoRun(Runs, '', CurState.Style, CurState.Color, CurState.FontName, CurState.Size, True)
+        else if TagL = '/font' then PopState
+        else if Copy(TagL, 1, 5) = 'font ' then
         begin
           PushState;
-          var LPos: Integer;
-          K := Pos('color=', OrigTag);
-          if K > 0 then
+          Attrs := Tag.Substring(5).Split([' '], TStringSplitOptions.ExcludeEmpty);
+          for K := 0 to High(Attrs) do
           begin
-            LPos := K + 6;
-            while (LPos <= Length(OrigTag)) and (OrigTag[LPos] <> ' ') do Inc(LPos);
-            CurState.Color := ParseColor(StringReplace(Copy(OrigTag, K + 6, LPos - K - 6), '"', '', [rfReplaceAll]));
-          end;
-          K := Pos('face=', OrigTag);
-          if K > 0 then
-          begin
-            LPos := K + 5;
-            while (LPos <= Length(OrigTag)) and (OrigTag[LPos] <> ' ') do Inc(LPos);
-            CurState.FontName := StringReplace(Copy(OrigTag, K + 5, LPos - K - 5), '"', '', [rfReplaceAll]);
-          end;
-          K := Pos('size=', OrigTag);
-          if K > 0 then
-          begin
-            LPos := K + 5;
-            while (LPos <= Length(OrigTag)) and (OrigTag[LPos] <> ' ') do Inc(LPos);
-            CurState.Size := StrToIntDef(StringReplace(Copy(OrigTag, K + 5, LPos - K - 5), '"', '', [rfReplaceAll]), BaseSize);
+            P := Pos('=', Attrs[K]);
+            if P > 0 then
+            begin
+              AName := LowerCase(Trim(Copy(Attrs[K], 1, P - 1)));
+              AVal := Trim(Copy(Attrs[K], P + 1, Length(Attrs[K])));
+              AVal := StringReplace(AVal, '"', '', [rfReplaceAll]);
+              AVal := StringReplace(AVal, '', '', [rfReplaceAll]);
+              if AName = 'color' then CurState.Color := ParseColor(AVal)
+              else if AName = 'face' then CurState.FontName := AVal
+              else if AName = 'size' then CurState.Size := StrToIntDef(AVal, CurState.Size);
+            end;
           end;
         end
-        else if Tag = '/font' then
-          PopState;
+        else
+          Buf := Buf + Copy(S, I, J - I + 1);
 
         I := J + 1;
         Continue;
