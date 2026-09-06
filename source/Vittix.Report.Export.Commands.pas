@@ -29,6 +29,15 @@ type
     property Kind: TReportExportCommandKind read FKind;
   end;
 
+  TReportExportTextRun = record
+    Text: string;
+    FontName: string;
+    FontSize: Integer;
+    FontStyle: TFontStyles;
+    FontColor: TColor;
+    IsBreak: Boolean;
+  end;
+
   TReportExportTextCommand = class(TReportExportCommand)
   public
     Bounds: TRect;
@@ -40,6 +49,7 @@ type
     HAlign: TAlignment;
     VAlign: TVerticalAlignment;
     WordWrap: Boolean;
+    Runs: TArray<TReportExportTextRun>;
     constructor Create;
   end;
 

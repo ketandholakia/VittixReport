@@ -202,15 +202,14 @@ var
   DataSet: TClientDataSet;
   ExportDoc: TReportExportDocument;
   TextCmd: TReportExportTextCommand;
-  FoundRedText: Boolean;
+  FoundRedRun: Boolean;
   Page: TReportExportPage;
   Cmd: TReportExportCommand;
 begin
-  // Characterization: AddMemoRun does not assign Color, FontName, or Size.
-  // When a memo contains <font color="red">text</font>, the color is lost
-  // in the TMemoRun record and the Draw method falls back to the base font color.
-  // The export command captures the text but with the base font color, not red.
-  // This test verifies the current (buggy) behavior.
+  // Phase 4I-12: AddMemoRun now assigns Color, FontName, and Size.
+  // When a memo contains <font color="red">text</font>, the color is preserved
+  // in the TMemoRun record and carried through to the export command runs.
+  // This test verifies the fixed behavior.
 
   DataSet := CreateClientDataSet(1);
   Model := CreateSimpleReport;
@@ -231,26 +230,24 @@ begin
       Engine.ExportDocument := ExportDoc;
       Engine.Prepare;
 
-      // The text "Red Text" should appear in export commands, but with
-      // the base font color (clBlack), not clRed, because AddMemoRun
-      // loses the color from the HTML <font> tag.
-      FoundRedText := False;
+      FoundRedRun := False;
       for Page in ExportDoc.Pages do
         for Cmd in Page.Commands do
           if Cmd is TReportExportTextCommand then
           begin
             TextCmd := TReportExportTextCommand(Cmd);
-            if ContainsText(TextCmd.Text, 'Red Text') then
+            for var Run in TextCmd.Runs do
             begin
-              FoundRedText := True;
-              // CURRENT BEHAVIOR: FontColor is clBlack (0), not clRed (255),
-              // because AddMemoRun does not assign Color.
-              Assert.AreEqual(Integer(clBlack), Integer(TextCmd.FontColor),
-                'Expected clBlack due to AddMemoRun color loss (current behavior)');
+              if ContainsText(Run.Text, 'Red Text') then
+              begin
+                FoundRedRun := True;
+                Assert.AreEqual(Integer(clRed), Integer(Run.FontColor),
+                  'Expected clRed in run because AddMemoRun preserves color');
+              end;
             end;
           end;
 
-      Assert.IsTrue(FoundRedText, 'Expected to find "Red Text" in export commands');
+      Assert.IsTrue(FoundRedRun, 'Expected to find "Red Text" in export command runs');
     finally
       Engine.Free;
       ExportDoc.Free;
@@ -274,8 +271,8 @@ var
   Cmd: TReportExportCommand;
   FoundText: Boolean;
 begin
-  // Characterization: <font size="18"> tag should set Size=18 in TMemoRun,
-  // but AddMemoRun drops it. The export command uses the base font size (10).
+  // Phase 4I-12: AddMemoRun now assigns Size. The <font size="18"> tag sets
+  // Size=18 in TMemoRun, and the export command carries it through runs.
   DataSet := CreateClientDataSet(1);
   Model := CreateSimpleReport;
   try
@@ -301,17 +298,18 @@ begin
           if Cmd is TReportExportTextCommand then
           begin
             TextCmd := TReportExportTextCommand(Cmd);
-            if ContainsText(TextCmd.Text, 'Big Text') then
+            for var Run in TextCmd.Runs do
             begin
-              FoundText := True;
-              // CURRENT BEHAVIOR: FontSize is 10 (base), not 18,
-              // because AddMemoRun does not assign Size.
-              Assert.AreEqual(10, TextCmd.FontSize,
-                'Expected base size 10 due to AddMemoRun size loss (current behavior)');
+              if ContainsText(Run.Text, 'Big Text') then
+              begin
+                FoundText := True;
+                Assert.AreEqual(18, Run.FontSize,
+                  'Expected size 18 in run because AddMemoRun preserves size');
+              end;
             end;
           end;
 
-      Assert.IsTrue(FoundText, 'Expected to find "Big Text" in export commands');
+      Assert.IsTrue(FoundText, 'Expected to find "Big Text" in export command runs');
     finally
       Engine.Free;
       ExportDoc.Free;

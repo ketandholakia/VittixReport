@@ -49,6 +49,7 @@ contains
   Vittix.Report.Objects.Table   in '..\source\Vittix.Report.Objects.Table.pas',
   Vittix.Report.Objects.CrossTab in '..\source\Vittix.Report.Objects.CrossTab.pas',
   Vittix.Report.Objects.Chart in '..\source\Vittix.Report.Objects.Chart.pas',
+  Vittix.Report.MemoExport in '..\source\Vittix.Report.MemoExport.pas',
   Vittix.Report.Bands           in '..\source\Vittix.Report.Bands.pas',
   Vittix.Report.Core            in '..\source\Vittix.Report.Core.pas',
   Vittix.Report.Expressions     in '..\source\Vittix.Report.Expressions.pas',

@@ -44,6 +44,7 @@ uses
   Vittix.Report.LayoutBookmarks,
   Vittix.Report.UserDataSet,
   Vittix.Report.Export.Commands,
+  Vittix.Report.MemoExport,
   Vittix.Report.Interfaces;   // IReportProgress
 
 type
@@ -1831,6 +1832,28 @@ begin
     TextCmd.HAlign := TextObj.HAlign;
     TextCmd.VAlign := TextObj.VAlign;
     TextCmd.WordWrap := TextObj.WordWrap;
+
+    if AObject is TReportMemoObject then
+    begin
+      var Memo := TReportMemoObject(AObject);
+      if Memo.AllowHTML then
+      begin
+        var Runs: TArray<TMemoRun>;
+        ParseMemoRuns(TextCmd.Text, TextCmd.FontStyle, TextCmd.FontColor,
+          TextCmd.FontName, TextCmd.FontSize, True, Runs);
+        SetLength(TextCmd.Runs, Length(Runs));
+        for var I := 0 to High(Runs) do
+        begin
+          TextCmd.Runs[I].Text := Runs[I].Text;
+          TextCmd.Runs[I].FontName := Runs[I].FontName;
+          TextCmd.Runs[I].FontSize := Runs[I].Size;
+          TextCmd.Runs[I].FontStyle := Runs[I].Style;
+          TextCmd.Runs[I].FontColor := Runs[I].Color;
+          TextCmd.Runs[I].IsBreak := Runs[I].IsBreak;
+        end;
+      end;
+    end;
+
     FCurrentExportPage.Commands.Add(TextCmd);
   end
   else if AObject is TReportImageObject then

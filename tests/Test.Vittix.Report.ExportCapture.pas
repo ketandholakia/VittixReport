@@ -78,6 +78,21 @@ type
     [Test] procedure Test_TextVAlign_Center_Captured;
     [Test] procedure Test_TextVAlign_Bottom_Captured;
     [Test] procedure Test_TextVAlign_VectorPDF_Distinct;
+
+    [Test] procedure Test_Memo_AllowHTML_True_CapturesRuns;
+    [Test] procedure Test_Memo_AllowHTML_False_NoRuns;
+    [Test] procedure Test_Memo_HTML_Bold_Rendered;
+    [Test] procedure Test_Memo_HTML_Italic_Rendered;
+    [Test] procedure Test_Memo_HTML_Underline_Rendered;
+    [Test] procedure Test_Memo_HTML_FontColor_Rendered;
+    [Test] procedure Test_Memo_HTML_FontFace_Rendered;
+    [Test] procedure Test_Memo_HTML_FontSize_Rendered;
+    [Test] procedure Test_Memo_HTML_MultipleRuns_Rendered;
+    [Test] procedure Test_Memo_HTML_LineBreaks_Rendered;
+    [Test] procedure Test_Memo_HTML_Escaping_SpecialChars;
+    [Test] procedure Test_Memo_HTML_Escaping_ScriptInjection;
+    [Test] procedure Test_Memo_HTML_HostileFontName_Escaped;
+    [Test] procedure Test_NonMemoText_NoRuns_PlainHTML;
   end;
 
 implementation
@@ -1475,6 +1490,403 @@ begin
   Assert.IsTrue((YTop < 5000) and (YBottom > -500),
     Format('baselines out of range top=%g bottom=%g', [YTop, YBottom]));
 end;
+
+{ ===== Phase 4I-12: Memo rich-text HTML export ===== }
+
+function BuildMemoEngine(const AText: string; AAllowHTML: Boolean;
+  out ADoc: TReportExportDocument;
+  out AModel: TReportModel;
+  out ADS: TClientDataSet): TReportEngine;
+var
+  Model: TReportModel;
+  Band: TReportBand;
+  Memo: TReportMemoObject;
+  DS: TClientDataSet;
+begin
+  DS := TClientDataSet.Create(nil);
+  DS.FieldDefs.Add('Name', ftString, 20);
+  DS.CreateDataSet;
+  DS.AppendRecord(['row1']);
+  DS.First;
+
+  Memo := TReportMemoObject.Create;
+  Memo.Name := 'memo1';
+  Memo.Text := AText;
+  Memo.AllowHTML := AAllowHTML;
+  Memo.Bounds := Rect(10, 10, 300, 80);
+  Memo.WordWrap := True;
+
+  Model := TReportModel.Create;
+  Band := TReportBand.Create;
+  Band.BandType := btPageHeader;
+  Band.Height := 400;
+  Band.Children.Add(Memo);
+  Model.Objects.Add(Band);
+
+  ADoc := TReportExportDocument.Create;
+  Result := TReportEngine.Create(Model, DS, nil, nil);
+  Result.ExportDocument := ADoc;
+  AModel := Model;
+  ADS := DS;
+end;
+
+function ExportToHTML(ADoc: TReportExportDocument): string;
+var
+  Ms: TStringStream;
+begin
+  Ms := TStringStream.Create('', TEncoding.UTF8);
+  try
+    TReportHTMLExporter.ExportDocument(ADoc, Ms);
+    Result := Ms.DataString;
+  finally
+    Ms.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_Memo_AllowHTML_True_CapturesRuns;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  TextCmds: TArray<TReportExportTextCommand>;
+  FoundRuns: Boolean;
+begin
+  Engine := BuildMemoEngine('<b>Bold</b>', True, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    TextCmds := CollectTextCommands(Doc);
+    Assert.IsTrue(Length(TextCmds) = 1, Format('text commands=%d', [Length(TextCmds)]));
+    FoundRuns := False;
+    for var Run in TextCmds[0].Runs do
+    begin
+      if ContainsText(Run.Text, 'Bold') then
+      begin
+        FoundRuns := True;
+        Assert.IsTrue(fsBold in Run.FontStyle, 'Bold run must have fsBold');
+      end;
+    end;
+    Assert.IsTrue(FoundRuns, 'Expected to find bold run in captured runs');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_Memo_AllowHTML_False_NoRuns;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  TextCmds: TArray<TReportExportTextCommand>;
+begin
+  Engine := BuildMemoEngine('Plain text', False, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    TextCmds := CollectTextCommands(Doc);
+    Assert.IsTrue(Length(TextCmds) = 1, Format('text commands=%d', [Length(TextCmds)]));
+    Assert.IsTrue(Length(TextCmds[0].Runs) = 0,
+      'AllowHTML=False must not produce runs');
+    Assert.Contains(TextCmds[0].Text, 'Plain text');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_Memo_HTML_Bold_Rendered;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  HTML: string;
+begin
+  Engine := BuildMemoEngine('<b>Bold text</b>', True, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    HTML := ExportToHTML(Doc);
+    Assert.Contains(HTML, 'font-weight:bold');
+    Assert.Contains(HTML, 'Bold text');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_Memo_HTML_Italic_Rendered;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  HTML: string;
+begin
+  Engine := BuildMemoEngine('<i>Italic text</i>', True, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    HTML := ExportToHTML(Doc);
+    Assert.Contains(HTML, 'font-style:italic');
+    Assert.Contains(HTML, 'Italic text');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_Memo_HTML_Underline_Rendered;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  HTML: string;
+begin
+  Engine := BuildMemoEngine('<u>Underlined</u>', True, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    HTML := ExportToHTML(Doc);
+    Assert.Contains(HTML, 'text-decoration:underline');
+    Assert.Contains(HTML, 'Underlined');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_Memo_HTML_FontColor_Rendered;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  HTML: string;
+begin
+  Engine := BuildMemoEngine('<font color="#FF0000">Red</font>', True, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    HTML := ExportToHTML(Doc);
+    Assert.Contains(HTML, 'color:#ff0000');
+    Assert.Contains(HTML, 'Red');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_Memo_HTML_FontFace_Rendered;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  HTML: string;
+begin
+  Engine := BuildMemoEngine('<font face="Courier">Courier</font>', True, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    HTML := ExportToHTML(Doc);
+    Assert.Contains(HTML, 'font-family:''Courier''');
+    Assert.Contains(HTML, 'Courier');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_Memo_HTML_FontSize_Rendered;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  HTML: string;
+begin
+  Engine := BuildMemoEngine('<font size="18">Big</font>', True, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    HTML := ExportToHTML(Doc);
+    Assert.Contains(HTML, 'font-size:18pt');
+    Assert.Contains(HTML, 'Big');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_Memo_HTML_MultipleRuns_Rendered;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  HTML: string;
+begin
+  Engine := BuildMemoEngine(
+    'Normal <b>Bold</b> <i>Italic</i> <u>Under</u>',
+    True, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    HTML := ExportToHTML(Doc);
+    Assert.Contains(HTML, 'Normal');
+    Assert.Contains(HTML, 'font-weight:bold');
+    Assert.Contains(HTML, 'Bold');
+    Assert.Contains(HTML, 'font-style:italic');
+    Assert.Contains(HTML, 'Italic');
+    Assert.Contains(HTML, 'text-decoration:underline');
+    Assert.Contains(HTML, 'Under');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_Memo_HTML_LineBreaks_Rendered;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  HTML: string;
+begin
+  Engine := BuildMemoEngine('Line1'#13#10'Line2'#10'Line3', True, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    HTML := ExportToHTML(Doc);
+    Assert.Contains(HTML, 'Line1');
+    Assert.Contains(HTML, '<br>');
+    Assert.Contains(HTML, 'Line2');
+    Assert.Contains(HTML, 'Line3');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_Memo_HTML_Escaping_SpecialChars;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  HTML: string;
+begin
+  Engine := BuildMemoEngine('<>&"''', True, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    HTML := ExportToHTML(Doc);
+    Assert.Contains(HTML, '&amp;');
+    Assert.Contains(HTML, '&quot;');
+    Assert.Contains(HTML, '&#39;');
+    Assert.IsFalse(ContainsText(HTML, '<>&"'''),
+      'raw special characters must not appear in HTML');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_Memo_HTML_Escaping_ScriptInjection;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  HTML: string;
+begin
+  Engine := BuildMemoEngine('<script>alert(1)</script>', True, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    HTML := ExportToHTML(Doc);
+    Assert.IsFalse(ContainsText(HTML, '<script>'),
+      'script tag must not appear as executable markup');
+    Assert.Contains(HTML, 'alert(1)');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_Memo_HTML_HostileFontName_Escaped;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  HTML: string;
+begin
+  Engine := BuildMemoEngine('<font face="Arial&B">Test</font>', True, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    HTML := ExportToHTML(Doc);
+    Assert.Contains(HTML, 'Test');
+    Assert.IsFalse(ContainsText(HTML, '<font'),
+      'raw font tag must not appear');
+    Assert.Contains(HTML, 'Arial&amp;B');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_NonMemoText_NoRuns_PlainHTML;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  TextCmds: TArray<TReportExportTextCommand>;
+  HTML: string;
+begin
+  Engine := BuildTextEngine(taAlignTop, False, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    TextCmds := CollectTextCommands(Doc);
+    Assert.IsTrue(Length(TextCmds) = 1, Format('text commands=%d', [Length(TextCmds)]));
+    Assert.IsTrue(Length(TextCmds[0].Runs) = 0,
+      'non-memo text must not produce runs');
+    HTML := ExportToHTML(Doc);
+    Assert.Contains(HTML, 'Phase 4I-10 vertical alignment');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+// Report 43 fixture uses btReportSummary which requires processed data rows;
+// the fixture itself carries no dataset, so rendering is empty in this harness.
+// Skipping Report 43 integration test for now; focused memo-export tests cover
+// the same formatting paths.
+
 initialization
   TDUnitX.RegisterTestFixture(TExportCaptureTests);
 

@@ -111,6 +111,13 @@ begin
   Result := StringReplace(Result, '''', '&#39;', [rfReplaceAll]);
 end;
 
+function EscapeHTMLText(const S: string): string;
+begin
+  Result := TNetEncoding.HTML.Encode(S);
+  Result := StringReplace(Result, '"', '&quot;', [rfReplaceAll]);
+  Result := StringReplace(Result, '''', '&#39;', [rfReplaceAll]);
+end;
+
 class procedure TReportHTMLExporter.ExportDocument(ADocument: TReportExportDocument; const AFileName: string);
 var
   Fs: TFileStream;
@@ -227,21 +234,60 @@ begin
                   [IfThen(TextCmd.WordWrap, ' wrap', ''), TextCmd.Bounds.Left, TextCmd.Bounds.Top, TextCmd.Bounds.Width, TextCmd.Bounds.Height, FlexRowStr]));
                 Writer.Write(Format('font-family:''%s'',sans-serif; font-size:%dpt; color:%s; text-align:%s; font-style:%s; font-weight:%s; text-decoration:%s;">',
                   [EscapeHTMLAttr(TextCmd.FontName), TextCmd.FontSize, ColorToHTML(TextCmd.FontColor), AlignStr, FontStyleStr, FontWeightStr, FontDecorationStr]));
-                
-                // Escape HTML chars
-                var EncodedText := StringReplace(TextCmd.Text, '&', '&amp;', [rfReplaceAll]);
-                EncodedText := StringReplace(EncodedText, '<', '&lt;', [rfReplaceAll]);
-                EncodedText := StringReplace(EncodedText, '>', '&gt;', [rfReplaceAll]);
-                
-                // Convert newlines to <br> if word-wrapped or multi-line
-                if TextCmd.WordWrap or (Pos(#13, EncodedText) > 0) or (Pos(#10, EncodedText) > 0) then
+
+                if Length(TextCmd.Runs) > 0 then
                 begin
-                  EncodedText := StringReplace(EncodedText, #13#10, '<br>', [rfReplaceAll]);
-                  EncodedText := StringReplace(EncodedText, #13, '<br>', [rfReplaceAll]);
-                  EncodedText := StringReplace(EncodedText, #10, '<br>', [rfReplaceAll]);
+                  for var Run in TextCmd.Runs do
+                  begin
+                    if Run.IsBreak then
+                    begin
+                      Writer.Write('<br>');
+                      Continue;
+                    end;
+
+                    var RunFontName := Run.FontName;
+                    if RunFontName = '' then RunFontName := TextCmd.FontName;
+                    var RunFontSize := Run.FontSize;
+                    if RunFontSize <= 0 then RunFontSize := TextCmd.FontSize;
+                    var RunFontStyle := Run.FontStyle;
+                    var RunFontColor := Run.FontColor;
+                    if RunFontColor = clNone then RunFontColor := TextCmd.FontColor;
+
+                    var SpanStyle := 'font-family:''' + EscapeHTMLAttr(RunFontName) + ''',sans-serif; ';
+                    SpanStyle := SpanStyle + 'font-size:' + IntToStr(RunFontSize) + 'pt; ';
+                    SpanStyle := SpanStyle + 'color:' + ColorToHTML(RunFontColor) + '; ';
+
+                    var FSI := 'normal';
+                    if fsItalic in RunFontStyle then FSI := 'italic';
+                    SpanStyle := SpanStyle + 'font-style:' + FSI + '; ';
+
+                    var FSW := 'normal';
+                    if fsBold in RunFontStyle then FSW := 'bold';
+                    SpanStyle := SpanStyle + 'font-weight:' + FSW + '; ';
+
+                    var FSD := 'none';
+                    if fsUnderline in RunFontStyle then FSD := 'underline';
+                    SpanStyle := SpanStyle + 'text-decoration:' + FSD + '; ';
+
+                    Writer.Write('<span style="' + SpanStyle + '">');
+                    Writer.Write(EscapeHTMLText(Run.Text));
+                    Writer.Write('</span>');
+                  end;
+                end
+                else
+                begin
+                  var EncodedText := EscapeHTMLText(TextCmd.Text);
+
+                  if TextCmd.WordWrap or (Pos(#13, EncodedText) > 0) or (Pos(#10, EncodedText) > 0) then
+                  begin
+                    EncodedText := StringReplace(EncodedText, #13#10, '<br>', [rfReplaceAll]);
+                    EncodedText := StringReplace(EncodedText, #13, '<br>', [rfReplaceAll]);
+                    EncodedText := StringReplace(EncodedText, #10, '<br>', [rfReplaceAll]);
+                  end;
+
+                  Writer.Write(EncodedText);
                 end;
 
-                Writer.Write(EncodedText);
                 Writer.WriteLine('</div>');
               end;
               
