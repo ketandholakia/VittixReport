@@ -979,6 +979,22 @@ var
     Result := (Length(AXObject.Bytes) > 0) and (Length(AXObject.SMaskBytes) > 0);
   end;
 
+  function PdfFontNameForStyle(AStyle: TFontStyles): AnsiString;
+  begin
+    if (fsBold in AStyle) and (fsItalic in AStyle) then
+      Result := '/F4'
+    else if fsItalic in AStyle then
+      Result := '/F3'
+    else if fsBold in AStyle then
+      Result := '/F2'
+    else
+      Result := '/F1';
+  end;
+
+  type
+    TRichSegmentArray = array of TReportExportTextRun;
+    TRichLinesArray = array of TRichSegmentArray;
+
   // Builds the page content stream text and, as a side effect, appends any
   // successfully-loaded images to AImages (object numbers are assigned
   // later, once every page's image list is known).
@@ -1013,6 +1029,25 @@ var
     GlyphHex: AnsiString;
     VOffsetY: Integer;
     SingleLineH: Integer;
+    RichSegments: TRichSegmentArray;
+    RichWrappedLines: TRichLinesArray;
+    RichCurrentLine: TRichSegmentArray;
+    RichCurrentWidth: Integer;
+    RichLineIndex: Integer;
+    RichSegIndex: Integer;
+    RichCursorX: Double;
+    RichSegmentWidth: Integer;
+    RichLineWidth: Integer;
+    RichIsAnsi: Boolean;
+    RichFontIndex: Integer;
+    RichFontResourceName: AnsiString;
+    RichShapedGlyphs: TPdfShapedGlyphArray;
+    RichShapedLineWidthPx: Integer;
+    RichGlyph: TPdfShapedGlyph;
+    RichGlyphX: Double;
+    RichGlyphHex: AnsiString;
+    RichTempCmd: TReportExportTextCommand;
+    RichUnderlineY: Integer;
   begin
     Result := '';
     for Command in APage.Commands do
@@ -1023,7 +1058,201 @@ var
           TextCmd := TReportExportTextCommand(Command);
           if TextCmd.Text <> '' then
           begin
-            Lines := WrapTextLines(TextCmd);
+            if Length(TextCmd.Runs) > 0 then
+            begin
+              Lines := WrapTextLines(TextCmd);
+              LineHeightPx := Round(TextCmd.FontSize * 1.2);
+
+              VOffsetY := 0;
+              if (not TextCmd.WordWrap) and (TextCmd.VAlign <> taAlignTop) and
+                 (TextCmd.Bounds.Height > 0) and (Length(Lines) = 1) then
+              begin
+                SetMeasureFont(TextCmd);
+                SingleLineH := MeasureBmp.Canvas.TextHeight(Lines[0]);
+                if SingleLineH < TextCmd.Bounds.Height then
+                begin
+                  case TextCmd.VAlign of
+                    taVerticalCenter:
+                      VOffsetY := (TextCmd.Bounds.Height - SingleLineH) div 2;
+                    taAlignBottom:
+                      VOffsetY := TextCmd.Bounds.Height - SingleLineH;
+                  end;
+                end;
+              end;
+
+              SetLength(RichSegments, Length(TextCmd.Runs));
+              for RichSegIndex := 0 to High(TextCmd.Runs) do
+              begin
+                RichSegments[RichSegIndex].Text := TextCmd.Runs[RichSegIndex].Text;
+                RichSegments[RichSegIndex].FontName := TextCmd.Runs[RichSegIndex].FontName;
+                RichSegments[RichSegIndex].FontSize := TextCmd.Runs[RichSegIndex].FontSize;
+                RichSegments[RichSegIndex].FontStyle := TextCmd.Runs[RichSegIndex].FontStyle;
+                RichSegments[RichSegIndex].FontColor := TextCmd.Runs[RichSegIndex].FontColor;
+                RichSegments[RichSegIndex].IsBreak := TextCmd.Runs[RichSegIndex].IsBreak;
+              end;
+
+              if TextCmd.WordWrap and (TextCmd.Bounds.Width > 0) then
+              begin
+                SetLength(RichWrappedLines, 0);
+                SetLength(RichCurrentLine, 0);
+                RichCurrentWidth := 0;
+                for RichSegIndex := 0 to High(RichSegments) do
+                begin
+                  if RichSegments[RichSegIndex].IsBreak then
+                  begin
+                    SetLength(RichWrappedLines, Length(RichWrappedLines) + 1);
+                    RichWrappedLines[High(RichWrappedLines)] := RichCurrentLine;
+                    SetLength(RichCurrentLine, 0);
+                    RichCurrentWidth := 0;
+                    Continue;
+                  end;
+
+                  MeasureBmp.Canvas.Font.Name := RichSegments[RichSegIndex].FontName;
+                  MeasureBmp.Canvas.Font.Size := RichSegments[RichSegIndex].FontSize;
+                  MeasureBmp.Canvas.Font.Style := RichSegments[RichSegIndex].FontStyle;
+                  RichSegmentWidth := MeasureBmp.Canvas.TextWidth(RichSegments[RichSegIndex].Text);
+
+                  if (RichCurrentWidth + RichSegmentWidth > TextCmd.Bounds.Width) and (Length(RichCurrentLine) > 0) then
+                  begin
+                    SetLength(RichWrappedLines, Length(RichWrappedLines) + 1);
+                    RichWrappedLines[High(RichWrappedLines)] := RichCurrentLine;
+                    SetLength(RichCurrentLine, 0);
+                    RichCurrentWidth := 0;
+                  end;
+
+                  SetLength(RichCurrentLine, Length(RichCurrentLine) + 1);
+                  RichCurrentLine[High(RichCurrentLine)] := RichSegments[RichSegIndex];
+                  Inc(RichCurrentWidth, RichSegmentWidth);
+                end;
+
+                if Length(RichCurrentLine) > 0 then
+                begin
+                  SetLength(RichWrappedLines, Length(RichWrappedLines) + 1);
+                  RichWrappedLines[High(RichWrappedLines)] := RichCurrentLine;
+                end;
+              end
+              else
+              begin
+                SetLength(RichWrappedLines, 1);
+                SetLength(RichWrappedLines[0], Length(RichSegments));
+                for RichSegIndex := 0 to High(RichSegments) do
+                  RichWrappedLines[0][RichSegIndex] := RichSegments[RichSegIndex];
+              end;
+
+              for RichLineIndex := 0 to High(RichWrappedLines) do
+              begin
+                RichLineWidth := 0;
+                for RichSegIndex := 0 to High(RichWrappedLines[RichLineIndex]) do
+                begin
+                  if not RichWrappedLines[RichLineIndex][RichSegIndex].IsBreak then
+                  begin
+                    MeasureBmp.Canvas.Font.Name := RichWrappedLines[RichLineIndex][RichSegIndex].FontName;
+                    MeasureBmp.Canvas.Font.Size := RichWrappedLines[RichLineIndex][RichSegIndex].FontSize;
+                    MeasureBmp.Canvas.Font.Style := RichWrappedLines[RichLineIndex][RichSegIndex].FontStyle;
+                    Inc(RichLineWidth, MeasureBmp.Canvas.TextWidth(RichWrappedLines[RichLineIndex][RichSegIndex].Text));
+                  end;
+                end;
+
+                LineY := TextCmd.Bounds.Top + TextCmd.FontSize + VOffsetY + (RichLineIndex * LineHeightPx);
+                LineX := TextCmd.Bounds.Left;
+                if TextCmd.HAlign <> taLeftJustify then
+                begin
+                  case TextCmd.HAlign of
+                    taRightJustify:
+                      LineX := TextCmd.Bounds.Right - RichLineWidth;
+                    taCenter:
+                      LineX := TextCmd.Bounds.Left + ((TextCmd.Bounds.Width - RichLineWidth) div 2);
+                  end;
+                  if LineX < TextCmd.Bounds.Left then
+                    LineX := TextCmd.Bounds.Left;
+                end;
+
+                RichCursorX := LineX;
+                for RichSegIndex := 0 to High(RichWrappedLines[RichLineIndex]) do
+                begin
+                  if RichWrappedLines[RichLineIndex][RichSegIndex].IsBreak then
+                  begin
+                    RichCursorX := LineX;
+                    Continue;
+                  end;
+
+                  MeasureBmp.Canvas.Font.Name := RichWrappedLines[RichLineIndex][RichSegIndex].FontName;
+                  MeasureBmp.Canvas.Font.Size := RichWrappedLines[RichLineIndex][RichSegIndex].FontSize;
+                  MeasureBmp.Canvas.Font.Style := RichWrappedLines[RichLineIndex][RichSegIndex].FontStyle;
+                  RichSegmentWidth := MeasureBmp.Canvas.TextWidth(RichWrappedLines[RichLineIndex][RichSegIndex].Text);
+                  RichIsAnsi := SupportsPdfAnsiText(RichWrappedLines[RichLineIndex][RichSegIndex].Text);
+
+                  if RichIsAnsi then
+                  begin
+                    Result := Result +
+                      'BT' + #10 +
+                      PdfNumber(RichCursorX) + ' ' + PdfNumber(PdfY(APage, Integer(Round(LineY)))) + ' Td' + #10 +
+                      PdfColor(RichWrappedLines[RichLineIndex][RichSegIndex].FontColor) + ' rg' + #10 +
+                      PdfFontNameForStyle(RichWrappedLines[RichLineIndex][RichSegIndex].FontStyle) + ' ' +
+                      PdfNumber(RichWrappedLines[RichLineIndex][RichSegIndex].FontSize) + ' Tf' + #10 +
+                      '(' + PdfText(RichWrappedLines[RichLineIndex][RichSegIndex].Text) + ') Tj' + #10 +
+                      'ET' + #10;
+                    RichCursorX := RichCursorX + RichSegmentWidth;
+                  end
+                  else
+                  begin
+                    RichTempCmd := TReportExportTextCommand.Create;
+                    RichTempCmd.FontName := RichWrappedLines[RichLineIndex][RichSegIndex].FontName;
+                    RichTempCmd.FontSize := RichWrappedLines[RichLineIndex][RichSegIndex].FontSize;
+                    RichTempCmd.FontStyle := RichWrappedLines[RichLineIndex][RichSegIndex].FontStyle;
+                    RichTempCmd.FontColor := RichWrappedLines[RichLineIndex][RichSegIndex].FontColor;
+
+                    if TryShapeUnicodeTextLine(
+                         RichTempCmd,
+                         RichWrappedLines[RichLineIndex][RichSegIndex].Text,
+                         AUnicodeFonts,
+                         RichFontResourceName,
+                         RichShapedGlyphs,
+                         RichShapedLineWidthPx) then
+                    begin
+                      Result := Result + 'q' + #10 + PdfColor(RichTempCmd.FontColor) + ' rg' + #10;
+                      for RichGlyph in RichShapedGlyphs do
+                      begin
+                        RichGlyphX := RichCursorX + RichGlyph.OffsetXPx;
+                        RichGlyphHex := AnsiString(IntToHex(RichGlyph.GlyphId, 4));
+                        Result := Result +
+                          'BT' + #10 +
+                          '/' + RichFontResourceName + ' ' + PdfNumber(RichTempCmd.FontSize) + ' Tf' + #10 +
+                          '1 0 0 1 ' + PdfNumber(RichGlyphX) + ' ' +
+                          PdfNumber(PdfY(APage, Integer(Round(LineY + RichGlyph.OffsetYPx)))) + ' Tm' + #10 +
+                          '<' + RichGlyphHex + '> Tj' + #10 +
+                          'ET' + #10;
+                        RichCursorX := RichCursorX + RichGlyph.AdvancePx;
+                      end;
+                      Result := Result + 'Q' + #10;
+                    end
+                    else
+                    begin
+                      LogRasterizedTextCommand(RichTempCmd, 'non-Latin-1 fallback');
+                    end;
+                    RichTempCmd.Free;
+                  end;
+
+                  if fsUnderline in RichWrappedLines[RichLineIndex][RichSegIndex].FontStyle then
+                  begin
+                    RichUnderlineY := Integer(Round(LineY + RichWrappedLines[RichLineIndex][RichSegIndex].FontSize * 0.1));
+                    Result := Result +
+                      'q' + #10 +
+                      PdfColor(RichWrappedLines[RichLineIndex][RichSegIndex].FontColor) + ' RG' + #10 +
+                      '1 w' + #10 +
+                      PdfNumber(RichCursorX - RichSegmentWidth) + ' ' +
+                      PdfNumber(PdfY(APage, RichUnderlineY)) + ' m' + #10 +
+                      PdfNumber(RichCursorX) + ' ' +
+                      PdfNumber(PdfY(APage, RichUnderlineY)) + ' l' + #10 +
+                      'S' + #10 +
+                      'Q' + #10;
+                  end;
+                end;
+              end;
+            end
+            else
+            begin
+              Lines := WrapTextLines(TextCmd);
             LineHeightPx := Round(TextCmd.FontSize * 1.2);
 
             // Single-line (non-wrapped) text honors the object's vertical
@@ -1031,24 +1260,24 @@ var
             // downward to center/bottom.  Wrapped text is unchanged (preview
             // treats wrap as top-aligned too).  This is an integer pixel
             // offset added to the baseline positions below.
-            VOffsetY := 0;
-            if (not TextCmd.WordWrap) and (TextCmd.VAlign <> taAlignTop) and
-               (TextCmd.Bounds.Height > 0) and (Length(Lines) = 1) then
-            begin
-              SetMeasureFont(TextCmd);
-              SingleLineH := MeasureBmp.Canvas.TextHeight(Lines[0]);
-              if SingleLineH < TextCmd.Bounds.Height then
-              begin
-                case TextCmd.VAlign of
-                  taVerticalCenter:
-                    VOffsetY := (TextCmd.Bounds.Height - SingleLineH) div 2;
-                  taAlignBottom:
-                    VOffsetY := TextCmd.Bounds.Height - SingleLineH;
-                end;
-              end;
-            end;
+             VOffsetY := 0;
+             if (not TextCmd.WordWrap) and (TextCmd.VAlign <> taAlignTop) and
+                (TextCmd.Bounds.Height > 0) and (Length(Lines) = 1) then
+             begin
+               SetMeasureFont(TextCmd);
+               SingleLineH := MeasureBmp.Canvas.TextHeight(Lines[0]);
+               if SingleLineH < TextCmd.Bounds.Height then
+               begin
+                 case TextCmd.VAlign of
+                   taVerticalCenter:
+                     VOffsetY := (TextCmd.Bounds.Height - SingleLineH) div 2;
+                   taAlignBottom:
+                     VOffsetY := TextCmd.Bounds.Height - SingleLineH;
+                 end;
+               end;
+             end;
 
-            if SupportsPdfAnsiText(TextCmd.Text) then
+             if SupportsPdfAnsiText(TextCmd.Text) then
             begin
               Result := Result +
                 'q' + #10 +

@@ -1543,6 +1543,22 @@ begin
   end;
 end;
 
+function ExportToPDF(ADoc: TReportExportDocument): string;
+var
+  Ms: TBytesStream;
+  I: Integer;
+begin
+  Ms := TBytesStream.Create;
+  try
+    TReportVectorPDFExporter.ExportDocument(ADoc, Ms);
+    SetLength(Result, Ms.Size);
+    for I := 0 to Ms.Size - 1 do
+      Result[I + 1] := Chr(Ms.Bytes[I]);
+  finally
+    Ms.Free;
+  end;
+end;
+
 procedure TExportCaptureTests.Test_Memo_AllowHTML_True_CapturesRuns;
 var
   Doc: TReportExportDocument;
@@ -1886,6 +1902,106 @@ end;
 // the fixture itself carries no dataset, so rendering is empty in this harness.
 // Skipping Report 43 integration test for now; focused memo-export tests cover
 // the same formatting paths.
+
+{ ===== Phase 4I-13: Memo rich-text VectorPDF export ===== }
+
+procedure TExportCaptureTests.Test_Memo_VectorPDF_Bold_Rendered;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  Pdf: string;
+begin
+  Engine := BuildMemoEngine('<b>Bold text</b>', True, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    Pdf := ExportToPDF(Doc);
+    Assert.Contains(Pdf, 'BT');
+    Assert.Contains(Pdf, '/F2 ');
+    Assert.Contains(Pdf, 'Tf');
+    Assert.Contains(Pdf, 'Bold text');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_Memo_VectorPDF_Italic_Rendered;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  Pdf: string;
+begin
+  Engine := BuildMemoEngine('<i>Italic text</i>', True, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    Pdf := ExportToPDF(Doc);
+    Assert.Contains(Pdf, 'BT');
+    Assert.Contains(Pdf, '/F3 ');
+    Assert.Contains(Pdf, 'Tf');
+    Assert.Contains(Pdf, 'Italic text');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_Memo_VectorPDF_Underline_Rendered;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  Pdf: string;
+begin
+  Engine := BuildMemoEngine('<u>Underlined</u>', True, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    Pdf := ExportToPDF(Doc);
+    Assert.Contains(Pdf, 'BT');
+    Assert.Contains(Pdf, 'Underlined');
+    Assert.Contains(Pdf, ' RG');
+    Assert.Contains(Pdf, ' w');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_Memo_VectorPDF_MultipleRuns_Rendered;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  Pdf: string;
+begin
+  Engine := BuildMemoEngine(
+    'Normal <b>Bold</b> <i>Italic</i> <u>Under</u>',
+    True, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    Pdf := ExportToPDF(Doc);
+    Assert.Contains(Pdf, 'Normal');
+    Assert.Contains(Pdf, 'Bold');
+    Assert.Contains(Pdf, 'Italic');
+    Assert.Contains(Pdf, 'Under');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
 
 initialization
   TDUnitX.RegisterTestFixture(TExportCaptureTests);
