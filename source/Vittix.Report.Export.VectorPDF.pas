@@ -228,24 +228,37 @@ var
 
   function SupportsPdfAnsiText(const S: string): Boolean;
   var
-    UsedDefaultChar: BOOL;
+    I: Integer;
+    C: WideChar;
   begin
     Result := True;
     if S = '' then
       Exit;
 
-    UsedDefaultChar := False;
-    Result := WideCharToMultiByte(
-      1252,
-      WC_NO_BEST_FIT_CHARS,
-      PChar(S),
-      Length(S),
-      nil,
-      0,
-      nil,
-      @UsedDefaultChar) > 0;
-    if Result then
-      Result := not UsedDefaultChar;
+    for I := 1 to Length(S) do
+    begin
+      C := S[I];
+      case Ord(C) of
+        0..$7F, $A0..$FF:
+          ;
+        $80..$9F:
+          case Ord(C) of
+            $81, $8D, $8F, $90, $9D:
+            begin
+              Result := False;
+              Exit;
+            end;
+          end;
+        $20AC, $0192, $201A, $201E, $2026, $2020, $2021, $02C6,
+        $2030, $2039, $0152, $017D, $2018, $2019, $201C, $201D,
+        $2022, $2013, $2014, $02DC, $2122, $0160, $203A, $0153,
+        $017E, $0178:
+          ;
+      else
+        Result := False;
+        Exit;
+      end;
+    end;
   end;
 
   procedure LogSkippedTextCommand(AText: TReportExportTextCommand; const AReason: string);

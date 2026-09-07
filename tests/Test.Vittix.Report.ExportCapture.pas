@@ -2058,7 +2058,7 @@ var
   DS: TClientDataSet;
   Pdf: string;
 begin
-  Engine := BuildUnicodeMemoEngine('مرحبا', True, Doc, Model, DS);
+  Engine := BuildUnicodeMemoEngine(#$0645#$0631#$062D#$0628#$0627, True, Doc, Model, DS);
   try
     Engine.Prepare;
     Pdf := ExportToPDF(Doc);
@@ -2080,7 +2080,7 @@ var
   DS: TClientDataSet;
   Pdf: string;
 begin
-  Engine := BuildUnicodeMemoEngine('A <b>مرحبا</b> B', True, Doc, Model, DS);
+  Engine := BuildUnicodeMemoEngine('A <b>' + #$0645#$0631#$062D#$0628#$0627 + '</b> B', True, Doc, Model, DS);
   try
     Engine.Prepare;
     Pdf := ExportToPDF(Doc);
