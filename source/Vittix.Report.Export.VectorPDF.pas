@@ -1225,12 +1225,39 @@ var
                         RichCursorX := RichCursorX + RichGlyph.AdvancePx;
                       end;
                       Result := Result + 'Q' + #10;
-                    end
-                    else
-                    begin
-                      LogRasterizedTextCommand(RichTempCmd, 'non-Latin-1 fallback');
-                    end;
-                    RichTempCmd.Free;
+                     end
+                     else
+                     begin
+                       ImageName := AnsiString('Im' + IntToStr(Length(AImages) + 1));
+                       if TryBuildRasterTextXObject(
+                            RichTempCmd,
+                            RichWrappedLines[RichLineIndex][RichSegIndex].Text,
+                            ImageName,
+                            XObject,
+                            RasterWidthPx,
+                            RasterHeightPx) then
+                       begin
+                         SetLength(AImages, Length(AImages) + 1);
+                         AImages[High(AImages)] := XObject;
+
+                         LineX := RichCursorX;
+                         LineY := TextCmd.Bounds.Top + TextCmd.FontSize + VOffsetY + (RichLineIndex * LineHeightPx);
+                         Result := Result +
+                           'q' + #10 +
+                           PdfNumber(RasterWidthPx) + ' 0 0 ' +
+                           PdfNumber(RasterHeightPx) + ' ' +
+                           PdfNumber(LineX) + ' ' +
+                           PdfNumber(PdfY(APage, LineY + RasterHeightPx)) + ' cm' + #10 +
+                           '/' + ImageName + ' Do' + #10 +
+                           'Q' + #10;
+                         RichCursorX := RichCursorX + RasterWidthPx;
+                       end
+                       else
+                       begin
+                         LogSkippedTextCommand(RichTempCmd, 'failed to rasterize non-Latin-1 text');
+                       end;
+                     end;
+                     RichTempCmd.Free;
                   end;
 
                   if fsUnderline in RichWrappedLines[RichLineIndex][RichSegIndex].FontStyle then

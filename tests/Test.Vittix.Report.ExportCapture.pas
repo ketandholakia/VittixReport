@@ -2003,6 +2003,113 @@ begin
   end;
 end;
 
+function BuildUnicodeMemoEngine(const AText: string; AAllowHTML: Boolean;
+  out ADoc: TReportExportDocument;
+  out AModel: TReportModel;
+  out ADS: TClientDataSet): TReportEngine;
+var
+  Model: TReportModel;
+  Band: TReportBand;
+  Memo: TReportMemoObject;
+  DS: TClientDataSet;
+begin
+  DS := TClientDataSet.Create(nil);
+  DS.FieldDefs.Add('Name', ftString, 20);
+  DS.CreateDataSet;
+  DS.AppendRecord(['row1']);
+  DS.First;
+
+  Memo := TReportMemoObject.Create;
+  Memo.Name := 'memo1';
+  Memo.Text := AText;
+  Memo.AllowHTML := AAllowHTML;
+  Memo.Bounds := Rect(10, 10, 300, 80);
+  Memo.WordWrap := True;
+  Memo.Font.Name := 'Arial';
+
+  Model := TReportModel.Create;
+  Band := TReportBand.Create;
+  Band.BandType := btPageHeader;
+  Band.Height := 400;
+  Band.Children.Add(Memo);
+  Model.Objects.Add(Band);
+
+  ADoc := TReportExportDocument.Create;
+  Result := TReportEngine.Create(Model, DS, nil, nil);
+  Result.ExportDocument := ADoc;
+  AModel := Model;
+  ADS := DS;
+end;
+
+{ ===== Phase 4I-14: VectorPDF Unicode rich-text fallback ===== }
+
+procedure TExportCaptureTests.Test_Memo_VectorPDF_UnicodeRich_RTLFallback;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  Pdf: string;
+begin
+  Engine := BuildUnicodeMemoEngine('مرحبا', True, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    Pdf := ExportToPDF(Doc);
+    Assert.Contains(Pdf, '/Im1 Do', 'RTL rich text must fallback to image XObject');
+    Assert.Contains(Pdf, 'cm' + #10, 'fallback image must have transformation matrix');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_Memo_VectorPDF_UnicodeRich_MixedRunsWithFallback;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  Pdf: string;
+begin
+  Engine := BuildUnicodeMemoEngine('A <b>مرحبا</b> B', True, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    Pdf := ExportToPDF(Doc);
+    Assert.Contains(Pdf, 'A', 'pre-fallback text must survive');
+    Assert.Contains(Pdf, '/Im1 Do', 'fallback image must be present between runs');
+    Assert.Contains(Pdf, 'B', 'post-fallback text must survive');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_Memo_AllowHTML_False_NoRichPath;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  Pdf: string;
+begin
+  Engine := BuildMemoEngine('Plain text', False, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    Pdf := ExportToPDF(Doc);
+    Assert.Contains(Pdf, 'Plain text');
+    Assert.IsFalse(ContainsText(Pdf, '/Im'), 'AllowHTML=False must not activate rich-run fallback');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
 initialization
   TDUnitX.RegisterTestFixture(TExportCaptureTests);
 
