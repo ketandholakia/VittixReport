@@ -93,6 +93,13 @@ type
     [Test] procedure Test_Memo_HTML_Escaping_ScriptInjection;
     [Test] procedure Test_Memo_HTML_HostileFontName_Escaped;
     [Test] procedure Test_NonMemoText_NoRuns_PlainHTML;
+    [Test] procedure Test_Memo_VectorPDF_Bold_Rendered;
+    [Test] procedure Test_Memo_VectorPDF_Italic_Rendered;
+    [Test] procedure Test_Memo_VectorPDF_Underline_Rendered;
+    [Test] procedure Test_Memo_VectorPDF_MultipleRuns_Rendered;
+    [Test] procedure Test_Memo_VectorPDF_UnicodeRich_RTLFallback;
+    [Test] procedure Test_Memo_VectorPDF_UnicodeRich_MixedRunsWithFallback;
+    [Test] procedure Test_Memo_AllowHTML_False_NoRichPath;
   end;
 
 implementation

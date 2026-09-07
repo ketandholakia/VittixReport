@@ -1412,6 +1412,7 @@ var
             end;
           end;
         end;
+        end;
 
         eckLine:
         begin
