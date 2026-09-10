@@ -112,6 +112,88 @@ begin
   Result := StringReplace(Result, #39, '&apos;', [rfReplaceAll]);
 end;
 
+function FormatRunFontSize(ASize: Integer): string;
+var
+  FS: TFormatSettings;
+begin
+  // Emit the run size without integer coercion so a fractional size supplied
+  // by the run model is preserved (the run field is Integer today; widening
+  // it is a separate phase). Invariant settings keep the decimal separator
+  // '.' regardless of the host locale.
+  FS := TFormatSettings.Invariant;
+  Result := FormatFloat('0.###', ASize, FS);
+end;
+
+function NeedsPreserveWhitespace(const S: string): Boolean;
+var
+  I: Integer;
+  InSpace: Boolean;
+begin
+  Result := False;
+  if S = '' then
+    Exit;
+  // Literal line feeds (from merged line-break runs) must be preserved.
+  if Pos(#10, S) > 0 then
+    Exit(True);
+  // Leading/trailing whitespace is collapsed by XML consumers unless the
+  // attribute is present.
+  if (S[1] <= ' ') or (S[Length(S)] <= ' ') then
+    Exit(True);
+  // Runs of consecutive whitespace collapse to a single space by default.
+  InSpace := False;
+  for I := 1 to Length(S) do
+  begin
+    if S[I] <= ' ' then
+    begin
+      if InSpace then
+        Exit(True);
+      InSpace := True;
+    end
+    else
+      InSpace := False;
+  end;
+end;
+
+procedure MergeLineBreaks(const ARuns: TArray<TReportExportTextRun>;
+  out AMerged: TArray<TReportExportTextRun>);
+var
+  I: Integer;
+  LeadingLF: Boolean;
+begin
+  // SpreadsheetML rich text has no <br/> element: a line break inside a cell
+  // is a literal #10 character in a <t> run.  Break runs are therefore folded
+  // into the adjacent text run so the emitted XML stays valid OOXML.
+  AMerged := [];
+  LeadingLF := False;
+  for I := 0 to High(ARuns) do
+  begin
+    if ARuns[I].IsBreak then
+    begin
+      if Length(AMerged) = 0 then
+        LeadingLF := True
+      else
+        AMerged[High(AMerged)].Text := AMerged[High(AMerged)].Text + #10;
+      Continue;
+    end;
+    SetLength(AMerged, Length(AMerged) + 1);
+    AMerged[High(AMerged)] := ARuns[I];
+    if LeadingLF then
+    begin
+      AMerged[High(AMerged)].Text := #10 + AMerged[High(AMerged)].Text;
+      LeadingLF := False;
+    end;
+  end;
+  if LeadingLF then
+  begin
+    // Only breaks were present; keep a newline-only run so the break survives.
+    SetLength(AMerged, Length(AMerged) + 1);
+    AMerged[High(AMerged)] := Default(TReportExportTextRun);
+    AMerged[High(AMerged)].Text := #10;
+    AMerged[High(AMerged)].FontName := 'Calibri';
+    AMerged[High(AMerged)].FontSize := 11;
+    AMerged[High(AMerged)].FontColor := clBlack;
+  end;
+end;
 class procedure TReportXLSXExporter.ExportToStream(APages: TObjectList<TReportExportPage>;
   AStream: TStream);
 var
@@ -134,6 +216,7 @@ var
   ColsElement: string;
   IsNumeric: Boolean;
   IsDate: Boolean;
+  MergedRuns: TArray<TReportExportTextRun>;
   Dummy: Double;
   StyleId: Integer;
   ColLetter: string;
@@ -503,15 +586,13 @@ begin
             [ColLetter, Cell.Row, StyleId, StringReplace(Cell.Text, ',', '.', [])])
         else if Cell.HasRuns then
         begin
+          // Line-break runs are folded into adjacent text runs as a literal
+          // LF (SpreadsheetML has no <br/> element inside <is>).
+          MergedRuns := [];
+          MergeLineBreaks(Cell.Runs, MergedRuns);
           SheetXml := SheetXml + Format('<c r="%s%d" s="%d" t="inlineStr"><is>', [ColLetter, Cell.Row, StyleId]);
-          for var Run in Cell.Runs do
+          for var Run in MergedRuns do
           begin
-            if Run.IsBreak then
-            begin
-              SheetXml := SheetXml + '<r><rPr><br/></rPr><t>' + CApos + '</t></r>';
-              Continue;
-            end;
-
             var RunFontName := Run.FontName;
             if RunFontName = '' then RunFontName := 'Calibri';
             var RunFontSize := Run.FontSize;
@@ -522,7 +603,7 @@ begin
 
             SheetXml := SheetXml + '<r><rPr>';
             SheetXml := SheetXml + Format('<rFont val="%s"/>', [EscapeXMLAttr(RunFontName)]);
-            SheetXml := SheetXml + Format('<sz val="%d"/>', [RunFontSize]);
+            SheetXml := SheetXml + Format('<sz val="%s"/>', [FormatRunFontSize(RunFontSize)]);
             SheetXml := SheetXml + Format('<color rgb="%s"/>', [ColorToARGB(RunColor)]);
 
             if fsBold in Run.FontStyle then
@@ -541,13 +622,22 @@ begin
             RunText := StringReplace(RunText, '"', '&quot;', [rfReplaceAll]);
             RunText := StringReplace(RunText, #39, CApos, [rfReplaceAll]);
 
-            SheetXml := SheetXml + '<t>' + RunText + '</t></r>';
+            if NeedsPreserveWhitespace(Run.Text) then
+              SheetXml := SheetXml + Format('<t xml:space="preserve">%s</t></r>', [RunText])
+            else
+              SheetXml := SheetXml + '<t>' + RunText + '</t></r>';
           end;
           SheetXml := SheetXml + '</is></c>';
         end
         else
-          SheetXml := SheetXml + Format('<c r="%s%d" s="%d" t="inlineStr"><is><t>%s</t></is></c>',
-            [ColLetter, Cell.Row, StyleId, EscapedText]);
+        begin
+          if NeedsPreserveWhitespace(Cell.Text) then
+            SheetXml := SheetXml + Format('<c r="%s%d" s="%d" t="inlineStr"><is><t xml:space="preserve">%s</t></is></c>',
+              [ColLetter, Cell.Row, StyleId, EscapedText])
+          else
+            SheetXml := SheetXml + Format('<c r="%s%d" s="%d" t="inlineStr"><is><t>%s</t></is></c>',
+              [ColLetter, Cell.Row, StyleId, EscapedText]);
+        end;
       end;
       if CurrentRow > 0 then
         SheetXml := SheetXml + '</row>';

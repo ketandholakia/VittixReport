@@ -51,6 +51,10 @@ type
     [Test] procedure Test_BoldItalicUnderline_Preserved;
     [Test] procedure Test_RichMemo_Export;
     [Test] procedure Test_PlainMemo_Compatibility;
+    [Test] procedure Test_LineBreak_AsLiteralNewline;
+    [Test] procedure Test_RunWhitespace_Preserved;
+    [Test] procedure Test_StyleCombinations_Preserved;
+    [Test] procedure Test_RichMemo_AllowHTML_Path;
   end;
 
 implementation
@@ -62,6 +66,7 @@ uses
   Xml.XMLDoc,
   Xml.XMLIntf,
   Winapi.ActiveX,
+  Vittix.Report.MemoExport,
   Vittix.Report.Export.XLSX;
 
 function TExportXLSXTests.ExportToBytes(ADoc: TReportExportDocument): TBytes;
@@ -540,7 +545,7 @@ begin
     Sheet := ReadZipEntry(Pkg, 'xl/worksheets/sheet1.xml');
     AssertXmlWellFormed(Sheet);
     Assert.Contains(Sheet,
-      '<r><rPr><rFont val="Calibri"/><sz val="11"/><color rgb="FF000000"/><b/></rPr><t>Hello </t></r>');
+      '<r><rPr><rFont val="Calibri"/><sz val="11"/><color rgb="FF000000"/><b/></rPr><t xml:space="preserve">Hello </t></r>');
     Assert.Contains(Sheet,
       '<r><rPr><rFont val="Calibri"/><sz val="11"/><color rgb="FF000000"/><i/></rPr><t>World</t></r>');
   finally
@@ -592,11 +597,10 @@ begin
     Pkg := ExportToBytes(Doc);
     Sheet := ReadZipEntry(Pkg, 'xl/worksheets/sheet1.xml');
     AssertXmlWellFormed(Sheet);
-    // Phase 4I-16R characterization: the line-break run is currently emitted
-    // as its own run element with an empty rPr. OOXML validity of <br/> and
-    // whitespace preservation are Phase 4I-17 scope.
-    Assert.Contains(Sheet, '<r><rPr><br/></rPr><t>&apos;</t></r>');
-    Assert.Contains(Sheet, '<t>Rich </t>');
+    // Phase 4I-17: the break run folds into the previous run as a literal
+    // LF character inside <t> — no <br/> element is emitted.
+    Assert.DoesNotContain(Sheet, '<br');
+    Assert.Contains(Sheet, '<t xml:space="preserve">Rich ' + #10 + '</t>');
     Assert.Contains(Sheet, '<t>Memo</t>');
   finally
     Doc.Free;
@@ -625,6 +629,127 @@ begin
     Assert.Contains(Sheet, '<c r="A1" s="0" t="inlineStr"><is><t>Plain text</t></is></c>');
     Assert.Contains(Sheet, '<c r="A2" s="0" t="inlineStr"><is><t>Compat</t></is></c>');
     Assert.DoesNotContain(Sheet, '<r><rPr>');
+  finally
+    Doc.Free;
+  end;
+end;
+
+procedure TExportXLSXTests.Test_LineBreak_AsLiteralNewline;
+var
+  Doc: TReportExportDocument;
+  Pkg: TBytes;
+  Sheet: string;
+begin
+  Doc := TReportExportDocument.Create;
+  try
+    Doc.AddPage(793, 1122).Commands.Add(
+      TextCmdWithRuns('Line1Line2',
+        [MakeRun('Line1', []), BreakRun, MakeRun('Line2', [])],
+        Rect(10, 10, 300, 40)));
+    Pkg := ExportToBytes(Doc);
+    Sheet := ReadZipEntry(Pkg, 'xl/worksheets/sheet1.xml');
+    AssertXmlWellFormed(Sheet);
+    // Phase 4I-17: a break run folds into the previous run as a literal
+    // LF.  SpreadsheetML has no <br/> element inside <is>.
+    Assert.DoesNotContain(Sheet, '<br');
+    Assert.Contains(Sheet, '<t xml:space="preserve">Line1' + #10 + '</t>');
+    Assert.Contains(Sheet, '<t>Line2</t>');
+  finally
+    Doc.Free;
+  end;
+end;
+
+procedure TExportXLSXTests.Test_RunWhitespace_Preserved;
+var
+  Doc: TReportExportDocument;
+  Pkg: TBytes;
+  Sheet: string;
+begin
+  Doc := TReportExportDocument.Create;
+  try
+    Doc.AddPage(793, 1122).Commands.Add(
+      TextCmdWithRuns(' Leading and trailing ',
+        [MakeRun(' Leading and trailing ', [])],
+        Rect(10, 10, 300, 40)));
+    Pkg := ExportToBytes(Doc);
+    Sheet := ReadZipEntry(Pkg, 'xl/worksheets/sheet1.xml');
+    AssertXmlWellFormed(Sheet);
+    // Leading/trailing run whitespace requires xml:space="preserve" to
+    // survive XML whitespace normalisation.
+    Assert.Contains(Sheet,
+      '<t xml:space="preserve"> Leading and trailing </t>');
+  finally
+    Doc.Free;
+  end;
+end;
+
+procedure TExportXLSXTests.Test_StyleCombinations_Preserved;
+var
+  Doc: TReportExportDocument;
+  Page: TReportExportPage;
+  Pkg: TBytes;
+  Sheet: string;
+begin
+  Doc := TReportExportDocument.Create;
+  try
+    Page := Doc.AddPage(793, 1122);
+    // Three cells in separate rows so each style combination is asserted
+    // in its own emitted run element.
+    Page.Commands.Add(TextCmdWithRuns('BI',
+      [MakeRun('BI', [fsBold, fsItalic])], Rect(10, 10, 300, 40)));
+    Page.Commands.Add(TextCmdWithRuns('BU',
+      [MakeRun('BU', [fsBold, fsUnderline])], Rect(10, 60, 300, 90)));
+    Page.Commands.Add(TextCmdWithRuns('IU',
+      [MakeRun('IU', [fsItalic, fsUnderline])], Rect(10, 110, 300, 140)));
+    Pkg := ExportToBytes(Doc);
+    Sheet := ReadZipEntry(Pkg, 'xl/worksheets/sheet1.xml');
+    AssertXmlWellFormed(Sheet);
+    Assert.Contains(Sheet,
+      '<rFont val="Calibri"/><sz val="11"/><color rgb="FF000000"/><b/><i/></rPr><t>BI</t>');
+    Assert.Contains(Sheet,
+      '<rFont val="Calibri"/><sz val="11"/><color rgb="FF000000"/><b/><u/></rPr><t>BU</t>');
+    Assert.Contains(Sheet,
+      '<rFont val="Calibri"/><sz val="11"/><color rgb="FF000000"/><i/><u/></rPr><t>IU</t>');
+  finally
+    Doc.Free;
+  end;
+end;
+
+procedure TExportXLSXTests.Test_RichMemo_AllowHTML_Path;
+var
+  Doc: TReportExportDocument;
+  MemoRuns: TArray<TMemoRun>;
+  ExportRuns: TArray<TReportExportTextRun>;
+  I: Integer;
+  Pkg: TBytes;
+  Sheet: string;
+begin
+  Doc := TReportExportDocument.Create;
+  try
+    // AllowHTML=True: the memo parser produces separate styled runs that the
+    // XLSX writer must preserve as rich runs.
+    ParseMemoRuns('<b>Bold</b> and <i>Italic</i>', [], clBlack, 'Arial', 12,
+      True, MemoRuns);
+    SetLength(ExportRuns, Length(MemoRuns));
+    for I := 0 to High(MemoRuns) do
+    begin
+      ExportRuns[I].Text      := MemoRuns[I].Text;
+      ExportRuns[I].FontName  := MemoRuns[I].FontName;
+      ExportRuns[I].FontSize  := MemoRuns[I].Size;
+      ExportRuns[I].FontStyle := MemoRuns[I].Style;
+      ExportRuns[I].FontColor := MemoRuns[I].Color;
+      ExportRuns[I].IsBreak   := MemoRuns[I].IsBreak;
+    end;
+    Doc.AddPage(793, 1122).Commands.Add(
+      TextCmdWithRuns('Bold and Italic', ExportRuns, Rect(10, 10, 300, 40)));
+    Pkg := ExportToBytes(Doc);
+    Sheet := ReadZipEntry(Pkg, 'xl/worksheets/sheet1.xml');
+    AssertXmlWellFormed(Sheet);
+    // Run-level font overrides survive with the base font name and size.
+    Assert.Contains(Sheet, '<rFont val="Arial"/>');
+    Assert.Contains(Sheet, '<sz val="12"/>');
+    Assert.Contains(Sheet, '<b/></rPr><t>Bold</t>');
+    Assert.Contains(Sheet, '<i/></rPr><t>Italic</t>');
   finally
     Doc.Free;
   end;
