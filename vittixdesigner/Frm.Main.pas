@@ -362,6 +362,7 @@ type
     FDisablePreviewShortcut: Boolean;
     FIsSubReportEditor: Boolean;
     FLoadingPropertyPanel: Boolean;
+    FPropertyPanelDirty: Boolean;
     FUpdatingZoomControls: Boolean;
     FRuntimeEventDemoOutput: string;
     // Created dynamically in FormCreate (not streamed from DFM)
@@ -5920,7 +5921,7 @@ end;
 function TfrmMain.EditSubReportObject(ASubReportObj: TReportSubReportObject): Boolean;
 var
   SubDesigner: TfrmMain;
-  Cmd: TGenericPropertyChangeCommand;
+  Cmd: TPropertyBatchChangeCommand;
   NewJSON: string;
 begin
   Result := False;
@@ -5941,27 +5942,21 @@ begin
     begin
       var Model := TReportSerializer.LoadFromJSON(ASubReportObj.ReportJSON);
       if Assigned(Model) then
-      begin
-        SubDesigner.FDesigner.Report := Model;
-        Model.Free;
-      end;
+        SubDesigner.FDesigner.LoadReport(Model, True);
     end
     else
-    begin
-      SubDesigner.FDesigner.Report := nil; // blank
-    end;
+      SubDesigner.FDesigner.NewReport; // blank
 
     if SubDesigner.ShowModal = mrOk then
     begin
       NewJSON := TReportSerializer.SaveToJSON(SubDesigner.FDesigner.Report);
       if NewJSON <> ASubReportObj.ReportJSON then
       begin
-        Cmd := TGenericPropertyChangeCommand.Create(
+        Cmd := TPropertyBatchChangeCommand.Create(
           ASubReportObj,
-          TPropertyBridge.GetPropertyByPath(ASubReportObj, 'ReportJSON'),
-          ASubReportObj.ReportJSON,
-          NewJSON
-        );
+          ['ReportJSON'],
+          [TValue.From<string>(ASubReportObj.ReportJSON)],
+          [TValue.From<string>(NewJSON)]);
         if Assigned(FDesigner.Commands) then
           FDesigner.Commands.DoCommand(Cmd)
         else

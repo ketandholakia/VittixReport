@@ -58,6 +58,7 @@
         <DCC_K>false</DCC_K>
         <DCC_N>false</DCC_N>
         <DCC_S>false</DCC_S>
+        <DCC_UnitSearchPath>..;..\source;..\source\ThirdParty\QRCodeGenLib\src\QRCodeGen;..\source\ThirdParty\QRCodeGenLib\src\Interfaces;..\source\ThirdParty\QRCodeGenLib\src\Utils;..\source\ThirdParty\QRCodeGenLib\src\Include;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_ImageBase>00400000</DCC_ImageBase>
         <SanitizedProjectName>VittixDesigner</SanitizedProjectName>
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>

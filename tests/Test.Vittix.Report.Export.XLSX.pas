@@ -26,6 +26,12 @@ type
     function ExportToBytes(ADoc: TReportExportDocument): TBytes;
     function TextCmd(const AText: string; const ABounds: TRect;
       AStyle: TFontStyles = []): TReportExportTextCommand;
+    function TextCmdWithRuns(const AText: string; const ARuns: TArray<TReportExportTextRun>;
+      const ABounds: TRect): TReportExportTextCommand;
+    function MakeRun(const AText: string; AStyle: TFontStyles = [];
+      AFontName: string = 'Calibri'; AFontSize: Integer = 11;
+      AColor: TColor = 0): TReportExportTextRun;
+    function BreakRun: TReportExportTextRun;
   public
     [Test] procedure Test_TextCell_InlineString_Emitted;
     [Test] procedure Test_NumericCell_Value_Emitted;
@@ -36,6 +42,15 @@ type
     [Test] procedure Test_EmptyDocument_ValidPackage;
     [Test] procedure Test_BarcodeBar_NotConvertedToCellFill;
     [Test] procedure Test_UncoveredRectangle_Ignored;
+    [Test] procedure Test_ItalicStyle_Preserved;
+    [Test] procedure Test_UnderlineStyle_Preserved;
+    [Test] procedure Test_FontColor_Preserved;
+    [Test] procedure Test_FontName_Preserved;
+    [Test] procedure Test_FontSize_Preserved;
+    [Test] procedure Test_MixedRuns_Preserved;
+    [Test] procedure Test_BoldItalicUnderline_Preserved;
+    [Test] procedure Test_RichMemo_Export;
+    [Test] procedure Test_PlainMemo_Compatibility;
   end;
 
 implementation
@@ -72,6 +87,32 @@ begin
   Result.Text := AText;
   Result.Bounds := ABounds;
   Result.FontStyle := AStyle;
+end;
+
+function TExportXLSXTests.TextCmdWithRuns(const AText: string; const ARuns: TArray<TReportExportTextRun>;
+  const ABounds: TRect): TReportExportTextCommand;
+begin
+  Result := TReportExportTextCommand.Create;
+  Result.Text := AText;
+  Result.Bounds := ABounds;
+  Result.Runs := Copy(ARuns, 0, Length(ARuns));
+end;
+
+function TExportXLSXTests.MakeRun(const AText: string; AStyle: TFontStyles;
+  AFontName: string; AFontSize: Integer; AColor: TColor): TReportExportTextRun;
+begin
+  Result.Text := AText;
+  Result.FontName := AFontName;
+  Result.FontSize := AFontSize;
+  Result.FontStyle := AStyle;
+  Result.FontColor := AColor;
+  Result.IsBreak := False;
+end;
+
+function TExportXLSXTests.BreakRun: TReportExportTextRun;
+begin
+  Result := Default(TReportExportTextRun);
+  Result.IsBreak := True;
 end;
 
 function ReadZipEntry(const APkg: TBytes; const AName: string): string;
@@ -361,6 +402,229 @@ begin
     Styles := ReadZipEntry(Pkg, 'xl/styles.xml');
     Assert.Contains(Styles, '<fills count="2">');
     Assert.DoesNotContain(Styles, '<fgColor rgb="FFFF0000"/>');
+  finally
+    Doc.Free;
+  end;
+end;
+
+procedure TExportXLSXTests.Test_ItalicStyle_Preserved;
+var
+  Doc: TReportExportDocument;
+  Pkg: TBytes;
+  Sheet: string;
+begin
+  Doc := TReportExportDocument.Create;
+  try
+    Doc.AddPage(793, 1122).Commands.Add(
+      TextCmdWithRuns('Italic',
+        [MakeRun('Italic', [fsItalic])],
+        Rect(10, 10, 300, 40)));
+    Pkg := ExportToBytes(Doc);
+    Sheet := ReadZipEntry(Pkg, 'xl/worksheets/sheet1.xml');
+    AssertXmlWellFormed(Sheet);
+    // Phase 4I-16R characterization: italic text is preserved through the
+    // rich-run rPr. The command-level style table only has dedicated fonts
+    // for (bold) and (bold+italic); run-level styling covers the rest.
+    Assert.Contains(Sheet,
+      '<r><rPr><rFont val="Calibri"/><sz val="11"/><color rgb="FF000000"/><i/></rPr><t>Italic</t></r>');
+  finally
+    Doc.Free;
+  end;
+end;
+
+procedure TExportXLSXTests.Test_UnderlineStyle_Preserved;
+var
+  Doc: TReportExportDocument;
+  Pkg: TBytes;
+  Sheet: string;
+begin
+  Doc := TReportExportDocument.Create;
+  try
+    Doc.AddPage(793, 1122).Commands.Add(
+      TextCmdWithRuns('Underline',
+        [MakeRun('Underline', [fsUnderline])],
+        Rect(10, 10, 300, 40)));
+    Pkg := ExportToBytes(Doc);
+    Sheet := ReadZipEntry(Pkg, 'xl/worksheets/sheet1.xml');
+    AssertXmlWellFormed(Sheet);
+    // Underline is preserved exclusively through the rich-run rPr.
+    Assert.Contains(Sheet,
+      '<r><rPr><rFont val="Calibri"/><sz val="11"/><color rgb="FF000000"/><u/></rPr><t>Underline</t></r>');
+  finally
+    Doc.Free;
+  end;
+end;
+
+procedure TExportXLSXTests.Test_FontColor_Preserved;
+var
+  Doc: TReportExportDocument;
+  Pkg: TBytes;
+  Sheet: string;
+begin
+  Doc := TReportExportDocument.Create;
+  try
+    Doc.AddPage(793, 1122).Commands.Add(
+      TextCmdWithRuns('Colored',
+        [MakeRun('Colored', [], 'Calibri', 11, clRed)],
+        Rect(10, 10, 300, 40)));
+    Pkg := ExportToBytes(Doc);
+    Sheet := ReadZipEntry(Pkg, 'xl/worksheets/sheet1.xml');
+    AssertXmlWellFormed(Sheet);
+    // TColor red ($0000FF) must surface as OOXML rgb FF0000 (FF rr gg bb).
+    Assert.Contains(Sheet,
+      '<r><rPr><rFont val="Calibri"/><sz val="11"/><color rgb="FFFF0000"/></rPr><t>Colored</t></r>');
+  finally
+    Doc.Free;
+  end;
+end;
+
+procedure TExportXLSXTests.Test_FontName_Preserved;
+var
+  Doc: TReportExportDocument;
+  Pkg: TBytes;
+  Sheet: string;
+begin
+  Doc := TReportExportDocument.Create;
+  try
+    Doc.AddPage(793, 1122).Commands.Add(
+      TextCmdWithRuns('Named',
+        [MakeRun('Named', [], 'Courier New', 11)],
+        Rect(10, 10, 300, 40)));
+    Pkg := ExportToBytes(Doc);
+    Sheet := ReadZipEntry(Pkg, 'xl/worksheets/sheet1.xml');
+    AssertXmlWellFormed(Sheet);
+    Assert.Contains(Sheet,
+      '<r><rPr><rFont val="Courier New"/><sz val="11"/><color rgb="FF000000"/></rPr><t>Named</t></r>');
+  finally
+    Doc.Free;
+  end;
+end;
+
+procedure TExportXLSXTests.Test_FontSize_Preserved;
+var
+  Doc: TReportExportDocument;
+  Pkg: TBytes;
+  Sheet: string;
+begin
+  Doc := TReportExportDocument.Create;
+  try
+    Doc.AddPage(793, 1122).Commands.Add(
+      TextCmdWithRuns('Sized',
+        [MakeRun('Sized', [], 'Calibri', 14)],
+        Rect(10, 10, 300, 40)));
+    Pkg := ExportToBytes(Doc);
+    Sheet := ReadZipEntry(Pkg, 'xl/worksheets/sheet1.xml');
+    AssertXmlWellFormed(Sheet);
+    // Integer font size on the run maps to <sz val="N"/> (fractional sizes
+    // are Phase 4I-17 scope; the run model stores Integer today).
+    Assert.Contains(Sheet,
+      '<r><rPr><rFont val="Calibri"/><sz val="14"/><color rgb="FF000000"/></rPr><t>Sized</t></r>');
+  finally
+    Doc.Free;
+  end;
+end;
+
+procedure TExportXLSXTests.Test_MixedRuns_Preserved;
+var
+  Doc: TReportExportDocument;
+  Pkg: TBytes;
+  Sheet: string;
+begin
+  Doc := TReportExportDocument.Create;
+  try
+    Doc.AddPage(793, 1122).Commands.Add(
+      TextCmdWithRuns('Hello World',
+        [MakeRun('Hello ', [fsBold]), MakeRun('World', [fsItalic])],
+        Rect(10, 10, 300, 40)));
+    Pkg := ExportToBytes(Doc);
+    Sheet := ReadZipEntry(Pkg, 'xl/worksheets/sheet1.xml');
+    AssertXmlWellFormed(Sheet);
+    Assert.Contains(Sheet,
+      '<r><rPr><rFont val="Calibri"/><sz val="11"/><color rgb="FF000000"/><b/></rPr><t>Hello </t></r>');
+    Assert.Contains(Sheet,
+      '<r><rPr><rFont val="Calibri"/><sz val="11"/><color rgb="FF000000"/><i/></rPr><t>World</t></r>');
+  finally
+    Doc.Free;
+  end;
+end;
+
+procedure TExportXLSXTests.Test_BoldItalicUnderline_Preserved;
+var
+  Doc: TReportExportDocument;
+  Cmd: TReportExportTextCommand;
+  Pkg: TBytes;
+  Sheet: string;
+begin
+  Doc := TReportExportDocument.Create;
+  try
+    Cmd := TextCmdWithRuns('All',
+      [MakeRun('All', [fsBold, fsItalic, fsUnderline])],
+      Rect(10, 10, 300, 40));
+    Cmd.FontStyle := [fsBold]; // command-level bold selects the static xf 1
+    Doc.AddPage(793, 1122).Commands.Add(Cmd);
+    Pkg := ExportToBytes(Doc);
+    Sheet := ReadZipEntry(Pkg, 'xl/worksheets/sheet1.xml');
+    AssertXmlWellFormed(Sheet);
+    Assert.Contains(Sheet, '<c r="A1" s="1" t="inlineStr">');
+    Assert.Contains(Sheet,
+      '<r><rPr><rFont val="Calibri"/><sz val="11"/><color rgb="FF000000"/><b/><i/><u/></rPr><t>All</t></r>');
+  finally
+    Doc.Free;
+  end;
+end;
+
+procedure TExportXLSXTests.Test_RichMemo_Export;
+var
+  Doc: TReportExportDocument;
+  Page: TReportExportPage;
+  Runs: TArray<TReportExportTextRun>;
+  Pkg: TBytes;
+  Sheet: string;
+begin
+  Doc := TReportExportDocument.Create;
+  try
+    SetLength(Runs, 3);
+    Runs[0] := MakeRun('Rich ', [fsBold]);
+    Runs[1] := BreakRun;
+    Runs[2] := MakeRun('Memo', [fsItalic]);
+    Page := Doc.AddPage(793, 1122);
+    Page.Commands.Add(TextCmdWithRuns('Rich Memo', Runs, Rect(10, 10, 300, 40)));
+    Pkg := ExportToBytes(Doc);
+    Sheet := ReadZipEntry(Pkg, 'xl/worksheets/sheet1.xml');
+    AssertXmlWellFormed(Sheet);
+    // Phase 4I-16R characterization: the line-break run is currently emitted
+    // as its own run element with an empty rPr. OOXML validity of <br/> and
+    // whitespace preservation are Phase 4I-17 scope.
+    Assert.Contains(Sheet, '<r><rPr><br/></rPr><t>&apos;</t></r>');
+    Assert.Contains(Sheet, '<t>Rich </t>');
+    Assert.Contains(Sheet, '<t>Memo</t>');
+  finally
+    Doc.Free;
+  end;
+end;
+
+procedure TExportXLSXTests.Test_PlainMemo_Compatibility;
+var
+  Doc: TReportExportDocument;
+  Page: TReportExportPage;
+  Cmd: TReportExportTextCommand;
+  Pkg: TBytes;
+  Sheet: string;
+begin
+  Doc := TReportExportDocument.Create;
+  try
+    Page := Doc.AddPage(793, 1122);
+    // A plain memo produces no runs; it must still emit an inline string.
+    Page.Commands.Add(TextCmd('Plain text', Rect(10, 10, 300, 40)));
+    // An explicitly empty run array is treated the same as no runs at all.
+    Cmd := TextCmdWithRuns('Compat', [], Rect(10, 50, 300, 80));
+    Page.Commands.Add(Cmd);
+    Pkg := ExportToBytes(Doc);
+    Sheet := ReadZipEntry(Pkg, 'xl/worksheets/sheet1.xml');
+    AssertXmlWellFormed(Sheet);
+    Assert.Contains(Sheet, '<c r="A1" s="0" t="inlineStr"><is><t>Plain text</t></is></c>');
+    Assert.Contains(Sheet, '<c r="A2" s="0" t="inlineStr"><is><t>Compat</t></is></c>');
+    Assert.DoesNotContain(Sheet, '<r><rPr>');
   finally
     Doc.Free;
   end;

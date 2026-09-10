@@ -30,6 +30,8 @@ type
   // Helper to store grouped text objects for grid mapping
   TXLSXCell = record
     Text: string;
+    Runs: TArray<TReportExportTextRun>;
+    HasRuns: Boolean;
     X, Y: Integer;            // X = bounds left; Y = bounds top + page offset (row grouping key)
     Bounds: TRect;            // page-local command bounds (used by fill/border mapping)
     PageIndex: Integer;
@@ -101,6 +103,15 @@ begin
     [GetRValue(AColor), GetGValue(AColor), GetBValue(AColor)]);
 end;
 
+function EscapeXMLAttr(const S: string): string;
+begin
+  Result := StringReplace(S, '&', '&amp;', [rfReplaceAll]);
+  Result := StringReplace(Result, '<', '&lt;', [rfReplaceAll]);
+  Result := StringReplace(Result, '>', '&gt;', [rfReplaceAll]);
+  Result := StringReplace(Result, '"', '&quot;', [rfReplaceAll]);
+  Result := StringReplace(Result, #39, '&apos;', [rfReplaceAll]);
+end;
+
 class procedure TReportXLSXExporter.ExportToStream(APages: TObjectList<TReportExportPage>;
   AStream: TStream);
 var
@@ -168,6 +179,8 @@ begin
           if Trim(TextCmd.Text) <> '' then
           begin
             Cell.Text := TextCmd.Text;
+            Cell.Runs := Copy(TextCmd.Runs, 0, Length(TextCmd.Runs));
+            Cell.HasRuns := Length(TextCmd.Runs) > 0;
             Cell.X := TextCmd.Bounds.Left;
             Cell.Y := TextCmd.Bounds.Top + (PageIdx * 2000); // offset pages vertically
             Cell.Bounds := TextCmd.Bounds;
@@ -488,6 +501,50 @@ begin
         if IsNumeric then
           SheetXml := SheetXml + Format('<c r="%s%d" s="%d"><v>%s</v></c>',
             [ColLetter, Cell.Row, StyleId, StringReplace(Cell.Text, ',', '.', [])])
+        else if Cell.HasRuns then
+        begin
+          SheetXml := SheetXml + Format('<c r="%s%d" s="%d" t="inlineStr"><is>', [ColLetter, Cell.Row, StyleId]);
+          for var Run in Cell.Runs do
+          begin
+            if Run.IsBreak then
+            begin
+              SheetXml := SheetXml + '<r><rPr><br/></rPr><t>' + CApos + '</t></r>';
+              Continue;
+            end;
+
+            var RunFontName := Run.FontName;
+            if RunFontName = '' then RunFontName := 'Calibri';
+            var RunFontSize := Run.FontSize;
+            if RunFontSize <= 0 then RunFontSize := 11;
+
+            var RunColor := Run.FontColor;
+            if RunColor = clNone then RunColor := clBlack;
+
+            SheetXml := SheetXml + '<r><rPr>';
+            SheetXml := SheetXml + Format('<rFont val="%s"/>', [EscapeXMLAttr(RunFontName)]);
+            SheetXml := SheetXml + Format('<sz val="%d"/>', [RunFontSize]);
+            SheetXml := SheetXml + Format('<color rgb="%s"/>', [ColorToARGB(RunColor)]);
+
+            if fsBold in Run.FontStyle then
+              SheetXml := SheetXml + '<b/>';
+            if fsItalic in Run.FontStyle then
+              SheetXml := SheetXml + '<i/>';
+            if fsUnderline in Run.FontStyle then
+              SheetXml := SheetXml + '<u/>';
+
+            SheetXml := SheetXml + '</rPr>';
+
+            var RunText := Run.Text;
+            RunText := StringReplace(RunText, '&', '&amp;', [rfReplaceAll]);
+            RunText := StringReplace(RunText, '<', '&lt;', [rfReplaceAll]);
+            RunText := StringReplace(RunText, '>', '&gt;', [rfReplaceAll]);
+            RunText := StringReplace(RunText, '"', '&quot;', [rfReplaceAll]);
+            RunText := StringReplace(RunText, #39, CApos, [rfReplaceAll]);
+
+            SheetXml := SheetXml + '<t>' + RunText + '</t></r>';
+          end;
+          SheetXml := SheetXml + '</is></c>';
+        end
         else
           SheetXml := SheetXml + Format('<c r="%s%d" s="%d" t="inlineStr"><is><t>%s</t></is></c>',
             [ColLetter, Cell.Row, StyleId, EscapedText]);
