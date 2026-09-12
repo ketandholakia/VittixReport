@@ -869,6 +869,7 @@ class procedure TReportBandSerializer.LoadProperties(Obj: TReportObject; JSON: T
 var
   Band: TReportBand;
   ChildArr: TJSONArray;
+  ChildVal: TJSONValue;
   i: Integer;
 begin
   inherited;
@@ -893,8 +894,14 @@ begin
   Band.OnAfterPrint         := JSON.GetValue<string>('OnAfterPrint',  '');
 
   // In v1, there was no Children array persisted.
-  // We're loading v2+ here, but gracefully missing
-  if Assigned(JSON.GetValue('Children')) then ChildArr := JSON.GetValue('Children') as TJSONArray else ChildArr := nil;
+  // We're loading v2+ here, but gracefully missing.  A present but non-array
+  // value must not raise a raw invalid-typecast exception (Finding E): leave
+  // the children empty and let the structured loader report the problem.
+  ChildVal := JSON.GetValue('Children');
+  if Assigned(ChildVal) and (ChildVal is TJSONArray) then
+    ChildArr := TJSONArray(ChildVal)
+  else
+    ChildArr := nil;
   if Assigned(ChildArr) then
     for i := 0 to ChildArr.Count - 1 do
       Band.Children.Add(

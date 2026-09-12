@@ -30,6 +30,7 @@ type
     [Test] procedure Test_UnknownChild_Tolerant_Preserved;
     [Test] procedure Test_UnknownChild_Strict_Fails;
     [Test] procedure Test_UnknownChild_Tolerant_SaveReload_RawPreserved;
+    [Test] procedure Test_ObjectsNonArray_StructuredDiagnostic;
   end;
 
 implementation
@@ -37,7 +38,8 @@ implementation
 uses
   System.Classes,
   System.Types,
-  System.StrUtils;
+  System.StrUtils,
+  Vittix.Report.LoadResult;
 
 function BuildValidReportJSON(const ATitle: string): string;
 var
@@ -442,6 +444,50 @@ begin
     end;
   finally
     M.Free;
+  end;
+end;
+
+procedure TReportDesignerLoadTests.Test_ObjectsNonArray_StructuredDiagnostic;
+var
+  Root: TJSONObject;
+  LR: TReportLoadResult;
+begin
+  // Finding E repair: a root 'Objects' value that is not an array must
+  // produce a meaningful structured diagnostic (INVALID_OBJECTS), not a raw
+  // "Invalid class typecast" wrapped in a generic PARSE_ERROR.
+  Root := TJSONObject.Create;
+  try
+    Root.AddPair('Version', TJSONNumber.Create(2));
+    Root.AddPair('Title', 'BadObjects');
+    Root.AddPair('Objects', TJSONString.Create('not-an-array'));
+
+    // LoadFromJSONEx must return a structured failure, never raise.
+    LR := TReportSerializer.LoadFromJSONEx(Root.Format(2), False);
+    try
+      Assert.IsFalse(LR.Success, 'load must fail');
+      Assert.AreEqual(1, LR.ErrorCount, 'exactly one structured error');
+      Assert.IsTrue(ContainsText(LR.Diagnostics[0].Message, 'Objects'),
+        'diagnostic must name the offending key');
+      Assert.IsTrue(ContainsText(LR.Diagnostics[0].Message, 'array'),
+        'diagnostic must state the required type');
+      Assert.AreEqual('INVALID_OBJECTS', LR.Diagnostics[0].Code,
+        'diagnostic must carry the structured code');
+    finally
+      LR.Free;
+    end;
+
+    // Strict legacy wrapper surfaces the same structured message as a raise.
+    Assert.WillRaise(
+      procedure
+      var
+        M: TReportModel;
+      begin
+        M := TReportSerializer.LoadFromJSON(Root.Format(2));
+        M.Free;
+      end,
+      Exception, 'strict load must fail on non-array Objects');
+  finally
+    Root.Free;
   end;
 end;
 
