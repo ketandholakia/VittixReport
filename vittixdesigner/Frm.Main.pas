@@ -57,6 +57,7 @@ uses
   Vittix.Report.Objects.Barcode,
   Vittix.Report.Objects.Table, Vcl.Grids,  Vcl.CheckLst,
   Vittix.Report.ScriptHost.Adapter,
+  Vittix.Report.LoadResult,
   System.ImageList, Vcl.VirtualImageList, SVGIconVirtualImageList,
   Vcl.BaseImageCollection, SVGIconImageCollection,
   Frm.Main.Helpers,
@@ -1196,23 +1197,36 @@ end;
 procedure TfrmMain.LoadDesignerReportFromFile(const AFileName: string;
   AUseSampleDataSet: Boolean = False);
 var
-  R: TReportModel;
+  LoadResult: TReportLoadResult;
 begin
-  R := TReportSerializer.LoadFromFile(AFileName);
-  if AUseSampleDataSet then
-    UseSampleDataSet;
-  FDesigner.LoadReport(R, True {take ownership});
-  FDesigner.RebuildLayout;
-  FCurrentFile := AFileName;
-  FModified := False;
-  FReportMetadataDirty := False;
-  edtReportTitle.Text := FDesigner.Report.Title;
-  edtReportAuthor.Text := FDesigner.Report.Author;
-  RefreshFieldList;
-  RefreshReportStructure;
-  UpdateAll;
-  FDesigner.Repaint;
-  StatusBar1.Panels[1].Text := 'Loaded: ' + ExtractFileName(FCurrentFile);
+  // Transactional load: deserialize into temporary model first
+  LoadResult := TReportSerializer.LoadFromFileEx(AFileName);
+  try
+    if not LoadResult.Success then
+    begin
+      ShowMessage('Error loading report: ' + LoadResult.Errors[0]);
+      Exit;
+    end;
+
+    if AUseSampleDataSet then
+      UseSampleDataSet;
+
+    // Commit: replace the active model with the validated temporary model
+    FDesigner.LoadReport(LoadResult.ExtractModel, True {take ownership});
+    FDesigner.RebuildLayout;
+    FCurrentFile := AFileName;
+    FModified := False;
+    FReportMetadataDirty := False;
+    edtReportTitle.Text := FDesigner.Report.Title;
+    edtReportAuthor.Text := FDesigner.Report.Author;
+    RefreshFieldList;
+    RefreshReportStructure;
+    UpdateAll;
+    FDesigner.Repaint;
+    StatusBar1.Panels[1].Text := 'Loaded: ' + ExtractFileName(FCurrentFile);
+  finally
+    LoadResult.Free;
+  end;
 end;
 
 procedure TfrmMain.mnuOpenClick(Sender: TObject);

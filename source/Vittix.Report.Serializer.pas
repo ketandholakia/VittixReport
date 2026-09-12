@@ -20,6 +20,27 @@ unit Vittix.Report.Serializer;
   -------
   CloneObject - deep-clones a single TReportObject (text or band + children)
   CloneReport - deep-clones an entire TReportModel (serialize -> deserialize)
+
+  Transactional Loading (Phase 4I-18)
+  -----------------------------------
+  New loading methods return TReportLoadResult, which owns the deserialized
+  model and provides structured diagnostics.  A failed load never corrupts
+  the active model.
+
+    LoadFromJSON(Result, FileName)  - transactional load from JSON string
+    LoadFromFile(Result, FileName)  - transactional load from file
+
+  Unknown Object Strategy
+  -----------------------
+  Unknown classes are preserved as TReportUnknownObject instances that store
+  the raw JSON fragment.  This prevents silent data loss when loading a
+  report from a newer version.  On save, the raw JSON is written back
+  verbatim.
+
+  Legacy Methods
+  --------------
+  LoadFromJSON, LoadFromFile, LoadFromJSONTolerant are preserved as
+  convenience wrappers.  New code should prefer the transactional API.
 *)
 
 interface
@@ -30,18 +51,61 @@ uses
   System.JSON,
   System.Types,
   System.IOUtils,
+  System.Generics.Collections,
   Vittix.Report.Model,
   Vittix.Report.Objects,
   Vittix.Report.Bands,
-  Vittix.Report.PageSettings;
+  Vittix.Report.PageSettings,
+  Vittix.Report.LoadResult;
 
 type
   TReportSerializer = class
   public
+    { Save }
     class procedure SaveToFile(R: TReportModel; const FN: string);
     class function  SaveToJSON(R: TReportModel): string;
-    class function  LoadFromJSON(const S: string): TReportModel;
-    class function  LoadFromFile(const FN: string): TReportModel;
+
+    { --- Transactional Loading (preferred API) --- }
+
+    /// <summary>
+    ///   Transactionally load a report from a JSON string.
+    ///   On success, owns the deserialized model in Result.Model.
+    ///   On failure, Result.Success = False and Result.Errors explains why.
+    ///   The caller owns the returned TReportLoadResult (and must free it).
+    /// </summary>
+    class function LoadFromJSONEx(const S: string;
+      const AStrict: Boolean = True): TReportLoadResult;
+
+    /// <summary>
+    ///   Transactionally load a report from a file.
+    ///   On success, owns the deserialized model in Result.Model.
+    ///   On failure, Result.Success = False and Result.Errors explains why.
+    ///   The caller owns the returned TReportLoadResult (and must free it).
+    /// </summary>
+    class function LoadFromFileEx(const FN: string): TReportLoadResult;
+
+    { --- Legacy Loading (backward-compatible) --- }
+
+    /// <summary>
+    ///   Legacy strict loader.  Raises on unknown class or invalid JSON.
+    ///   For new code, prefer LoadFromJSONEx which returns a result instead of raising.
+    /// </summary>
+    class function LoadFromJSON(const S: string): TReportModel;
+
+    /// <summary>
+    ///   Legacy loader from file.  Raises on unknown class or invalid JSON.
+    ///   For new code, prefer LoadFromFileEx which returns a result instead of raising.
+    /// </summary>
+    class function LoadFromFile(const FN: string): TReportModel;
+
+    /// <summary>
+    ///   Legacy tolerant loader.  Skips unknown classes, returns warnings.
+    ///   Preserved for backward compatibility.
+    /// </summary>
+    class function LoadFromJSONTolerant(const S: string;
+      out AWarnings: TArray<string>): TReportModel;
+
+    { --- Cloning --- }
 
     /// <summary>Deep-clone a single object (band + its children, or leaf object).</summary>
     class function CloneObject(Obj: TReportObject): TReportObject;
@@ -49,11 +113,27 @@ type
     /// <summary>Deep-clone an entire report model via serialize -> deserialize.</summary>
     class function CloneReport(R: TReportModel): TReportModel;
 
+    { --- Clipboard --- }
+
     /// <summary>Serialize a list of objects to a JSON string.</summary>
     class function SerializeObjectListToJSON(const Objects: TArray<TReportObject>): string;
-    
+
     /// <summary>Deserialize a list of objects from a JSON string.</summary>
     class function DeserializeObjectListFromJSON(const S: string): TArray<TReportObject>;
+
+  private
+    /// <summary>
+    ///   Internal method to load objects from a JSON array.
+    ///   APreserveUnknown determines whether unknown classes are preserved
+    ///   as TReportUnknownObject instances (tolerant) or cause errors (strict).
+    ///   AOwner is the list that receives the loaded objects: nil means the
+    ///   top-level Model.Objects; band loading passes the band's own Children
+    ///   list so band children are owned by the band and never duplicated
+    ///   into the top-level model.
+    /// </summary>
+    class procedure LoadObjectsEx(Arr: TJSONArray; AVersion: Integer;
+      APreserveUnknown: Boolean; AResult: TReportLoadResult;
+      const APathPrefix: string; AOwner: TObjectList<TReportObject>);
   end;
 
 { Exposed so units like the designer can reuse serialisation of single objects }
@@ -64,7 +144,6 @@ function JSONToObjectEx(O: TJSONObject; AVersion: Integer): TReportObject; forwa
 implementation
 
 uses
-  System.Generics.Collections,
   System.NetEncoding,
   Vcl.Graphics,
   Vcl.Controls,
@@ -74,7 +153,8 @@ uses
   Vittix.Report.Objects.Table,
   Vittix.Report.Objects.CrossTab,
   Vittix.Report.Objects.Chart,
-  Vittix.Report.Objects.Barcode;
+  Vittix.Report.Objects.Barcode,
+  Vittix.Report.Objects.Unknown;
 
 function PageSettingsToJSON(PS: TReportPageSettings): TJSONObject; forward;
 procedure JSONToPageSettings(O: TJSONObject; PS: TReportPageSettings); forward;
@@ -227,6 +307,12 @@ type
     class procedure LoadProperties(Obj: TReportObject; JSON: TJSONObject; AVersion: Integer); override;
   end;
 
+  TReportUnknownObjectSerializer = class(TReportObjectSerializer)
+  public
+    class procedure SaveProperties(Obj: TReportObject; JSON: TJSONObject); override;
+    class procedure LoadProperties(Obj: TReportObject; JSON: TJSONObject; AVersion: Integer); override;
+  end;
+
 var
   GSerializers: TDictionary<TReportObjectClass, TReportObjectSerializerClass>;
 
@@ -251,6 +337,7 @@ begin
     GSerializers.Add(TReportCrossTabObject, TReportCrossTabObjectSerializer);
     GSerializers.Add(TReportChartObject, TReportChartObjectSerializer);
     GSerializers.Add(TReportBand, TReportBandSerializer);
+    GSerializers.Add(TReportUnknownObject, TReportUnknownObjectSerializer);
   end;
 
   CurrCls := Cls;
@@ -1036,82 +1123,413 @@ begin
   TFile.WriteAllText(FN, SaveToJSON(R), TEncoding.UTF8);
 end;
 
-// ---------------------------------------------------------------------------
-// Load  (FieldNames array read here — absent in old files is fine)
-// ---------------------------------------------------------------------------
-
-class function TReportSerializer.LoadFromJSON(const S: string): TReportModel;
-var
-  JsonText: string;
-  Root:   TJSONObject;
-  Arr:    TJSONArray;
-  FldArr: TJSONArray;
-  i:      Integer;
+function TryResolveObjectClass(O: TJSONObject; out AClass: TReportObjectClass;
+  out ADiscriminatorValue: string): Boolean;
 begin
-  JsonText := S;
-  // Strip any leading BOM
-  if (JsonText <> '') and (JsonText[1] = #$FEFF) then
-    Delete(JsonText, 1, 1);
-  JsonText := TrimLeft(JsonText);
-  if (JsonText <> '') and (JsonText[1] = #$FEFF) then
-    Delete(JsonText, 1, 1);
+  if O.GetValue('Class') <> nil then
+    ADiscriminatorValue := O.GetValue('Class').Value
+  else if O.GetValue('Type') <> nil then
+    ADiscriminatorValue := O.GetValue('Type').Value
+  else
+    ADiscriminatorValue := '';
 
-  Root := nil;
+  if ADiscriminatorValue <> '' then
+    AClass := FindObjectClass(ADiscriminatorValue)
+  else
+    AClass := nil;
+  Result := Assigned(AClass);
+end;
+
+// Optional root-level string arrays (FieldNames / DataSetNames).
+// Missing key -> nothing added (model defaults preserved).  Present but
+// non-array -> precise structured error instead of an invalid-typecast
+// exception.
+procedure ReadOptionalStringArray(Root: TJSONObject; const AName: string;
+  AList: TStringList; const AErrorCode: string; AResult: TReportLoadResult);
+var
+  V: TJSONValue;
+  Arr: TJSONArray;
+  i: Integer;
+begin
+  V := Root.GetValue(AName);
+  if not Assigned(V) then Exit;
+  if not (V is TJSONArray) then
+  begin
+    AResult.AddError(
+      Format('''%s'' must be an array (found %s)', [AName, V.ClassName]),
+      '', '', AErrorCode);
+    Exit;
+  end;
+  Arr := TJSONArray(V);
+  for i := 0 to Arr.Count - 1 do
+    AList.Add(Arr.Items[i].Value);
+end;
+
+
+{ ================= Legacy Loading Wrappers ================= }
+
+class function TReportSerializer.LoadFromJSONTolerant(const S: string;
+  out AWarnings: TArray<string>): TReportModel;
+var
+  LoadResult: TReportLoadResult;
+begin
+  AWarnings := [];
+  // Tolerant legacy wrapper: unknown classes are preserved with warnings.
+  LoadResult := LoadFromJSONEx(S, False);
   try
-    try
-      Root := TJSONObject.ParseJSONValue(JsonText) as TJSONObject;
-    except
-      raise Exception.Create('Invalid JSON format in report');
-    end;
-
-    if not Assigned(Root) then
-      raise Exception.Create('Invalid JSON format in report');
-
-    
-    var Version: Integer := 1;
-    if Assigned(Root.GetValue('Version')) then
-      Version := Trunc(Root.GetValue<Double>('Version'));
-
-    Result := TReportModel.Create;
-    try
-      Result.Title       := Root.GetValue<string>('Title',       '');
-      Result.Author      := Root.GetValue<string>('Author',      '');
-      Result.Description := Root.GetValue<string>('Description', '');
-
-      JSONToPageSettings(
-        Root.GetValue<TJSONObject>('PageSettings'),
-        Result.PageSettings);
-
-      // Read field names — absent in old files is fine
-      FldArr := Root.GetValue('FieldNames') as TJSONArray;
-      if Assigned(FldArr) then
-        for i := 0 to FldArr.Count - 1 do
-          Result.FieldNames.Add((FldArr.Items[i] as TJSONString).Value);
-
-      FldArr := Root.GetValue('DataSetNames') as TJSONArray;
-      if Assigned(FldArr) then
-        for i := 0 to FldArr.Count - 1 do
-          Result.DataSetNames.Add((FldArr.Items[i] as TJSONString).Value);
-
-      Arr := Root.GetValue<TJSONArray>('Objects');
-      if Assigned(Arr) then
-        for i := 0 to Arr.Count - 1 do
-          Result.Objects.Add(
-            JSONToObjectEx(Arr.Items[i] as TJSONObject, Version));
-    except
-      Result.Free;
-      raise;
-    end;
+    if LoadResult.Success then
+    begin
+      Result := LoadResult.ExtractModel;
+      AWarnings := LoadResult.Warnings;
+    end
+    else
+      raise Exception.Create(LoadResult.Errors[0]);
   finally
-    Root.Free;
+    LoadResult.Free;
   end;
 end;
 
 class function TReportSerializer.LoadFromFile(const FN: string): TReportModel;
+var
+  LoadResult: TReportLoadResult;
 begin
-  if not TFile.Exists(FN) then
-    raise Exception.CreateFmt('Report file not found: "%s"', [FN]);
-  Result := LoadFromJSON(TFile.ReadAllText(FN, TEncoding.UTF8));
+  LoadResult := LoadFromFileEx(FN);
+  try
+    if LoadResult.Success then
+      Result := LoadResult.ExtractModel
+    else
+      raise Exception.Create(LoadResult.Errors[0]);
+  finally
+    LoadResult.Free;
+  end;
+end;
+
+class function TReportSerializer.LoadFromJSON(const S: string): TReportModel;
+var
+  LoadResult: TReportLoadResult;
+begin
+  LoadResult := LoadFromJSONEx(S);
+  try
+    if LoadResult.Success then
+      Result := LoadResult.ExtractModel
+    else
+      raise Exception.Create(LoadResult.Errors[0]);
+  finally
+    LoadResult.Free;
+  end;
+end;
+
+{ ================= Transactional Loading (Phase 4I-18) ================= }
+
+class procedure TReportSerializer.LoadObjectsEx(Arr: TJSONArray; AVersion: Integer;
+  APreserveUnknown: Boolean; AResult: TReportLoadResult; const APathPrefix: string;
+  AOwner: TObjectList<TReportObject>);
+var
+  i: Integer;
+  Obj: TReportObject;
+  DiscriminatorValue: string;
+  Cls: TReportObjectClass;
+  UnknownObj: TReportUnknownObject;
+  ObjJSON: TJSONObject;
+  OwnerList: TObjectList<TReportObject>;
+  ChildrenPair: TJSONPair;
+  ChildrenValue: TJSONValue;
+begin
+  if not Assigned(Arr) then Exit;
+  if Assigned(AOwner) then
+    OwnerList := AOwner
+  else
+    OwnerList := AResult.Model.Objects;
+
+  for i := 0 to Arr.Count - 1 do
+  begin
+    // A malformed entry must produce a precise diagnostic, not a raw cast
+    // exception that escapes the loader.
+    if not (Arr.Items[i] is TJSONObject) then
+    begin
+      AResult.AddError(
+        Format('Object entry must be a JSON object (found %s)',
+          [Arr.Items[i].ClassName]),
+        Format('%s[%d]', [APathPrefix, i]), '', 'INVALID_OBJECT_ENTRY');
+      Continue;
+    end;
+
+    Obj := nil;
+    ChildrenPair := nil;
+    try
+      ObjJSON := TJSONObject(Arr.Items[i]);
+
+      if not TryResolveObjectClass(ObjJSON, Cls, DiscriminatorValue) then
+      begin
+        if APreserveUnknown then
+        begin
+          // Preserve unknown class as raw JSON for forward compatibility
+          UnknownObj := TReportUnknownObject.Create;
+          UnknownObj.OriginalClassName := DiscriminatorValue;
+          UnknownObj.RawJSON := ObjJSON.ToJSON;
+          UnknownObj.Name := ObjJSON.GetValue<string>('Name', '');
+          Obj := UnknownObj;
+          AResult.AddWarning(
+            Format('Unknown report object class preserved: "%s"', [DiscriminatorValue]),
+            Format('%s[%d]', [APathPrefix, i]),
+            DiscriminatorValue,
+            'UNKNOWN_CLASS_PRESERVED');
+        end
+        else
+        begin
+          AResult.AddError(
+            Format('Unknown report object class: "%s"', [DiscriminatorValue]),
+            Format('%s[%d]', [APathPrefix, i]),
+            DiscriminatorValue,
+            'UNKNOWN_CLASS');
+          Continue;
+        end;
+      end
+      else
+      begin
+        // Band children are loaded by this loop through the policy-aware path
+        // below.  TReportBandSerializer.LoadProperties also loads Children for
+        // the legacy clone/clipboard helpers (JSONToObjectEx), so detach the
+        // array here to keep exactly one ownership path: the band's own
+        // Children list.  The pair is owned by this iteration and freed in
+        // the finally block once the recursion is done.
+        if Cls.InheritsFrom(TReportBand) then
+          ChildrenPair := ObjJSON.RemovePair('Children');
+
+        Obj := Cls.Create;
+        try
+          GetSerializer(Cls).LoadProperties(Obj, ObjJSON, AVersion);
+        except
+          Obj.Free;
+          Obj := nil;
+          AResult.AddError(
+            Format('Failed to deserialize object: %s', [Cls.ClassName]),
+            Format('%s[%d]', [APathPrefix, i]),
+            Cls.ClassName,
+            'DESERIALIZE_FAILED');
+          Continue;
+        end;
+      end;
+
+      // Load band children through the same policy-aware mechanism used for
+      // top-level objects, directly into the band's Children list.
+      if Assigned(ChildrenPair) then
+      begin
+        ChildrenValue := ChildrenPair.JsonValue;
+        if ChildrenValue is TJSONArray then
+          LoadObjectsEx(
+            TJSONArray(ChildrenValue), AVersion, APreserveUnknown, AResult,
+            Format('%s[%d].Children', [APathPrefix, i]),
+            TReportBand(Obj).Children)
+        else
+          AResult.AddError(
+            Format('''Children'' must be an array (found %s)',
+              [ChildrenValue.ClassName]),
+            Format('%s[%d]', [APathPrefix, i]),
+            Cls.ClassName,
+            'INVALID_CHILDREN');
+      end;
+
+      OwnerList.Add(Obj);
+    finally
+      // The detached Children array belongs to this iteration; the recursion
+      // above has finished and objects hold only string copies of raw JSON.
+      ChildrenPair.Free;
+    end;
+  end;
+end;
+
+class function TReportSerializer.LoadFromJSONEx(const S: string;
+  const AStrict: Boolean): TReportLoadResult;
+var
+  JsonText: string;
+  Root: TJSONObject;
+  Parsed: TJSONValue;
+  PSValue: TJSONValue;
+  ObjValue: TJSONValue;
+  Version: Integer;
+begin
+  Result := TReportLoadResult.Create;
+  Root := nil;
+  try
+    try
+      JsonText := S;
+      // Strip any leading BOM
+      if (JsonText <> '') and (JsonText[1] = #$FEFF) then
+        Delete(JsonText, 1, 1);
+      JsonText := TrimLeft(JsonText);
+      if (JsonText <> '') and (JsonText[1] = #$FEFF) then
+        Delete(JsonText, 1, 1);
+
+      // ParseJSONValue returns nil for malformed text and any TJSONValue
+      // subclass for well-formed text.  Check the concrete type before the
+      // cast so a wrong root element (array / scalar) yields a precise
+      // diagnostic instead of an invalid-typecast exception, and so the
+      // parsed value is never leaked.
+      Parsed := TJSONObject.ParseJSONValue(JsonText);
+      if not Assigned(Parsed) then
+      begin
+        Result.AddError('Invalid JSON format in report', '', '', 'INVALID_JSON');
+        Exit;
+      end;
+      if not (Parsed is TJSONObject) then
+      begin
+        Result.AddError(
+          Format('Report JSON must be an object (found %s)', [Parsed.ClassName]),
+          '', '', 'INVALID_ROOT');
+        Parsed.Free;
+        Exit;
+      end;
+      Root := TJSONObject(Parsed);
+
+      Version := 1;
+      if Assigned(Root.GetValue('Version')) then
+        Version := Trunc(Root.GetValue<Double>('Version'));
+
+      Result.Model := TReportModel.Create;
+      Result.Model.Title := Root.GetValue<string>('Title', '');
+      Result.Model.Author := Root.GetValue<string>('Author', '');
+      Result.Model.Description := Root.GetValue<string>('Description', '');
+
+      // PageSettings is optional: absent keeps the TReportModel constructor
+      // defaults.  A present but non-object value is a structural error.
+      PSValue := Root.GetValue('PageSettings');
+      if Assigned(PSValue) then
+      begin
+        if PSValue is TJSONObject then
+          JSONToPageSettings(TJSONObject(PSValue), Result.Model.PageSettings)
+        else
+          Result.AddError(
+            Format('''PageSettings'' must be a JSON object (found %s)',
+              [PSValue.ClassName]), '', '', 'INVALID_PAGESETTINGS');
+      end;
+
+      // Optional string arrays — absent in old files is fine.
+      ReadOptionalStringArray(Root, 'FieldNames',
+        Result.Model.FieldNames, 'INVALID_FIELDNAMES', Result);
+      ReadOptionalStringArray(Root, 'DataSetNames',
+        Result.Model.DataSetNames, 'INVALID_DATASETNAMES', Result);
+
+      // Objects is optional; when present it must be an array.
+      ObjValue := Root.GetValue('Objects');
+      if Assigned(ObjValue) then
+      begin
+        if ObjValue is TJSONArray then
+          LoadObjectsEx(TJSONArray(ObjValue), Version, not AStrict, Result, 'Objects', nil)
+        else
+          Result.AddError(
+            Format('''Objects'' must be an array (found %s)', [ObjValue.ClassName]),
+            '', '', 'INVALID_OBJECTS');
+      end;
+
+      // Success if no errors
+      if not Result.HasErrors then
+        Result.Success := True;
+
+      // Report version info
+      if Version < 2 then
+        Result.AddInfo(
+          Format('Loaded report with legacy version: %d', [Version]),
+          '', '', 'LEGACY_VERSION');
+    except
+      on E: Exception do
+      begin
+        Result.AddError(
+          Format('Failed to parse report JSON: %s', [E.Message]),
+          '', '', 'PARSE_ERROR');
+      end;
+    end;
+  finally
+    // The parsed tree is transient; the model and unknown-object raw JSON
+    // hold only string copies, so the tree can always be released here.
+    Root.Free;
+  end;
+end;
+
+class function TReportSerializer.LoadFromFileEx(const FN: string): TReportLoadResult;
+var
+  LoadResult: TReportLoadResult;
+begin
+  Result := TReportLoadResult.Create;
+  try
+    if not TFile.Exists(FN) then
+    begin
+      Result.AddError(
+        Format('Report file not found: "%s"', [FN]),
+        '', '', 'FILE_NOT_FOUND');
+      Exit;
+    end;
+
+    LoadResult := LoadFromJSONEx(TFile.ReadAllText(FN, TEncoding.UTF8));
+    try
+      // Transfer ownership of the model and diagnostics
+      Result.Success := LoadResult.Success;
+      Result.Model := LoadResult.ExtractModel;
+      // Copy diagnostics
+      while LoadResult.Diagnostics.Count > 0 do
+      begin
+        var Diag := LoadResult.Diagnostics.Extract(LoadResult.Diagnostics[0]);
+        Result.Diagnostics.Add(Diag);
+      end;
+    finally
+      LoadResult.Free;
+    end;
+  except
+    on E: Exception do
+    begin
+      Result.AddError(
+        Format('Failed to read report file: %s', [E.Message]),
+        '', '', 'FILE_READ_ERROR');
+    end;
+  end;
+end;
+
+{ TReportUnknownObjectSerializer }
+
+class procedure TReportUnknownObjectSerializer.SaveProperties(Obj: TReportObject; JSON: TJSONObject);
+var
+  UnknownObj: TReportUnknownObject;
+  ParsedValue: TJSONValue;
+  ObjJSON: TJSONObject;
+  Pair: TJSONPair;
+  i: Integer;
+begin
+  UnknownObj := TReportUnknownObject(Obj);
+  JSON.AddPair('Class', UnknownObj.OriginalClassName);
+  JSON.AddPair('Name', UnknownObj.Name);
+
+  // Preserve raw JSON by merging all original properties
+  ParsedValue := TJSONObject.ParseJSONValue(UnknownObj.RawJSON);
+  if Assigned(ParsedValue) then
+  begin
+    try
+      if ParsedValue is TJSONObject then
+      begin
+        ObjJSON := TJSONObject(ParsedValue);
+        for i := 0 to ObjJSON.Count - 1 do
+        begin
+          Pair := ObjJSON.Pairs[i];
+          // Don't duplicate Class and Name (we already wrote them)
+          if not SameText(Pair.JsonString.Value, 'Class') and
+             not SameText(Pair.JsonString.Value, 'Name') then
+            JSON.AddPair(Pair.JsonString.Value, Pair.JsonValue.Clone as TJSONValue);
+        end;
+      end;
+    finally
+      ParsedValue.Free;
+    end;
+  end;
+end;
+
+class procedure TReportUnknownObjectSerializer.LoadProperties(Obj: TReportObject;
+  JSON: TJSONObject; AVersion: Integer);
+var
+  UnknownObj: TReportUnknownObject;
+begin
+  UnknownObj := TReportUnknownObject(Obj);
+  UnknownObj.OriginalClassName := JSON.GetValue<string>('Class', '');
+  UnknownObj.Name := JSON.GetValue<string>('Name', '');
+  UnknownObj.RawJSON := JSON.ToJSON;
 end;
 
 initialization

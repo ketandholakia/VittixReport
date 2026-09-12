@@ -42,7 +42,8 @@ uses
   Vittix.Report.DesignerInteraction,
   Vittix.Report.LayoutHelpers,
   Vittix.Report.SelectionHelpers,
-  Vittix.Report.DesignerInteractionController;
+  Vittix.Report.DesignerInteractionController,
+  Vittix.Report.LoadResult;
 
 const
   RULER_W     = 20;   // ruler strip width/height (pixels)
@@ -61,11 +62,21 @@ TDesignerGridUnit = (guCentimeters, guInches, guPixels, guPoints);
 
   TBandLayout = TDesignerBandLayout;
 
+  /// <summary>
+  ///   Raised by SetReportJSON when a report fails to load.  The failed
+  ///   input JSON is preserved verbatim by GetReportJSON (see
+  ///   FReportLoadFailed) so a host DFM/component save cannot silently
+  ///   overwrite the original file with a serialization of the stale
+  ///  model.  Additive: existing callers are unaffected.
+  /// </summary>
+  TReportLoadErrorEvent = procedure(Sender: TObject; const AMessage: string) of object;
+
   TVittixReportDesigner = class(TCustomControl, IDesignerSurface)
   private
     { Report }
     FReport    : TReportModel;
     FOwnsReport: Boolean;
+    FReportLoadFailed: Boolean; // true when last SetReportJSON failed
     FDataSet   : TDataSet;
     FDataSource: TDataSource;
     FReportJSON: string;   // DFM-persisted report definition
@@ -114,6 +125,7 @@ TDesignerGridUnit = (guCentimeters, guInches, guPixels, guPoints);
     FOnModified        : TNotifyEvent;
     FOnDataSetChanged  : TNotifyEvent;
     FOnViewChanged     : TNotifyEvent;
+    FOnReportLoadError : TReportLoadErrorEvent;
 
     { Internal helpers - coordinate transforms }
     function  Scale(V: Integer): Integer;    // logical -> screen  (apply zoom)
@@ -330,6 +342,8 @@ TDesignerGridUnit = (guCentimeters, guInches, guPixels, guPoints);
       read FOnDataSetChanged write FOnDataSetChanged;
     property OnViewChanged: TNotifyEvent
       read FOnViewChanged write FOnViewChanged;
+    property OnReportLoadError: TReportLoadErrorEvent
+      read FOnReportLoadError write FOnReportLoadError;
     property OnDblClick;
     property OnDragOver;
     property OnDragDrop;
@@ -708,6 +722,7 @@ end;
 procedure TVittixReportDesigner.LoadReport(AReport: TReportModel;
   TakeOwnership: Boolean; ClearUndoHistory: Boolean);
 begin
+  FReportLoadFailed := False;
   if FOwnsReport then FReport.Free;
   FReport      := AReport;
   FOwnsReport  := TakeOwnership;
@@ -1116,8 +1131,13 @@ end;
 
 function TVittixReportDesigner.GetReportJSON: string;
 begin
-  // Always serialise the live model so the value is current
-  if Assigned(FReport) then
+  // If the last load failed, the live model does NOT represent the
+  // requested report.  Always return the original input JSON verbatim so a
+  // host DFM/component save cannot silently overwrite the original file with
+  // a serialization of the stale model (forward-compat data-loss guard).
+  if FReportLoadFailed then
+    Result := FReportJSON
+  else if Assigned(FReport) then
     Result := TReportSerializer.SaveToJSON(FReport)
   else
     Result := FReportJSON;
@@ -1125,20 +1145,36 @@ end;
 
 procedure TVittixReportDesigner.SetReportJSON(const V: string);
 var
-  Model: TReportModel;
+  LoadResult: TReportLoadResult;
 begin
   FReportJSON := V;
+  FReportLoadFailed := False;
   if V = '' then
   begin
     NewReport;  // reset to blank
     Exit;
   end;
+
+  // Transactional load: deserialize into temporary model first
+  LoadResult := TReportSerializer.LoadFromJSONEx(V);
   try
-    Model := TReportSerializer.LoadFromJSON(V);
-    LoadReport(Model, True {take ownership});
-  except
-    // Silently ignore corrupt JSON at DFM load time;
-    // the designer will just show a blank report.
+    if LoadResult.Success then
+    begin
+      // Commit: replace the active model with the validated temporary model
+      LoadReport(LoadResult.ExtractModel, True {take ownership});
+      FReportLoadFailed := False;
+    end
+    else
+    begin
+      // Failure: keep the previously-loaded model intact and remember the
+      // failure so GetReportJSON returns the original input (not a
+      // serialization of the stale model).  Surface the error via event.
+      FReportLoadFailed := True;
+      if Assigned(FOnReportLoadError) then
+        FOnReportLoadError(Self, LoadResult.Errors[0]);
+    end;
+  finally
+    LoadResult.Free;
   end;
 end;
 
