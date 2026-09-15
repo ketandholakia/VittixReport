@@ -333,6 +333,7 @@ uses
   Vittix.Report.Model,
   Vittix.Report.Bands,
   Vittix.Report.Utils,
+  Vittix.Report.TraversalDiagnostics,
   Winapi.Windows, // Keep here
   System.Variants, // Keep here
   System.SyncObjs;
@@ -1809,11 +1810,16 @@ begin
 
   Model := nil;
   try
+    if Assigned(Context.Hooks) then
+      Model := TReportModel(Context.Hooks.GetSubReportModel(Self, FReportJSON))
+    else
     try
+      TReportTraversalDiagnostics.SubReportParseAttempted;
       Model := TReportSerializer.LoadFromJSON(FReportJSON);
     except
       Exit;
     end;
+    if not Assigned(Model) then Exit;
     MasterBand := FindSubReportMasterBand(Model);
     if not Assigned(MasterBand) then Exit;
 
@@ -1834,9 +1840,11 @@ begin
       IntersectClipRect(C.Handle, R.Left, R.Top, R.Right, R.Bottom);
       DS.DisableControls;
       try
+        TReportTraversalDiagnostics.SubReportTraversalStarted;
         DS.First;
         while (not DS.Eof) and (DrawY < R.Bottom) do
         begin
+          TReportTraversalDiagnostics.SubReportRowVisited;
           if SubReportRowMatchesLink(Context.DataSet, DS, FMasterField, FDetailField) then
           begin
             SubCtx := Context;
@@ -1863,7 +1871,8 @@ begin
         DS.FreeBookmark(SaveBM);
     end;
   finally
-    Model.Free;
+    if not Assigned(Context.Hooks) then
+      Model.Free;
   end;
 
   if FBorderVisible then
@@ -1894,11 +1903,16 @@ begin
 
   Model := nil;
   try
+    if Assigned(Context.Hooks) then
+      Model := TReportModel(Context.Hooks.GetSubReportModel(Self, FReportJSON))
+    else
     try
+      TReportTraversalDiagnostics.SubReportParseAttempted;
       Model := TReportSerializer.LoadFromJSON(FReportJSON);
     except
       Exit;
     end;
+    if not Assigned(Model) then Exit;
     MasterBand := FindSubReportMasterBand(Model);
     if not Assigned(MasterBand) then Exit;
 
@@ -1916,9 +1930,11 @@ begin
     RowCount := 0;
     DS.DisableControls;
     try
+      TReportTraversalDiagnostics.SubReportTraversalStarted;
       DS.First;
       while not DS.Eof do
       begin
+        TReportTraversalDiagnostics.SubReportRowVisited;
         if SubReportRowMatchesLink(Context.DataSet, DS, FMasterField, FDetailField) then
           Inc(RowCount);
         DS.Next;
@@ -1936,7 +1952,8 @@ begin
       NeededH := (FBounds.Bottom - FBounds.Top);
     Result := FBounds.Top + NeededH;
   finally
-    Model.Free;
+    if not Assigned(Context.Hooks) then
+      Model.Free;
   end;
 end;
 

@@ -123,7 +123,8 @@ implementation
 
 uses
   Winapi.Windows,
-  System.Math;
+  System.Math,
+  Vittix.Report.PrintMapping;
 
 { ================= Constructor / Destructor ================= }
 
@@ -538,15 +539,24 @@ begin
   try
     for i := 0 to FPages.Count - 1 do
     begin
-      Bmp := FPages[i];
+      Bmp  := FPages[i];
       Meta := nil;
       if i < FMetafilePages.Count then
         Meta := FMetafilePages[i];
-      R   := Rect(0, 0, Printer.PageWidth, Printer.PageHeight);
+      // Shared mapping (GAP-005/P3). Full stretch keeps the previous geometry
+      // exactly; the page dimensions are used only if the mode ever changes.
       if Assigned(Meta) and (Meta.Width > 0) and (Meta.Height > 0) then
-        Printer.Canvas.StretchDraw(R, Meta)
+      begin
+        R := CalculatePrintDestRect(Meta.Width, Meta.Height,
+          Printer.PageWidth, Printer.PageHeight, prsFullStretch);
+        Printer.Canvas.StretchDraw(R, Meta);
+      end
       else
+      begin
+        R := CalculatePrintDestRect(Bmp.Width, Bmp.Height,
+          Printer.PageWidth, Printer.PageHeight, prsFullStretch);
         Printer.Canvas.StretchDraw(R, Bmp);
+      end;
       if i < FPages.Count - 1 then
         Printer.NewPage;
     end;

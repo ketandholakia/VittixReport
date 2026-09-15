@@ -680,13 +680,12 @@ begin
     FmtContext.&Strict.ExecutionErrorCount := FailCount;
   end;
 
-  // Phase 3F-5: free the strict baseline after reconciliation (Console owns
-  // it; the legacy baseline is already freed above). This also fixes a
-  // pre-existing leak where StrictBaseline was created by LoadFromFile but
-  // never freed.
-  if Options.&Strict and Assigned(StrictBaseline) then
-    StrictBaseline.Free;
-
+  // StrictBaseline is owned solely by the finally block below, which frees it
+  // and then nils the reference. It must NOT be freed here: doing so left a
+  // dangling pointer that the finally freed a second time, raising an access
+  // violation *after* the strict verdict was printed. That exception was
+  // swallowed by the top-level handler, so the process exited 0 even when the
+  // strict result was FAIL -- which silently disabled the CI gate.
   try
     if IsJsonMode then
     begin

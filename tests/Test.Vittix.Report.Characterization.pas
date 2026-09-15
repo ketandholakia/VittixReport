@@ -377,9 +377,15 @@ var
   Renderer: TReportRenderer;
   DataSet: TClientDataSet;
 begin
-  // Characterization: TRenderPage stores both a Bitmap and a Metafile.
-  // The Metafile IS populated in Render (line 111), but Print (line 133)
-  // only uses the Bitmap. This test verifies both are populated.
+  // Characterization: TRenderPage exposes both a Bitmap and a Metafile.
+  // The Metafile IS populated in Render; Print only uses the Bitmap.
+  //
+  // GAP-005/P2 note: the renderer no longer rasterises eagerly. The Metafile is
+  // populated by Render, and the Bitmap is materialised on FIRST ACCESS from the
+  // metafile (see TRenderPage.GetBitmap). The assertions below are unchanged and
+  // still hold: reading Renderer.Pages[0].Bitmap materialises it on demand. This
+  // test therefore now characterises the bitmap AFTER demand, not eager
+  // retention; lazy behaviour itself is covered by Test.Gap005.LazyRaster.
   DataSet := CreateClientDataSet(1);
   Model := CreateSimpleReport;
   try

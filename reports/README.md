@@ -1,5 +1,12 @@
 # Reports Catalog
 
+Fixture inventory: this directory contains **42** `.vrt` reports. The runner
+discovers 42 (`Reports discovered : 42`), of which 41 execute and
+`16_large_preview_warning.vrt` is skipped by design; `regression_baselines.json`
+holds the 41 expected page counts. (An early Phase 1 brief referenced 45
+fixtures; 42 is the intended, locked inventory — see
+`docs/Phase5-Quality-Benchmark-CI.md` §5.)
+
 ## Automatic Regression Reports
 
 These reports are included in the standalone designer's **Run Regression Test Reports** flow.

@@ -2,6 +2,44 @@
 
 Use this checklist before releases or major engine changes.
 
+## 0) Automated gate (run this before the manual checklist)
+
+Phase 5 adds a single regression gate. It builds the test project, runs the
+DUnitX suite (requiring exit 0 and `Tests Leaked : 0`), builds `VittixRunner`
+and runs it with `--strict` (requiring exit 0 — page counts reconciled against
+`reports/regression_baselines.json`), and enforces resource thresholds
+(USER handle delta 0, bounded GDI delta).
+
+```
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\ci_gate.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\ci_gate.ps1 -IncludePackages
+```
+
+`-IncludePackages` additionally builds the runtime package, the design package
+and the standalone designer. Logs land in `build\gate\`; informational
+benchmark timings land in `build\phase5-benchmark-timings.txt`.
+
+CI (`.github/workflows/build-and-test.yml`) runs the same script on a
+self-hosted Windows runner with RAD Studio installed. See
+`docs/Phase5-Quality-Benchmark-CI.md` for the gate contract.
+
+**Known hazard — incremental builds (stale binary).** The gate builds with
+`/t:Build`. MSBuild's incremental check works off file-timestamp granularity, so
+a source edit made within the same second as a previous build can be missed,
+leaving a **stale binary**; the suite then reports failures that do not exist in
+the source. This was observed during GAP-005/P2 (a reverted mutation appeared to
+still fail until the project was rebuilt).
+
+If a result looks impossible, re-run with `/t:Rebuild` **before** investigating:
+
+```
+msbuild tests\VittixReportTests.dproj /t:Rebuild /p:Config=Release /p:Platform=Win32
+```
+
+CI is not affected (fresh checkout builds from scratch). Whether the gate should
+use `Rebuild` is a deliberate future CI-determinism decision, not a default
+change — `Rebuild` costs materially more time.
+
 ## 1) Build checks
 - Build runtime package/project in Debug.
 - Build runtime package/project in Release.
@@ -46,6 +84,38 @@ Use this checklist before releases or major engine changes.
 - Confirm PNG and JPEG report images render.
 - Confirm unsupported EMF/WMF/SVG images fail gracefully without breaking text or lines.
 - Keep `Export PDF` behavior unchanged; it remains the printer-based exporter.
+  A report/printer page-size difference is reported **non-interactively** (a
+  debug-channel diagnostic via `OutputDebugString`); it must never block with a
+  dialog, because this path is used for silent/server-side export. The decision
+  is gate-covered by `Test_Mapping_SizeMismatchPredicate`; the non-interactive
+  behaviour is verified by review.
+
+## 3.2) Print fidelity (manual — GAP-005/P3)
+
+P3 unified the three printer paths onto one shared mapping and made
+`TReportRenderer.Print` draw the **metafile** (vector), matching
+`TVittixReportPreview.Print` and the PDF exporter. Bitmaps are no longer used for
+printing; the geometry is unchanged (full stretch).
+
+Automated coverage asserts only *what the code asks the printer to draw*
+(`tests\Test.Gap005.PrintPath.pas`: the shared mapping, and that the print draw
+stays vector). **It cannot prove what a driver renders** — do this by hand after
+any change to a print path:
+
+- Print a multi-page report (e.g. `41_twopass_totalpages.vrt`, 75 pages) from the
+  **runtime component** (`TVittixReport.Print`) and from the **designer preview**
+  Print button; the two must now look the same.
+- Check text and line sharpness at 100% — vector output should not show the
+  double-resampling blur the old bitmap path produced.
+- Confirm page count and page-break positions match the preview exactly.
+- Confirm images (PNG/JPEG) and barcodes still render.
+- Repeat with a page-size mismatch (A4 report on a Letter printer): distortion is
+  expected and pre-existing (full stretch is the deliberate default, P3 decision
+  D2). Record it, do not "fix" it here.
+- Record the printer/driver used, plus pass/fail per item, in the release notes.
+
+If a printer is unavailable, record that the checklist was **not executable** in
+this environment rather than marking it passed.
 
 ## 4) Manual key reports
 - Preview:

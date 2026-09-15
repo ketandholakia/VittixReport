@@ -44,6 +44,13 @@ type
     FTitle:        string;
     FAuthor:       string;
     FDescription:  string;
+    /// <summary>
+    ///   Report-level expression language selector (Phase 4B-2B).
+    ///   0 (default) = legacy semantics; 1 = modern language.
+    ///   Deliberately kept as an Integer so this unit stays at the bottom
+    ///   of the dependency graph (no reference to the expression engine).
+    /// </summary>
+    FExpressionLanguageVersion: Integer;
   public
     constructor Create;
     destructor  Destroy; override;
@@ -88,6 +95,17 @@ type
     /// </summary>
     property Variables: TStringList read FVariables;
 
+    /// <summary>
+    ///   Expression language version for this report (Phase 4B-2B).
+    ///   0 (default) = LEGACY semantics - existing reports stay unchanged.
+    ///   1           = MODERN language opt-in.
+    ///   Unsupported values are rejected by the serializer on load.
+    ///   This is NOT the .vrt file format version (see the serialized
+    ///   'Version' key); the two concepts are independent.
+    /// </summary>
+    property ExpressionLanguageVersion: Integer
+      read FExpressionLanguageVersion write FExpressionLanguageVersion;
+
   published
     { Metadata -- persisted to/from the .vrt JSON file }
     property Title:       string read FTitle       write FTitle;
@@ -108,6 +126,7 @@ begin
   FDataSetNames := TStringList.Create;
   FVariables    := TStringList.Create;
   FVariables.NameValueSeparator := '=';
+  FExpressionLanguageVersion := 0; // legacy by default
   FTitle        := 'New Report';
 end;
 

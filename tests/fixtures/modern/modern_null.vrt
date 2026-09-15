@@ -1,0 +1,34 @@
+{
+  "Version": 2,
+  "ExpressionLanguageVersion": 1,
+  "Title": "Modern NULL Semantics Contract",
+  "Author": "Phase 4B-2B",
+  "Description": "Proves modern NULL three-valued logic through report pipeline. NULL IS NULL should render as true.",
+  "FieldNames": ["ID", "Amount", "Name"],
+  "DataSetNames": [],
+  "Objects": [
+    {
+      "Class": "TReportBand",
+      "Name": "MasterData",
+      "Bounds": { "L": 0, "T": 0, "R": 793, "B": 40 },
+      "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+      "BandType": 2, "Height": 40, "DataSetName": "", "MasterField": "", "DetailField": "",
+      "GroupField": "", "GroupLevel": 0, "StartNewPage": false, "CanGrow": false, "CanShrink": false,
+      "BackColor": 16777215, "BackColorTransparent": true, "OnBeforePrint": "", "OnAfterPrint": "",
+      "Children": [
+        {
+          "Class": "TReportTextObject",
+          "Name": "txtNullIsNull",
+          "Bounds": { "L": 10, "T": 4, "R": 300, "B": 22 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "", "DataField": "", "Expression": "NULL IS NULL",
+          "FontName": "Tahoma", "FontSize": 9, "FontColor": 0, "FontBold": false, "FontItalic": false,
+          "HAlign": 0, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": false, "BorderColor": 0, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255
+        }
+      ]
+    }
+  ]
+}

@@ -1,3 +1,26 @@
+# Phase 5 — Quality, Benchmarking & CI Foundation
+#
+# Runs the single regression gate (`tools/ci_gate.ps1`), which chains:
+#   1. build the DUnitX test project
+#   2. run the suite            -> exit 0 and "Tests Leaked : 0"
+#   3. build VittixRunner
+#   4. run VittixRunner --strict -> exit 0 (pagination baseline reconciled)
+#      plus resource thresholds (USER delta = 0, bounded GDI delta)
+#   5. packaging smoke (-IncludePackages): runtime pkg, design pkg, designer
+#
+# REQUIREMENTS
+#   A self-hosted Windows runner with RAD Studio / Delphi installed. The gate
+#   script locates `rsvars.bat` itself (Studio 23.0, then 22.0) or uses msbuild
+#   from PATH. There is no GitHub-hosted Delphi toolchain, so a hosted runner
+#   cannot execute these gates.
+#
+# LOCAL EQUIVALENT
+#   powershell -NoProfile -ExecutionPolicy Bypass -File tools\ci_gate.ps1 -IncludePackages
+#
+# GATES ARE STRUCTURAL: page counts (reports/regression_baselines.json) and
+# traversal counters (TReportTraversalDiagnostics) decide pass/fail. Wall-clock
+# timings are informational only (`build\phase5-benchmark-timings.txt`).
+
 name: Build and Test
 
 on:
@@ -5,28 +28,30 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: windows-latest
+  gate:
+    # Self-hosted: needs Delphi. The labels must exist on the runner; adjust to
+    # match your runner's labels (e.g. [self-hosted, windows, delphi]).
+    runs-on: [self-hosted, windows, delphi]
 
     steps:
-    - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    # Assuming a self-hosted runner with RAD Studio / MSBuild installed,
-    # or using a community action to setup Delphi/MSBuild environment.
-    # For a generic MSBuild setup on GitHub hosted runners (for C# mostly),
-    # you might need a custom action for Delphi.
-    # Here we just show the structure of invoking build.bat and tests.
-    
-    - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v1.1
-      
-    - name: Build Packages and Designer
-      run: |
-        cmd.exe /c build.bat
-        
-    - name: Build and Run Tests
-      run: |
-        msbuild tests\VittixReportTests.dproj /p:Config=Release /p:Platform=Win32 /t:Clean;Build
-        .\tests\Win32\Release\VittixReportTests.exe
+      - name: Run Phase 5 regression gate
+        shell: powershell
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\ci_gate.ps1 -IncludePackages
+
+      - name: Upload gate artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase5-gate-artifacts
+          if-no-files-found: warn
+          path: |
+            tests/dunitx-results.xml
+            build/gate/**
+            build/phase5-benchmark-timings.txt

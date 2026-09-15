@@ -20,7 +20,8 @@ uses
   System.Variants,
   Data.DB,
   Vittix.Report.Context,
-  Vittix.Report.Expressions;
+  Vittix.Report.Expressions,
+  Vittix.Report.TraversalDiagnostics;
 
 type
   TReportAggregates = class
@@ -66,6 +67,15 @@ begin
 
   if not Assigned(Context.DataSet) or not Context.DataSet.Active then Exit;
 
+  TReportTraversalDiagnostics.AggregateEvaluationStarted;
+  if Assigned(Context.Hooks) and
+     Context.Hooks.TryGetAggregateCache(Expr, Context, Value) then
+  begin
+    TReportTraversalDiagnostics.AggregateCacheHit;
+    Exit(True);
+  end;
+  TReportTraversalDiagnostics.AggregateCacheMiss;
+
   SaveBM := Context.DataSet.GetBookmark;
   Context.DataSet.DisableControls;
   try
@@ -79,9 +89,11 @@ begin
     MinVal   := 0.0;
     MaxVal   := 0.0;
     FirstVal := True;
+    TReportTraversalDiagnostics.AggregateTraversalStarted;
 
     while not Context.DataSet.Eof do
     begin
+      TReportTraversalDiagnostics.AggregateRowVisited;
       // --- Group-end boundary check (fixed bookmark leak) ---
       AtGroupEnd := False;
       if Context.GroupEnd <> nil then
@@ -145,6 +157,8 @@ begin
     else if Func = 'MAX'  then Value := MaxVal;
 
     Result := True;
+    if Assigned(Context.Hooks) then
+      Context.Hooks.StoreAggregateCache(Expr, Context, Value);
   finally
     if Context.DataSet.Active and Context.DataSet.BookmarkValid(SaveBM) then
       Context.DataSet.GotoBookmark(SaveBM);

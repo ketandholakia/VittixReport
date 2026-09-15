@@ -1098,6 +1098,12 @@ begin
   Root := TJSONObject.Create;
   try
     Root.AddPair('Version',      TJSONNumber.Create(2));
+    // Phase 4B-2B: written only when a report explicitly opts into a
+    // non-legacy expression language, so existing .vrt files keep an
+    // unchanged byte shape and remain LEGACY on load.
+    if R.ExpressionLanguageVersion <> 0 then
+      Root.AddPair('ExpressionLanguageVersion',
+        TJSONNumber.Create(R.ExpressionLanguageVersion));
     Root.AddPair('Title',        R.Title);
     Root.AddPair('Author',       R.Author);
     Root.AddPair('Description',  R.Description);
@@ -1355,6 +1361,7 @@ var
   PSValue: TJSONValue;
   ObjValue: TJSONValue;
   Version: Integer;
+  ELV: Integer;
 begin
   Result := TReportLoadResult.Create;
   Root := nil;
@@ -1394,6 +1401,26 @@ begin
         Version := Trunc(Root.GetValue<Double>('Version'));
 
       Result.Model := TReportModel.Create;
+
+      // Phase 4B-2B: report-level expression language version.
+      //   absent  -> 0 (legacy)   - existing reports are unchanged
+      //   0       -> legacy
+      //   1       -> modern
+      //   other   -> explicit load diagnostic, never a silent modern upgrade
+      Result.Model.ExpressionLanguageVersion := 0;
+      if Assigned(Root.GetValue('ExpressionLanguageVersion')) then
+      begin
+        ELV := Trunc(Root.GetValue<Double>('ExpressionLanguageVersion', 0));
+        if (ELV <> 0) and (ELV <> 1) then
+        begin
+          Result.AddError(
+            Format('Unsupported ExpressionLanguageVersion %d (supported: 0, 1)',
+              [ELV]), 'ExpressionLanguageVersion', '', 'UNSUPPORTED_EXPRESSION_LANGUAGE');
+          Exit;
+        end;
+        Result.Model.ExpressionLanguageVersion := ELV;
+      end;
+
       Result.Model.Title := Root.GetValue<string>('Title', '');
       Result.Model.Author := Root.GetValue<string>('Author', '');
       Result.Model.Description := Root.GetValue<string>('Description', '');

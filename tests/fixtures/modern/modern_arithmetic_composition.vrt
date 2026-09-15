@@ -1,0 +1,82 @@
+{
+  "Version": 2,
+  "ExpressionLanguageVersion": 1,
+  "Title": "Modern Arithmetic Contract",
+  "Author": "Phase 4B-2B",
+  "Description": "Modern-mode arithmetic: real operator precedence (1 + 2 * 3 = 7), parentheses grouping, unary signs, and division.",
+  "FieldNames": ["ID", "Amount", "Name"],
+  "DataSetNames": [],
+  "Objects": [
+    {
+      "Class": "TReportBand",
+      "Name": "MasterData",
+      "Bounds": { "L": 0, "T": 0, "R": 793, "B": 110 },
+      "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+      "BandType": 2, "Height": 110, "DataSetName": "", "MasterField": "", "DetailField": "",
+      "GroupField": "", "GroupLevel": 0, "StartNewPage": false, "CanGrow": false, "CanShrink": false,
+      "BackColor": 16777215, "BackColorTransparent": true, "OnBeforePrint": "", "OnAfterPrint": "",
+      "Children": [
+        {
+          "Class": "TReportTextObject",
+          "Name": "txtPrecedence",
+          "Bounds": { "L": 10, "T": 4, "R": 240, "B": 22 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "", "DataField": "", "Expression": "1 + 2 * 3",
+          "FontName": "Tahoma", "FontSize": 9, "FontColor": 0, "FontBold": false, "FontItalic": false,
+          "HAlign": 0, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": false, "BorderColor": 0, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255
+        },
+        {
+          "Class": "TReportTextObject",
+          "Name": "txtParentheses",
+          "Bounds": { "L": 10, "T": 26, "R": 240, "B": 44 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "", "DataField": "", "Expression": "(1 + 2) * 3",
+          "FontName": "Tahoma", "FontSize": 9, "FontColor": 0, "FontBold": false, "FontItalic": false,
+          "HAlign": 0, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": false, "BorderColor": 0, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255
+        },
+        {
+          "Class": "TReportTextObject",
+          "Name": "txtUnary",
+          "Bounds": { "L": 10, "T": 48, "R": 240, "B": 66 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "", "DataField": "", "Expression": "-5 + 3",
+          "FontName": "Tahoma", "FontSize": 9, "FontColor": 0, "FontBold": false, "FontItalic": false,
+          "HAlign": 0, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": false, "BorderColor": 0, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255
+        },
+        {
+          "Class": "TReportTextObject",
+          "Name": "txtDivision",
+          "Bounds": { "L": 10, "T": 70, "R": 240, "B": 88 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "", "DataField": "", "Expression": "10 / 4",
+          "FontName": "Tahoma", "FontSize": 9, "FontColor": 0, "FontBold": false, "FontItalic": false,
+          "HAlign": 0, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": false, "BorderColor": 0, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255
+        },
+        {
+          "Class": "TReportTextObject",
+          "Name": "txtMixed",
+          "Bounds": { "L": 10, "T": 92, "R": 240, "B": 110 },
+          "Visible": true, "PrintWhen": "", "AnchorRight": false, "AnchorBottom": false,
+          "Text": "", "DataField": "", "Expression": "[Amount] * 2 + 1",
+          "FontName": "Tahoma", "FontSize": 9, "FontColor": 0, "FontBold": false, "FontItalic": false,
+          "HAlign": 0, "VAlign": 2, "Background": 16777215, "Transparent": true,
+          "BorderVisible": false, "BorderColor": 0, "BorderWidth": 1,
+          "WordWrap": false, "AutoSize": false, "PaddingLeft": 2, "PaddingTop": 2, "PaddingRight": 2, "PaddingBottom": 2,
+          "FontColorCondition": "", "FontColorOnTrue": 255, "BackgroundCondition": "", "BackgroundOnTrue": 65535, "BorderColorCondition": "", "BorderColorOnTrue": 255
+        }
+      ]
+    }
+  ]
+}

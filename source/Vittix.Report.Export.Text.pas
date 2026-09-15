@@ -28,6 +28,7 @@ uses
   Vittix.Report.Bands,
   Vittix.Report.Context,
   Vittix.Report.Expressions,
+  Vittix.Report.Expression.Mode,
   Vittix.Report.Objects,
   Vittix.Report.Utils;
 
@@ -238,6 +239,10 @@ begin
   Lines := TStringList.Create;
   try
     Ctx := Default(TExpressionContext);
+    Ctx.ExpressionMode := emLegacy;
+    if TReportExpression.ModeFromLanguageVersion(
+      AReport.ExpressionLanguageVersion, Ctx.ExpressionMode) = False then
+      Ctx.ExpressionMode := emLegacy; // unsupported -> safe legacy default
     Ctx.DataSet := ADataSet;
     Ctx.PageNumber := 1;
     Ctx.ReportTitle := AReport.Title;

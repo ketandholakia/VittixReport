@@ -39,7 +39,8 @@ interface
 uses
   Data.DB,
   System.Classes,
-  System.SysUtils;
+  System.SysUtils,
+  Vittix.Report.Expression.Mode;
 
 type
   IReportRenderHooks = interface;
@@ -67,6 +68,13 @@ type
 
     { Pass metadata }
     IsCountingPass: Boolean; // True only during the engine page-count pass
+
+    { Expression language mode (Phase 4B-2B) }
+    // Default(TExpressionContext) yields emLegacy, which is the first enum
+    // value, so every existing caller keeps legacy semantics.  The engine
+    // sets this from TReportModel.ExpressionLanguageVersion when rendering a
+    // report that explicitly opted into ExpressionLanguageVersion = 1.
+    ExpressionMode: TExpressionMode;
     
     { Hooks and Context State }
     Hooks: IReportRenderHooks;
@@ -86,6 +94,11 @@ type
     procedure InvokeBeforeObjectPrint(Sender: TObject; const Context: TExpressionContext; var CanPrint: Boolean);
     procedure InvokeAfterObjectPrint(Sender: TObject; const Context: TExpressionContext);
     function GetNamedDataSet(const AName: string): TDataSet;
+    function TryGetAggregateCache(const AExpression: string;
+      const AContext: TExpressionContext; out AValue: Variant): Boolean;
+    procedure StoreAggregateCache(const AExpression: string;
+      const AContext: TExpressionContext; const AValue: Variant);
+    function GetSubReportModel(AObject: TObject; const AJSON: string): TObject;
   end;
 
 implementation

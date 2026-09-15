@@ -53,48 +53,7 @@ uses
   System.SysUtils,
   Vcl.Printers,
   Winapi.Windows,
-  Vcl.Dialogs;
-
-type
-  TPDFExportScaleMode = (pesFullStretch, pesFitPreserveAspectCentered);
-
-function CalculatePDFDestRect(
-  const MF: TMetafile;
-  PrinterWidth: Integer;
-  PrinterHeight: Integer;
-  Mode: TPDFExportScaleMode): TRect;
-var
-  Scale: Double;
-  W: Integer;
-  H: Integer;
-  X: Integer;
-  Y: Integer;
-begin
-  case Mode of
-    pesFitPreserveAspectCentered:
-      begin
-        if (not Assigned(MF)) or (MF.Width <= 0) or (MF.Height <= 0) or
-           (PrinterWidth <= 0) or (PrinterHeight <= 0) then
-        begin
-          Result := Rect(0, 0, PrinterWidth, PrinterHeight);
-          Exit;
-        end;
-
-        Scale := PrinterWidth / MF.Width;
-        if (PrinterHeight / MF.Height) < Scale then
-          Scale := PrinterHeight / MF.Height;
-
-        W := Round(MF.Width * Scale);
-        H := Round(MF.Height * Scale);
-        X := (PrinterWidth - W) div 2;
-        Y := (PrinterHeight - H) div 2;
-        Result := Rect(X, Y, X + W, Y + H);
-      end;
-  else
-    // Default mode preserves existing export behavior exactly.
-    Result := Rect(0, 0, PrinterWidth, PrinterHeight);
-  end;
-end;
+  Vittix.Report.PrintMapping;
 
 // ---------------------------------------------------------------------------
 // IReportExporter
@@ -117,7 +76,6 @@ var
   i:    Integer;
   MF:   TMetafile;
   Dest: TRect;
-  ScaleMode: TPDFExportScaleMode;
   ReportW: Integer;
   ReportH: Integer;
   PrinterW: Integer;
@@ -140,24 +98,20 @@ begin
 
   Printer.BeginDoc;
   try
-    ScaleMode := pesFullStretch;
-
-    // Diagnostic only: warn if report/metafile page size and printer canvas
-    // size differ materially; export path remains unchanged.
+    // Diagnostic only: report (never block on) a material page-size difference.
+    // This used to be a modal ShowMessage, which hung non-interactive /
+    // server-side export; it is now a non-interactive debug-channel diagnostic
+    // so no UI unit is linked into this exporter.
     SizeTolerance := 2;
     ReportW := Pages[0].Width;
     ReportH := Pages[0].Height;
     PrinterW := Printer.PageWidth;
     PrinterH := Printer.PageHeight;
-    if (Abs(ReportW - PrinterW) > SizeTolerance) or
-       (Abs(ReportH - PrinterH) > SizeTolerance) then
-    begin
-      ShowMessage(Format(
-        'PDF export page size differs from report page size. Output may be scaled.' + sLineBreak +
-        'Report: %d x %d' + sLineBreak +
-        'Printer: %d x %d',
-        [ReportW, ReportH, PrinterW, PrinterH]));
-    end;
+    if IsPrintSizeMismatch(ReportW, ReportH, PrinterW, PrinterH, SizeTolerance) then
+      OutputDebugString(PChar(Format(
+        'VittixReport PDF export: page size differs from the printer page. ' +
+        'Report: %d x %d, Printer: %d x %d. Output may be scaled.',
+        [ReportW, ReportH, PrinterW, PrinterH])));
 
     for i := 0 to Pages.Count - 1 do
     begin
@@ -165,7 +119,10 @@ begin
         Printer.NewPage;
 
       MF   := Pages[i];
-      Dest := CalculatePDFDestRect(MF, Printer.PageWidth, Printer.PageHeight, ScaleMode);
+      // Shared mapping (GAP-005/P3). Full stretch is the previous default and
+      // keeps exported geometry identical.
+      Dest := CalculatePrintDestRect(MF.Width, MF.Height,
+        Printer.PageWidth, Printer.PageHeight, prsFullStretch);
       Printer.Canvas.StretchDraw(Dest, MF);
     end;
     Printer.EndDoc;

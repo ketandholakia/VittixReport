@@ -37,6 +37,7 @@ uses
   Vittix.Report.Bands,
   Vittix.Report.Objects,
   Vittix.Report.Context,
+  Vittix.Report.Expression.Mode,
   Vittix.Report.PageSettings,
   Vittix.Report.Scripting,
   Vittix.Report.LayoutCache,
@@ -92,6 +93,37 @@ type
     const Context: TExpressionContext) of object;
 
 type
+  TAggregateCacheEntry = class
+  private
+    FDataSet: TDataSet;
+    FExpression: string;
+    FGroupStart: TBookmark;
+    FGroupEnd: TBookmark;
+    FPageNumber: Integer;
+    FTotalPages: Integer;
+    FRowNumber: Integer;
+    FIsCountingPass: Boolean;
+    FParameters: string;
+    FVariables: string;
+    FFilter: string;
+    FFiltered: Boolean;
+    FValue: Variant;
+  public
+    function Matches(const AExpression: string;
+      const AContext: TExpressionContext): Boolean;
+    procedure Capture(const AExpression: string;
+      const AContext: TExpressionContext; const AValue: Variant);
+    property Value: Variant read FValue;
+  end;
+
+  TSubReportModelCacheEntry = class
+  public
+    Owner: TObject;
+    JSON: string;
+    Model: TReportModel;
+    destructor Destroy; override;
+  end;
+
   TReportEngine = class(TObject, IInterface, IReportRenderHooks)
   private
     FReport:   TReportModel;
@@ -102,6 +134,8 @@ type
     FScriptEngine: TReportScriptEngine;
     FProgress: IReportProgress;   // optional; nil = no progress feedback
     FParameters: TStrings;
+    FAggregateCache: TObjectList<TAggregateCacheEntry>;
+    FSubReportModelCache: TObjectList<TSubReportModelCacheEntry>;
     FPages:    TObjectList<TMetafile>;
     FExportDocument: TReportExportDocument;
     FCurrentExportPage: TReportExportPage;
@@ -192,6 +226,7 @@ type
     procedure PrintDetailBandRecords(ABand: TReportBand; ADetailDS: TDataSet;
       ADetailUDS: TVittixUserDataSet);
     procedure PrintDetailBands;
+    procedure ClearExecutionCaches;
     function  ExecutePass(ATotalPages: Integer; AReportProgress: Boolean): Integer;
     function  CheckSpace(RequiredHeight: Integer): Boolean;
 procedure CaptureExportObjectCommand(
@@ -208,6 +243,11 @@ procedure CaptureExportObjectCommand(
     procedure InvokeBeforeObjectPrint(Sender: TObject; const Context: TExpressionContext; var ACanPrint: Boolean);
     procedure InvokeAfterObjectPrint(Sender: TObject; const Context: TExpressionContext);
     function GetNamedDataSet(const AName: string): TDataSet;
+    function TryGetAggregateCache(const AExpression: string;
+      const AContext: TExpressionContext; out AValue: Variant): Boolean;
+    procedure StoreAggregateCache(const AExpression: string;
+      const AContext: TExpressionContext; const AValue: Variant);
+    function GetSubReportModel(AObject: TObject; const AJSON: string): TObject;
     /// <param name="AProgress">
     ///   Optional progress/cancellation callback.  Pass nil to skip.
     /// </param>
@@ -239,6 +279,14 @@ procedure CaptureExportObjectCommand(
     property Parameters: TStrings read FParameters;
     property ExportDocument: TReportExportDocument read FExportDocument write FExportDocument;
     property TwoPassRendering: Boolean read FTwoPassRendering write FTwoPassRendering;
+
+    /// <summary>
+    ///   Expression language mode derived from the report model
+    ///   (Phase 4B-2B).  0 -> emLegacy (default, unchanged behavior);
+    ///   1 -> emModern.  Any other value is treated as emLegacy by the
+    ///   engine; the serializer rejects unsupported values on load.
+    /// </summary>
+    function ReportExpressionMode: TExpressionMode;
     property OnBeforePrintReport: TReportBeforePrintReportEvent
       read FOnBeforePrintReport write FOnBeforePrintReport;
     property OnAfterPrintReport: TReportAfterPrintReportEvent
@@ -261,13 +309,94 @@ uses
   System.IOUtils,
   Vcl.Imaging.PNGImage,
   Vittix.Report.Expressions,    // TReportExpression.Evaluate — for PrintWhen
+  Vittix.Report.Serializer,
   Vittix.Report.Utils,          // DataSetSupportsBookmarks, SafeRecordCount
+  Vittix.Report.TraversalDiagnostics,
   Vittix.Report.Objects.Barcode,
   Vittix.Report.Objects.Table,
   Vittix.Report.Objects.Chart,
   Vittix.Report.Objects.CrossTab,
   System.Types,
   System.Generics.Defaults;
+
+function BookmarksEqual(const ALeft, ARight: TBookmark): Boolean;
+var
+  I: Integer;
+begin
+  Result := Length(ALeft) = Length(ARight);
+  if not Result then
+    Exit;
+  for I := 0 to High(ALeft) do
+    if ALeft[I] <> ARight[I] then
+      Exit(False);
+end;
+
+function StringsText(AStrings: TStrings): string;
+begin
+  if Assigned(AStrings) then
+    Result := AStrings.Text
+  else
+    Result := '';
+end;
+
+function TAggregateCacheEntry.Matches(const AExpression: string;
+  const AContext: TExpressionContext): Boolean;
+var
+  DataSetFilter: string;
+  DataSetFiltered: Boolean;
+begin
+  DataSetFilter := '';
+  DataSetFiltered := False;
+  if Assigned(AContext.DataSet) then
+  begin
+    DataSetFilter := AContext.DataSet.Filter;
+    DataSetFiltered := AContext.DataSet.Filtered;
+  end;
+  Result := (FDataSet = AContext.DataSet) and
+    (FExpression = AExpression) and
+    BookmarksEqual(FGroupStart, AContext.GroupStart) and
+    BookmarksEqual(FGroupEnd, AContext.GroupEnd) and
+    (FPageNumber = AContext.PageNumber) and
+    (FTotalPages = AContext.TotalPages) and
+    (FRowNumber = AContext.RowNumber) and
+    (FIsCountingPass = AContext.IsCountingPass) and
+    (FParameters = StringsText(AContext.Parameters)) and
+    (FVariables = StringsText(AContext.Variables)) and
+    (FFilter = DataSetFilter) and
+    (FFiltered = DataSetFiltered);
+end;
+
+procedure TAggregateCacheEntry.Capture(const AExpression: string;
+  const AContext: TExpressionContext; const AValue: Variant);
+begin
+  FDataSet := AContext.DataSet;
+  FExpression := AExpression;
+  FGroupStart := Copy(AContext.GroupStart);
+  FGroupEnd := Copy(AContext.GroupEnd);
+  FPageNumber := AContext.PageNumber;
+  FTotalPages := AContext.TotalPages;
+  FRowNumber := AContext.RowNumber;
+  FIsCountingPass := AContext.IsCountingPass;
+  FParameters := StringsText(AContext.Parameters);
+  FVariables := StringsText(AContext.Variables);
+  if Assigned(AContext.DataSet) then
+  begin
+    FFilter := AContext.DataSet.Filter;
+    FFiltered := AContext.DataSet.Filtered;
+  end
+  else
+  begin
+    FFilter := '';
+    FFiltered := False;
+  end;
+  FValue := AValue;
+end;
+
+destructor TSubReportModelCacheEntry.Destroy;
+begin
+  Model.Free;
+  inherited;
+end;
 
 { ================= Constructor ================= }
 
@@ -286,6 +415,8 @@ begin
   FNamedUserDataSets := TDictionary<string, TVittixUserDataSet>.Create;
   FScriptEngine := TReportScriptEngine.Create(nil);
   FParameters := TStringList.Create;
+  FAggregateCache := TObjectList<TAggregateCacheEntry>.Create(True);
+  FSubReportModelCache := TObjectList<TSubReportModelCacheEntry>.Create(True);
   if Assigned(ANamedDataSets) then
     for var Pair in ANamedDataSets do
       FNamedDataSets.AddOrSetValue(Pair.Key, Pair.Value);
@@ -359,6 +490,8 @@ begin
   FNamedDataSets.Free;
   FNamedUserDataSets.Free;
   FParameters.Free;
+  FAggregateCache.Free;
+  FSubReportModelCache.Free;
   FScriptEngine.Free;
   FGroupHeaders.Free;
   FGroupFooters.Free;
@@ -383,6 +516,22 @@ begin
     FGroupFooters,
     FDetailBands);
 end;
+
+procedure TReportEngine.ClearExecutionCaches;
+begin
+  FAggregateCache.Clear;
+  FSubReportModelCache.Clear;
+end;
+function TReportEngine.ReportExpressionMode: TExpressionMode;
+begin
+  // Phase 4B-2B: report-level opt-in. Everything else stays legacy.
+  if Assigned(FReport) and (FReport.ExpressionLanguageVersion = 1) then
+    Result := emModern
+  else
+    Result := emLegacy;
+end;
+
+
 
 function TReportEngine.IsCapturingExportCommands: Boolean;
 begin
@@ -465,6 +614,7 @@ begin
           // Set band Bounds to full page so its children can use absolute positions
           FOverlayBand.Bounds := Rect(0, 0, FPageWidth, FPageHeight);
           var Ctx2: TExpressionContext := Default(TExpressionContext);
+          Ctx2.ExpressionMode := ReportExpressionMode;
           Ctx2.Hooks := Self;
           Ctx2.DataSet    := FDataSet;
           Ctx2.UserDataSet := FUserDataSet;
@@ -533,6 +683,7 @@ begin
     AUserDataSet := FUserDataSet;
 
   Ctx := Default(TExpressionContext);
+  Ctx.ExpressionMode := ReportExpressionMode;
   Ctx.Hooks := Self;
   Ctx.DataSet     := ADataSet;
   Ctx.UserDataSet := AUserDataSet;
@@ -969,6 +1120,7 @@ begin
   if ABand.PrintWhen <> '' then
   begin
     var Ctx0: TExpressionContext := Default(TExpressionContext);
+    Ctx0.ExpressionMode := ReportExpressionMode;
     Ctx0.Hooks := Self;
     Ctx0.DataSet     := ADataSet;
     Ctx0.UserDataSet := AUserDataSet;
@@ -994,6 +1146,7 @@ begin
 
   // Build render context early — needed for CanGrow MeasuredBottom calls
   Ctx := Default(TExpressionContext);
+  Ctx.ExpressionMode := ReportExpressionMode;
   Ctx.Hooks := Self;
   Ctx.DataSet     := ADataSet;
   Ctx.UserDataSet := AUserDataSet;
@@ -1187,6 +1340,7 @@ begin
 
     if Assigned(DetailUDS) then
     begin
+      TReportTraversalDiagnostics.DetailTraversalStarted;
       HasMasterField :=
         (Band.MasterField <> '') and (Band.DetailField <> '') and
         PrimarySourceActive;
@@ -1199,6 +1353,7 @@ begin
       DetailUDS.First;
       while not DetailUDS.Eof do
       begin
+        TReportTraversalDiagnostics.DetailRowVisited;
         if (not HasMasterField) or
            VarSameValue(SourceFieldValue(nil, DetailUDS, Band.DetailField), MasterValue) then
         begin
@@ -1213,6 +1368,7 @@ begin
     HasSaveBM := Vittix.Report.LayoutBookmarks.CaptureDataSetBookmark(DetailDS, SaveBM);
     DetailDS.DisableControls;
     try
+      TReportTraversalDiagnostics.DetailTraversalStarted;
       HasMasterField :=
         PrimarySourceActive and
         (Band.MasterField <> '') and (Band.DetailField <> '') and
@@ -1227,6 +1383,7 @@ begin
       DetailDS.First;
       while not DetailDS.Eof do
       begin
+        TReportTraversalDiagnostics.DetailRowVisited;
         if (not HasMasterField) or VarSameValue(DetailFld.Value, MasterValue) then
         begin
           Inc(Result, ComputeEffectiveBandHeight(Band, DetailDS));
@@ -1250,6 +1407,7 @@ var
   MasterFld: TField;
   DetailFld: TField;
 begin
+  TReportTraversalDiagnostics.DetailTraversalStarted;
   if Assigned(ADetailUDS) then
   begin
     HasMasterField :=
@@ -1264,6 +1422,7 @@ begin
     ADetailUDS.First;
     while not ADetailUDS.Eof do
     begin
+      TReportTraversalDiagnostics.DetailRowVisited;
       if (not HasMasterField) or
          VarSameValue(SourceFieldValue(nil, ADetailUDS, ABand.DetailField), MasterValue) then
       begin
@@ -1290,6 +1449,7 @@ begin
   ADetailDS.First;
   while not ADetailDS.Eof do
   begin
+    TReportTraversalDiagnostics.DetailRowVisited;
     if (not HasMasterField) or VarSameValue(DetailFld.Value, MasterValue) then
     begin
       EffH := ComputeEffectiveBandHeight(ABand, ADetailDS);
@@ -1349,6 +1509,7 @@ var
   ActiveGroupHeader: TBooleanDynArray;
   HasAnyActiveGroup: Boolean;
 begin
+  ClearExecutionCaches;
   FIsRenderingPass := AReportProgress;
 try
     BeginPass(ATotalPages, AReportProgress, TotalRows, RowNumber);
@@ -2231,6 +2392,76 @@ function TReportEngine.GetNamedDataSet(const AName: string): TDataSet;
 begin
   if not FNamedDataSets.TryGetValue(AName, Result) then
     Result := nil;
+end;
+
+function TReportEngine.TryGetAggregateCache(const AExpression: string;
+  const AContext: TExpressionContext; out AValue: Variant): Boolean;
+var
+  Entry: TAggregateCacheEntry;
+begin
+  for Entry in FAggregateCache do
+    if Entry.Matches(AExpression, AContext) then
+    begin
+      AValue := Entry.Value;
+      Exit(True);
+    end;
+  Result := False;
+end;
+
+procedure TReportEngine.StoreAggregateCache(const AExpression: string;
+  const AContext: TExpressionContext; const AValue: Variant);
+var
+  Entry: TAggregateCacheEntry;
+begin
+  Entry := TAggregateCacheEntry.Create;
+  try
+    Entry.Capture(AExpression, AContext, AValue);
+    FAggregateCache.Add(Entry);
+  except
+    Entry.Free;
+    raise;
+  end;
+end;
+
+function TReportEngine.GetSubReportModel(AObject: TObject;
+  const AJSON: string): TObject;
+var
+  Entry: TSubReportModelCacheEntry;
+  I: Integer;
+begin
+  Result := nil;
+  for I := 0 to FSubReportModelCache.Count - 1 do
+  begin
+    Entry := FSubReportModelCache[I];
+    if Entry.Owner = AObject then
+    begin
+      if Entry.JSON = AJSON then
+      begin
+        TReportTraversalDiagnostics.SubReportCacheHit;
+        Exit(Entry.Model);
+      end;
+      FSubReportModelCache.Remove(Entry);
+      Break;
+    end;
+  end;
+
+  TReportTraversalDiagnostics.SubReportCacheMiss;
+  try
+    TReportTraversalDiagnostics.SubReportParseAttempted;
+    Entry := TSubReportModelCacheEntry.Create;
+    try
+      Entry.Owner := AObject;
+      Entry.JSON := AJSON;
+      Entry.Model := TReportSerializer.LoadFromJSON(AJSON);
+      FSubReportModelCache.Add(Entry);
+      Result := Entry.Model;
+    except
+      Entry.Free;
+      raise;
+    end;
+  except
+    Result := nil;
+  end;
 end;
 
 end.
