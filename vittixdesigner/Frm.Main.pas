@@ -88,6 +88,7 @@ uses
   Frm.Main.DialogHelpers,
   Frm.Main.RecentFiles,
   Frm.Main.TemplateMenu,
+  Frm.CommandPalette,
   DesignerPreferences,
   Frm.DesignerOptions,
   Frm.ScriptEditor,
@@ -397,6 +398,7 @@ type
     { Band insertion from the canvas }
     procedure BuildInsertBandMenu(AMenu: TPopupMenu);
     procedure TemplateMenuItemClick(Sender: TObject);
+    procedure CommandPaletteClick(Sender: TObject);
     procedure DesignerBandInsertRequest(Sender: TObject; ABand: TReportBand);
     procedure InsertBandMenuItemClick(Sender: TObject);
     procedure InsertBandAfter(ABandType: TReportBandType; AAfterBand: TReportBand);
@@ -441,6 +443,7 @@ type
     FLoadDiagnostics: TStringList;
     FInsertBandMenu: TPopupMenu;
     FInsertAfterBand: TReportBand;
+    FCommandPaletteItem: TMenuItem;
     FUpdatingZoomControls: Boolean;
     FRuntimeEventDemoOutput: string;
     // Created dynamically in FormCreate (not streamed from DFM)
@@ -1034,6 +1037,17 @@ begin
   PropEditor.OnSelectCell      := PropEditorSelectCell;
   PropEditor.OnSetEditText     := PropEditorSetEditText;
   PropEditor.OnMouseDown       := PropEditorMouseDown;
+
+  // View > Command Palette (Ctrl+Shift+P): a filterable list of every enabled
+  // menu command, built from the menu tree at the moment it is invoked.
+  FCommandPaletteItem := TMenuItem.Create(Self);
+  FCommandPaletteItem.Caption := '&Command Palette...';
+  FCommandPaletteItem.ShortCut := TextToShortCut('Ctrl+Shift+P');
+  FCommandPaletteItem.OnClick := CommandPaletteClick;
+  if Assigned(mnuView) then
+    mnuView.Insert(0, FCommandPaletteItem)
+  else if Assigned(mnuHelp) then
+    mnuHelp.Insert(0, FCommandPaletteItem);
 
   // Clicking a band separator on the canvas asks for a band to be inserted there.
   FInsertBandMenu := TPopupMenu.Create(Self);
@@ -6234,6 +6248,11 @@ begin
     Exit;
   BuildRecentFilesMenu(mnuFile, mnuOpen, mnuSaveAs, FRecentFiles, RecentFileClick, ClearRecentFiles);
   BuildTemplateMenu(mnuFile, mnuNew, TemplateMenuItemClick);
+end;
+
+procedure TfrmMain.CommandPaletteClick(Sender: TObject);
+begin
+  Frm.CommandPalette.ShowCommandPalette(Self, mnuMain);
 end;
 
 procedure TfrmMain.TemplateMenuItemClick(Sender: TObject);
