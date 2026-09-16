@@ -56,6 +56,12 @@ Related: `vittixdesigner/README.md`, `vittixdesigner/resources/ICON_MAP.md`
 >   lists, status bar and the designer canvas surface. View > Theme switches it and the
 >   choice is persisted. The canvas *internals* (grid, margin guides, band header strips,
 >   selection handles) and a VCL style remain open - see item 11.
+> - *Batch 13*: **accessibility baseline** (item 16). Hints added to the remaining
+>   interactive controls (report title/author, zoom box and preset combo, property filter
+>   and grid, canvas viewport, object toolbox, dock splitters, Apply buttons). Audit: of 57
+>   interactive controls every one now carries a Hint except four text buttons whose
+>   captions are self-describing, and every focusable control has a TabOrder with none
+>   disabled - nothing is unreachable by keyboard.
 > - Item 5 was re-checked and is **already implemented** (`Frm.Main.SelectionSync`);
 >   it is removed from the open list.
 > - Items 4, 7-16 remain open.
@@ -225,8 +231,19 @@ These are contained edits that do not touch the report engine or public componen
 14. **Undo history panel** exposing `TCommandManager` entries with names and jump-to-state.
 15. **Non-blocking report preparation.** `AGENTS.md` already calls for avoiding a blocked UI during long
     preparation; add a cancellable progress surface for prepare/preview/export of large reports.
-16. **Accessibility baseline.** Verify tab order across all docks, give canvases and panels proper
-    `Hint`/accessible names, and ensure every icon-only button has a tooltip (mostly true today).
+16. **Accessibility baseline.** *Delivered in batch 13.*
+    - Hints: an audit over the form found the interactive controls that had none - the
+      report title/author edits, the zoom box and preset combo, the property filter and
+      the property grid, the canvas viewport, the object toolbox, the dock splitters and
+      the Apply buttons - and they now all carry one. 57 interactive controls were
+      checked; the only ones left without a Hint are four text buttons whose captions
+      already say what they do (Font..., Bring Front, Send Back, Preview).
+    - Toolbar and menu commands already had hints/captions from earlier batches.
+    - Tab order: every focusable control has an explicit TabOrder and none is
+      TabStop=False, so nothing is unreachable by keyboard.
+    - Still open if wanted: real screen-reader names (VCL exposes Caption/Hint to MSAA;
+      a UIA provider for the custom-drawn canvas would be a separate piece of work), and
+      a keyboard-shortcut cheat sheet review.
 
 ---
 
