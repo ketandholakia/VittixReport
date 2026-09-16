@@ -102,7 +102,8 @@ uses
 
 type
   { Collapsible sections of the left dock, in display order. }
-  TDesignerDockSection = (dsObjects, dsStructure, dsVariables, dsProblems, dsFields);
+  TDesignerDockSection = (dsObjects, dsStructure, dsVariables, dsProblems,
+    dsHistory, dsFields);
 
   TDesignerProblemSeverity = (dpsError, dpsWarning, dpsInfo);
 
@@ -415,6 +416,10 @@ type
     procedure UpdateProblemsHeader;
     procedure ProblemsListDblClick(Sender: TObject);
 
+    { History panel }
+    procedure RefreshHistory;
+    procedure HistoryListDblClick(Sender: TObject);
+
     { Property panel filter }
     procedure edtPropFilterChange(Sender: TObject);
     procedure edtPropFilterKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -476,6 +481,17 @@ type
     FLblProblems: TLabel;
     FLstProblems: TListBox;
     FSplProblemsFields: TSplitter;
+
+    { ---- History section ---- }
+    FPnlHistory: TPanel;
+    FLblHistory: TLabel;
+    FLstHistory: TListBox;
+    FSplHistoryFields: TSplitter;
+
+    { Stack depths captured when the history list was built, so a click still maps
+      to the right command if something changed in between. }
+    FHistoryUndoCount: Integer;
+    FHistoryRedoCount: Integer;
 
     { ---- Left dock collapsible sections ---- }
     FDockCollapsed: array[TDesignerDockSection] of Boolean;
@@ -937,6 +953,37 @@ begin
   FSplProblemsFields.ParentColor := False;
   FSplProblemsFields.MinSize := 50;
   FSplProblemsFields.ResizeStyle := rsUpdate;
+
+  // ---- History section (undo/redo timeline) ----
+  FPnlHistory := TPanel.Create(Self);
+  FPnlHistory.Parent := pnlToolbox;
+  FPnlHistory.Align := alTop;
+  FPnlHistory.Height := 140;
+  FPnlHistory.BevelOuter := bvNone;
+  FPnlHistory.Caption := '';
+
+  FLblHistory := TLabel.Create(Self);
+  FLblHistory.Parent := FPnlHistory;
+  FLblHistory.Align := alTop;
+  FLblHistory.Caption := ' History';
+  FLblHistory.Font.Style := [fsBold];
+  FLblHistory.Height := 18;
+
+  FLstHistory := TListBox.Create(Self);
+  FLstHistory.Parent := FPnlHistory;
+  FLstHistory.Align := alClient;
+  FLstHistory.OnDblClick := HistoryListDblClick;
+  FLstHistory.Hint := 'Double-click an entry to undo or redo back to that step';
+  FLstHistory.ShowHint := True;
+
+  FSplHistoryFields := TSplitter.Create(Self);
+  FSplHistoryFields.Parent := pnlToolbox;
+  FSplHistoryFields.Align := alTop;
+  FSplHistoryFields.Height := 5;
+  FSplHistoryFields.Color := 13684944;
+  FSplHistoryFields.ParentColor := False;
+  FSplHistoryFields.MinSize := 50;
+  FSplHistoryFields.ResizeStyle := rsUpdate;
 
   FStructureTreePopup := TPopupMenu.Create(Self);
   FStructureTreePopup.OnPopup := StructureTreePopupPopup;
@@ -5603,6 +5650,7 @@ begin
     end);
 
   RefreshProblems;
+  RefreshHistory;
 end;
 
 procedure TfrmMain.UpdatePropertyPanelHintForRow(ARow: Integer);
@@ -5783,7 +5831,9 @@ begin
     FSplVariablesFields.Top := 5;
     FPnlProblems.Top := 6;
     FSplProblemsFields.Top := 7;
-    FPnlFields.Top := 8;
+    FPnlHistory.Top := 8;
+    FSplHistoryFields.Top := 9;
+    FPnlFields.Top := 10;
   finally
     pnlToolbox.EnableAlign;
   end;
@@ -5825,6 +5875,7 @@ begin
     dsStructure: Result := FPnlStructure;
     dsVariables: Result := FPnlVariables;
     dsProblems:  Result := FPnlProblems;
+    dsHistory:   Result := FPnlHistory;
   else
     Result := FPnlFields;
   end;
@@ -5837,6 +5888,7 @@ begin
     dsStructure: Result := FLblStructure;
     dsVariables: Result := FLblVariables;
     dsProblems:  Result := FLblProblems;
+    dsHistory:   Result := FLblHistory;
   else
     Result := FLblFields;
   end;
@@ -5849,6 +5901,7 @@ begin
     dsStructure: Result := FSplStructureVariables;
     dsVariables: Result := FSplVariablesFields;
     dsProblems:  Result := FSplProblemsFields;
+    dsHistory:   Result := FSplHistoryFields;
   else
     Result := nil;   // the last section is alClient and has no splitter
   end;
@@ -5861,6 +5914,7 @@ begin
     dsStructure: Result := 'Report Structure';
     dsVariables: Result := 'Variables';
     dsProblems:  Result := 'Problems';
+    dsHistory:   Result := 'History';
   else
     Result := 'Dataset Fields';
   end;
@@ -6219,6 +6273,74 @@ begin
   end;
 
   UpdateProblemsList;
+end;
+
+procedure TfrmMain.RefreshHistory;
+var
+  I: Integer;
+begin
+  if not Assigned(FLstHistory) then
+    Exit;
+
+  FHistoryUndoCount := 0;
+  FHistoryRedoCount := 0;
+
+  FLstHistory.Items.BeginUpdate;
+  try
+    FLstHistory.Items.Clear;
+
+    if Assigned(FDesigner) and Assigned(FDesigner.Commands) then
+    begin
+      FHistoryUndoCount := FDesigner.Commands.UndoCount;
+      FHistoryRedoCount := FDesigner.Commands.RedoCount;
+
+      // Timeline, newest at the top: undone steps, the current state, then the
+      // steps that are still applied.
+      for I := FHistoryRedoCount - 1 downto 0 do
+        FLstHistory.Items.Add('> ' + FDesigner.Commands.RedoName(I));
+
+      FLstHistory.Items.Add('--- current state ---');
+
+      for I := 0 to FHistoryUndoCount - 1 do
+        FLstHistory.Items.Add('. ' + FDesigner.Commands.UndoName(I));
+    end;
+  finally
+    FLstHistory.Items.EndUpdate;
+  end;
+
+  UpdateDockSectionHeader(dsHistory);
+end;
+
+procedure TfrmMain.HistoryListDblClick(Sender: TObject);
+var
+  Row, Steps, I: Integer;
+begin
+  if not Assigned(FLstHistory) or not Assigned(FDesigner) or
+     not Assigned(FDesigner.Commands) then
+    Exit;
+
+  Row := FLstHistory.ItemIndex;
+  if Row < 0 then
+    Exit;
+
+  if Row < FHistoryRedoCount then
+  begin
+    // Redo block: the topmost row is the furthest step forward.
+    Steps := FHistoryRedoCount - Row;
+    for I := 1 to Steps do
+      FDesigner.Redo;
+  end
+  else if Row > FHistoryRedoCount then
+  begin
+    // Undo block: the row just below the marker is the most recent command.
+    Steps := Row - FHistoryRedoCount;
+    for I := 1 to Steps do
+      FDesigner.Undo;
+  end
+  else
+    Exit;   // the marker row itself
+
+  RefreshHistory;
 end;
 
 procedure TfrmMain.UpdateProblemsList;
@@ -6598,6 +6720,7 @@ var
   IconIndex: Integer;
 begin
   RefreshProblems;
+  RefreshHistory;
 
   if not Assigned(FTreeStructure) or not HasDesignerReport then
     Exit;

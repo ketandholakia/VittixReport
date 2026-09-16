@@ -81,6 +81,13 @@ type
     function  CanRedo: Boolean;
     function  NextUndoName: string;
     function  NextRedoName: string;
+
+    { Read-only history access, for a history panel. Index 0 is the command that
+      UndoLast / RedoLast would act on next. }
+    function  UndoCount: Integer;
+    function  RedoCount: Integer;
+    function  UndoName(AIndex: Integer): string;
+    function  RedoName(AIndex: Integer): string;
   end;
 
   // ---------------------------------------------------------------------------
@@ -292,7 +299,34 @@ end;
 procedure TCommandManager.Clear; begin FUndo.Clear; FRedo.Clear; end;
 function  TCommandManager.CanUndo: Boolean; begin Result := FUndo.Count > 0; end;
 function  TCommandManager.CanRedo: Boolean; begin Result := FRedo.Count > 0; end;
-function  TCommandManager.NextUndoName: string;
+function TCommandManager.UndoCount: Integer;
+begin
+  Result := FUndo.Count;
+end;
+
+function TCommandManager.RedoCount: Integer;
+begin
+  Result := FRedo.Count;
+end;
+
+function TCommandManager.UndoName(AIndex: Integer): string;
+begin
+  // The stacks keep the newest command last, so index 0 is FUndo.Last.
+  if (AIndex >= 0) and (AIndex < FUndo.Count) then
+    Result := FUndo[FUndo.Count - 1 - AIndex].ActionName
+  else
+    Result := '';
+end;
+
+function TCommandManager.RedoName(AIndex: Integer): string;
+begin
+  if (AIndex >= 0) and (AIndex < FRedo.Count) then
+    Result := FRedo[FRedo.Count - 1 - AIndex].ActionName
+  else
+    Result := '';
+end;
+
+function TCommandManager.NextUndoName: string;
 begin
   Result := '';
   if FUndo.Count = 0 then

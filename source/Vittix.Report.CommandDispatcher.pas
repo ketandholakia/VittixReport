@@ -22,6 +22,12 @@ type
     function CanRedo: Boolean;
     function NextUndoName: string;
     function NextRedoName: string;
+
+    { Read-only history access, forwarded to the command manager. }
+    function UndoCount: Integer;
+    function RedoCount: Integer;
+    function UndoName(AIndex: Integer): string;
+    function RedoName(AIndex: Integer): string;
   end;
 
 implementation
@@ -76,6 +82,26 @@ end;
 function TCommandDispatcher.NextRedoName: string;
 begin
   Result := FCommands.NextRedoName;
+end;
+
+function TCommandDispatcher.UndoCount: Integer;
+begin
+  Result := FCommands.UndoCount;
+end;
+
+function TCommandDispatcher.RedoCount: Integer;
+begin
+  Result := FCommands.RedoCount;
+end;
+
+function TCommandDispatcher.UndoName(AIndex: Integer): string;
+begin
+  Result := FCommands.UndoName(AIndex);
+end;
+
+function TCommandDispatcher.RedoName(AIndex: Integer): string;
+begin
+  Result := FCommands.RedoName(AIndex);
 end;
 
 end.
