@@ -3,43 +3,58 @@ unit Frm.Main.ViewHelpers;
 interface
 
 uses
-  Vcl.CheckLst, Vcl.ComCtrls,
+  System.SysUtils,
+  Vcl.ComCtrls,
   Vittix.Report.DesignerControl;
 
-procedure ConfigureViewToggleStrip(ACheckListBox: TCheckListBox);
-procedure UpdateStatusBar(AStatusBar: TStatusBar; ADesigner: TVittixReportDesigner);
+procedure ConfigureViewToggleButtons(
+  AGrid, ASnap, ARuler, AMargin: TToolButton);
+procedure UpdateStatusBar(AStatusBar: TStatusBar;
+  ADesigner: TVittixReportDesigner; AModified: Boolean;
+  const ACurrentFile: string);
 
 implementation
 
 uses
-  System.SysUtils,
   Vittix.Report.Objects,
   Vittix.Report.Bands,
   Frm.Main.Helpers;
 
-procedure ConfigureViewToggleStrip(ACheckListBox: TCheckListBox);
+procedure ConfigureViewToggleButtons(
+  AGrid, ASnap, ARuler, AMargin: TToolButton);
 begin
-  if not Assigned(ACheckListBox) then
-    Exit;
-
-  ACheckListBox.Items.BeginUpdate;
-  try
-    ACheckListBox.Items.Clear;
-    ACheckListBox.Items.Add('Grid');
-    ACheckListBox.Items.Add('Snap');
-    ACheckListBox.Items.Add('Ruler');
-    ACheckListBox.Items.Add('Margin');
-  finally
-    ACheckListBox.Items.EndUpdate;
+  if Assigned(AGrid) then
+  begin
+    AGrid.Hint := 'Show or hide the designer grid';
+    AGrid.ShowHint := True;
   end;
-  ACheckListBox.Hint := 'Quick view toggles: Grid, Snap, Ruler, Margin';
-  ACheckListBox.ShowHint := True;
+
+  if Assigned(ASnap) then
+  begin
+    ASnap.Hint := 'Snap moved and resized objects to the designer grid';
+    ASnap.ShowHint := True;
+  end;
+
+  if Assigned(ARuler) then
+  begin
+    ARuler.Hint := 'Show or hide page rulers around the designer surface';
+    ARuler.ShowHint := True;
+  end;
+
+  if Assigned(AMargin) then
+  begin
+    AMargin.Hint := 'Show or hide page margin guides';
+    AMargin.ShowHint := True;
+  end;
 end;
 
-procedure UpdateStatusBar(AStatusBar: TStatusBar; ADesigner: TVittixReportDesigner);
+procedure UpdateStatusBar(AStatusBar: TStatusBar;
+  ADesigner: TVittixReportDesigner; AModified: Boolean;
+  const ACurrentFile: string);
 var
   SelCount: Integer;
   Obj: TReportObject;
+  FileText: string;
 begin
   if not Assigned(AStatusBar) or not Assigned(ADesigner) then
     Exit;
@@ -76,8 +91,27 @@ begin
     AStatusBar.Panels[0].Text :=
       IntToStr(SelCount) + ' objects selected | Resize: drag the union handles (Shift = constrain)';
 
+  // File panel (index 2). Panel 1 is reserved for the property hint written by
+  // UpdatePropertyPanelHintForRow, so the two must not share a panel.
   if AStatusBar.Panels.Count > 2 then
-    AStatusBar.Panels[2].Text := 'Zoom: ' + IntToStr(ADesigner.Zoom) + '%';
+  begin
+    if ACurrentFile = '' then
+      FileText := 'New report (not saved)'
+    else
+      FileText := ExtractFileName(ACurrentFile);
+
+    if AModified then
+      FileText := FileText + ' *';
+
+    AStatusBar.Panels[2].Text := FileText;
+  end;
+
+  // Full path is available on hover (the file panel itself is too narrow).
+  AStatusBar.Hint := ACurrentFile;
+  AStatusBar.ShowHint := ACurrentFile <> '';
+
+  if AStatusBar.Panels.Count > 3 then
+    AStatusBar.Panels[3].Text := 'Zoom: ' + IntToStr(ADesigner.Zoom) + '%';
 end;
 
 end.

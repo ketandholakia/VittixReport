@@ -58,8 +58,8 @@ uses
   Vittix.Report.Objects.Table, Vcl.Grids,  Vcl.CheckLst,
   Vittix.Report.ScriptHost.Adapter,
   Vittix.Report.LoadResult,
-  System.ImageList, Vcl.VirtualImageList, SVGIconVirtualImageList,
-  Vcl.BaseImageCollection, SVGIconImageCollection,
+  System.ImageList, Vcl.Imaging.pngimage,
+  Vcl.ImageCollection, Vcl.VirtualImageList,
   Frm.Main.Helpers,
   Frm.Main.Commands,
   Frm.Main.RuntimeDemo,
@@ -87,6 +87,7 @@ uses
   Frm.Main.UiStateHelpers,
   Frm.Main.DialogHelpers,
   Frm.Main.RecentFiles,
+  Frm.Main.TemplateMenu,
   DesignerPreferences,
   Frm.DesignerOptions,
   Frm.ScriptEditor,
@@ -98,6 +99,22 @@ uses
   Vittix.Designer.RegressionRunner;
 
 type
+  { Collapsible sections of the left dock, in display order. }
+  TDesignerDockSection = (dsObjects, dsStructure, dsVariables, dsProblems, dsFields);
+
+  TDesignerProblemSeverity = (dpsError, dpsWarning, dpsInfo);
+
+  { One entry of the Problems panel. Target may be nil for report-wide issues
+    (for example diagnostics produced while loading the file). }
+  TDesignerProblem = class
+  public
+    Severity: TDesignerProblemSeverity;
+    Text: string;
+    Target: TReportObject;
+    constructor Create(ASeverity: TDesignerProblemSeverity; const AText: string;
+      ATarget: TReportObject = nil);
+  end;
+
   TfrmMain = class(TForm)
 
     { ---- Menus ---- }
@@ -224,6 +241,8 @@ type
     { ---- Property panel ---- }
     lblProperties: TLabel;
     lblSelectedProps: TLabel;
+    pnlPropFilter: TPanel;
+    edtPropFilter: TEdit;
     PropEditor   : TValueListEditor;
     btnApplyProps: TButton;
     pnlQuickActions: TPanel;
@@ -245,10 +264,16 @@ type
     lblZoom      : TLabel;
     edtZoom      : TEdit;
     btnZoomApply : TButton;
-    CheckListBox1: TCheckListBox;
+    btnSaveAs      : TToolButton;
+    btnExportPDF   : TToolButton;
+    btnCut         : TToolButton;
+    btnFitWidth    : TToolButton;
+    btnToggleGrid  : TToolButton;
+    btnToggleSnap  : TToolButton;
+    btnToggleRuler : TToolButton;
+    btnToggleMargin: TToolButton;
     ImageList1: TImageList;
-    SVGIconImageCollection1: TSVGIconImageCollection;
-    SVGIconVirtualImageList1: TSVGIconVirtualImageList;
+
 
     { ---- Event handlers ---- }
 
@@ -347,23 +372,75 @@ type
 
     { Zoom edit }
     procedure btnZoomApplyClick(Sender: TObject);
-    procedure CheckListBox1ClickCheck(Sender: TObject);
+    procedure btnFitWidthClick(Sender: TObject);
     procedure edtZoomKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+
+    { Toolbar view toggles }
+    procedure btnToggleGridClick(Sender: TObject);
+    procedure btnToggleSnapClick(Sender: TObject);
+    procedure btnToggleRulerClick(Sender: TObject);
+    procedure btnToggleMarginClick(Sender: TObject);
+
+    { Left dock sections }
+    procedure SetupDockSections;
+    procedure DockSectionHeaderClick(Sender: TObject);
+    procedure ToggleDockSection(ASection: TDesignerDockSection);
+    procedure RelayoutDockSections;
+    procedure CaptureDockSectionHeights;
+    procedure UpdateDockSectionHeader(ASection: TDesignerDockSection);
+    function  MarkerText(ACollapsed: Boolean): string;
+    function DockSectionPanel(ASection: TDesignerDockSection): TPanel;
+    function DockSectionLabel(ASection: TDesignerDockSection): TLabel;
+    function DockSectionSplitter(ASection: TDesignerDockSection): TSplitter;
+    function DockSectionTitle(ASection: TDesignerDockSection): string;
+
+    { Band insertion from the canvas }
+    procedure BuildInsertBandMenu(AMenu: TPopupMenu);
+    procedure TemplateMenuItemClick(Sender: TObject);
+    procedure DesignerBandInsertRequest(Sender: TObject; ABand: TReportBand);
+    procedure InsertBandMenuItemClick(Sender: TObject);
+    procedure InsertBandAfter(ABandType: TReportBandType; AAfterBand: TReportBand);
+
+    { Problems panel }
+    function  SeverityText(ASeverity: TDesignerProblemSeverity): string;
+    procedure CaptureLoadDiagnostics(const AFileName: string;
+      AResult: TReportLoadResult);
+    procedure RefreshProblems;
+    procedure UpdateProblemsList;
+    procedure UpdateProblemsHeader;
+    procedure ProblemsListDblClick(Sender: TObject);
+
+    { Property panel filter }
+    procedure edtPropFilterChange(Sender: TObject);
+    procedure edtPropFilterKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure CapturePropertyFilterSnapshot;
+    procedure ApplyPropertyFilter;
+    procedure PropEditorMouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    function IsPropertyGroupCollapsed(const AGroupKey: string): Boolean;
+    function PropertyGroupSummary(const AGroupKey: string): string;
+    procedure TogglePropertyGroup(const AGroupKey: string);
 
     { Form lifecycle }
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure ScrollBox1Resize(Sender: TObject);
 
   private
     FCurrentFile: string;
     FModified   : Boolean;
     FReportMetadataDirty: Boolean;
-    FDisablePreviewShortcut: Boolean;
     FIsSubReportEditor: Boolean;
     FLoadingPropertyPanel: Boolean;
     FPropertyPanelDirty: Boolean;
+    FPropFilterRows: TStringList;
+    FPropCollapsedGroups: TStringList;
+    FProblems: TObjectList<TDesignerProblem>;
+    FLoadDiagnostics: TStringList;
+    FInsertBandMenu: TPopupMenu;
+    FInsertAfterBand: TReportBand;
     FUpdatingZoomControls: Boolean;
     FRuntimeEventDemoOutput: string;
     // Created dynamically in FormCreate (not streamed from DFM)
@@ -373,7 +450,6 @@ type
     FPnlObjects : TPanel;
     FSplObjectsStructure: TSplitter;
     FSplStructureVariables: TSplitter;
-    FPnlDataSections: TPanel;
     FPnlFields  : TPanel;
     FLblFields  : TLabel;
     FEdtFieldFilter: TEdit;
@@ -385,6 +461,16 @@ type
     FPnlStructure: TPanel;
     FLblStructure: TLabel;
     FTreeStructure: TTreeView;
+
+    { ---- Problems section ---- }
+    FPnlProblems: TPanel;
+    FLblProblems: TLabel;
+    FLstProblems: TListBox;
+    FSplProblemsFields: TSplitter;
+
+    { ---- Left dock collapsible sections ---- }
+    FDockCollapsed: array[TDesignerDockSection] of Boolean;
+    FDockExpandedHeight: array[TDesignerDockSection] of Integer;
     FStructureTreePopup: TPopupMenu;
     FStructureTreeDeleteItem: TMenuItem;
     FStructureTreeExpandAllItem: TMenuItem;
@@ -421,7 +507,6 @@ type
     procedure AddRecentFile(const AFileName: string);
     procedure ClearRecentFiles(Sender: TObject);
     procedure RecentFileClick(Sender: TObject);
-    function  FindRecentFilesMenu: TMenuItem;
     procedure InitializeToolbarZoomCombo;
     procedure UpdateZoomControls;
     function  FitPageWidthZoom: Integer;
@@ -436,7 +521,6 @@ type
     procedure UpdatePropertyPanelHintForRow(ARow: Integer);
     procedure ConfigurePropertyEditors;
     function  IsVisualGroupRow(const AKey: string): Boolean;
-    function  IsFontDialogRowKey(const AKey: string): Boolean;
     function  IsColorPropertyKey(const AKey: string): Boolean;
     function  IsExpressionPropertyKey(const AKey: string): Boolean;
     function  IsBandEventScriptRowKey(const AKey: string): Boolean;
@@ -450,16 +534,6 @@ type
     function  EditFontPropertyRow(ARow: Integer): Boolean;
     function  ConfirmMixedBandVerticalLayout: Boolean;
     function  CurrentPropertyTarget: TReportObject;
-    function  SelectedObjectsSpanBands: Boolean;
-    function  IsControlWithinParent(AControl, AParent: TWinControl): Boolean;
-    function  SamePropertyValue(const AOld, ANew: TValue): Boolean;
-    function  BuildChangedPropertyBatch(
-      AObj: TReportObject;
-      const AOldByProp: TDictionary<string, TValue>;
-      const APropNames: TArray<string>;
-      out ChangedNames: TArray<string>;
-      out OldValues: TArray<TValue>;
-      out NewValues: TArray<TValue>): Boolean;
     procedure CommitReportMetadataValues(const ANewTitle, ANewAuthor,
       ANewDescription: string; AUndoable: Boolean = True);
     procedure CommitReportMetadataChanges(AUndoable: Boolean = True);
@@ -479,7 +553,6 @@ type
     procedure OpenRegressionReport(const AFileName: string);
     procedure LoadDesignerReportFromFile(const AFileName: string;
       AUseSampleDataSet: Boolean = False);
-    procedure RunRegressionTestReports;
     procedure RunRuntimeEventCallbackDemo;
     procedure ConfirmSaveIfModified;
     procedure DynInsertMenuClick(Sender: TObject);
@@ -507,11 +580,9 @@ type
     procedure StructureTreeDeleteClick(Sender: TObject);
     procedure StructureTreeExpandAllClick(Sender: TObject);
     procedure StructureTreeCollapseAllClick(Sender: TObject);
-    function  FindStructureNodeByData(AData: Pointer): TTreeNode;
     function  StructureBandCaption(ABand: TReportBand): string;
     function  StructureObjectCaption(AObj: TReportObject): string;
     function  StructureObjectIconIndex(AObj: TReportObject): Integer;
-    function  ShortNodePreview(const S: string; AMaxLen: Integer = 28): string;
     procedure FieldListDblClick(Sender: TObject);
     procedure FieldListMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
     procedure FieldFilterChange(Sender: TObject);
@@ -530,7 +601,6 @@ type
     procedure cboZoomToolbarChange(Sender: TObject);
     function  VariableTokenForNode(ANode: TTreeNode; out AToken: string;
       out ASupported: Boolean): Boolean;
-    function  CanInsertVariableIntoCurrentProperty(out AKey: string): Boolean;
     procedure InsertVariableToken(const AToken: string);
 
   public
@@ -544,6 +614,7 @@ var
 implementation
 
 {$R *.dfm}
+{$R resources\vittix_png_icons.res}
 
 uses
   Winapi.Windows,
@@ -639,16 +710,13 @@ procedure TfrmMain.FormCreate(Sender: TObject);
 var
   MI: TMenuItem;
   Sep: TMenuItem;
-  procedure TrySetOrdinalProp(AObj: TObject; const APropName: string; AValue: NativeInt);
-  var
-    PI: PPropInfo;
-  begin
-    if not Assigned(AObj) then
-      Exit;
-    PI := GetPropInfo(AObj, APropName);
-    if Assigned(PI) then
-      SetOrdProp(AObj, PI, AValue);
-  end;
+  PNGNames: TArray<string>;
+  I: Integer;
+  RS: TResourceStream;
+  PNG: TPngImage;
+  Bmp: Vcl.Graphics.TBitmap;
+  IconCollection: TImageCollection;
+  IconList: TVirtualImageList;
 begin
   KeyPreview := True;
   // Defensive registration for command-line open mode.
@@ -663,18 +731,35 @@ begin
   FDesigner.Top := 0;
   FDesigner.Width := 1200;
   FDesigner.Height := 1600;
+  ScrollBox1.OnResize := ScrollBox1Resize;
   FDataSource1 := TDataSource.Create(Self);
   FRecentFiles := TList<string>.Create;
+  FPropFilterRows := TStringList.Create;
+  FPropCollapsedGroups := TStringList.Create;
+  FPropCollapsedGroups.CaseSensitive := False;
+  FProblems := TObjectList<TDesignerProblem>.Create(True);
+  FLoadDiagnostics := TStringList.Create;
   FPreferences := TDesignerPreferencesService.Create;
   OnDestroy := FormDestroy;
 
+  // The object toolbox resolves its icons by image *name*, which a plain
+  // TImageList cannot do. Give it a name-aware virtual image list backed by a
+  // collection that is filled with the PNG icons further down this method.
+  IconCollection := TImageCollection.Create(Self);
+  IconList := TVirtualImageList.Create(Self);
+  IconList.ImageCollection := IconCollection;
+  IconList.Width := 24;
+  IconList.Height := 24;
+
   // Ensure the Toolbox knows all registered types (including Barcode + Table
   // which self-register in their unit initialization sections)
-  Toolbox.ToolImages := SVGIconVirtualImageList1;
+  Toolbox.ToolImages := IconList;
   Toolbox.RefreshToolList;
 
-  // The object toolbox is a resizable top section; structure owns the
-  // flexible middle space between top and bottom sections.
+  // ---- Left dock: four collapsible sections in one vertical chain ----------
+  // Clicking a section header folds that section down to its header bar so the
+  // dock stays usable on small displays. Fields is the last section and absorbs
+  // whatever height the other sections leave.
   FPnlObjects := TPanel.Create(Self);
   FPnlObjects.Parent := pnlToolbox;
   FPnlObjects.Align := alTop;
@@ -693,36 +778,47 @@ begin
   FSplObjectsStructure.MinSize := 50;
   FSplObjectsStructure.ResizeStyle := rsUpdate;
 
+  FPnlStructure := TPanel.Create(Self);
+  FPnlStructure.Parent := pnlToolbox;
+  FPnlStructure.Align := alTop;
+  FPnlStructure.Height := 200;
+  FPnlStructure.BevelOuter := bvNone;
+  FPnlStructure.Caption := '';
+
+  FLblStructure := TLabel.Create(Self);
+  FLblStructure.Parent := FPnlStructure;
+  FLblStructure.Align := alTop;
+  FLblStructure.Caption := ' Report Structure';
+  FLblStructure.Font.Style := [fsBold];
+  FLblStructure.Height := 18;
+
+  FTreeStructure := TTreeView.Create(Self);
+  FTreeStructure.Parent := FPnlStructure;
+  FTreeStructure.Align := alClient;
+  FTreeStructure.ReadOnly := True;
+  FTreeStructure.HideSelection := False;
+  FTreeStructure.RowSelect := True;
+  FTreeStructure.Indent := 18;
+  FTreeStructure.Images := ImageList1;
+  FTreeStructure.Hint := 'Read-only outline of report bands and objects';
+  FTreeStructure.ShowHint := True;
+  FTreeStructure.OnChange := StructureTreeChange;
+  FTreeStructure.OnDblClick := StructureTreeDblClick;
+  FTreeStructure.OnMouseDown := StructureTreeMouseDown;
+
   FSplStructureVariables := TSplitter.Create(Self);
   FSplStructureVariables.Parent := pnlToolbox;
-  FSplStructureVariables.Align := alBottom;
+  FSplStructureVariables.Align := alTop;
   FSplStructureVariables.Height := 5;
   FSplStructureVariables.Color := 13684944;
   FSplStructureVariables.ParentColor := False;
   FSplStructureVariables.MinSize := 50;
   FSplStructureVariables.ResizeStyle := rsUpdate;
 
-  FPnlDataSections := TPanel.Create(Self);
-  FPnlDataSections.Parent := pnlToolbox;
-  FPnlDataSections.Align := alBottom;
-  FPnlDataSections.Height := 335;
-  FPnlDataSections.BevelOuter := bvNone;
-  FPnlDataSections.Caption := '';
-
-  FSplVariablesFields := TSplitter.Create(Self);
-  FSplVariablesFields.Parent := FPnlDataSections;
-  FSplVariablesFields.Align := alBottom;
-  FSplVariablesFields.Height := 5;
-  FSplVariablesFields.Color := 13684944;
-  FSplVariablesFields.ParentColor := False;
-  FSplVariablesFields.MinSize := 50;
-  FSplVariablesFields.ResizeStyle := rsUpdate;
-
   // ---- Build the Fields panel dynamically inside pnlToolbox ----
   FPnlFields          := TPanel.Create(Self);
-  FPnlFields.Parent   := FPnlDataSections;
-  FPnlFields.Align    := alBottom;
-  FPnlFields.Height   := 160;
+  FPnlFields.Parent   := pnlToolbox;
+  FPnlFields.Align    := alClient;
   FPnlFields.BevelOuter := bvNone;
   FPnlFields.Caption  := '';
 
@@ -750,8 +846,9 @@ begin
   FLstFields.ShowHint := True;
 
   FPnlVariables := TPanel.Create(Self);
-  FPnlVariables.Parent := FPnlDataSections;
-  FPnlVariables.Align := alClient;
+  FPnlVariables.Parent := pnlToolbox;
+  FPnlVariables.Align := alTop;
+  FPnlVariables.Height := 160;
   FPnlVariables.BevelOuter := bvNone;
   FPnlVariables.Caption := '';
 
@@ -790,32 +887,45 @@ begin
   VarsRoot.Expand(True);
   SysRoot.Expand(True);
 
-  FPnlStructure := TPanel.Create(Self);
-  FPnlStructure.Parent := pnlToolbox;
-  FPnlStructure.Align := alClient;
-  FPnlStructure.BevelOuter := bvNone;
-  FPnlStructure.Caption := '';
+  FSplVariablesFields := TSplitter.Create(Self);
+  FSplVariablesFields.Parent := pnlToolbox;
+  FSplVariablesFields.Align := alTop;
+  FSplVariablesFields.Height := 5;
+  FSplVariablesFields.Color := 13684944;
+  FSplVariablesFields.ParentColor := False;
+  FSplVariablesFields.MinSize := 50;
+  FSplVariablesFields.ResizeStyle := rsUpdate;
 
-  FLblStructure := TLabel.Create(Self);
-  FLblStructure.Parent := FPnlStructure;
-  FLblStructure.Align := alTop;
-  FLblStructure.Caption := ' Report Structure';
-  FLblStructure.Font.Style := [fsBold];
-  FLblStructure.Height := 18;
+  // ---- Problems section (report diagnostics) ----
+  FPnlProblems := TPanel.Create(Self);
+  FPnlProblems.Parent := pnlToolbox;
+  FPnlProblems.Align := alTop;
+  FPnlProblems.Height := 120;
+  FPnlProblems.BevelOuter := bvNone;
+  FPnlProblems.Caption := '';
 
-  FTreeStructure := TTreeView.Create(Self);
-  FTreeStructure.Parent := FPnlStructure;
-  FTreeStructure.Align := alClient;
-  FTreeStructure.ReadOnly := True;
-  FTreeStructure.HideSelection := False;
-  FTreeStructure.RowSelect := True;
-  FTreeStructure.Indent := 18;
-  FTreeStructure.Images := SVGIconVirtualImageList1;
-  FTreeStructure.Hint := 'Read-only outline of report bands and objects';
-  FTreeStructure.ShowHint := True;
-  FTreeStructure.OnChange := StructureTreeChange;
-  FTreeStructure.OnDblClick := StructureTreeDblClick;
-  FTreeStructure.OnMouseDown := StructureTreeMouseDown;
+  FLblProblems := TLabel.Create(Self);
+  FLblProblems.Parent := FPnlProblems;
+  FLblProblems.Align := alTop;
+  FLblProblems.Caption := ' Problems';
+  FLblProblems.Font.Style := [fsBold];
+  FLblProblems.Height := 18;
+
+  FLstProblems := TListBox.Create(Self);
+  FLstProblems.Parent := FPnlProblems;
+  FLstProblems.Align := alClient;
+  FLstProblems.OnDblClick := ProblemsListDblClick;
+  FLstProblems.Hint := 'Double-click an entry to select the object it refers to';
+  FLstProblems.ShowHint := True;
+
+  FSplProblemsFields := TSplitter.Create(Self);
+  FSplProblemsFields.Parent := pnlToolbox;
+  FSplProblemsFields.Align := alTop;
+  FSplProblemsFields.Height := 5;
+  FSplProblemsFields.Color := 13684944;
+  FSplProblemsFields.ParentColor := False;
+  FSplProblemsFields.MinSize := 50;
+  FSplProblemsFields.ResizeStyle := rsUpdate;
 
   FStructureTreePopup := TPopupMenu.Create(Self);
   FStructureTreePopup.OnPopup := StructureTreePopupPopup;
@@ -856,16 +966,58 @@ begin
   // Now that the popup menus are created, populate them with bands and objects!
   BuildInsertMenu;
 
-  // Ensure toolbar SVG icons render at full-strength normal color.
-  // These properties are applied only when available in the installed
-  // SVG icon component version.
-  TrySetOrdinalProp(SVGIconImageCollection1, 'GrayScale', 0);
-  TrySetOrdinalProp(SVGIconImageCollection1, 'Opacity', 255);
-  TrySetOrdinalProp(SVGIconVirtualImageList1, 'GrayScale', 0);
-  TrySetOrdinalProp(SVGIconVirtualImageList1, 'Opacity', 255);
-  TrySetOrdinalProp(SVGIconVirtualImageList1, 'FixedColor', clWindowText);
-  TrySetOrdinalProp(SVGIconVirtualImageList1, 'DisabledGrayScale', 1);
-  TrySetOrdinalProp(SVGIconVirtualImageList1, 'DisabledOpacity', 125);
+  ImageList1.ColorDepth := cd32Bit;
+  ImageList1.DrawingStyle := dsTransparent;
+  ImageList1.Width := 24;
+  ImageList1.Height := 24;
+
+  // The DFM still carries a legacy placeholder bitmap in ImageList1. Drop it
+  // before loading the real PNG icons: SetWidth/SetHeight only clears the list
+  // when its handle is already allocated, so without this the loaded icons
+  // would be appended after the stale ones and every ImageIndex referenced by
+  // the toolbar and the structure tree would resolve to the wrong image.
+  ImageList1.Clear;
+
+  PNGNames := ['file_open', 'save', 'new_file', 'undo', 'redo', 
+    'align_horizontal_left', 'align_horizontal_right', 'preview', 'delete', 'copy', 'paste', 
+    'align_vertical_top', 'align_vertical_bottom', 'width', 'height', 'align_center', 
+    'align_vertical_center', 'flip_to_front', 'flip_to_back', 'zoom_in', 'zoom_out', 
+    'description', 'table_rows', 'text_object', 'datafield_object', 'memo_object', 
+    'image_object', 'barcode_object', 'shapes_object', 'line_object', 'subreport_object', 
+    'table_object', 'label_object',
+    // Appended for the toolbar action set and view toggles; keep appending so the
+    // existing ImageIndex values used by the toolbar and the structure tree stay valid.
+    'save_as', 'picture_as_pdf', 'cut', 'zoom_fit_width',
+    'grid', 'snap_to_grid', 'show_ruler', 'border'];
+    
+  for I := 0 to High(PNGNames) do
+  begin
+    try
+      RS := TResourceStream.Create(HInstance, 'PNG_' + UpperCase(PNGNames[I]), RT_RCDATA);
+      try
+        // Name-aware copy used by the object toolbox (looked up by name).
+        IconCollection.Add(PNGNames[I], RS);
+        RS.Position := 0;
+        PNG := TPngImage.Create;
+        try
+          PNG.LoadFromStream(RS);
+          Bmp := Vcl.Graphics.TBitmap.Create;
+          try
+            Bmp.Assign(PNG);
+            ImageList1.Add(Bmp, nil);   // 24x24 numeric list: toolbar + structure tree
+          finally
+            Bmp.Free;
+          end;
+        finally
+          PNG.Free;
+        end;
+      finally
+        RS.Free;
+      end;
+    except
+      // Missing icons
+    end;
+  end;
 
   // Wire designer events
   FDesigner.OnSelectionChanged := DesignerSelectionChanged;
@@ -881,6 +1033,13 @@ begin
   PropEditor.OnEditButtonClick := PropEditorEditButtonClick;
   PropEditor.OnSelectCell      := PropEditorSelectCell;
   PropEditor.OnSetEditText     := PropEditorSetEditText;
+  PropEditor.OnMouseDown       := PropEditorMouseDown;
+
+  // Clicking a band separator on the canvas asks for a band to be inserted there.
+  FInsertBandMenu := TPopupMenu.Create(Self);
+  FInsertBandMenu.OnPopup := nil;
+  BuildInsertBandMenu(FInsertBandMenu);
+  FDesigner.OnBandInsertRequest := DesignerBandInsertRequest;
   cboZoomToolbar.OnChange      := cboZoomToolbarChange;
 
   mnuExportEmail := TMenuItem.Create(Self);
@@ -904,6 +1063,7 @@ begin
   dlgSave.DefaultExt := 'vrt';
   ConfigureLayoutGuidance;
   ConfigureViewToggleStrip;
+  SetupDockSections;
   LoadDesignerPreferences;
   LoadRecentFiles;
 
@@ -930,20 +1090,25 @@ begin
       var JSON := TFile.ReadAllText(FCmdLineInputFile, TEncoding.UTF8);
       if Trim(JSON) <> '' then
       begin
-        var R: TReportModel := nil;
+        var LR: TReportLoadResult := nil;
         try
-          R := TReportSerializer.LoadFromJSON(JSON);
+          LR := TReportSerializer.LoadFromJSONEx(JSON, False);
+          // Surface loader warnings (unknown object classes etc.) in the
+          // Problems panel instead of dropping them on this code path.
+          CaptureLoadDiagnostics(FCmdLineInputFile, LR);
+          if LR.Success then
+          begin
+            FDesigner.LoadReport(LR.ExtractModel, True);
+            edtReportTitle.Text  := FDesigner.Report.Title;
+            edtReportAuthor.Text := FDesigner.Report.Author;
+          end;
         except
           // Backward-compatible fallback if input was passed as a file format
           // expected by LoadFromFile.
-          R := TReportSerializer.LoadFromFile(FCmdLineInputFile);
+          FDesigner.LoadReport(TReportSerializer.LoadFromFile(FCmdLineInputFile),
+            True);
         end;
-        if Assigned(R) then
-        begin
-          FDesigner.LoadReport(R, True);
-          edtReportTitle.Text  := FDesigner.Report.Title;
-          edtReportAuthor.Text := FDesigner.Report.Author;
-        end;
+        LR.Free;
       end;
     except
       // ignore — start with blank report
@@ -1110,6 +1275,10 @@ procedure TfrmMain.FormDestroy(Sender: TObject);
 begin
   FreeAndNil(FPreferences);
   FreeAndNil(FRecentFiles);
+  FreeAndNil(FPropFilterRows);
+  FreeAndNil(FPropCollapsedGroups);
+  FreeAndNil(FProblems);
+  FreeAndNil(FLoadDiagnostics);
 end;
 
 procedure TfrmMain.CommitReportMetadataValues(const ANewTitle, ANewAuthor,
@@ -1202,11 +1371,18 @@ begin
   // Transactional load: deserialize into temporary model first
   LoadResult := TReportSerializer.LoadFromFileEx(AFileName);
   try
+    if Assigned(FLoadDiagnostics) then
+      FLoadDiagnostics.Clear;
+
     if not LoadResult.Success then
     begin
       ShowMessage('Error loading report: ' + LoadResult.Errors[0]);
       Exit;
     end;
+
+    // Keep the loader's diagnostics; the Problems panel surfaces them instead of
+    // silently dropping them (unknown object classes are warnings, not errors).
+    CaptureLoadDiagnostics(AFileName, LoadResult);
 
     if AUseSampleDataSet then
       UseSampleDataSet;
@@ -1757,12 +1933,6 @@ begin
     begin
       Result := GetRegressionReportPath(AReportName);
     end);
-end;
-
-procedure TfrmMain.RunRegressionTestReports;
-begin
-  UseSampleDataSet;
-  RefreshAfterReportStateChange;
 end;
 
 procedure TfrmMain.RunRuntimeEventCallbackDemo;
@@ -4680,25 +4850,33 @@ begin
   HandleZoomToolbarChange(ApplyToolbarZoomSelection);
 end;
 
-procedure TfrmMain.CheckListBox1ClickCheck(Sender: TObject);
+procedure TfrmMain.btnFitWidthClick(Sender: TObject);
 begin
-  HandleViewToggleIndex(CheckListBox1.ItemIndex,
-    procedure
-    begin
-      mnuShowGridClick(mnuShowGrid);
-    end,
-    procedure
-    begin
-      mnuSnapGridClick(mnuSnapGrid);
-    end,
-    procedure
-    begin
-      mnuShowRulersClick(mnuShowRulers);
-    end,
-    procedure
-    begin
-      mnuShowMarginsClick(mnuShowMargins);
-    end);
+  if Assigned(FDesigner) then
+    FDesigner.Zoom := FitPageWidthZoom;
+end;
+
+{ Toolbar view toggles. Each button mirrors the matching View menu item, so the
+  checked state and the menu stay in sync through UpdateMenuState. }
+
+procedure TfrmMain.btnToggleGridClick(Sender: TObject);
+begin
+  mnuShowGridClick(mnuShowGrid);
+end;
+
+procedure TfrmMain.btnToggleSnapClick(Sender: TObject);
+begin
+  mnuSnapGridClick(mnuSnapGrid);
+end;
+
+procedure TfrmMain.btnToggleRulerClick(Sender: TObject);
+begin
+  mnuShowRulersClick(mnuShowRulers);
+end;
+
+procedure TfrmMain.btnToggleMarginClick(Sender: TObject);
+begin
+  mnuShowMarginsClick(mnuShowMargins);
 end;
 
 procedure TfrmMain.edtZoomKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -5009,11 +5187,6 @@ end;
 {  Property panel                                                              }
 { =========================================================================== }
 
-function TfrmMain.SamePropertyValue(const AOld, ANew: TValue): Boolean;
-begin
-  Result := TPropertyPanelUtils.SamePropertyValue(AOld, ANew);
-end;
-
 function TfrmMain.HasDesignerReport: Boolean;
 begin
   Result := Assigned(FDesigner) and Assigned(FDesigner.Report);
@@ -5108,23 +5281,6 @@ begin
   SyncReportStructureSelection;
 end;
 
-function TfrmMain.BuildChangedPropertyBatch(
-  AObj: TReportObject;
-  const AOldByProp: TDictionary<string, TValue>;
-  const APropNames: TArray<string>;
-  out ChangedNames: TArray<string>;
-  out OldValues: TArray<TValue>;
-  out NewValues: TArray<TValue>): Boolean;
-begin
-  Result := TPropertyPanelUtils.BuildChangedPropertyBatch(AObj, AOldByProp,
-    APropNames, ChangedNames, OldValues, NewValues);
-end;
-
-function TfrmMain.IsControlWithinParent(AControl, AParent: TWinControl): Boolean;
-begin
-  Result := TPropertyPanelUtils.IsControlWithinParent(AControl, AParent);
-end;
-
 function TfrmMain.IsTextEditingControlFocused: Boolean;
 var
   FocusedCtrl: TWinControl;
@@ -5150,19 +5306,9 @@ begin
   Result := TPropertyPanelUtils.CurrentPropertyTarget(FDesigner);
 end;
 
-function TfrmMain.SelectedObjectsSpanBands: Boolean;
-begin
-  Result := TPropertyPanelUtils.SelectedObjectsSpanBands(FDesigner);
-end;
-
 function TfrmMain.ConfirmMixedBandVerticalLayout: Boolean;
 begin
   Result := TPropertyPanelUtils.ConfirmMixedBandVerticalLayout(FDesigner);
-end;
-
-function TfrmMain.ShortNodePreview(const S: string; AMaxLen: Integer): string;
-begin
-  Result := Frm.Main.Structure.ShortNodePreview(S, AMaxLen);
 end;
 
 procedure TfrmMain.UpdatePropertyPanel;
@@ -5180,9 +5326,203 @@ begin
     FLoadingPropertyPanel := False;
   end;
 
+  // Keep the unfiltered row set so the filter box can be changed without
+  // re-reading the object, then apply the active filter.
+  CapturePropertyFilterSnapshot;
+  ApplyPropertyFilter;
+
   UpdatePropertyPanelHeader(Obj);
   UpdatePropertyPanelHintForRow(PropEditor.Row);
   SetPropertyPanelDirty(False);
+end;
+
+procedure TfrmMain.CapturePropertyFilterSnapshot;
+begin
+  if Assigned(FPropFilterRows) and Assigned(PropEditor) then
+  begin
+    FPropFilterRows.NameValueSeparator := '=';
+    FPropFilterRows.Assign(PropEditor.Strings);
+  end;
+end;
+
+procedure TfrmMain.ApplyPropertyFilter;
+var
+  I, Matched: Integer;
+  Key, Val, Filter, UpperFilter, GroupKey: string;
+  SkipGroup: Boolean;
+begin
+  if not Assigned(PropEditor) or not Assigned(FPropFilterRows) then
+    Exit;
+
+  Filter := '';
+  if Assigned(edtPropFilter) then
+    Filter := Trim(edtPropFilter.Text);
+  UpperFilter := UpperCase(Filter);
+
+  FLoadingPropertyPanel := True;
+  try
+    PropEditor.Strings.BeginUpdate;
+    try
+      PropEditor.Strings.Clear;
+      Matched := 0;
+      GroupKey := '';
+      SkipGroup := False;
+
+      for I := 0 to FPropFilterRows.Count - 1 do
+      begin
+        Key := FPropFilterRows.Names[I];
+        Val := FPropFilterRows.ValueFromIndex[I];
+
+        if IsVisualGroupRow(Key) then
+        begin
+          // Group headers only make sense while nothing is filtered out.
+          if Filter <> '' then
+            Continue;
+          GroupKey := Key;
+          SkipGroup := IsPropertyGroupCollapsed(GroupKey);
+          PropEditor.Strings.Add(GroupKey + '=' + PropertyGroupSummary(GroupKey));
+          Continue;
+        end;
+
+        if Filter <> '' then
+        begin
+          if (Pos(UpperFilter, UpperCase(Key)) > 0) or
+             (Pos(UpperFilter, UpperCase(Val)) > 0) then
+          begin
+            PropEditor.Strings.Add(Key + '=' + Val);
+            Inc(Matched);
+          end;
+          Continue;
+        end;
+
+        if not SkipGroup then
+          PropEditor.Strings.Add(Key + '=' + Val);
+      end;
+
+      if (Filter <> '') and (Matched = 0) then
+        PropEditor.Strings.Add('[Filter]=no property matches "' + Filter + '"');
+    finally
+      PropEditor.Strings.EndUpdate;
+    end;
+  finally
+    FLoadingPropertyPanel := False;
+  end;
+end;
+
+function TfrmMain.IsPropertyGroupCollapsed(const AGroupKey: string): Boolean;
+begin
+  Result := Assigned(FPropCollapsedGroups) and
+    (FPropCollapsedGroups.IndexOf(AGroupKey) >= 0);
+end;
+
+function TfrmMain.PropertyGroupSummary(const AGroupKey: string): string;
+var
+  I, Count: Integer;
+  Key: string;
+  InGroup: Boolean;
+begin
+  Count := 0;
+  InGroup := False;
+  if Assigned(FPropFilterRows) then
+    for I := 0 to FPropFilterRows.Count - 1 do
+    begin
+      Key := FPropFilterRows.Names[I];
+      if IsVisualGroupRow(Key) then
+      begin
+        InGroup := SameText(Key, AGroupKey);
+        Continue;
+      end;
+      if InGroup then
+        Inc(Count);
+    end;
+
+  if IsPropertyGroupCollapsed(AGroupKey) then
+    Result := Format('(%d collapsed)', [Count])
+  else
+    Result := Format('(%d)', [Count]);
+end;
+
+procedure TfrmMain.TogglePropertyGroup(const AGroupKey: string);
+var
+  Idx: Integer;
+begin
+  if not Assigned(FPropCollapsedGroups) or (AGroupKey = '') then
+    Exit;
+
+  Idx := FPropCollapsedGroups.IndexOf(AGroupKey);
+  if Idx >= 0 then
+    FPropCollapsedGroups.Delete(Idx)
+  else
+    FPropCollapsedGroups.Add(AGroupKey);
+
+  ApplyPropertyFilter;
+  if Assigned(PropEditor) then
+    UpdatePropertyPanelHintForRow(PropEditor.Row);
+end;
+
+procedure TfrmMain.PropEditorMouseDown(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+var
+  Col, Row: Integer;
+  Key: string;
+begin
+  if (Button <> mbLeft) or not Assigned(PropEditor) then
+    Exit;
+
+  Col := 0;
+  Row := 0;
+  PropEditor.MouseToCell(X, Y, Col, Row);
+  if (Row <= 0) or (Row >= PropEditor.RowCount) then
+    Exit;
+
+  Key := PropEditor.Keys[Row];
+  if not IsVisualGroupRow(Key) then
+    Exit;
+
+  // Collapsing changes which rows are visible, so commit a pending edit first
+  // rather than risk hiding it before it is applied.
+  if FPropertyPanelDirty then
+    ApplyPropertyPanel;
+
+  TogglePropertyGroup(Key);
+end;
+
+procedure TfrmMain.edtPropFilterChange(Sender: TObject);
+begin
+  if FLoadingPropertyPanel then
+    Exit;
+
+  // Never hide a pending edit: commit it before the visible row set changes.
+  if FPropertyPanelDirty then
+    ApplyPropertyPanel
+  else
+    ApplyPropertyFilter;
+
+  if Assigned(PropEditor) then
+    UpdatePropertyPanelHintForRow(PropEditor.Row);
+end;
+
+procedure TfrmMain.edtPropFilterKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  if Key = VK_ESCAPE then
+  begin
+    // Esc clears the filter; a further Esc leaves the box.
+    if Assigned(edtPropFilter) and (edtPropFilter.Text <> '') then
+    begin
+      edtPropFilter.Text := '';
+      Key := 0;
+    end;
+    Exit;
+  end;
+
+  if Key = VK_RETURN then
+  begin
+    // Move focus into the filtered grid instead of editing a filter row.
+    if Assigned(PropEditor) then
+      PropEditor.SetFocus;
+    Key := 0;
+  end;
 end;
 
 procedure TfrmMain.UpdatePropertyPanelHeader(AObj: TReportObject);
@@ -5220,6 +5560,8 @@ begin
     begin
       SetPropertyPanelDirty(AValue);
     end);
+
+  RefreshProblems;
 end;
 
 procedure TfrmMain.UpdatePropertyPanelHintForRow(ARow: Integer);
@@ -5248,6 +5590,14 @@ procedure TfrmMain.PropEditorKeyDown(Sender: TObject; var Key: Word; Shift: TShi
 begin
   if (PropEditor.Row > 0) and IsVisualGroupRow(PropEditor.Keys[PropEditor.Row]) then
   begin
+    // Enter/Space folds or unfolds the group under the cursor.
+    if (Key = VK_RETURN) or (Key = VK_SPACE) then
+    begin
+      TogglePropertyGroup(PropEditor.Keys[PropEditor.Row]);
+      Key := 0;
+      Exit;
+    end;
+
     if not (Key in [VK_UP, VK_DOWN, VK_LEFT, VK_RIGHT, VK_HOME, VK_END, VK_PRIOR, VK_NEXT, VK_TAB]) then
       Key := 0;
     Exit;
@@ -5332,38 +5682,537 @@ end;
 
 procedure TfrmMain.ConfigureViewToggleStrip;
 begin
-  Frm.Main.ViewHelpers.ConfigureViewToggleStrip(CheckListBox1);
-  CheckListBox1.OnClickCheck := CheckListBox1ClickCheck;
+  Frm.Main.ViewHelpers.ConfigureViewToggleButtons(
+    btnToggleGrid, btnToggleSnap, btnToggleRuler, btnToggleMargin);
 end;
 
 procedure TfrmMain.LoadDesignerPreferences;
+var
+  Section: TDesignerDockSection;
 begin
   if Assigned(FPreferences) then
   begin
     FPreferences.LoadDesignerPreferences(FDesigner);
     FPreferences.LoadSidebarWidths(pnlToolbox, pnlProperties);
-    FPreferences.LoadSidebarSectionHeights(FPnlObjects, FPnlDataSections,
-      FPnlFields);
+    FPreferences.LoadSidebarSectionHeights(
+      FDockExpandedHeight[dsObjects], FDockExpandedHeight[dsStructure],
+      FDockExpandedHeight[dsVariables]);
+    FPreferences.LoadSidebarCollapsed(
+      FDockCollapsed[dsObjects], FDockCollapsed[dsStructure],
+      FDockCollapsed[dsVariables], FDockCollapsed[dsFields]);
+
+    RelayoutDockSections;
+    for Section := Low(TDesignerDockSection) to High(TDesignerDockSection) do
+      UpdateDockSectionHeader(Section);
+
     pnlToolbox.Realign;
     FPnlObjects.Realign;
     FPnlStructure.Realign;
-    FPnlDataSections.Realign;
     FPnlVariables.Realign;
     FPnlFields.Realign;
   end;
 end;
 
-function TfrmMain.FindRecentFilesMenu: TMenuItem;
+procedure TfrmMain.SetupDockSections;
+var
+  Section: TDesignerDockSection;
+  Panel: TPanel;
+  Header: TLabel;
+begin
+  // VCL orders aligned controls by their Top value (not by creation order), and
+  // assigning Top would normally re-align immediately, so pin the whole dock
+  // chain inside a single DisableAlign/EnableAlign block.
+  pnlToolbox.DisableAlign;
+  try
+    FPnlObjects.Top := 0;
+    FSplObjectsStructure.Top := 1;
+    FPnlStructure.Top := 2;
+    FSplStructureVariables.Top := 3;
+    FPnlVariables.Top := 4;
+    FSplVariablesFields.Top := 5;
+    FPnlProblems.Top := 6;
+    FSplProblemsFields.Top := 7;
+    FPnlFields.Top := 8;
+  finally
+    pnlToolbox.EnableAlign;
+  end;
+
+  for Section := Low(TDesignerDockSection) to High(TDesignerDockSection) do
+  begin
+    Panel := DockSectionPanel(Section);
+    if Assigned(Panel) and (FDockExpandedHeight[Section] <= 0) then
+      FDockExpandedHeight[Section] := Panel.Height;
+
+    Header := DockSectionLabel(Section);
+    if Assigned(Header) then
+    begin
+      Header.AutoSize := False;
+      Header.Height := 18;
+      Header.Cursor := crHandPoint;
+      Header.ShowHint := True;
+      Header.Hint := 'Click to fold or unfold this section';
+      Header.OnClick := DockSectionHeaderClick;
+      Header.Tag := Ord(Section);
+      // Match the object toolbox header bar so all four sections look alike.
+      Header.Color := 2894892;
+      Header.ParentColor := False;
+      Header.Transparent := False;
+      Header.Font.Color := clWhite;
+      Header.Font.Style := [fsBold];
+    end;
+
+    UpdateDockSectionHeader(Section);
+  end;
+
+  RelayoutDockSections;
+end;
+
+function TfrmMain.DockSectionPanel(ASection: TDesignerDockSection): TPanel;
+begin
+  case ASection of
+    dsObjects:   Result := FPnlObjects;
+    dsStructure: Result := FPnlStructure;
+    dsVariables: Result := FPnlVariables;
+    dsProblems:  Result := FPnlProblems;
+  else
+    Result := FPnlFields;
+  end;
+end;
+
+function TfrmMain.DockSectionLabel(ASection: TDesignerDockSection): TLabel;
+begin
+  case ASection of
+    dsObjects:   Result := lblToolbox;
+    dsStructure: Result := FLblStructure;
+    dsVariables: Result := FLblVariables;
+    dsProblems:  Result := FLblProblems;
+  else
+    Result := FLblFields;
+  end;
+end;
+
+function TfrmMain.DockSectionSplitter(ASection: TDesignerDockSection): TSplitter;
+begin
+  case ASection of
+    dsObjects:   Result := FSplObjectsStructure;
+    dsStructure: Result := FSplStructureVariables;
+    dsVariables: Result := FSplVariablesFields;
+    dsProblems:  Result := FSplProblemsFields;
+  else
+    Result := nil;   // the last section is alClient and has no splitter
+  end;
+end;
+
+function TfrmMain.DockSectionTitle(ASection: TDesignerDockSection): string;
+begin
+  case ASection of
+    dsObjects:   Result := 'Objects';
+    dsStructure: Result := 'Report Structure';
+    dsVariables: Result := 'Variables';
+    dsProblems:  Result := 'Problems';
+  else
+    Result := 'Dataset Fields';
+  end;
+end;
+
+procedure TfrmMain.UpdateDockSectionHeader(ASection: TDesignerDockSection);
+var
+  Header: TLabel;
+  Marker: string;
+begin
+  Header := DockSectionLabel(ASection);
+  if not Assigned(Header) then
+    Exit;
+
+  if FDockCollapsed[ASection] then
+    Marker := '+'
+  else
+    Marker := '-';
+
+  Header.Caption := ' ' + Marker + ' ' + DockSectionTitle(ASection);
+  if ASection = dsProblems then
+    UpdateProblemsHeader;
+end;
+
+procedure TfrmMain.UpdateProblemsHeader;
+var
+  Count: Integer;
+begin
+  if not Assigned(FLblProblems) then
+    Exit;
+
+  Count := 0;
+  if Assigned(FProblems) then
+    Count := FProblems.Count;
+
+  FLblProblems.Caption :=
+    ' ' + MarkerText(FDockCollapsed[dsProblems]) + ' Problems (' + IntToStr(Count) + ')';
+end;
+
+function TfrmMain.MarkerText(ACollapsed: Boolean): string;
+begin
+  if ACollapsed then
+    Result := '+'
+  else
+    Result := '-';
+end;
+
+procedure TfrmMain.CaptureDockSectionHeights;
+var
+  Section: TDesignerDockSection;
+  Panel: TPanel;
+begin
+  for Section := Low(TDesignerDockSection) to High(TDesignerDockSection) do
+  begin
+    Panel := DockSectionPanel(Section);
+    // Only fixed (alTop) sections carry a user-chosen height; the section that
+    // currently absorbs the slack just reports the leftover space.
+    if Assigned(Panel) and (Panel.Align = alTop) and
+       not FDockCollapsed[Section] then
+      FDockExpandedHeight[Section] := Panel.Height;
+  end;
+end;
+
+procedure TfrmMain.RelayoutDockSections;
+const
+  CollapsedSectionHeight = 18;
+  DefaultSectionHeight = 180;
+var
+  Section, SlackOwner: TDesignerDockSection;
+  Panel: TPanel;
+  Spl: TSplitter;
+begin
+  // The bottom-most open section absorbs the leftover height, so folding any
+  // section - including the last one - never leaves an empty gap in the dock.
+  SlackOwner := dsObjects;
+  for Section := Low(TDesignerDockSection) to High(TDesignerDockSection) do
+    if not FDockCollapsed[Section] then
+      SlackOwner := Section;
+
+  for Section := Low(TDesignerDockSection) to High(TDesignerDockSection) do
+  begin
+    Panel := DockSectionPanel(Section);
+    if not Assigned(Panel) then
+      Continue;
+
+    // A hidden splitter is skipped by the align chain, so a folded section
+    // gives up its drag handle while it is folded.
+    Spl := DockSectionSplitter(Section);
+    if Assigned(Spl) then
+      Spl.Visible := not FDockCollapsed[Section];
+
+    if FDockCollapsed[Section] then
+    begin
+      if Panel.Align = alTop then
+        FDockExpandedHeight[Section] := Panel.Height;
+      if FDockExpandedHeight[Section] < CollapsedSectionHeight then
+        FDockExpandedHeight[Section] := DefaultSectionHeight;
+      Panel.Align := alTop;
+      Panel.Height := CollapsedSectionHeight;
+    end
+    else if Section = SlackOwner then
+    begin
+      // alClient ignores Height, so the slack owner keeps no fixed height.
+      Panel.Align := alClient;
+    end
+    else
+    begin
+      if FDockExpandedHeight[Section] < CollapsedSectionHeight then
+        FDockExpandedHeight[Section] := DefaultSectionHeight;
+      Panel.Align := alTop;
+      Panel.Height := FDockExpandedHeight[Section];
+    end;
+  end;
+end;
+
+procedure TfrmMain.ToggleDockSection(ASection: TDesignerDockSection);
+begin
+  CaptureDockSectionHeights;
+  FDockCollapsed[ASection] := not FDockCollapsed[ASection];
+  RelayoutDockSections;
+  UpdateDockSectionHeader(ASection);
+
+  if Assigned(FPreferences) then
+  begin
+    FPreferences.SaveSidebarSectionHeights(
+      FDockExpandedHeight[dsObjects], FDockExpandedHeight[dsStructure],
+      FDockExpandedHeight[dsVariables]);
+    FPreferences.SaveSidebarCollapsed(
+      FDockCollapsed[dsObjects], FDockCollapsed[dsStructure],
+      FDockCollapsed[dsVariables], FDockCollapsed[dsFields]);
+  end;
+end;
+
+procedure TfrmMain.DockSectionHeaderClick(Sender: TObject);
+begin
+  if Sender is TLabel then
+    ToggleDockSection(TDesignerDockSection(TLabel(Sender).Tag));
+end;
+
+procedure TfrmMain.DesignerBandInsertRequest(Sender: TObject; ABand: TReportBand);
+var
+  P: TPoint;
+begin
+  if not Assigned(FInsertBandMenu) or not Assigned(ABand) then
+    Exit;
+
+  FInsertAfterBand := ABand;
+  GetCursorPos(P);
+  FInsertBandMenu.Popup(P.X, P.Y);
+end;
+
+procedure TfrmMain.BuildInsertBandMenu(AMenu: TPopupMenu);
+const
+  BAND_TYPES: array[0..5] of TReportBandType = (
+    btReportTitle, btPageHeader, btMasterData, btDetail, btPageFooter,
+    btReportSummary);
+var
+  I: Integer;
+  Item: TMenuItem;
+begin
+  AMenu.Items.Clear;
+  for I := Low(BAND_TYPES) to High(BAND_TYPES) do
+  begin
+    Item := TMenuItem.Create(AMenu);
+    Item.Caption := 'Insert ' + BandTypeName(BAND_TYPES[I]) + ' band';
+    Item.Tag := Ord(BAND_TYPES[I]);
+    Item.OnClick := InsertBandMenuItemClick;
+    AMenu.Items.Add(Item);
+  end;
+end;
+
+procedure TfrmMain.InsertBandMenuItemClick(Sender: TObject);
+begin
+  if Sender is TMenuItem then
+    InsertBandAfter(TReportBandType(TMenuItem(Sender).Tag), FInsertAfterBand);
+end;
+
+procedure TfrmMain.InsertBandAfter(ABandType: TReportBandType;
+  AAfterBand: TReportBand);
+var
+  Band: TReportBand;
+  NewIdx, AfterIdx: Integer;
+begin
+  if not Assigned(FDesigner) then
+    Exit;
+
+  Band := FDesigner.AddBand(ABandType);
+  if not Assigned(Band) then
+    Exit;
+
+  // AddBand appends; move the new band directly after the one it was requested for.
+  if Assigned(AAfterBand) and Assigned(FDesigner.Report) then
+  begin
+    AfterIdx := FDesigner.Report.Objects.IndexOf(AAfterBand);
+    NewIdx := FDesigner.Report.Objects.IndexOf(Band);
+    if (AfterIdx >= 0) and (NewIdx >= 0) and (NewIdx <> AfterIdx + 1) then
+      FDesigner.Report.Objects.Move(NewIdx, AfterIdx + 1);
+  end;
+
+  FDesigner.RebuildLayout;
+  RefreshReportStructure;
+  UpdateAll;
+  FDesigner.SelectObject(Band);
+  StatusBar1.Panels[1].Text := 'Band inserted: ' + BandTypeName(Band.BandType);
+end;
+
+{ =========================================================================== }
+{  Problems panel                                                              }
+{ =========================================================================== }
+
+constructor TDesignerProblem.Create(ASeverity: TDesignerProblemSeverity;
+  const AText: string; ATarget: TReportObject);
+begin
+  inherited Create;
+  Severity := ASeverity;
+  Text := AText;
+  Target := ATarget;
+end;
+
+function TfrmMain.SeverityText(ASeverity: TDesignerProblemSeverity): string;
+begin
+  case ASeverity of
+    dpsError:   Result := 'Error';
+    dpsWarning: Result := 'Warning';
+  else
+    Result := 'Info';
+  end;
+end;
+
+procedure TfrmMain.CaptureLoadDiagnostics(const AFileName: string;
+  AResult: TReportLoadResult);
 var
   I: Integer;
 begin
-  Result := nil;
-  if not Assigned(mnuFile) then
+  if not Assigned(FLoadDiagnostics) then
     Exit;
 
-  for I := 0 to mnuFile.Count - 1 do
-    if SameText(mnuFile.Items[I].Caption, 'Recent &Files') then
-      Exit(mnuFile.Items[I]);
+  FLoadDiagnostics.Clear;
+  if not Assigned(AResult) then
+    Exit;
+
+  for I := 0 to AResult.Diagnostics.Count - 1 do
+    FLoadDiagnostics.Add(ExtractFileName(AFileName) + ': ' +
+      AResult.Diagnostics[I].ToString);
+end;
+
+procedure TfrmMain.RefreshProblems;
+var
+  Fields: TStringList;
+  FieldNames: TArray<string>;
+  I: Integer;
+  Obj: TReportObject;
+
+  procedure Add(ASeverity: TDesignerProblemSeverity; const AText: string;
+    ATarget: TReportObject);
+  begin
+    FProblems.Add(TDesignerProblem.Create(ASeverity, AText, ATarget));
+  end;
+
+  procedure CheckObject(AObj: TReportObject);
+  var
+    ImageObj: TReportImageObject;
+    BoundField: string;
+    ObjName: string;
+  begin
+    if not Assigned(AObj) then
+      Exit;
+
+    ObjName := Trim(AObj.Name);
+    if ObjName = '' then
+      ObjName := AObj.ClassName;
+
+    if (AObj.Bounds.Width <= 0) or (AObj.Bounds.Height <= 0) then
+      Add(dpsWarning, ObjName + ' has a zero width or height', AObj);
+
+    if AObj is TReportImageObject then
+    begin
+      ImageObj := TReportImageObject(AObj);
+      if (not Assigned(ImageObj.Picture.Graphic)) or
+         ImageObj.Picture.Graphic.Empty then
+        if Trim(ImageObj.DataField) = '' then
+          Add(dpsInfo, ObjName + ' has no picture and no DataField', AObj);
+    end;
+
+    if AObj is TReportTextObject then
+    begin
+      BoundField := Trim(TReportTextObject(AObj).DataField);
+      if BoundField = '' then
+      begin
+        // An empty DataField is only suspicious on a data-bound field object;
+        // plain labels and memos legitimately bind nothing.
+        if AObj is TReportFieldObject then
+          Add(dpsWarning, ObjName + ' has no DataField bound', AObj);
+      end
+      else if Assigned(Fields) and (Fields.Count > 0) and
+              (Fields.IndexOf(BoundField) < 0) then
+        Add(dpsWarning, ObjName + ': DataField ''' + BoundField +
+          ''' is not in the current dataset', AObj);
+    end;
+  end;
+
+  procedure CheckBand(ABand: TReportBand);
+  var
+    J: Integer;
+    BandName: string;
+  begin
+    if not Assigned(ABand) then
+      Exit;
+
+    BandName := Trim(ABand.Name);
+    if BandName = '' then
+      BandName := ABand.ClassName;
+
+    if ABand.Height <= 0 then
+      Add(dpsError, 'Band ' + BandName + ' has no height', ABand);
+
+    for J := 0 to ABand.Children.Count - 1 do
+      CheckObject(ABand.Children[J]);
+  end;
+begin
+  if not Assigned(FProblems) then
+    Exit;
+
+  FProblems.Clear;
+
+  // Diagnostics captured while loading the current file (unknown objects etc.).
+  if Assigned(FLoadDiagnostics) then
+    for I := 0 to FLoadDiagnostics.Count - 1 do
+      FProblems.Add(TDesignerProblem.Create(dpsWarning, FLoadDiagnostics[I]));
+
+  Fields := nil;
+  if Assigned(FDesigner) and Assigned(FDesigner.Report) then
+  begin
+    try
+      Fields := TStringList.Create;
+      Fields.CaseSensitive := False;
+      FieldNames := FDesigner.GetFieldNames;
+      for I := 0 to High(FieldNames) do
+        Fields.Add(FieldNames[I]);
+    except
+      FreeAndNil(Fields);
+    end;
+
+    try
+      for I := 0 to FDesigner.Report.Objects.Count - 1 do
+      begin
+        Obj := FDesigner.Report.Objects[I];
+        if Obj is TReportBand then
+          CheckBand(TReportBand(Obj))
+        else
+          CheckObject(Obj);
+      end;
+    finally
+      FreeAndNil(Fields);
+    end;
+  end;
+
+  UpdateProblemsList;
+end;
+
+procedure TfrmMain.UpdateProblemsList;
+var
+  I: Integer;
+  P: TDesignerProblem;
+begin
+  if Assigned(FLstProblems) then
+  begin
+    FLstProblems.Items.BeginUpdate;
+    try
+      FLstProblems.Items.Clear;
+      for I := 0 to FProblems.Count - 1 do
+      begin
+        P := FProblems[I];
+        FLstProblems.Items.AddObject(SeverityText(P.Severity) + ': ' + P.Text, P);
+      end;
+      if FLstProblems.Items.Count = 0 then
+        FLstProblems.Items.Add('No problems found');
+    finally
+      FLstProblems.Items.EndUpdate;
+    end;
+  end;
+
+  UpdateProblemsHeader;
+end;
+
+procedure TfrmMain.ProblemsListDblClick(Sender: TObject);
+var
+  Idx: Integer;
+  P: TDesignerProblem;
+begin
+  if not Assigned(FLstProblems) or not Assigned(FDesigner) then
+    Exit;
+
+  Idx := FLstProblems.ItemIndex;
+  if (Idx < 0) or (Idx >= FLstProblems.Items.Count) then
+    Exit;
+
+  P := TDesignerProblem(FLstProblems.Items.Objects[Idx]);
+  if Assigned(P) and Assigned(P.Target) then
+  begin
+    FDesigner.SelectObject(P.Target);
+    Frm.Main.SelectionSync.ScrollObjectIntoView(FDesigner, P.Target);
+  end;
 end;
 
 procedure TfrmMain.LoadRecentFiles;
@@ -5384,6 +6233,24 @@ begin
   if not Assigned(mnuFile) or not Assigned(mnuOpen) then
     Exit;
   BuildRecentFilesMenu(mnuFile, mnuOpen, mnuSaveAs, FRecentFiles, RecentFileClick, ClearRecentFiles);
+  BuildTemplateMenu(mnuFile, mnuNew, TemplateMenuItemClick);
+end;
+
+procedure TfrmMain.TemplateMenuItemClick(Sender: TObject);
+var
+  Path: string;
+begin
+  if not (Sender is TMenuItem) then
+    Exit;
+
+  Path := TMenuItem(Sender).Hint;
+  if (Path = '') or not TFile.Exists(Path) then
+    Exit;
+
+  ConfirmSaveIfModified;
+  // Templates open against the sample dataset so the field list and the DataField
+  // checks in the Problems panel have something to bind to.
+  LoadDesignerReportFromFile(Path, True);
 end;
 
 procedure TfrmMain.AddRecentFile(const AFileName: string);
@@ -5430,16 +6297,21 @@ procedure TfrmMain.SaveDesignerPreferences;
 begin
   if Assigned(FPreferences) then
   begin
+    CaptureDockSectionHeights;
     FPreferences.SaveDesignerPreferences(FDesigner);
     FPreferences.SaveSidebarWidths(pnlToolbox, pnlProperties);
-    FPreferences.SaveSidebarSectionHeights(FPnlObjects, FPnlDataSections,
-      FPnlFields);
+    FPreferences.SaveSidebarSectionHeights(
+      FDockExpandedHeight[dsObjects], FDockExpandedHeight[dsStructure],
+      FDockExpandedHeight[dsVariables]);
+    FPreferences.SaveSidebarCollapsed(
+      FDockCollapsed[dsObjects], FDockCollapsed[dsStructure],
+      FDockCollapsed[dsVariables], FDockCollapsed[dsFields]);
   end;
 end;
 
 procedure TfrmMain.UpdateStatusBar;
 begin
-  Frm.Main.ViewHelpers.UpdateStatusBar(StatusBar1, FDesigner);
+  Frm.Main.ViewHelpers.UpdateStatusBar(StatusBar1, FDesigner, FModified, FCurrentFile);
 end;
 
 procedure TfrmMain.UpdateAll;
@@ -5460,11 +6332,11 @@ begin
     mnuSameWidth, mnuSameHeight, mnuCenterH, mnuCenterV,
     mnuDistH, mnuDistV, mnuFront, mnuBack,
     mnuShowGrid, mnuSnapGrid, mnuShowRulers, mnuShowMargins,
-    btnUndo, btnRedo, btnDelete, btnCopy,
+    btnUndo, btnRedo, btnDelete, btnCopy, btnCut,
     btnAlignLeft, btnAlignRight, btnAlignTop, btnAlignBottom,
     btnSameW, btnSameH, btnCenterH, btnCenterV,
     btnDistH, btnDistV, btnFront, btnBack,
-    CheckListBox1,
+    btnToggleGrid, btnToggleSnap, btnToggleRuler, btnToggleMargin,
     procedure
     begin
       UpdateStatusBar;
@@ -5495,11 +6367,6 @@ end;
 function TfrmMain.StructureObjectIconIndex(AObj: TReportObject): Integer;
 begin
   Result := Frm.Main.Structure.StructureObjectIconIndex(AObj);
-end;
-
-function TfrmMain.FindStructureNodeByData(AData: Pointer): TTreeNode;
-begin
-  Result := Frm.Main.Structure.FindStructureNodeByData(FTreeStructure, AData);
 end;
 
 procedure TfrmMain.SyncReportStructureSelection;
@@ -5579,6 +6446,8 @@ var
   TopObj, ChildObj: TReportObject;
   IconIndex: Integer;
 begin
+  RefreshProblems;
+
   if not Assigned(FTreeStructure) or not HasDesignerReport then
     Exit;
 
@@ -5677,11 +6546,6 @@ begin
   Result := Frm.Main.TreeFieldHelpers.VariableTokenForNode(ANode, AToken, ASupported);
 end;
 
-function TfrmMain.CanInsertVariableIntoCurrentProperty(out AKey: string): Boolean;
-begin
-  Result := Frm.Main.TreeFieldHelpers.CanInsertVariableIntoCurrentProperty(PropEditor, AKey);
-end;
-
 procedure TfrmMain.InsertVariableToken(const AToken: string);
 begin
   Frm.Main.TreeFieldHelpers.InsertVariableToken(PropEditor,
@@ -5778,11 +6642,6 @@ end;
 function TfrmMain.IsVisualGroupRow(const AKey: string): Boolean;
 begin
   Result := Frm.Main.PropertyHelpers.IsVisualGroupRow(AKey);
-end;
-
-function TfrmMain.IsFontDialogRowKey(const AKey: string): Boolean;
-begin
-  Result := Frm.Main.PropertyHelpers.IsFontDialogRowKey(AKey);
 end;
 
 function TfrmMain.IsColorPropertyKey(const AKey: string): Boolean;
@@ -6318,6 +7177,12 @@ end;
 procedure TfrmMain.DynAddBandMenuClick(Sender: TObject);
 begin
   AddBand(TReportBandType(TMenuItem(Sender).Tag));
+end;
+
+procedure TfrmMain.ScrollBox1Resize(Sender: TObject);
+begin
+  if Assigned(FDesigner) then
+    FDesigner.UpdateSurfaceExtent;
 end;
 
 end.

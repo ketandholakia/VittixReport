@@ -4,8 +4,10 @@ interface
 
 uses
   System.Classes,
+  System.Types,
   Vcl.ComCtrls,
   Vcl.Controls,
+  Vcl.Forms,
   Vittix.Report.DesignerControl,
   Vittix.Report.Objects;
 
@@ -24,6 +26,11 @@ procedure StructureTreeChange(
 procedure StructureTreeDblClick(
   ATree: TTreeView;
   ADesigner: TVittixReportDesigner);
+
+{ Scrolls the scroll box hosting ADesigner so that AObj is inside the viewport. }
+procedure ScrollObjectIntoView(
+  ADesigner: TVittixReportDesigner;
+  AObj: TReportObject);
 
 procedure StructureTreeMouseDown(
   ATree: TTreeView;
@@ -100,6 +107,7 @@ procedure StructureTreeDblClick(
   ADesigner: TVittixReportDesigner);
 var
   Node: TTreeNode;
+  Target: TReportObject;
 begin
   if not Assigned(ATree) or not Assigned(ADesigner) then
     Exit;
@@ -108,15 +116,63 @@ begin
   if not Assigned(Node) then
     Exit;
 
+  Target := nil;
   if Assigned(Node.Data) then
-    ADesigner.SelectObject(TReportObject(Node.Data));
+    Target := TReportObject(Node.Data);
+
+  if Assigned(Target) then
+    ADesigner.SelectObject(Target);
 
   if Assigned(ADesigner.Parent) and ADesigner.Parent.CanFocus then
     ADesigner.Parent.SetFocus
   else if ADesigner.CanFocus then
     ADesigner.SetFocus;
 
+  ScrollObjectIntoView(ADesigner, Target);
   ADesigner.Invalidate;
+end;
+
+procedure ScrollObjectIntoView(
+  ADesigner: TVittixReportDesigner;
+  AObj: TReportObject);
+const
+  MARGIN = 24;
+var
+  SB: TScrollBox;
+  R: TRect;
+  VisibleL, VisibleT, VisibleR, VisibleB, DX, DY: Integer;
+begin
+  if not Assigned(ADesigner) or not Assigned(AObj) then
+    Exit;
+  if not (ADesigner.Parent is TScrollBox) then
+    Exit;
+
+  R := ADesigner.ObjectClientRect(AObj);
+  if IsRectEmpty(R) then
+    Exit;
+
+  SB := TScrollBox(ADesigner.Parent);
+  VisibleL := SB.HorzScrollBar.Position;
+  VisibleT := SB.VertScrollBar.Position;
+  VisibleR := VisibleL + SB.ClientWidth;
+  VisibleB := VisibleT + SB.ClientHeight;
+
+  DX := 0;
+  DY := 0;
+  if R.Left < VisibleL + MARGIN then
+    DX := R.Left - MARGIN - VisibleL
+  else if R.Right > VisibleR - MARGIN then
+    DX := R.Right + MARGIN - VisibleR;
+
+  if R.Top < VisibleT + MARGIN then
+    DY := R.Top - MARGIN - VisibleT
+  else if R.Bottom > VisibleB - MARGIN then
+    DY := R.Bottom + MARGIN - VisibleB;
+
+  if DX <> 0 then
+    SB.HorzScrollBar.Position := SB.HorzScrollBar.Position + DX;
+  if DY <> 0 then
+    SB.VertScrollBar.Position := SB.VertScrollBar.Position + DY;
 end;
 
 procedure StructureTreeMouseDown(

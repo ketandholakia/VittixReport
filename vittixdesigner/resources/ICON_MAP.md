@@ -14,14 +14,39 @@ This document maps designer actions, tools, panels, and report objects to SVG fi
 - Do not rename icons after they are wired into the designer unless code/DFM references are updated.
 - Object icons should end with `_object.svg` where appropriate.
 
-## SVG color standard
-- Toolbar and designer SVG icons should use `#4A4A4A` for normal enabled icon color.
+## Icon colour standard
+- Toolbar and designer icons are dark grey (`#4A4A4A`, some newer ones `#1E1E1E`) so they stay readable on the light `clBtnFace` UI.
+- Keep new SVG sources dark; the designer does not recolour icons at runtime.
 
-Runtime rendering note:
-- The designer currently keeps runtime SVG rendering settings normalized for the shared SVG virtual image list.
-- This is intentional during stabilization so toolbar, structure tree, and toolbox icons remain dark/readable across environments.
-- Source SVG files and embedded DFM SVGText should still use `#4A4A4A`.
-- A future cleanup may test removing runtime color overrides once rendering is verified across target Delphi versions/themes.
+## How the icons reach the UI (current)
+
+The designer does **not** use any SVG component and does **not** use the DELPHI
+`TImageCollection`/`TVirtualImageList` pair for the toolbar. Icons are plain PNGs
+embedded as resources and loaded at startup:
+
+1. `resources/*.svg` - the source icon set (98 files).
+2. `resources/convert_fitz.py` - renders each SVG to a transparent **24x24** PNG
+   in `resources/png/<name>.png`.
+3. `resources/gen_png_rc.py` - writes `resources/vittix_png_icons.rc`
+   (`PNG_<NAME> RCDATA "png/<name>.png"`).
+4. `brcc32 -fo vittix_png_icons.RES vittix_png_icons.rc` - compiles the resource.
+5. `Frm.Main.pas` (`{$R resources\vittix_png_icons.res}`) loads every entry into
+   `ImageList1` at startup with `ImageList1.Add`.
+
+`ImageList1` is configured as `cd32Bit`, `dsTransparent`, **24x24** - it must stay
+the same size as the generated PNGs.
+
+### Pitfall: the legacy bitmap stored in the DFM
+
+`Frm.Main.dfm` still contains an old 16x16 placeholder bitmap for `ImageList1`.
+`TCustomImageList.SetWidth/SetHeight` only clears the list when the handle is
+already allocated, so without an explicit `ImageList1.Clear` (see
+`TfrmMain.FormCreate`) those stale images stay at index 0 and every runtime image
+is appended **after** them. That shifts every `ImageIndex` referenced by the
+toolbar and the structure tree and the wrong (or blank) icons are drawn.
+
+Do not remove the `ImageList1.Clear` call, and keep `ImageList1` size in sync with
+the generated PNG size.
 
 ## File / report actions
 | Action | Icon file | Notes |
@@ -169,14 +194,16 @@ Runtime rendering note:
 Only add these if needed by the final toolbar/tree/menu design.
 
 ## Future wiring notes
-- Prefer loading SVGs into a central SVG image collection if available.
-- Keep toolbar icons around 24x24.
-- Keep tree icons around 16x16.
-- Do not rely on raw ImageIndex numbers without documenting the mapping.
-- If using ImageList indexes, add an "ImageList index map" section later.
+- Icons are plain PNGs loaded into `ImageList1` (24x24); there is no SVG component dependency.
+- Keep toolbar icons at 24x24 and keep them in sync with `ImageList1.Width/Height`.
+- Keep the `ImageList1` load order below stable; toolbar and structure-tree `ImageIndex` values in the DFM depend on it. New icons must be appended, never inserted.
+- `label_object` was appended after `table_object`, so indices 0..31 keep their historical meaning.
 
 ## ImageList1 index map
-This is the current stable toolbar mapping used by `ToolBar1.Images = ImageList1`.
+This is the load order used by `TfrmMain.FormCreate`
+(`PNGNames`) and the mapping consumed by `ToolBar1.Images = ImageList1` plus the
+structure tree. Indices 0..20 are toolbar buttons, 21..31 are structure-tree
+nodes, 32 is toolbox-only.
 
 | Index | Icon file | Usage |
 |---|---|---|
@@ -191,23 +218,63 @@ This is the current stable toolbar mapping used by `ToolBar1.Images = ImageList1
 | 8 | `delete.svg` | Delete (`btnDelete`) |
 | 9 | `copy.svg` | Copy (`btnCopy`) |
 | 10 | `paste.svg` | Paste (`btnPaste`) |
+| 11 | `align_vertical_top.svg` | Align Top (`btnAlignTop`) |
+| 12 | `align_vertical_bottom.svg` | Align Bottom (`btnAlignBottom`) |
+| 13 | `width.svg` | Same Width (`btnSameW`) / Distribute H (`btnDistH`) |
+| 14 | `height.svg` | Same Height (`btnSameH`) / Distribute V (`btnDistV`) |
+| 15 | `align_center.svg` | Center Horizontally (`btnCenterH`) |
+| 16 | `align_vertical_center.svg` | Center Vertically (`btnCenterV`) |
+| 17 | `flip_to_front.svg` | Bring To Front (`btnFront`) |
+| 18 | `flip_to_back.svg` | Send To Back (`btnBack`) |
+| 19 | `zoom_in.svg` | Zoom In (`btnZoomIn`) |
+| 20 | `zoom_out.svg` | Zoom Out (`btnZoomOut`) |
+| 21 | `description.svg` | structure tree: report root / fallback |
+| 22 | `table_rows.svg` | structure tree: band |
+| 23 | `text_object.svg` | structure tree: text object |
+| 24 | `datafield_object.svg` | structure tree: data field |
+| 25 | `memo_object.svg` | structure tree: memo |
+| 26 | `image_object.svg` | structure tree: image |
+| 27 | `barcode_object.svg` | structure tree: barcode |
+| 28 | `shapes_object.svg` | structure tree: shape |
+| 29 | `line_object.svg` | structure tree: line |
+| 30 | `subreport_object.svg` | structure tree: sub report |
+| 31 | `table_object.svg` | structure tree: table |
+| 32 | `label_object.svg` | object toolbox: label tool |
+| 33 | `save_as.svg` | toolbar: Save As (`btnSaveAs`) |
+| 34 | `picture_as_pdf.svg` | toolbar: Export PDF (`btnExportPDF`) |
+| 35 | `cut.svg` | toolbar: Cut (`btnCut`) |
+| 36 | `zoom_fit_width.svg` | toolbar: Fit page width (`btnFitWidth`) |
+| 37 | `grid.svg` | toolbar toggle: show grid (`btnToggleGrid`) |
+| 38 | `snap_to_grid.svg` | toolbar toggle: snap to grid (`btnToggleSnap`) |
+| 39 | `show_ruler.svg` | toolbar toggle: rulers (`btnToggleRuler`) |
+| 40 | `border.svg` | toolbar toggle: margin guides (`btnToggleMargin`) |
 
 Notes:
-- This phase wires a small, stable subset on the main toolbar only.
-- `Save As`, `Export PDF`, `Cut`, `Select All`, `Page Setup`, and `Report Properties` are mapped in this document but not yet shown as toolbar buttons in the current DFM toolbar layout.
+- `btnDistH` / `btnDistV` deliberately reuse the width/height icons.
+- `Save As`, `Export PDF`, `Cut`, `Select All`, `Page Setup` and `Report
+  Properties` are mapped in this document but are not toolbar buttons in the
+  current DFM layout.
+- Which toolbox tools appear is driven by `GetRegisteredReportObjects`; every
+  registered class resolves a name through `ToolImageNameForClass` and falls
+  back to `description`.
 
-## SVG toolbar image mapping
-Main toolbar now uses `SVGIconVirtualImageList1` backed by `SVGIconImageCollection1`.
-Mapping uses `ImageName` on buttons, with matching stable `ImageIndex` via `SVGIconVirtualImageList1.Images` order.
+## Toolbar image mapping (ImageList1)
+The main toolbar uses `ToolBar1.Images = ImageList1` and resolves icons by
+`ImageIndex`. The `ImageName` values stored in the DFM are inert for a plain
+`TImageList` (it has no name support); the numeric `ImageIndex` is authoritative.
+Order below is the load order used by `TfrmMain.FormCreate`.
 
 | Button | Action | SVG file | Image name / Index | Notes |
 |---|---|---|---|---|
 | `btnNew` | New Report | `new_file.svg` | `new_file` / `2` | wired |
 | `btnOpen` | Open Report | `file_open.svg` | `file_open` / `0` | wired |
 | `btnSave` | Save | `save.svg` | `save` / `1` | wired |
+| `btnSaveAs` | Save As | `save_as.svg` | `save_as` / `33` | wired |
+| `btnExportPDF` | Export to PDF | `picture_as_pdf.svg` | `picture_as_pdf` / `34` | wired |
 | `btnUndo` | Undo | `undo.svg` | `undo` / `3` | wired |
 | `btnRedo` | Redo | `redo.svg` | `redo` / `4` | wired |
 | `btnDelete` | Delete | `delete.svg` | `delete` / `8` | wired |
+| `btnCut` | Cut | `cut.svg` | `cut` / `35` | wired |
 | `btnCopy` | Copy | `copy.svg` | `copy` / `9` | wired |
 | `btnPaste` | Paste | `paste.svg` | `paste` / `10` | wired |
 | `btnAlignLeft` | Align Left | `align_horizontal_left.svg` | `align_horizontal_left` / `5` | wired |
@@ -224,11 +291,16 @@ Mapping uses `ImageName` on buttons, with matching stable `ImageIndex` via `SVGI
 | `btnBack` | Send To Back | `flip_to_back.svg` | `flip_to_back` / `18` | wired |
 | `btnZoomIn` | Zoom In | `zoom_in.svg` | `zoom_in` / `19` | wired |
 | `btnZoomOut` | Zoom Out | `zoom_out.svg` | `zoom_out` / `20` | wired |
+| `btnFitWidth` | Fit page width | `zoom_fit_width.svg` | `zoom_fit_width` / `36` | wired |
+| `btnToggleGrid` | Toggle grid | `grid.svg` | `grid` / `37` | `tbsCheck`, mirrors View > Show Grid |
+| `btnToggleSnap` | Toggle snap | `snap_to_grid.svg` | `snap_to_grid` / `38` | `tbsCheck`, mirrors View > Snap to Grid |
+| `btnToggleRuler` | Toggle rulers | `show_ruler.svg` | `show_ruler` / `39` | `tbsCheck`, mirrors View > Show Rulers |
+| `btnToggleMargin` | Toggle margins | `border.svg` | `border` / `40` | `tbsCheck`, mirrors View > Show Margins |
 | `btnPreview` | Preview | `preview.svg` | `preview` / `7` | wired |
 
 
 ## Structure tree image mapping
-Structure tree uses `FTreeStructure.Images = SVGIconVirtualImageList1` and node `ImageIndex`/`SelectedIndex`.
+Structure tree uses `FTreeStructure.Images = ImageList1` and node `ImageIndex`/`SelectedIndex` (indices 21..31, see `TREE_ICON_*` in `Frm.Main.pas`).
 
 | Node type | Icon file | Image index/name | Notes |
 |---|---|---|---|
@@ -246,7 +318,16 @@ Structure tree uses `FTreeStructure.Images = SVGIconVirtualImageList1` and node 
 | Unknown/fallback object | `description.svg` | `21` / `description` | fallback mapping |
 
 ## Object toolbox image mapping
-Object toolbox (`TVittixReportToolbox`) uses owner-draw rows and resolves icon indexes from `ToolImages` by image name.
+Object toolbox (`TVittixReportToolbox`) uses owner-draw rows and resolves icon
+indexes from `ToolImages` **by image name** (`GetIndexByName`).
+
+Important: a plain `Vcl.ImgList.TImageList` does not implement image names -
+`IsImageNameAvailable` returns `False` and `GetIndexByName` always returns `-1`,
+so the toolbox would silently draw text only. The designer therefore assigns the
+toolbox a name-aware `TVirtualImageList` (backed by a `TImageCollection` filled
+from the same PNG resources), created in `TfrmMain.FormCreate`. The toolbar and
+the structure tree keep using the plain `ImageList1` because DFM streaming of
+`ImageIndex`/`ImageName` is only stable on a list without name support.
 
 | Object tool | Icon file | Image index/name | Notes |
 |---|---|---|---|

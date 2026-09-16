@@ -6,7 +6,6 @@ uses
   System.Classes,
   System.SysUtils,
   Vcl.Buttons,
-  Vcl.CheckLst,
   Vcl.ComCtrls,
   Vcl.Menus,
   Vittix.Report.DesignerControl;
@@ -18,11 +17,11 @@ procedure UpdateMenuState(
   AMnuSameWidth, AMnuSameHeight, AMnuCenterH, AMnuCenterV,
   AMnuDistH, AMnuDistV, AMnuFront, AMnuBack,
   AMnuShowGrid, AMnuSnapGrid, AMnuShowRulers, AMnuShowMargins: TMenuItem;
-  ABtnUndo, ABtnRedo, ABtnDelete, ABtnCopy,
+  ABtnUndo, ABtnRedo, ABtnDelete, ABtnCopy, ABtnCut,
   ABtnAlignLeft, ABtnAlignRight, ABtnAlignTop, ABtnAlignBottom,
   ABtnSameW, ABtnSameH, ABtnCenterH, ABtnCenterV,
   ABtnDistH, ABtnDistV, ABtnFront, ABtnBack: TToolButton;
-  ACheckListBox: TCheckListBox;
+  ABtnToggleGrid, ABtnToggleSnap, ABtnToggleRuler, ABtnToggleMargin: TToolButton;
   AUpdateStatusBar: TProc);
 
 implementation
@@ -34,11 +33,11 @@ procedure UpdateMenuState(
   AMnuSameWidth, AMnuSameHeight, AMnuCenterH, AMnuCenterV,
   AMnuDistH, AMnuDistV, AMnuFront, AMnuBack,
   AMnuShowGrid, AMnuSnapGrid, AMnuShowRulers, AMnuShowMargins: TMenuItem;
-  ABtnUndo, ABtnRedo, ABtnDelete, ABtnCopy,
+  ABtnUndo, ABtnRedo, ABtnDelete, ABtnCopy, ABtnCut,
   ABtnAlignLeft, ABtnAlignRight, ABtnAlignTop, ABtnAlignBottom,
   ABtnSameW, ABtnSameH, ABtnCenterH, ABtnCenterV,
   ABtnDistH, ABtnDistV, ABtnFront, ABtnBack: TToolButton;
-  ACheckListBox: TCheckListBox;
+  ABtnToggleGrid, ABtnToggleSnap, ABtnToggleRuler, ABtnToggleMargin: TToolButton;
   AUpdateStatusBar: TProc);
 var
   HasSel: Boolean;
@@ -85,6 +84,7 @@ begin
   AMnuCut.Enabled := HasSel;
   AMnuCopy.Enabled := HasSel;
   AMnuDelete.Enabled := HasSel;
+  ABtnCut.Enabled := HasSel;
   ABtnDelete.Enabled := HasSel;
   ABtnCopy.Enabled := HasSel;
 
@@ -120,13 +120,16 @@ begin
   AMnuSnapGrid.Checked := ADesigner.SnapToGrid;
   AMnuShowRulers.Checked := ADesigner.ShowRulers;
   AMnuShowMargins.Checked := ADesigner.ShowMargins;
-  if Assigned(ACheckListBox) and (ACheckListBox.Items.Count >= 4) then
-  begin
-    ACheckListBox.Checked[0] := ADesigner.ShowGrid;
-    ACheckListBox.Checked[1] := ADesigner.SnapToGrid;
-    ACheckListBox.Checked[2] := ADesigner.ShowRulers;
-    ACheckListBox.Checked[3] := ADesigner.ShowMargins;
-  end;
+
+  // Toolbar view toggles mirror the View menu items (tbsCheck uses Down).
+  if Assigned(ABtnToggleGrid) then
+    ABtnToggleGrid.Down := ADesigner.ShowGrid;
+  if Assigned(ABtnToggleSnap) then
+    ABtnToggleSnap.Down := ADesigner.SnapToGrid;
+  if Assigned(ABtnToggleRuler) then
+    ABtnToggleRuler.Down := ADesigner.ShowRulers;
+  if Assigned(ABtnToggleMargin) then
+    ABtnToggleMargin.Down := ADesigner.ShowMargins;
 
   if Assigned(AUpdateStatusBar) then
     AUpdateStatusBar();

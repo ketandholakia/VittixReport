@@ -36,8 +36,14 @@ type
     procedure SaveDesignerPreferences(ADesigner: TVittixReportDesigner);
     procedure LoadSidebarWidths(ALeftSidebar, ARightSidebar: TControl);
     procedure SaveSidebarWidths(ALeftSidebar, ARightSidebar: TControl);
-    procedure LoadSidebarSectionHeights(AObjects, ADataSections, AFields: TControl);
-    procedure SaveSidebarSectionHeights(AObjects, ADataSections, AFields: TControl);
+    procedure LoadSidebarSectionHeights(var AObjectsHeight, AStructureHeight,
+      AVariablesHeight: Integer);
+    procedure SaveSidebarSectionHeights(AObjectsHeight, AStructureHeight,
+      AVariablesHeight: Integer);
+    procedure LoadSidebarCollapsed(var AObjects, AStructure, AVariables,
+      AFields: Boolean);
+    procedure SaveSidebarCollapsed(AObjects, AStructure, AVariables,
+      AFields: Boolean);
 
     procedure LoadRecentFiles(ARecentFiles: TList<string>);
     procedure SaveRecentFiles(ARecentFiles: TList<string>);
@@ -159,48 +165,70 @@ begin
   end;
 end;
 
-procedure TDesignerPreferencesService.LoadSidebarSectionHeights(AObjects,
-  ADataSections, AFields: TControl);
+procedure TDesignerPreferencesService.LoadSidebarSectionHeights(
+  var AObjectsHeight, AStructureHeight, AVariablesHeight: Integer);
 var
   Ini: TIniFile;
-  H: Integer;
 
-  procedure LoadHeight(AControl: TControl; const AName: string);
+  function ReadHeight(const AName: string; ADefault: Integer): Integer;
   begin
-    H := Ini.ReadInteger('Designer', AName, AControl.Height);
-    if H < MinSidebarSectionHeight then H := MinSidebarSectionHeight;
-    if H > MaxSidebarSectionHeight then H := MaxSidebarSectionHeight;
-    AControl.Height := H;
+    Result := Ini.ReadInteger('Designer', AName, ADefault);
+    if Result < MinSidebarSectionHeight then Result := MinSidebarSectionHeight;
+    if Result > MaxSidebarSectionHeight then Result := MaxSidebarSectionHeight;
   end;
 begin
-  if not Assigned(AObjects) or not Assigned(ADataSections) or
-     not Assigned(AFields) then
-    Exit;
-
   Ini := TIniFile.Create(FSettingsPath);
   try
-    LoadHeight(AObjects, 'ObjectsPanelHeight');
-    LoadHeight(ADataSections, 'DataSectionsPanelHeight');
-    LoadHeight(AFields, 'FieldsPanelHeight');
+    AObjectsHeight   := ReadHeight('ObjectsPanelHeight', AObjectsHeight);
+    AStructureHeight := ReadHeight('StructurePanelHeight', AStructureHeight);
+    AVariablesHeight := ReadHeight('VariablesPanelHeight', AVariablesHeight);
   finally
     Ini.Free;
   end;
 end;
 
-procedure TDesignerPreferencesService.SaveSidebarSectionHeights(AObjects,
-  ADataSections, AFields: TControl);
+procedure TDesignerPreferencesService.SaveSidebarSectionHeights(
+  AObjectsHeight, AStructureHeight, AVariablesHeight: Integer);
 var
   Ini: TIniFile;
 begin
-  if not Assigned(AObjects) or not Assigned(ADataSections) or
-     not Assigned(AFields) then
-    Exit;
-
   Ini := TIniFile.Create(FSettingsPath);
   try
-    Ini.WriteInteger('Designer', 'ObjectsPanelHeight', AObjects.Height);
-    Ini.WriteInteger('Designer', 'DataSectionsPanelHeight', ADataSections.Height);
-    Ini.WriteInteger('Designer', 'FieldsPanelHeight', AFields.Height);
+    Ini.WriteInteger('Designer', 'ObjectsPanelHeight', AObjectsHeight);
+    Ini.WriteInteger('Designer', 'StructurePanelHeight', AStructureHeight);
+    Ini.WriteInteger('Designer', 'VariablesPanelHeight', AVariablesHeight);
+  finally
+    Ini.Free;
+  end;
+end;
+
+procedure TDesignerPreferencesService.LoadSidebarCollapsed(var AObjects,
+  AStructure, AVariables, AFields: Boolean);
+var
+  Ini: TIniFile;
+begin
+  Ini := TIniFile.Create(FSettingsPath);
+  try
+    AObjects   := Ini.ReadBool('Designer', 'ObjectsCollapsed', AObjects);
+    AStructure := Ini.ReadBool('Designer', 'StructureCollapsed', AStructure);
+    AVariables := Ini.ReadBool('Designer', 'VariablesCollapsed', AVariables);
+    AFields    := Ini.ReadBool('Designer', 'FieldsCollapsed', AFields);
+  finally
+    Ini.Free;
+  end;
+end;
+
+procedure TDesignerPreferencesService.SaveSidebarCollapsed(AObjects,
+  AStructure, AVariables, AFields: Boolean);
+var
+  Ini: TIniFile;
+begin
+  Ini := TIniFile.Create(FSettingsPath);
+  try
+    Ini.WriteBool('Designer', 'ObjectsCollapsed', AObjects);
+    Ini.WriteBool('Designer', 'StructureCollapsed', AStructure);
+    Ini.WriteBool('Designer', 'VariablesCollapsed', AVariables);
+    Ini.WriteBool('Designer', 'FieldsCollapsed', AFields);
   finally
     Ini.Free;
   end;
