@@ -47,6 +47,9 @@ Related: `vittixdesigner/README.md`, `vittixdesigner/resources/ICON_MAP.md`
 > - *Batch 10*: **guided empty state + template gallery** (item 10). An empty report now
 >   draws a short three-step guide on the canvas, and File > New from Template lists the
 >   reports found in the templates folder (`reports/` by default) and loads the chosen one.
+> - *Batch 11*: **command palette** (item 13). `Ctrl+Shift+P` (or View > Command Palette)
+>   opens a filterable list of every enabled menu command - 111 entries in the current
+>   build - and runs the chosen one.
 > - Item 5 was re-checked and is **already implemented** (`Frm.Main.SelectionSync`);
 >   it is removed from the open list.
 > - Items 4, 7-16 remain open.
@@ -183,8 +186,18 @@ These are contained edits that do not touch the report engine or public componen
 12. **Icon sizes at DPI.** `ImageList1` is a single 24×24 list; PerMonitorV2 setups would look better with
     16/24/32 px variants selected per DPI. Requires extending the icon pipeline in
     `resources/ICON_MAP.md` (one PNG per size, one `TImageList` per size).
-13. **Command palette** (`Ctrl+Shift+P`) over `TCommandDispatcher` - the command layer already exists, so
-    this is mostly UI plumbing and would help power users a lot.
+13. **Command palette.** *Delivered in batch 11.* `Ctrl+Shift+P` (also View > Command
+    Palette) opens a modal palette: type to filter, Up/Down to move, Enter to run,
+    Esc to dismiss.
+    The entries come from the **menu tree**, not from `TCommandDispatcher` - the
+    dispatcher is the undo/redo stack for model actions, so it has no notion of UI
+    commands. Walking the menu instead means the palette stays in sync automatically and
+    also picks up the runtime-built menus (recent files, templates, the Insert menus).
+    Captions are rendered as `Menu > Item    (Shortcut)`.
+    The chosen command runs *after* the palette closes, so dialogs it opens nest under the
+    main window rather than under the palette.
+    Possible follow-ups: a scoring/fuzzy match rather than a substring filter, remembering
+    the last command, and adding non-menu commands (e.g. designer options) as entries.
 14. **Undo history panel** exposing `TCommandManager` entries with names and jump-to-state.
 15. **Non-blocking report preparation.** `AGENTS.md` already calls for avoiding a blocked UI during long
     preparation; add a cancellable progress surface for prepare/preview/export of large reports.
