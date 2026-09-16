@@ -62,6 +62,10 @@ Related: `vittixdesigner/README.md`, `vittixdesigner/resources/ICON_MAP.md`
 >   interactive controls every one now carries a Hint except four text buttons whose
 >   captions are self-describing, and every focusable control has a TabOrder with none
 >   disabled - nothing is unreachable by keyboard.
+> - *Batch 14*: **undo history panel** (item 14). A sixth dock section lists the undo/redo
+>   timeline (undone steps, a current-state marker, then applied steps); double-clicking an
+>   entry undoes or redoes back to that point. Needed one additive library change: read-only
+>   history access on `TCommandManager` / `TCommandDispatcher`.
 > - Item 5 was re-checked and is **already implemented** (`Frm.Main.SelectionSync`);
 >   it is removed from the open list.
 > - Items 4, 7-16 remain open.
@@ -228,7 +232,15 @@ These are contained edits that do not touch the report engine or public componen
     main window rather than under the palette.
     Possible follow-ups: a scoring/fuzzy match rather than a substring filter, remembering
     the last command, and adding non-menu commands (e.g. designer options) as entries.
-14. **Undo history panel** exposing `TCommandManager` entries with names and jump-to-state.
+14. **Undo history panel.** *Delivered in batch 14.* A sixth dock section (between Problems
+    and Dataset Fields) lists the timeline: undone steps (`> name`), a `--- current state ---`
+    marker, then applied steps (`. name`, most recent first). Double-clicking an entry undoes
+    or redoes the required number of steps, so you can jump straight to a state. It refreshes
+    with the report structure and after property applies.
+    Library change (additive): `TCommandManager` gained `UndoCount` / `RedoCount` /
+    `UndoName(Index)` / `RedoName(Index)` (index 0 = the command the next undo/redo would
+    act on), forwarded by `TCommandDispatcher`; the control already exposed `Commands`.
+    Still open: a per-entry icon/timestamp, and redo-state entries could be greyed.
 15. **Non-blocking report preparation.** `AGENTS.md` already calls for avoiding a blocked UI during long
     preparation; add a cancellable progress surface for prepare/preview/export of large reports.
 16. **Accessibility baseline.** *Delivered in batch 13.*
