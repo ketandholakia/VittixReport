@@ -1,4 +1,4 @@
-﻿unit Vittix.Report.DesignerControl;
+unit Vittix.Report.DesignerControl;
 
 (*
   Vittix.Report.DesignerControl  --  Full-featured report designer VCL control
@@ -71,6 +71,10 @@ TDesignerGridUnit = (guCentimeters, guInches, guPixels, guPoints);
   /// </summary>
   TReportLoadErrorEvent = procedure(Sender: TObject; const AMessage: string) of object;
 
+  { Raised when the user clicks a band separator (a click, not a resize drag) to ask
+    the host to insert a band after ABand. }
+  TDesignerBandInsertEvent = procedure(Sender: TObject; ABand: TReportBand) of object;
+
   TVittixReportDesigner = class(TCustomControl, IDesignerSurface)
   private
     { Report }
@@ -85,6 +89,11 @@ TDesignerGridUnit = (guCentimeters, guInches, guPixels, guPoints);
     FShowGrid   : Boolean;
     FSnapToGrid : Boolean;
       FSmartGuides: Boolean;
+  FLastMousePos: TPoint;
+  FMouseDownPos: TPoint;
+  FInsertHoverBand: TReportBand;
+  FInsertHoverY: Integer;
+  FOnBandInsertRequest: TDesignerBandInsertEvent;
     FGridSize   : Integer;
     FGridUnit   : TDesignerGridUnit;
     FShowRulers : Boolean;
@@ -97,9 +106,6 @@ TDesignerGridUnit = (guCentimeters, guInches, guPixels, guPoints);
     { Layout (recomputed when report changes) }
     FBandLayouts  : TDesignerBandLayouts;
     FObjectBandMap: TDictionary<TReportObject, TReportBand>;
-
-    { Page position on screen (top-left of paper) }
-    FPageTop : Integer;
 
     { Selection }
     FSelected  : TList<TReportObject>;
@@ -134,7 +140,6 @@ TDesignerGridUnit = (guCentimeters, guInches, guPixels, guPoints);
     function  PageTop: Integer;
     function  PageWidth: Integer;
     function  PageHeight: Integer;
-    procedure UpdateSurfaceExtent;
 
     function  ScreenToPage(const P: TPoint): TPoint;
 
@@ -201,6 +206,11 @@ TDesignerGridUnit = (guCentimeters, guInches, guPixels, guPoints);
     procedure DrawSelectionHandles;
     procedure DrawRubberBand;
     procedure DrawSmartGuides;
+    procedure DrawDragReadout;
+    procedure DrawBandInsertAffordance;
+    procedure DrawEmptyReportHint;
+    function  BandSeparatorY(ABand: TReportBand): Integer;
+    procedure SetInsertHover(ABand: TReportBand; AY: Integer);
     procedure DrawRulers;
     procedure DrawInsertHint;
 
@@ -242,6 +252,7 @@ TDesignerGridUnit = (guCentimeters, guInches, guPixels, guPoints);
   public
     constructor Create(AOwner: TComponent); override;
     destructor  Destroy; override;
+    procedure UpdateSurfaceExtent;
 
     { Report management }
     procedure LoadReport(AReport: TReportModel; TakeOwnership: Boolean = False;
@@ -301,6 +312,10 @@ TDesignerGridUnit = (guCentimeters, guInches, guPixels, guPoints);
     { Rebuild internal band/object layout after external report mutations }
     procedure RebuildLayout;
 
+    { Geometry: AObj's rectangle in this control's client coordinates (empty
+      rectangle when the object is not part of the current layout). }
+    function  ObjectClientRect(AObj: TReportObject): TRect;
+
     property Report          : TReportModel  read FReport;
     property PrimarySelected : TReportObject read GetPrimarySelected;
     property SelectedCount   : Integer       read GetSelectedCount;
@@ -323,6 +338,9 @@ TDesignerGridUnit = (guCentimeters, guInches, guPixels, guPoints);
       designer is opened and closed. }
     property ReportJSON : string     read GetReportJSON write SetReportJSON;
     property SmartGuides: Boolean read FSmartGuides write FSmartGuides default True;
+    { Clicking a band separator asks the host to insert a band after that band. }
+    property OnBandInsertRequest: TDesignerBandInsertEvent
+      read FOnBandInsertRequest write FOnBandInsertRequest;
     property ShowGrid   : Boolean  read FShowGrid   write SetShowGrid   default True;
     property SnapToGrid : Boolean  read FSnapToGrid write FSnapToGrid   default True;
     property GridSize   : Integer  read FGridSize   write FGridSize     default 8;
@@ -468,19 +486,27 @@ begin
 end;
 
 function TVittixReportDesigner.PageLeft: Integer;
+var
+  BaseLeft, AvailW: Integer;
 begin
-  if FShowRulers then
-    Result := RULER_W
+  if FShowRulers then BaseLeft := RULER_W else BaseLeft := 0;
+  AvailW := ClientWidth - BaseLeft;
+  if PageWidth < AvailW then
+    Result := BaseLeft + (AvailW - PageWidth) div 2
   else
-    Result := 0;
+    Result := BaseLeft;
 end;
 
 function TVittixReportDesigner.PageTop: Integer;
+var
+  BaseTop, AvailH: Integer;
 begin
-  if FShowRulers then
-    Result := RULER_W
+  if FShowRulers then BaseTop := RULER_W else BaseTop := 0;
+  AvailH := ClientHeight - BaseTop;
+  if PageHeight < AvailH then
+    Result := BaseTop + (AvailH - PageHeight) div 2
   else
-    Result := 0;
+    Result := BaseTop;
 end;
 
 function TVittixReportDesigner.PageWidth: Integer;
@@ -573,6 +599,39 @@ begin
   Result := DesignerObjScreenRect(
     Obj, FBandLayouts, PageLeft, PageTop, FReport.PageSettings.Margins.Left, FZoom,
     FReport.PageSettings, BandOwnerOf, BandLayoutIndex);
+end;
+
+function TVittixReportDesigner.ObjectClientRect(AObj: TReportObject): TRect;
+var
+  Idx: Integer;
+begin
+  Result := Rect(0, 0, 0, 0);
+  if not Assigned(AObj) or not Assigned(FReport) then
+    Exit;
+
+  if AObj is TReportBand then
+  begin
+    // Bands carry no object bounds; take their rectangle from the band layout
+    // (band header strip plus the band body) so callers can reveal whole bands.
+    Idx := BandLayoutIndex(TReportBand(AObj));
+    if (Idx < 0) or (Idx > High(FBandLayouts)) then
+      Exit;
+
+    Result.Left := PageLeft;
+    Result.Right := PageLeft + MulDiv(FReport.PageSettings.PageWidth, FZoom, 100);
+    Result.Top := PageTop + MulDiv(FBandLayouts[Idx].Y, FZoom, 100);
+    Result.Bottom := PageTop + MulDiv(FBandLayouts[Idx].Y +
+      FBandLayouts[Idx].Height + BAND_HDR_H, FZoom, 100);
+    Exit;
+  end;
+
+  try
+    Result := ObjScreenRect(AObj);
+  except
+    // An object that is not in the current layout has no rectangle; callers
+    // treat the empty rectangle as "nothing to scroll to".
+    Result := Rect(0, 0, 0, 0);
+  end;
 end;
 
 { -- Hit testing ------------------------------------------------------------ }
@@ -1438,10 +1497,13 @@ end;
 
 procedure TVittixReportDesigner.UpdateSurfaceExtent;
 var
-  ReqW, ReqH: Integer;
+  ReqW, ReqH, BaseLeft, BaseTop: Integer;
 begin
-  ReqW := PageLeft + PageWidth;
-  ReqH := PageTop + PageHeight;
+  if FShowRulers then BaseLeft := RULER_W else BaseLeft := 0;
+  if FShowRulers then BaseTop := RULER_W else BaseTop := 0;
+
+  ReqW := BaseLeft + PageWidth;
+  ReqH := BaseTop + PageHeight;
 
   if Assigned(Parent) then
   begin
@@ -1471,19 +1533,56 @@ end;
 procedure TVittixReportDesigner.UpdateCursor(X, Y: Integer);
 var
   H   : TResizeHandle;
-  Dummy: TReportBand;
+  Band: TReportBand;
 begin
   if FInteractionController.Mode = dmInsert then
   begin
     Cursor := crCross;
+    SetInsertHover(nil, 0);
     Exit;
   end;
+
+  Band := nil;
   if HandleHitTest(Point(X, Y), H) then
     Cursor := CursorForHandle(H)
-  else if BandSepHitTest(Point(X, Y), Dummy) then
-    Cursor := crSizeNS
+  else if BandSepHitTest(Point(X, Y), Band) then
+  begin
+    // Same hot zone as the resize drag; a click without a drag inserts a band.
+    Cursor := crSizeNS;
+    SetInsertHover(Band, BandSeparatorY(Band));
+    Exit;
+  end
   else
     Cursor := crDefault;
+
+  SetInsertHover(nil, 0);
+end;
+
+procedure TVittixReportDesigner.SetInsertHover(ABand: TReportBand; AY: Integer);
+begin
+  if (ABand = FInsertHoverBand) and (AY = FInsertHoverY) then
+    Exit;
+
+  FInsertHoverBand := ABand;
+  FInsertHoverY := AY;
+  Invalidate;
+end;
+
+function TVittixReportDesigner.BandSeparatorY(ABand: TReportBand): Integer;
+var
+  I: Integer;
+begin
+  Result := 0;
+  if not Assigned(ABand) then
+    Exit;
+
+  for I := 0 to High(FBandLayouts) do
+    if FBandLayouts[I].Band = ABand then
+    begin
+      Result := PageTop + MulDiv(
+        FBandLayouts[I].Y + FBandLayouts[I].Height + BAND_HDR_H, FZoom, 100);
+      Exit;
+    end;
 end;
 
 { -- Paint helpers ---------------------------------------------------------- }
@@ -1825,6 +1924,196 @@ begin
   DrawHandle(SR.Right,  SR.Bottom, rhBottomRight);
 end;
 
+procedure TVittixReportDesigner.DrawDragReadout;
+const
+  READOUT_BG   = $00E6F5FF;   // pale amber (BGR)
+  READOUT_EDGE = $00909090;
+  READOUT_PADX = 6;
+  READOUT_PADY = 3;
+var
+  Obj: TReportObject;
+  Band: TReportBand;
+  Text: string;
+  R: TRect;
+  TW, TH, X, Y: Integer;
+begin
+  { Live size/position feedback while dragging or resizing; this is what makes
+    grid and smart-guide snapping verifiable at a glance. }
+  case FInteractionController.Mode of
+    dmMove:
+      begin
+        Obj := PrimarySelected;
+        if not Assigned(Obj) then
+          Exit;
+        Text := Format('X %d   Y %d', [Obj.Bounds.Left, Obj.Bounds.Top]);
+      end;
+
+    dmResize:
+      begin
+        Obj := PrimarySelected;
+        if not Assigned(Obj) then
+          Exit;
+        Text := Format('%d x %d',
+          [Obj.Bounds.Right - Obj.Bounds.Left,
+           Obj.Bounds.Bottom - Obj.Bounds.Top]);
+      end;
+
+    dmBandResize:
+      begin
+        Band := FInteractionController.BandResizeBand;
+        if not Assigned(Band) then
+          Exit;
+        Text := Format('H %d', [Band.Height]);
+      end;
+  else
+    Exit;
+  end;
+
+  TW := Canvas.TextWidth(Text) + READOUT_PADX * 2;
+  TH := Canvas.TextHeight(Text) + READOUT_PADY * 2;
+
+  X := FLastMousePos.X + 18;
+  Y := FLastMousePos.Y + 18;
+  if X + TW > ClientWidth then
+    X := FLastMousePos.X - TW - 8;
+  if Y + TH > ClientHeight then
+    Y := FLastMousePos.Y - TH - 8;
+  if X < 0 then
+    X := 0;
+  if Y < 0 then
+    Y := 0;
+
+  R := Rect(X, Y, X + TW, Y + TH);
+
+  Canvas.Brush.Style := bsSolid;
+  Canvas.Brush.Color := READOUT_BG;
+  Canvas.Pen.Style := psSolid;
+  Canvas.Pen.Width := 1;
+  Canvas.Pen.Color := READOUT_EDGE;
+  Canvas.RoundRect(R.Left, R.Top, R.Right, R.Bottom, 6, 6);
+
+  Canvas.Brush.Style := bsClear;
+  Canvas.Font.Color := clBlack;
+  Canvas.TextOut(R.Left + READOUT_PADX, R.Top + READOUT_PADY, Text);
+
+  { Leave the canvas state as later painters expect it. }
+  Canvas.Brush.Style := bsSolid;
+  Canvas.Font.Color := clWindowText;
+end;
+
+procedure TVittixReportDesigner.DrawBandInsertAffordance;
+const
+  ACCENT = $00C06000;   // medium blue (BGR)
+var
+  Y, BadgeL, BadgeR: Integer;
+  BadgeRect: TRect;
+begin
+  if not Assigned(FInsertHoverBand) or (FInsertHoverY <= 0) then
+    Exit;
+  if FInteractionController.Mode <> dmSelect then
+    Exit;
+
+  Y := FInsertHoverY;
+
+  { Insertion line across the page. }
+  Canvas.Pen.Style := psSolid;
+  Canvas.Pen.Width := 2;
+  Canvas.Pen.Color := ACCENT;
+  Canvas.MoveTo(PageLeft, Y);
+  Canvas.LineTo(PageLeft + PageWidth, Y);
+
+  { Badge; keep it on-screen when the page starts near the canvas edge. }
+  BadgeL := PageLeft - 60;
+  if BadgeL < 4 then
+    BadgeL := PageLeft + PageWidth + 8;
+  BadgeR := BadgeL + 54;
+  BadgeRect := Rect(BadgeL, Y - 9, BadgeR, Y + 9);
+
+  Canvas.Brush.Style := bsSolid;
+  Canvas.Brush.Color := ACCENT;
+  Canvas.Pen.Color := ACCENT;
+  Canvas.RoundRect(BadgeRect.Left, BadgeRect.Top, BadgeRect.Right,
+    BadgeRect.Bottom, 8, 8);
+
+  Canvas.Brush.Style := bsClear;
+  Canvas.Font.Color := clWhite;
+  Canvas.Font.Style := [fsBold];
+  DrawText(Canvas.Handle, '+ Band', -1, BadgeRect,
+    DT_SINGLELINE or DT_CENTER or DT_VCENTER);
+
+  Canvas.Font.Style := [];
+  Canvas.Font.Color := clWindowText;
+  Canvas.Brush.Style := bsSolid;
+  Canvas.Pen.Width := 1;
+end;
+
+procedure TVittixReportDesigner.DrawEmptyReportHint;
+const
+  HINT_LINES: array[0..3] of string = (
+    'Empty report - get started:',
+    '1.  Insert > Add Band   (a Report Title band is a good start)',
+    '2.  Drag a field from the Dataset Fields list onto the band',
+    '3.  Click Preview to see the rendered result');
+  PAD_X = 16;
+  PAD_Y = 10;
+var
+  I, BoxW, BoxH, LineH, BoxL, BoxT: Integer;
+  R, LineR: TRect;
+begin
+  if not Assigned(FReport) then
+    Exit;
+
+  // Only guide when there is genuinely nothing to design yet.
+  for I := 0 to FReport.Objects.Count - 1 do
+    if FReport.Objects[I] is TReportBand then
+      Exit;
+
+  // Insert mode already explains itself (DrawInsertHint).
+  if FInteractionController.Mode = dmInsert then
+    Exit;
+
+  LineH := Canvas.TextHeight('Ag') + 4;
+  BoxW := 0;
+  for I := Low(HINT_LINES) to High(HINT_LINES) do
+    BoxW := Max(BoxW, Canvas.TextWidth(HINT_LINES[I]));
+  BoxW := BoxW + PAD_X * 2;
+  BoxH := LineH * Length(HINT_LINES) + PAD_Y * 2;
+
+  BoxL := PageLeft + (PageWidth - BoxW) div 2;
+  BoxT := PageTop + (PageHeight - BoxH) div 2;
+  R := Rect(BoxL, BoxT, BoxL + BoxW, BoxT + BoxH);
+
+  Canvas.Brush.Style := bsSolid;
+  Canvas.Brush.Color := $00F5F0E6;   // pale amber (BGR)
+  Canvas.Pen.Style := psSolid;
+  Canvas.Pen.Width := 1;
+  Canvas.Pen.Color := clGray;
+  Canvas.RoundRect(R.Left, R.Top, R.Right, R.Bottom, 10, 10);
+
+  Canvas.Brush.Style := bsClear;
+  for I := Low(HINT_LINES) to High(HINT_LINES) do
+  begin
+    LineR := Rect(R.Left + PAD_X, R.Top + PAD_Y + I * LineH,
+      R.Right - PAD_X, R.Top + PAD_Y + (I + 1) * LineH);
+    if I = 0 then
+    begin
+      Canvas.Font.Style := [fsBold];
+      Canvas.Font.Color := clWindowText;
+    end
+    else
+    begin
+      Canvas.Font.Style := [];
+      Canvas.Font.Color := $00604000;   // dark blue (BGR)
+    end;
+    DrawText(Canvas.Handle, PChar(HINT_LINES[I]), -1, LineR,
+      DT_SINGLELINE or DT_LEFT or DT_VCENTER);
+  end;
+
+  Canvas.Font.Style := [];
+  Canvas.Font.Color := clWindowText;
+  Canvas.Brush.Style := bsSolid;
+end;
+
 procedure TVittixReportDesigner.DrawSmartGuides;
 var
   Guides: TArray<TSmartGuideLine>;
@@ -2023,6 +2312,9 @@ begin
   DrawSmartGuides;
   DrawRubberBand;
   DrawInsertHint;
+  DrawDragReadout;
+  DrawBandInsertAffordance;
+  DrawEmptyReportHint;
   DrawRulers;
 end;
 
@@ -2038,20 +2330,35 @@ procedure TVittixReportDesigner.MouseDown(Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
 begin
   SetFocus;
+  FMouseDownPos := Point(X, Y);
   FInteractionController.MouseDown(Button, Shift, X, Y);
 end;
 
 procedure TVittixReportDesigner.MouseMove(Shift: TShiftState; X, Y: Integer);
 begin
   inherited;
+  FLastMousePos := Point(X, Y);
   FInteractionController.MouseMove(Shift, X, Y);
 end;
 
 procedure TVittixReportDesigner.MouseUp(Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
+var
+  InsertAfter: TReportBand;
 begin
   inherited;
+
+  // A click (no drag) on a band separator asks the host to insert a band there;
+  // dragging the same separator keeps resizing the band.
+  InsertAfter := nil;
+  if (Button = mbLeft) and (FInteractionController.Mode = dmBandResize) and
+     (Abs(X - FMouseDownPos.X) <= 3) and (Abs(Y - FMouseDownPos.Y) <= 3) then
+    InsertAfter := FInteractionController.BandResizeBand;
+
   FInteractionController.MouseUp(Button, Shift, X, Y);
+
+  if Assigned(InsertAfter) and Assigned(FOnBandInsertRequest) then
+    FOnBandInsertRequest(Self, InsertAfter);
 end;
 
 procedure TVittixReportDesigner.WMGetDlgCode(var Msg: TWMGetDlgCode);

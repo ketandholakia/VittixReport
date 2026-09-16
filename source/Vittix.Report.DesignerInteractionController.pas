@@ -81,6 +81,7 @@ type
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 
     property Mode: TDesignerMode read FMode write FMode;
+    property BandResizeBand: TReportBand read FBandResizeBand;
     property ActiveGuides: TArray<TSmartGuideLine> read FActiveGuides write FActiveGuides;
     property RubberRect: TRect read FRubberRect;
     property Rubbering: Boolean read FRubbering;

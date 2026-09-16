@@ -25,7 +25,6 @@ type
     FLength: Integer;
     FDiagnostics: TExpressionDiagnostics;
     FLimits: TExpressionLimits;
-    function CurrentChar: Char;
     function PeekChar: Char;
     procedure Advance;
     procedure SkipWhitespace;
@@ -55,14 +54,6 @@ end;
 destructor TExpressionTokenizer.Destroy;
 begin
   inherited;
-end;
-
-function TExpressionTokenizer.CurrentChar: Char;
-begin
-  if FIndex <= FLength then
-    Result := FText[FIndex]
-  else
-    Result := #0;
 end;
 
 function TExpressionTokenizer.PeekChar: Char;
