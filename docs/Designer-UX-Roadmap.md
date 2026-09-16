@@ -1,0 +1,209 @@
+# Vittix Designer - UI/UX Improvement Roadmap
+
+Status: proposal (analysis only, no code changed by this document)
+Scope: `vittixdesigner/` (the standalone `VittixDesigner.exe` app)
+Related: `vittixdesigner/README.md`, `vittixdesigner/resources/ICON_MAP.md`
+
+> **Progress:**
+> - *Batch 1* (items 1-3): toolbar checkbox strip removed, Save As / Export PDF /
+>   Cut / Fit-width added, four `tbsCheck` view toggles, state-driven status bar.
+> - *Batch 2*: property inspector got a live filter box (item 6, first part) and the
+>   status bar was split into four panels so the file state and the property hint no
+>   longer overwrite each other.
+> - *Batch 3*: property groups are now collapsible (click a `[Group]` header, or press
+>   Enter/Space on it); each header shows its member count and whether it is folded.
+>   Item 6's "real editors per type" turned out to be **already implemented**
+>   (`Frm.Main.PropertyEditorHelpers` supplies pick lists and ellipsis editors), so that
+>   bullet was dropped from the open list.
+> - *Batch 4*: the left dock is now a single chain of four **collapsible sections**
+>   (Objects / Report Structure / Variables / Dataset Fields) with uniform header bars.
+>   Clicking a header folds that section to its header bar; the leftover height always
+>   goes to the bottom-most open section, and the folded state plus per-section heights
+>   are persisted. The "double-click a band node to zoom the canvas" bullet from item 7
+>   is still open.
+> - *Batch 5*: added a **Problems panel** as a fifth dock section (between Variables and
+>   Dataset Fields). It lists loader diagnostics (previously discarded, including on the
+>   command-line open path) plus live report checks - unknown DataField against the
+>   report schema or connected dataset, unbound field objects, zero-size objects, bands
+>   with no height, images with neither picture nor DataField. The header shows the count
+>   and double-clicking an entry selects the offending object.
+> - *Batch 6*: **reveal-in-canvas**. Double-clicking a structure-tree node - and a
+>   Problems entry - now scrolls the designer viewport so the band/object is visible.
+>   This needed one additive public member on the designer control,
+>   `TVittixReportDesigner.ObjectClientRect`, because the layout geometry was private.
+>   That closes item 7.
+> - *Batch 7*: **drag read-out overlay** (part of item 8). While moving, resizing or
+>   re-sizing a band the canvas shows a small amber badge next to the pointer with the
+>   live position (`X n   Y n`), size (`W x H`) or band height (`H n`). Audit for item 8
+>   also found that smart alignment guides are **already implemented** (they snap within
+>   5 px and draw as guide lines).
+> - *Batch 8*: **insert affordance** (closes item 8). Hovering a band separator draws a
+>   blue insertion line across the page plus a `+ Band` badge; clicking the separator (a
+>   click, not a resize drag) raises the new `OnBandInsertRequest` event and the host
+>   pops its band-type menu, inserting the chosen band directly after that separator.
+> - *Batch 9*: **dead-code triage** (item 4). Removed all eleven never-used private
+>   symbols in the designer plus two in the library; the solution builds with no H2219
+>   warnings.
+> - *Batch 10*: **guided empty state + template gallery** (item 10). An empty report now
+>   draws a short three-step guide on the canvas, and File > New from Template lists the
+>   reports found in the templates folder (`reports/` by default) and loads the chosen one.
+> - Item 5 was re-checked and is **already implemented** (`Frm.Main.SelectionSync`);
+>   it is removed from the open list.
+> - Items 4, 7-16 remain open.
+
+---
+
+## 1. Where the UI stands today
+
+Inventory taken from `Frm.Main.dfm` / `Frm.Main.pas`:
+
+| Region | Current implementation |
+|---|---|
+| Menu bar | File / Edit / Insert / Align / View / Report / Help |
+| Toolbar | 22 icon buttons + 9 separators + zoom combo, then a 320 px `TCheckListBox` "quick view toggle strip" (Grid/Snap/Ruler/Margin), then Preview |
+| Status bar | 3 panels: selection details, file, `Zoom: n%` (`Frm.Main.ViewHelpers.UpdateStatusBar`) |
+| Left dock | One column, 3 splitters: **Objects** (owner-draw toolbox) / **Report Structure** (tree) / **Variables** (tree) / **Dataset Fields** (filter + list) |
+| Canvas | `TVittixReportDesigner` inside a `TScrollBox`, 1200×1600 logical surface |
+| Right dock | Report title/author edits, `TValueListEditor` property grid, Apply, Font..., Bring Front, Send Back, Preview |
+| Dialogs | Band Manager, Page Setup, Report Properties, Designer Options, Script Editor, Expression Helper, Preview, Image Editor |
+
+Strong points worth keeping: unlimited undo/redo, named alignment commands, grid/snap/rulers/margin guides,
+`FitPageWidthZoom`, persisted preferences (`TDesignerPreferencesService`), drag-and-drop of fields and
+variables onto the canvas, per-property hint text in the status bar.
+
+---
+
+## 2. Quick wins (≈half a day each, low risk)
+
+*Items 1-3 below are implemented; see the progress note at the top.*
+
+These are contained edits that do not touch the report engine or public component APIs.
+
+1. **Replace the toolbar `CheckListBox1` toggle strip with icon toggle buttons.**
+   `CheckListBox1` (`Frm.Main.dfm:300`) is a 320 px `TCheckListBox` embedded in `ToolBar1`, so the toolbar
+   mixes checkboxes with flat icon buttons. Four `TToolButton`s with `Style = tbsCheck` bound to
+   `Grid / Snap / Ruler / Margin` (icons `grid.svg`, `snap_to_grid.svg`, `show_ruler.svg`, `border.svg`
+   are already generated) make it consistent, free ~250 px of toolbar, and remove a control whose
+   `Columns = 4` layout breaks under DPI scaling.
+   Touches: `Frm.Main.dfm`, `Frm.Main.ViewHelpers.pas` (`ConfigureViewToggleStrip`), `CheckListBox1ClickCheck`.
+
+2. **Finish the toolbar action set.** Icons already exist for `save_as`, `picture_as_pdf`, `print`,
+   `cut`, `select_all`, `zoom_fit_to_page`, `zoom_fit_width`, and the commands are already implemented as
+   menu handlers. Adding Save As / Export PDF / Print / Fit-width / Fit-page removes trips to the menu bar.
+   Note `FitPageWidthZoom` already exists (`Frm.Main.pas:4603`).
+
+3. **Make the status bar carry state, not just coordinates.** Add a modified (`*`) indicator, show the
+   full file path on hover instead of `ExtractFileName`, and surface the active panel/list mode.
+   Touches: `Frm.Main.ViewHelpers.UpdateStatusBar`.
+
+4. **Triage the dead helpers.** *Delivered in batch 9.* Every private symbol the compiler
+   flagged as declared-but-never-used in `Frm.Main.pas` was removed - `SamePropertyValue`,
+   `BuildChangedPropertyBatch`, `SelectedObjectsSpanBands`,
+   `CanInsertVariableIntoCurrentProperty`, `FindStructureNodeByData`, `ShortNodePreview`,
+   `IsControlWithinParent`, `IsFontDialogRowKey`, `FindRecentFilesMenu`,
+   `RunRegressionTestReports` (the dead wrapper; the live
+   `RunRegressionTestReportsAction` lives in `Frm.Main.ReportActions`) - plus the unused
+   `FDisablePreviewShortcut` field and two library privates
+   (`TVittixReportDesigner.FPageTop`, `TExpressionTokenizer.CurrentChar`).
+   The solution now builds with **zero H2219 warnings**.
+   Left alone on purpose: the H2164 "local variable declared but never used" hints in the
+   library (ScriptHost adapter, expression evaluator, barcode encoder, `DrawRulers`) -
+   harmless, and a few may be deliberate scaffolding.
+   Note: `SamePropertyValue` / `BuildChangedPropertyBatch` were the scaffolding for
+   multi-select batch apply; the remaining item-6 work (mixed-value display) would need
+   them rebuilt. They are recoverable from git history.
+
+5. **~~Selection feedback in the structure tree.~~** - already implemented via
+   `Frm.Main.SelectionSync` (`SyncReportStructureSelection`, `StructureTreeChange`,
+   `StructureTreeDblClick`); the canvas and the tree already stay in sync.
+
+---
+
+## 3. Mid-term (≈1-3 days each)
+
+6. **Property inspector usability.** *Filter box and collapsible groups delivered in
+   batches 2-3.* `edtPropFilter` (above the grid) hides non-matching rows live,
+   Esc clears and Enter jumps into the grid; clicking a `[Group]` header (or Enter/Space
+   on it) folds that group, and the header shows `(n)` / `(n collapsed)`. Type-aware
+   editors already exist in `Frm.Main.PropertyEditorHelpers` (enum and boolean pick
+   lists, field pick list, ellipsis editors for text/colour/font/expression/script).
+   Still open:
+   - explicit "N objects selected / mixed values" state for multi-select,
+   - "reset to default" per row.
+
+7. **Left dock information architecture.** *Collapsible sections delivered in batch 4.*
+   The dock is one vertical chain - Objects, Report Structure, Variables, Dataset Fields -
+   where each header folds its section down to an 18 px bar (`+` marker when folded,
+   `-` when open). The bottom-most open section absorbs the leftover height, so folding
+   never leaves a gap, and the fold state plus the per-section heights are persisted in
+   `TDesignerPreferencesService` (`ObjectsPanelHeight`, `StructurePanelHeight`,
+   `VariablesPanelHeight` and the four `*Collapsed` flags).
+   Also delivered in batch 6: double-clicking a node in the tree scrolls the canvas so
+   that band/object is visible (`ScrollObjectIntoView` over the new
+   `ObjectClientRect`), which completes this item.
+
+8. **Direct manipulation on canvas.** *Delivered.*
+   Already present before this work: band height by dragging the separator, object resize
+   handles, rubber-band selection, and smart alignment guides that **snap** (within 5 px)
+   as well as draw.
+   Batch 7 added the drag read-out overlay (`DrawDragReadout`) - live `X/Y` while moving,
+   `W x H` while resizing, `H n` while resizing a band.
+   Batch 8 added the insertion affordance: hovering a band separator draws an insertion
+   line and a `+ Band` badge, and clicking it raises `OnBandInsertRequest` so the host can
+   insert a band at that point (`Frm.Main` pops a six-entry band-type menu and
+   `InsertBandAfter` places the new band directly after the clicked one). Dragging the same
+   separator still resizes the band; only a click with no drag requests an insert.
+
+9. **Problems / diagnostics panel.** *Delivered in batch 5.* A fifth dock section lists
+   loader diagnostics plus live checks (DataField not in the report schema or connected
+   dataset, unbound field objects, zero-size objects, bands with no height, images with
+   neither picture nor DataField). The header shows the entry count and a double-click
+   selects the object a problem refers to. Possible follow-ups: per-severity colour,
+   a "refresh" command, and checks for expressions that fail to parse.
+
+10. **Guided empty state.** *Delivered in batch 10.* A report with no bands now draws a
+    short guide on the canvas (`DrawEmptyReportHint`):
+    "Empty report - get started:", "1. Insert > Add Band", "2. Drag a field from the
+    Dataset Fields list onto the band", "3. Click Preview to see the rendered result".
+    It is suppressed while insert mode is active, since that already shows its own hint.
+    `File > New from Template` lists the `.vrt` files found in the first existing
+    templates folder - `<exe>\templates`, `<exe>\..\templates`, `<exe>\reports`,
+    `<exe>\..\reports` (the repo's 42-file `reports/` folder is picked up today),
+    `<exe>\..\demo\vrt` - and loads the chosen report against the sample dataset.
+    Possible follow-ups: thumbnails in the menu, a "Start from a blank report" entry, and
+    persisting a user-chosen templates folder in the preferences service.
+
+---
+
+## 4. Larger investments (weeks, higher risk - needs discussion first)
+
+11. **Theming / visual refresh.** The app uses default VCL colours. A VCL style (or a light/dark theme
+    with a documented palette) plus consistent paddings would modernise the look, but it touches every
+    form and must not disturb the designer canvas colours.
+12. **Icon sizes at DPI.** `ImageList1` is a single 24×24 list; PerMonitorV2 setups would look better with
+    16/24/32 px variants selected per DPI. Requires extending the icon pipeline in
+    `resources/ICON_MAP.md` (one PNG per size, one `TImageList` per size).
+13. **Command palette** (`Ctrl+Shift+P`) over `TCommandDispatcher` - the command layer already exists, so
+    this is mostly UI plumbing and would help power users a lot.
+14. **Undo history panel** exposing `TCommandManager` entries with names and jump-to-state.
+15. **Non-blocking report preparation.** `AGENTS.md` already calls for avoiding a blocked UI during long
+    preparation; add a cancellable progress surface for prepare/preview/export of large reports.
+16. **Accessibility baseline.** Verify tab order across all docks, give canvases and panels proper
+    `Hint`/accessible names, and ensure every icon-only button has a tooltip (mostly true today).
+
+---
+
+## 5. Guardrails
+
+- No rewrite of the component library; designer-only changes stay in `vittixdesigner/`.
+- Do not rename or remove public classes, units, or properties (`AGENTS.md`).
+- Changes to `Frm.Main.dfm` must keep the existing `ImageIndex` contract - see
+  `resources/ICON_MAP.md` ("ImageList1 index map") before adding/removing toolbar buttons.
+- Every UI change needs a manual pass: open a demo report, check preview/print/export parity, and verify
+  no new GDI/memory growth (the designer creates many temporary bitmaps).
+
+## 6. Suggested first batch
+
+Items 1, 2 and 3 together: they are contained, use assets and commands that already exist, and visibly
+change the toolbar and status bar without touching the report engine. Item 4 should be triaged at the same
+time (wire or delete the dead helpers) to stop the codebase drifting.
