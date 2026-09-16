@@ -50,6 +50,12 @@ Related: `vittixdesigner/README.md`, `vittixdesigner/resources/ICON_MAP.md`
 > - *Batch 11*: **command palette** (item 13). `Ctrl+Shift+P` (or View > Command Palette)
 >   opens a filterable list of every enabled menu command - 111 entries in the current
 >   build - and runs the chosen one.
+> - *Batch 12*: **chrome theme palette** (part of item 11). `Frm.Main.Theme.pas` is now
+>   the single documented source for the designer's chrome colours, with three presets
+>   (Classic = today's look, Soft, Dark), applied to the dock sections, panels, splitters,
+>   lists, status bar and the designer canvas surface. View > Theme switches it and the
+>   choice is persisted. The canvas *internals* (grid, margin guides, band header strips,
+>   selection handles) and a VCL style remain open - see item 11.
 > - Item 5 was re-checked and is **already implemented** (`Frm.Main.SelectionSync`);
 >   it is removed from the open list.
 > - Items 4, 7-16 remain open.
@@ -180,9 +186,27 @@ These are contained edits that do not touch the report engine or public componen
 
 ## 4. Larger investments (weeks, higher risk - needs discussion first)
 
-11. **Theming / visual refresh.** The app uses default VCL colours. A VCL style (or a light/dark theme
-    with a documented palette) plus consistent paddings would modernise the look, but it touches every
-    form and must not disturb the designer canvas colours.
+11. **Theming / visual refresh.** *Partly delivered in batch 12.*
+    `vittixdesigner/Frm.Main.Theme.pas` holds the palette the designer chrome uses -
+    the colours used to sit inline at each call site (dock header bars, splitters,
+    overlays). Three presets ship: **Classic** (the previous look, so existing
+    installations see no change), **Soft** (warm-neutral surfaces, slate header bar, blue
+    accent) and **Dark**. `View > Theme` switches between them, `ApplyTheme` pushes the
+    palette onto the dock sections, panels, splitters, lists, status bar, the canvas
+    surface and (for non-Classic themes) the designer's canvas colour, and the choice is
+    persisted as `Theme=` in the settings file. The Classic theme deliberately leaves the
+    canvas colour to Designer Options so that setting is not clobbered.
+    Still open, and needing a decision rather than just code:
+    - **Canvas internals.** Grid lines, margin guides, band header strips, selection
+      handles, smart guides and the drag/insert/hint overlays are painted inside
+      `Vittix.Report.DesignerControl` with system colours (`clWindowText`, `clGray`,
+      `clFuchsia`, ...) which adapt to the OS theme. Making them palette-driven means a
+      change inside the reusable control and a visual pass on the result.
+    - **A VCL style** (`TStyleManager.TrySetStyle`) would refresh every form at once, but
+      it repaints controls the designer's custom-drawn chrome does not expect, and the
+      result cannot be validated from here - it needs someone to look at it.
+    - Consistent paddings across the docks, and a matching accent for the property grid
+      and toolbox selection.
 12. **Icon sizes at DPI.** `ImageList1` is a single 24×24 list; PerMonitorV2 setups would look better with
     16/24/32 px variants selected per DPI. Requires extending the icon pipeline in
     `resources/ICON_MAP.md` (one PNG per size, one `TImageList` per size).
