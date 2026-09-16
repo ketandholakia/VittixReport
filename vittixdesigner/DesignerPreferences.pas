@@ -44,6 +44,8 @@ type
       AFields: Boolean);
     procedure SaveSidebarCollapsed(AObjects, AStructure, AVariables,
       AFields: Boolean);
+    function  LoadThemeName(const ADefault: string): string;
+    procedure SaveThemeName(const AThemeName: string);
 
     procedure LoadRecentFiles(ARecentFiles: TList<string>);
     procedure SaveRecentFiles(ARecentFiles: TList<string>);
@@ -302,6 +304,31 @@ procedure TDesignerPreferencesService.ClearRecentFiles(ARecentFiles: TList<strin
 begin
   if Assigned(ARecentFiles) then
     ARecentFiles.Clear;
+end;
+
+function TDesignerPreferencesService.LoadThemeName(const ADefault: string): string;
+var
+  Ini: TIniFile;
+begin
+  Result := ADefault;
+  Ini := TIniFile.Create(FSettingsPath);
+  try
+    Result := Ini.ReadString('Designer', 'Theme', ADefault);
+  finally
+    Ini.Free;
+  end;
+end;
+
+procedure TDesignerPreferencesService.SaveThemeName(const AThemeName: string);
+var
+  Ini: TIniFile;
+begin
+  Ini := TIniFile.Create(FSettingsPath);
+  try
+    Ini.WriteString('Designer', 'Theme', AThemeName);
+  finally
+    Ini.Free;
+  end;
 end;
 
 end.

@@ -88,6 +88,7 @@ uses
   Frm.Main.DialogHelpers,
   Frm.Main.RecentFiles,
   Frm.Main.TemplateMenu,
+  Frm.Main.Theme,
   Frm.CommandPalette,
   DesignerPreferences,
   Frm.DesignerOptions,
@@ -399,6 +400,8 @@ type
     procedure BuildInsertBandMenu(AMenu: TPopupMenu);
     procedure TemplateMenuItemClick(Sender: TObject);
     procedure CommandPaletteClick(Sender: TObject);
+    procedure ThemeMenuItemClick(Sender: TObject);
+    procedure ApplyTheme;
     procedure DesignerBandInsertRequest(Sender: TObject; ABand: TReportBand);
     procedure InsertBandMenuItemClick(Sender: TObject);
     procedure InsertBandAfter(ABandType: TReportBandType; AAfterBand: TReportBand);
@@ -444,6 +447,9 @@ type
     FInsertBandMenu: TPopupMenu;
     FInsertAfterBand: TReportBand;
     FCommandPaletteItem: TMenuItem;
+    FThemeMenu: TMenuItem;
+    FThemeName: string;
+    FBaseCanvasColor: TColor;
     FUpdatingZoomControls: Boolean;
     FRuntimeEventDemoOutput: string;
     // Created dynamically in FormCreate (not streamed from DFM)
@@ -1037,6 +1043,25 @@ begin
   PropEditor.OnSelectCell      := PropEditorSelectCell;
   PropEditor.OnSetEditText     := PropEditorSetEditText;
   PropEditor.OnMouseDown       := PropEditorMouseDown;
+
+  // View > Theme: applies the documented chrome palette (Frm.Main.Theme).
+  FThemeName := 'Classic';
+  FBaseCanvasColor := clBtnFace;
+  FThemeMenu := TMenuItem.Create(Self);
+  FThemeMenu.Caption := '&Theme';
+  for I := Low(Frm.Main.Theme.THEME_NAMES) to High(Frm.Main.Theme.THEME_NAMES) do
+  begin
+    var ThemeItem := TMenuItem.Create(Self);
+    ThemeItem.Caption := Frm.Main.Theme.THEME_NAMES[I];
+    ThemeItem.RadioItem := True;
+    ThemeItem.GroupIndex := 1;
+    ThemeItem.Tag := I;
+    ThemeItem.Checked := I = 0;
+    ThemeItem.OnClick := ThemeMenuItemClick;
+    FThemeMenu.Add(ThemeItem);
+  end;
+  if Assigned(mnuView) then
+    mnuView.Add(FThemeMenu);
 
   // View > Command Palette (Ctrl+Shift+P): a filterable list of every enabled
   // menu command, built from the menu tree at the moment it is invoked.
@@ -5703,10 +5728,13 @@ end;
 procedure TfrmMain.LoadDesignerPreferences;
 var
   Section: TDesignerDockSection;
+  I: Integer;
 begin
   if Assigned(FPreferences) then
   begin
     FPreferences.LoadDesignerPreferences(FDesigner);
+    if Assigned(FDesigner) then
+      FBaseCanvasColor := FDesigner.CanvasColor;
     FPreferences.LoadSidebarWidths(pnlToolbox, pnlProperties);
     FPreferences.LoadSidebarSectionHeights(
       FDockExpandedHeight[dsObjects], FDockExpandedHeight[dsStructure],
@@ -5714,6 +5742,13 @@ begin
     FPreferences.LoadSidebarCollapsed(
       FDockCollapsed[dsObjects], FDockCollapsed[dsStructure],
       FDockCollapsed[dsVariables], FDockCollapsed[dsFields]);
+
+    FThemeName := FPreferences.LoadThemeName(FThemeName);
+    ApplyTheme;
+    if Assigned(FThemeMenu) then
+      for I := 0 to FThemeMenu.Count - 1 do
+        FThemeMenu.Items[I].Checked :=
+          I = Frm.Main.Theme.PaletteIndexByName(FThemeName);
 
     RelayoutDockSections;
     for Section := Low(TDesignerDockSection) to High(TDesignerDockSection) do
@@ -5767,16 +5802,16 @@ begin
       Header.Hint := 'Click to fold or unfold this section';
       Header.OnClick := DockSectionHeaderClick;
       Header.Tag := Ord(Section);
-      // Match the object toolbox header bar so all four sections look alike.
-      Header.Color := 2894892;
+      // Colour comes from the chrome palette (see ApplyTheme).
       Header.ParentColor := False;
       Header.Transparent := False;
-      Header.Font.Color := clWhite;
       Header.Font.Style := [fsBold];
     end;
 
     UpdateDockSectionHeader(Section);
   end;
+
+  ApplyTheme;
 
   RelayoutDockSections;
 end;
@@ -6255,6 +6290,96 @@ begin
   Frm.CommandPalette.ShowCommandPalette(Self, mnuMain);
 end;
 
+procedure TfrmMain.ThemeMenuItemClick(Sender: TObject);
+var
+  Item: TMenuItem;
+  I: Integer;
+begin
+  if not (Sender is TMenuItem) then
+    Exit;
+
+  Item := TMenuItem(Sender);
+  if (Item.Tag < Low(Frm.Main.Theme.THEME_NAMES)) or
+     (Item.Tag > High(Frm.Main.Theme.THEME_NAMES)) then
+    Exit;
+
+  FThemeName := Frm.Main.Theme.THEME_NAMES[Item.Tag];
+
+  for I := 0 to FThemeMenu.Count - 1 do
+    FThemeMenu.Items[I].Checked := I = Item.Tag;
+
+  ApplyTheme;
+
+  if Assigned(FPreferences) then
+    FPreferences.SaveThemeName(FThemeName);
+end;
+
+procedure TfrmMain.ApplyTheme;
+var
+  P: TDesignerPalette;
+  Section: TDesignerDockSection;
+begin
+  P := Frm.Main.Theme.PaletteByName(FThemeName);
+
+  if Assigned(FDesigner) then
+  begin
+    FDesigner.Color := P.CanvasBackground;
+    // The surface around the page has its own colour (also settable in Designer
+    // Options); the Classic theme keeps whatever the user configured.
+    if SameText(P.Name, 'Classic') then
+      FDesigner.CanvasColor := FBaseCanvasColor
+    else
+      FDesigner.CanvasColor := P.CanvasBackground;
+  end;
+
+  // The viewport around the designer control is the visually dominant surface.
+  if Assigned(ScrollBox1) then
+    ScrollBox1.Color := P.CanvasBackground;
+  if Assigned(pnlCanvas) then
+    pnlCanvas.Color := P.PanelBackground;
+  if Assigned(pnlOuter) then
+    pnlOuter.Color := P.AppBackground;
+
+  if Assigned(pnlToolbox) then
+    pnlToolbox.Color := P.PanelBackground;
+  if Assigned(pnlProperties) then
+    pnlProperties.Color := P.PanelBackground;
+  if Assigned(pnlReportInfo) then
+    pnlReportInfo.Color := P.PanelBackground;
+  if Assigned(pnlZoom) then
+    pnlZoom.Color := P.PanelBackground;
+  if Assigned(pnlQuickActions) then
+    pnlQuickActions.Color := P.PanelBackground;
+  if Assigned(StatusBar1) then
+    StatusBar1.Color := P.PanelBackground;
+
+  if Assigned(Toolbox) then
+    Toolbox.Color := P.PanelBackground;
+  if Assigned(FLstFields) then
+    FLstFields.Color := P.PanelBackground;
+  if Assigned(FLstProblems) then
+    FLstProblems.Color := P.PanelBackground;
+  if Assigned(FTreeStructure) then
+    FTreeStructure.Color := P.PanelBackground;
+  if Assigned(FTreeVariables) then
+    FTreeVariables.Color := P.PanelBackground;
+
+  for Section := Low(TDesignerDockSection) to High(TDesignerDockSection) do
+  begin
+    if Assigned(DockSectionPanel(Section)) then
+      DockSectionPanel(Section).Color := P.PanelBackground;
+
+    if Assigned(DockSectionLabel(Section)) then
+    begin
+      DockSectionLabel(Section).Color := P.HeaderBackground;
+      DockSectionLabel(Section).Font.Color := P.HeaderText;
+    end;
+
+    if Assigned(DockSectionSplitter(Section)) then
+      DockSectionSplitter(Section).Color := P.Splitter;
+  end;
+end;
+
 procedure TfrmMain.TemplateMenuItemClick(Sender: TObject);
 var
   Path: string;
@@ -6325,6 +6450,7 @@ begin
     FPreferences.SaveSidebarCollapsed(
       FDockCollapsed[dsObjects], FDockCollapsed[dsStructure],
       FDockCollapsed[dsVariables], FDockCollapsed[dsFields]);
+    FPreferences.SaveThemeName(FThemeName);
   end;
 end;
 
