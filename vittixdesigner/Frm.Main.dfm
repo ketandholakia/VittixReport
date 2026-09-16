@@ -412,6 +412,7 @@ object frmMain: TfrmMain
       Top = 0
       Width = 4
       Height = 672
+      Hint = 'Drag to resize the property dock'
       Align = alRight
       Color = 13684944
       ParentColor = False
@@ -423,6 +424,7 @@ object frmMain: TfrmMain
       Top = 0
       Width = 4
       Height = 672
+      Hint = 'Drag to resize the left dock'
       Color = 13684944
       ParentColor = False
       ExplicitHeight = 100
@@ -539,6 +541,7 @@ object frmMain: TfrmMain
           Top = 24
           Width = 240
           Height = 23
+          Hint = 'Report title, shown by any title band that prints it'
           TabOrder = 0
           Text = 'New Report'
         end
@@ -547,6 +550,7 @@ object frmMain: TfrmMain
           Top = 68
           Width = 240
           Height = 23
+          Hint = 'Report author, shown by any title band that prints it'
           TabOrder = 1
         end
       end
@@ -570,6 +574,7 @@ object frmMain: TfrmMain
           Top = 5
           Width = 56
           Height = 23
+          Hint = 'Zoom percentage; type a value and press Enter'
           TabOrder = 0
           Text = '100'
           OnKeyDown = edtZoomKeyDown
@@ -579,6 +584,7 @@ object frmMain: TfrmMain
           Top = 4
           Width = 50
           Height = 24
+          Hint = 'Apply the zoom percentage typed in the box'
           Caption = 'Apply'
           TabOrder = 1
           OnClick = btnZoomApplyClick
@@ -601,6 +607,7 @@ object frmMain: TfrmMain
           Top = 3
           Width = 248
           Height = 24
+          Hint = 'Filter the property list; Esc clears it'
           Align = alClient
           TabOrder = 0
           TextHint = 'Filter properties...'
@@ -613,6 +620,7 @@ object frmMain: TfrmMain
         Top = 174
         Width = 260
         Height = 413
+        Hint = 'Properties of the selected object; Enter applies, group headers fold'
         Align = alClient
         KeyOptions = [keyEdit, keyAdd, keyDelete, keyUnique]
         TabOrder = 2
@@ -671,6 +679,7 @@ object frmMain: TfrmMain
         Top = 644
         Width = 260
         Height = 28
+        Hint = 'Apply the edited properties to the selected object(s)'
         Align = alBottom
         Caption = 'Apply Properties  [Enter]'
         TabOrder = 4
@@ -690,6 +699,7 @@ object frmMain: TfrmMain
         Top = 0
         Width = 872
         Height = 672
+        Hint = 'Design surface; double-click a band separator to insert a band there'
         Align = alClient
         BorderStyle = bsNone
         Color = 15263976

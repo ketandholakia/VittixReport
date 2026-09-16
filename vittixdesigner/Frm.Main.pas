@@ -777,6 +777,8 @@ begin
   FPnlObjects.Caption := '';
   lblToolbox.Parent := FPnlObjects;
   Toolbox.Parent := FPnlObjects;
+  Toolbox.Hint := 'Report objects; pick one and click inside a band to place it';
+  Toolbox.ShowHint := True;
 
   FSplObjectsStructure := TSplitter.Create(Self);
   FSplObjectsStructure.Parent := pnlToolbox;
@@ -6376,7 +6378,11 @@ begin
     end;
 
     if Assigned(DockSectionSplitter(Section)) then
+    begin
       DockSectionSplitter(Section).Color := P.Splitter;
+      DockSectionSplitter(Section).Hint := 'Drag to resize this section';
+      DockSectionSplitter(Section).ShowHint := True;
+    end;
   end;
 end;
 
