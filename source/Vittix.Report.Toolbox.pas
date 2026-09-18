@@ -9,6 +9,13 @@ uses
   Vcl.StdCtrls,
   Vittix.Report.Objects;
 
+/// <summary>
+///   Name of the icon (as stored in the designer PNG icon resource) that
+///   represents AClass. Shared by the docked toolbox and by the vertical
+///   object tool strip, so both resolve the same artwork.
+/// </summary>
+function ReportObjectIconName(AClass: TReportObjectClass): string;
+
 type
   TVittixReportToolbox = class(TListBox)
   private
@@ -109,7 +116,7 @@ begin
     FOnToolSelected(Self);
 end;
 
-function TVittixReportToolbox.ToolImageNameForClass(AClass: TReportObjectClass): string;
+function ReportObjectIconName(AClass: TReportObjectClass): string;
 begin
   if not Assigned(AClass) then
     Exit('description');
@@ -136,6 +143,11 @@ begin
     Exit('text_object');
 
   Result := 'description';
+end;
+
+function TVittixReportToolbox.ToolImageNameForClass(AClass: TReportObjectClass): string;
+begin
+  Result := ReportObjectIconName(AClass);
 end;
 
 function TVittixReportToolbox.ToolImageIndexForClass(AClass: TReportObjectClass): Integer;

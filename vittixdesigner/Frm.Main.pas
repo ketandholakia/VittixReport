@@ -11,16 +11,19 @@ unit Frm.Main;
     ¦  ToolBar  (File | Edit | Insert | Align | View | Report)   ¦
     ¦  StatusBar                                                  ¦
     +------------------------------------------------------------¦
-    ¦          ¦                                  ¦              ¦
-    ¦ Toolbox  ¦   TVittixReportDesigner canvas   ¦  Properties  ¦
-    ¦ (left    ¦        (centre, scrollable)      ¦  (right      ¦
-    ¦  panel)  ¦                                  ¦   panel)     ¦
-    ¦          ¦                                  ¦              ¦
+    ¦  ¦       ¦                                  ¦              ¦
+    ¦T ¦ Left  ¦   TVittixReportDesigner canvas   ¦  Properties  ¦
+    ¦o ¦ dock  ¦        (centre, scrollable)      ¦  (right      ¦
+    ¦o ¦ panels¦                                  ¦   panel)     ¦
+    ¦l ¦       ¦                                  ¦              ¦
     +------------------------------------------------------------+
 
-  Panels are resized via splitters.  The toolbox lists every registered
-  TReportObject class.  The property panel shows the currently selected
-  object's published properties via TReportPropertyBridge + TValueListEditor.
+  The object tools are a narrow vertical strip pinned to the far left (one
+  button per registered TReportObject class, FastReport style); the left dock
+  beside it carries the collapsible Structure / Variables / Problems / History /
+  Fields sections.  Panels are resized via splitters.  The property panel shows
+  the currently selected object's published properties via TReportPropertyBridge
+  + TValueListEditor.
 *)
 
 interface
@@ -237,9 +240,8 @@ type
     pnlProperties: TPanel;       // right — property inspector
     pnlCanvas    : TPanel;       // centre — holds scroll box + designer
 
-    { ---- Toolbox ---- }
-    lblToolbox   : TLabel;
-    Toolbox      : TVittixReportToolbox;
+    { ---- Object tool strip (vertical, pinned to the far left) ---- }
+    pnlToolStrip : TPanel;
 
     { ---- Property panel ---- }
     lblProperties: TLabel;
@@ -351,6 +353,7 @@ type
     procedure mnuRunRegressionTestReportsClick(Sender: TObject);
     procedure mnuRunRuntimeEventCallbackDemoClick(Sender: TObject);
     procedure mnuKeyboardShortcutsClick(Sender: TObject);
+    procedure mnuAboutClick(Sender: TObject);
     procedure mnuExpressionHelpClick(Sender: TObject);
 
     { Designer events }
@@ -359,8 +362,8 @@ type
     procedure DesignerViewChanged(Sender: TObject);
     procedure DesignerDblClick(Sender: TObject);
 
-    { Toolbox }
-    procedure ToolboxToolSelected(Sender: TObject);
+    { Tool strip }
+    procedure ToolStripToolClick(Sender: TObject);
 
     { Property editor }
     procedure btnApplyPropsClick(Sender: TObject);
@@ -461,8 +464,7 @@ type
     mnuExportEmail: TMenuItem;
     FDesigner   : TVittixReportDesigner;
     FDataSource1: TDataSource;
-    FPnlObjects : TPanel;
-    FSplObjectsStructure: TSplitter;
+    FIconIndex  : TDictionary<string, Integer>;   // icon name -> ImageList1 index
     FSplStructureVariables: TSplitter;
     FPnlFields  : TPanel;
     FLblFields  : TLabel;
@@ -517,6 +519,7 @@ type
     FCmdLineInputFile : string;   // file to load on startup
     FCmdLineOutputFile: string;   // file to write on save & close
 
+    procedure BuildObjectToolStrip;
     procedure BuildInsertMenu;
 
     procedure UpdateTitleBar;
@@ -647,7 +650,9 @@ uses
   Frm.BandManager,
   Frm.PageSettings,
   Frm.ReportProperties,
-  Frm.Preview;
+  Frm.Preview,
+  Frm.About,
+  Vittix.Designer.IconLoader;
 
 const
   TREE_ICON_REPORT    = 21;
@@ -661,6 +666,13 @@ const
   TREE_ICON_LINE      = 29;
   TREE_ICON_SUBREPORT = 30;
   TREE_ICON_TABLE     = 31;
+
+  { Height of a dock header bar - the collapsible section headers on the left
+    and the title / sub-title bars on the right. Tall enough that the caption
+    gets real padding above and below instead of hugging the bar (the property
+    grid already uses 28 for its group headers). For the left dock the collapsed
+    height must equal this or folding would clip the caption. }
+  DockHeaderHeight = 28;
 
 type
   TReportMetadataChangeCommand = class(TUndoableAction)
@@ -758,6 +770,7 @@ begin
   FDesigner.Height := 1600;
   ScrollBox1.OnResize := ScrollBox1Resize;
   FDataSource1 := TDataSource.Create(Self);
+  FIconIndex := TDictionary<string, Integer>.Create;
   FRecentFiles := TList<string>.Create;
   FPropFilterRows := TStringList.Create;
   FPropCollapsedGroups := TStringList.Create;
@@ -776,35 +789,16 @@ begin
   IconList.Width := 24;
   IconList.Height := 24;
 
-  // Ensure the Toolbox knows all registered types (including Barcode + Table
-  // which self-register in their unit initialization sections)
-  Toolbox.ToolImages := IconList;
-  Toolbox.RefreshToolList;
+  // The object tools live in a narrow vertical strip pinned to the far left
+  // (FastReport style) rather than in the left dock. Buttons are stacked with
+  // alTop and added once the icon list has been filled, further down.
+  pnlToolStrip.ShowHint := True;
+  pnlToolStrip.Hint := 'Report objects: pick one, then click inside a band to place it';
 
-  // ---- Left dock: four collapsible sections in one vertical chain ----------
+  // ---- Left dock: collapsible sections in one vertical chain ---------------
   // Clicking a section header folds that section down to its header bar so the
   // dock stays usable on small displays. Fields is the last section and absorbs
   // whatever height the other sections leave.
-  FPnlObjects := TPanel.Create(Self);
-  FPnlObjects.Parent := pnlToolbox;
-  FPnlObjects.Align := alTop;
-  FPnlObjects.Height := 180;
-  FPnlObjects.BevelOuter := bvNone;
-  FPnlObjects.Caption := '';
-  lblToolbox.Parent := FPnlObjects;
-  Toolbox.Parent := FPnlObjects;
-  Toolbox.Hint := 'Report objects; pick one and click inside a band to place it';
-  Toolbox.ShowHint := True;
-
-  FSplObjectsStructure := TSplitter.Create(Self);
-  FSplObjectsStructure.Parent := pnlToolbox;
-  FSplObjectsStructure.Align := alTop;
-  FSplObjectsStructure.Height := 5;
-  FSplObjectsStructure.Color := 13684944;
-  FSplObjectsStructure.ParentColor := False;
-  FSplObjectsStructure.MinSize := 50;
-  FSplObjectsStructure.ResizeStyle := rsUpdate;
-
   FPnlStructure := TPanel.Create(Self);
   FPnlStructure.Parent := pnlToolbox;
   FPnlStructure.Align := alTop;
@@ -817,7 +811,7 @@ begin
   FLblStructure.Align := alTop;
   FLblStructure.Caption := ' Report Structure';
   FLblStructure.Font.Style := [fsBold];
-  FLblStructure.Height := 18;
+  FLblStructure.Height := DockHeaderHeight;
 
   FTreeStructure := TTreeView.Create(Self);
   FTreeStructure.Parent := FPnlStructure;
@@ -854,7 +848,7 @@ begin
   FLblFields.Align    := alTop;
   FLblFields.Caption  := ' Dataset Fields';
   FLblFields.Font.Style := [fsBold];
-  FLblFields.Height   := 18;
+  FLblFields.Height   := DockHeaderHeight;
 
   FEdtFieldFilter := TEdit.Create(Self);
   FEdtFieldFilter.Parent := FPnlFields;
@@ -884,7 +878,7 @@ begin
   FLblVariables.Align := alTop;
   FLblVariables.Caption := ' Variables';
   FLblVariables.Font.Style := [fsBold];
-  FLblVariables.Height := 18;
+  FLblVariables.Height := DockHeaderHeight;
 
   FTreeVariables := TTreeView.Create(Self);
   FTreeVariables.Parent := FPnlVariables;
@@ -936,7 +930,7 @@ begin
   FLblProblems.Align := alTop;
   FLblProblems.Caption := ' Problems';
   FLblProblems.Font.Style := [fsBold];
-  FLblProblems.Height := 18;
+  FLblProblems.Height := DockHeaderHeight;
 
   FLstProblems := TListBox.Create(Self);
   FLstProblems.Parent := FPnlProblems;
@@ -967,7 +961,7 @@ begin
   FLblHistory.Align := alTop;
   FLblHistory.Caption := ' History';
   FLblHistory.Font.Style := [fsBold];
-  FLblHistory.Height := 18;
+  FLblHistory.Height := DockHeaderHeight;
 
   FLstHistory := TListBox.Create(Self);
   FLstHistory.Parent := FPnlHistory;
@@ -1024,7 +1018,11 @@ begin
   // Now that the popup menus are created, populate them with bands and objects!
   BuildInsertMenu;
 
-  ImageList1.ColorDepth := cd32Bit;
+  // 24bpp + colour-keyed masks, deliberately not cd32Bit: AddMasked only honours
+  // the colour key below 32bpp, and TCustomImageList.DoDraw sends disabled
+  // images on a cd32Bit list through an ILS_SATURATE path that ignores the mask
+  // and paints a black box behind every disabled toolbar button.
+  ImageList1.ColorDepth := cd24Bit;
   ImageList1.DrawingStyle := dsTransparent;
   ImageList1.Width := 24;
   ImageList1.Height := 24;
@@ -1059,10 +1057,13 @@ begin
         PNG := TPngImage.Create;
         try
           PNG.LoadFromStream(RS);
-          Bmp := Vcl.Graphics.TBitmap.Create;
+          // Colour-keyed mask, not Assign: Assign drops the PNG alpha channel
+          // and the toolbar/tree icons come out on solid black squares.
+          Bmp := PngToMaskedBitmap(PNG);
           try
-            Bmp.Assign(PNG);
-            ImageList1.Add(Bmp, nil);   // 24x24 numeric list: toolbar + structure tree
+            // 24x24 numeric list: toolbar + structure tree + object tool strip.
+            FIconIndex.AddOrSetValue(UpperCase(PNGNames[I]),
+              ImageList1.AddMasked(Bmp, IconMaskColor));
           finally
             Bmp.Free;
           end;
@@ -1076,6 +1077,9 @@ begin
       // Missing icons
     end;
   end;
+
+  // Every registered report object gets a button on the vertical tool strip.
+  BuildObjectToolStrip;
 
   // Wire designer events
   FDesigner.OnSelectionChanged := DesignerSelectionChanged;
@@ -1152,6 +1156,16 @@ begin
   ConfigureLayoutGuidance;
   ConfigureViewToggleStrip;
   SetupDockSections;
+
+  // The right dock's title and sub-title bars match the left dock section
+  // headers, so both sides of the window have the same header rhythm.
+  // AutoSize must go first: an auto-sized label ignores an explicit Height.
+  lblProperties.AutoSize := False;
+  lblProperties.Height := DockHeaderHeight;
+  lblProperties.Layout := tlCenter;
+  lblSelectedProps.AutoSize := False;
+  lblSelectedProps.Height := DockHeaderHeight;
+  lblSelectedProps.Layout := tlCenter;
   LoadDesignerPreferences;
   LoadRecentFiles;
 
@@ -1308,6 +1322,15 @@ begin
   MI.Caption := 'Expression Help';
   MI.OnClick := mnuExpressionHelpClick;
   mnuHelp.Add(MI);
+
+  MI := TMenuItem.Create(Self);
+  MI.Caption := '-';
+  mnuHelp.Add(MI);
+
+  MI := TMenuItem.Create(Self);
+  MI.Caption := '&About Vittix Report Designer...';
+  MI.OnClick := mnuAboutClick;
+  mnuHelp.Add(MI);
 end;
 
 procedure TfrmMain.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
@@ -1362,6 +1385,7 @@ end;
 procedure TfrmMain.FormDestroy(Sender: TObject);
 begin
   FreeAndNil(FPreferences);
+  FreeAndNil(FIconIndex);
   FreeAndNil(FRecentFiles);
   FreeAndNil(FPropFilterRows);
   FreeAndNil(FPropCollapsedGroups);
@@ -5214,6 +5238,18 @@ begin
   ShowMessage(KeyboardShortcutsText);
 end;
 
+procedure TfrmMain.mnuAboutClick(Sender: TObject);
+var
+  Frm: TfrmAbout;
+begin
+  Frm := TfrmAbout.Create(Application);
+  try
+    Frm.ShowModal;
+  finally
+    Frm.Free;
+  end;
+end;
+
 procedure TfrmMain.mnuExpressionHelpClick(Sender: TObject);
 begin
   ShowMessage(ExpressionHelpText);
@@ -5258,16 +5294,60 @@ end;
 {  Toolbox                                                                     }
 { =========================================================================== }
 
-procedure TfrmMain.ToolboxToolSelected(Sender: TObject);
+procedure TfrmMain.ToolStripToolClick(Sender: TObject);
 var
   Cls: TReportObjectClass;
 begin
-  Cls := Toolbox.SelectedObjectClass;
-  if Assigned(Cls) then
-  begin
-    FDesigner.BeginInsertObject(Cls);
-    StatusBar1.Panels[1].Text :=
-      'Insert mode: click inside a band to place a ' + Cls.DisplayName;
+  if not Assigned(FDesigner) or not (Sender is TSpeedButton) then
+    Exit;
+
+  Cls := TReportObjectClass(TSpeedButton(Sender).Tag);
+  if not Assigned(Cls) then
+    Exit;
+
+  // GroupIndex on the buttons keeps the chosen tool showing as pressed.
+  FDesigner.BeginInsertObject(Cls);
+  StatusBar1.Panels[1].Text :=
+    'Insert mode: click inside a band to place a ' + Cls.DisplayName;
+end;
+
+{ Builds the vertical object strip from the report object registry. Every
+  registered class gets a tool button, so newly registered object types appear
+  without touching this form. }
+procedure TfrmMain.BuildObjectToolStrip;
+var
+  C: TReportObjectClass;
+  Btn: TSpeedButton;
+  Idx: Integer;
+begin
+  if not Assigned(pnlToolStrip) or not Assigned(FIconIndex) then
+    Exit;
+
+  pnlToolStrip.DisableAlign;
+  try
+    for C in GetRegisteredReportObjects do
+    begin
+      Btn := TSpeedButton.Create(Self);
+      Btn.Parent := pnlToolStrip;
+      Btn.Align := alTop;
+      Btn.Height := 30;
+      Btn.Flat := True;
+      // ImageList1 (loaded with AddMasked) is the list the rest of the chrome
+      // already renders correctly, so the strip uses it too.
+      Btn.Images := ImageList1;
+      Btn.GroupIndex := 1;   // one tool shown as active at a time
+      Btn.Tag := NativeInt(C);
+      Btn.Hint := C.DisplayName + ': click, then click inside a band to place it';
+      Btn.ShowHint := True;
+      Btn.OnClick := ToolStripToolClick;
+
+      if FIconIndex.TryGetValue(UpperCase(ReportObjectIconName(C)), Idx) then
+        Btn.ImageIndex := Idx
+      else
+        Btn.ImageIndex := -1;
+    end;
+  finally
+    pnlToolStrip.EnableAlign;
   end;
 end;
 
@@ -5805,7 +5885,6 @@ begin
       UpdateDockSectionHeader(Section);
 
     pnlToolbox.Realign;
-    FPnlObjects.Realign;
     FPnlStructure.Realign;
     FPnlVariables.Realign;
     FPnlFields.Realign;
@@ -5823,8 +5902,6 @@ begin
   // chain inside a single DisableAlign/EnableAlign block.
   pnlToolbox.DisableAlign;
   try
-    FPnlObjects.Top := 0;
-    FSplObjectsStructure.Top := 1;
     FPnlStructure.Top := 2;
     FSplStructureVariables.Top := 3;
     FPnlVariables.Top := 4;
@@ -5848,7 +5925,8 @@ begin
     if Assigned(Header) then
     begin
       Header.AutoSize := False;
-      Header.Height := 18;
+      Header.Height := DockHeaderHeight;
+      Header.Layout := tlCenter;
       Header.Cursor := crHandPoint;
       Header.ShowHint := True;
       Header.Hint := 'Click to fold or unfold this section';
@@ -5871,7 +5949,10 @@ end;
 function TfrmMain.DockSectionPanel(ASection: TDesignerDockSection): TPanel;
 begin
   case ASection of
-    dsObjects:   Result := FPnlObjects;
+    // dsObjects has no panel any more: the object tools are a vertical strip
+    // (pnlToolStrip), not a docked section. The enum member is kept so saved
+    // preferences that reference it still load.
+    dsObjects:   Result := nil;
     dsStructure: Result := FPnlStructure;
     dsVariables: Result := FPnlVariables;
     dsProblems:  Result := FPnlProblems;
@@ -5884,7 +5965,7 @@ end;
 function TfrmMain.DockSectionLabel(ASection: TDesignerDockSection): TLabel;
 begin
   case ASection of
-    dsObjects:   Result := lblToolbox;
+    dsObjects:   Result := nil;
     dsStructure: Result := FLblStructure;
     dsVariables: Result := FLblVariables;
     dsProblems:  Result := FLblProblems;
@@ -5897,7 +5978,7 @@ end;
 function TfrmMain.DockSectionSplitter(ASection: TDesignerDockSection): TSplitter;
 begin
   case ASection of
-    dsObjects:   Result := FSplObjectsStructure;
+    dsObjects:   Result := nil;
     dsStructure: Result := FSplStructureVariables;
     dsVariables: Result := FSplVariablesFields;
     dsProblems:  Result := FSplProblemsFields;
@@ -5980,7 +6061,7 @@ end;
 
 procedure TfrmMain.RelayoutDockSections;
 const
-  CollapsedSectionHeight = 18;
+  CollapsedSectionHeight = DockHeaderHeight;
   DefaultSectionHeight = 180;
 var
   Section, SlackOwner: TDesignerDockSection;
@@ -5991,7 +6072,7 @@ begin
   // section - including the last one - never leaves an empty gap in the dock.
   SlackOwner := dsObjects;
   for Section := Low(TDesignerDockSection) to High(TDesignerDockSection) do
-    if not FDockCollapsed[Section] then
+    if not FDockCollapsed[Section] and Assigned(DockSectionPanel(Section)) then
       SlackOwner := Section;
 
   for Section := Low(TDesignerDockSection) to High(TDesignerDockSection) do
@@ -6477,8 +6558,8 @@ begin
   if Assigned(StatusBar1) then
     StatusBar1.Color := P.PanelBackground;
 
-  if Assigned(Toolbox) then
-    Toolbox.Color := P.PanelBackground;
+  if Assigned(pnlToolStrip) then
+    pnlToolStrip.Color := P.PanelBackground;
   if Assigned(FLstFields) then
     FLstFields.Color := P.PanelBackground;
   if Assigned(FLstProblems) then

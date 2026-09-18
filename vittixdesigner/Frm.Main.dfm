@@ -407,6 +407,15 @@ object frmMain: TfrmMain
     Align = alClient
     BevelOuter = bvNone
     TabOrder = 2
+    object pnlToolStrip: TPanel
+      Left = 0
+      Top = 0
+      Width = 34
+      Height = 672
+      Align = alLeft
+      BevelOuter = bvNone
+      TabOrder = 3
+    end
     object splRight: TSplitter
       Left = 1016
       Top = 0
@@ -437,40 +446,6 @@ object frmMain: TfrmMain
       Align = alLeft
       BevelOuter = bvNone
       TabOrder = 0
-      object lblToolbox: TLabel
-        Left = 0
-        Top = 0
-        Width = 140
-        Height = 15
-        Align = alTop
-        Caption = '  Objects'
-        Color = 2894892
-        Font.Charset = DEFAULT_CHARSET
-        Font.Color = clWhite
-        Font.Height = -12
-        Font.Name = 'Segoe UI'
-        Font.Style = [fsBold]
-        ParentColor = False
-        ParentFont = False
-        Transparent = False
-        ExplicitWidth = 48
-      end
-      object Toolbox: TVittixReportToolbox
-        Left = 0
-        Top = 15
-        Width = 140
-        Height = 657
-        Hint = 
-          'Select a report object tool, then click the designer canvas to i' +
-          'nsert it.'
-        Style = lbOwnerDrawFixed
-        Align = alClient
-        ItemHeight = 15
-        ParentShowHint = False
-        ShowHint = True
-        TabOrder = 0
-        OnToolSelected = ToolboxToolSelected
-      end
     end
     object pnlProperties: TPanel
       Left = 1020
@@ -484,9 +459,10 @@ object frmMain: TfrmMain
         Left = 0
         Top = 0
         Width = 260
-        Height = 15
+        Height = 28
         Align = alTop
         Caption = '  Selected Object Header'
+        Layout = tlCenter
         Color = 2894892
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWhite
@@ -502,9 +478,10 @@ object frmMain: TfrmMain
         Left = 0
         Top = 159
         Width = 260
-        Height = 15
+        Height = 28
         Align = alTop
         Caption = '  Selected Object Properties'
+        Layout = tlCenter
         Color = 12105912
         ParentColor = False
         Transparent = False

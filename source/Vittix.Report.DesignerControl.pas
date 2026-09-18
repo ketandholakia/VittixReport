@@ -298,7 +298,6 @@ TDesignerGridUnit = (guCentimeters, guInches, guPixels, guPoints);
     function  GetCommands: TCommandDispatcher;
     procedure Undo;
     procedure Redo;
-
     { Batch update (suppress repaints) }
     procedure BeginUpdate;
     procedure EndUpdate;

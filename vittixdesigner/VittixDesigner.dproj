@@ -128,6 +128,10 @@
         <DCCReference Include="Frm.Preview.pas">
             <Form>frmPreview</Form>
         </DCCReference>
+        <DCCReference Include="Frm.About.pas">
+            <Form>frmAbout</Form>
+        </DCCReference>
+        <DCCReference Include="Vittix.Designer.IconLoader.pas"/>
         <DCCReference Include="..\Vittix.Report.Model.pas"/>
         <DCCReference Include="..\Vittix.Report.Objects.pas"/>
         <DCCReference Include="..\Vittix.Report.Bands.pas"/>
