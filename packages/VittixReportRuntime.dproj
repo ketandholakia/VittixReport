@@ -60,7 +60,7 @@
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=;ProgramID=com.embarcadero.$(MSBuildProjectName)</VerInfo_Keys>
         <VerInfo_Locale>1033</VerInfo_Locale>
-        <DCC_UsePackage>vcl;rtl;dbrtl;vclimg;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>vcl;rtl;dbrtl;vclimg;xmlrtl;$(DCC_UsePackage)</DCC_UsePackage>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win64)'!=''">
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;$(DCC_Namespace)</DCC_Namespace>
@@ -68,7 +68,7 @@
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <VerInfo_Locale>1033</VerInfo_Locale>
-        <DCC_UsePackage>vcl;rtl;dbrtl;vclimg;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>vcl;rtl;dbrtl;vclimg;xmlrtl;$(DCC_UsePackage)</DCC_UsePackage>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win64x)'!=''">
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;$(DCC_Namespace)</DCC_Namespace>
@@ -77,7 +77,7 @@
         <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <BCC_EnableBatchCompilation>true</BCC_EnableBatchCompilation>
-        <DCC_UsePackage>vcl;rtl;dbrtl;vclimg;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>vcl;rtl;dbrtl;vclimg;xmlrtl;$(DCC_UsePackage)</DCC_UsePackage>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1)'!=''">
         <DCC_Define>RELEASE;$(DCC_Define)</DCC_Define>
@@ -113,10 +113,22 @@
         <DCCReference Include="..\source\Vittix.Report.ObjectRegistry.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Objects.Barcode.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Objects.Table.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Objects.CrossTab.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Objects.Chart.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.MemoExport.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Bands.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Core.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Expressions.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Expressions.Compat.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Expression.Mode.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Expression.Language.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Expression.Diagnostics.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Expression.Tokenizer.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Expression.Evaluator.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Expression.Migration.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Aggregates.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.TraversalDiagnostics.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.LayoutBookmarks.pas"/>
         <DCCReference Include="..\source\Vittix.Report.LayoutCache.pas"/>
         <DCCReference Include="..\source\Vittix.Report.LayoutHelpers.pas"/>
         <DCCReference Include="..\source\Vittix.Report.LayoutPagination.pas"/>
@@ -129,6 +141,7 @@
         <DCCReference Include="..\source\Vittix.Report.Engine.Engine.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Serializer.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Renderer.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.PrintMapping.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Engine.Renderer.pas"/>
         <DCCReference Include="..\source\Vittix.Report.DesignerControl.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Toolbox.pas"/>
@@ -137,9 +150,14 @@
         <DCCReference Include="..\source\Vittix.Report.Undo.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Export.Commands.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Export.VectorPDF.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Export.VectorPDF.SVG.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Export.PDF.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Export.Text.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Export.Email.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Component.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Export.HTML.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Export.VectorPDF.EMF.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Export.XLSX.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
