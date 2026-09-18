@@ -49,6 +49,12 @@ VittixReport provides a visual report designer and runtime engine for Delphi VCL
 - Use the Preview window to review pages.
 - Print directly or export to PDF.
 
+## Expressions and Events
+- Text objects can embed field and variable references such as `[Name]`.
+- Common uses are conditional formatting, `DisplayFormat`/`EditMask` on fields, `PrintWhen` visibility rules, and `SUM()` aggregates in group footers.
+- Runtime `OnBeforePrint` / `OnAfterPrint` callbacks are assigned by the host application in Delphi code; the designer does not execute persisted event text.
+- See the demo templates and the report events reference for working examples.
+
 ## Troubleshooting
 - Ensure all required bands and objects are placed.
 - For PDF export, "Microsoft Print to PDF" must be available (Windows 10+).
@@ -56,3 +62,5 @@ VittixReport provides a visual report designer and runtime engine for Delphi VCL
 ## More Help
 - See the README for project structure and integration.
 - For advanced usage, see the Developer Manual.
+- For event scripting rules, see the report events reference.
+- For ready-made examples, see the demo templates.

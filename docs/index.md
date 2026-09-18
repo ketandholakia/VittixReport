@@ -23,7 +23,7 @@ Reports are stored as source-control-friendly JSON (`.vrt`), not binary blobs.
 | `demo/` | The VCL demo application plus 25 hand-authored report templates in `demo/vrt/` |
 | `tests/` | The DUnitX suite and its fixtures |
 | `docs/` | Phase reports, audits and design contracts — the source of this site |
-| `reports/` | 45 regression report fixtures and the pagination baseline |
+| `reports/` | 42 regression report fixtures (41 checked + 1 skipped by design) and the pagination baseline |
 | `tools/` | The regression gate script |
 
 ## Report objects
@@ -40,7 +40,7 @@ in the Phase 4A and Phase 4B documents under **Modernization**.
 
 ## Export
 
-Vector PDF (with SVG and EMF sub-backends), raster PDF via the Windows printing
+Vector PDF (with SVG and EMF sub-backends; Latin-text-only beta), raster PDF via the Windows printing
 system, XLSX, HTML, plain text and email.
 
 ## Getting started
@@ -51,7 +51,7 @@ system, XLSX, HTML, plain text and email.
     build.bat
     ```
 
-    Builds the runtime package, the design-time package, and the standalone
+    Builds the runtime package and the design-time package (Win32), and the standalone
     designer for Win32 and Win64 (Release). Requires RAD Studio / Delphi on
     `PATH`, or it will locate `rsvars.bat` for Studio 23.0 or 22.0 itself.
 
@@ -124,11 +124,11 @@ Recorded against `96197c1` (`main`), with the modernization baseline tagged
 
 ## Documentation map
 
-- **Project** — the repository README, the user manual, the developer manual and
-  the testing guide.
-- **Reference** — report events, the designer, its icon map, the demo
-  application, the demo templates, the regression fixtures and the branding
-  assets.
+- **Project** — the repository [README](readme.md), the [user manual](user-manual.md), the [developer manual](developer-manual.md) and
+  the [testing guide](testing.md).
+- **Reference** — [report events](EVENTS.md), the [designer](designer.md), its [icon map](designer-icon-map.md), the [demo
+  application](demo-app.md), the [demo templates](demo-templates.md), the [regression fixtures](regression-fixtures.md) and the [branding
+  assets](branding.md).
 - **Roadmap** — TODO, the bug queue, the designer UX roadmap and the feature
   plans.
 - **Modernization** — the Phase 1 to Phase 6 programme documents, the expression

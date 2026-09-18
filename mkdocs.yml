@@ -116,6 +116,7 @@ nav:
       - Demo application: demo-app.md
       - Demo report templates: demo-templates.md
       - Regression fixtures: regression-fixtures.md
+      - VittixRunner CLI: runner-cli.md
       - Branding assets: branding.md
   - Roadmap:
       - TODO: todo.md

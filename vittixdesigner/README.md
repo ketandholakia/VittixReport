@@ -8,7 +8,7 @@ Report framework. Written in Delphi 12.2 (VCL, Win32/Win64).
 ## Project Structure
 
 ```
-VittixReportDesignerApp/
+vittixdesigner/
 ├── VittixDesigner.dpr        Main application project
 ├── VittixDesigner.dproj      Project options (Delphi 12.2)
 │
@@ -24,14 +24,12 @@ VittixReportDesignerApp/
 
 ## How to Open in Delphi 12.2
 
-1. Place this `VittixReportDesignerApp` folder **inside** your existing
-   Vittix.Report source tree so the `..\..\` relative paths in the `.dpr`
-   resolve correctly, or adjust the paths in `VittixDesigner.dpr` to
-   match your layout.
+1. Open **vittixdesigner/VittixDesigner.dproj** in Delphi 12.2 directly in
+   the checked-out tree. The `.dpr` references the framework units as
+   `..\source\...`, which already resolves from this location — do not move
+   or rename the folder.
 
-2. Open **VittixDesigner.dproj** in Delphi 12.2.
-
-3. Build → Run (F9).
+2. Build → Run (F9).
 
 ---
 
@@ -46,13 +44,13 @@ VittixReportDesignerApp/
 │  Objects   │       Designer Canvas            │   Properties     │
 │  ────────  │   (TVittixReportDesigner         │  ────────────    │
 │  Label     │    inside a TScrollBox)          │  Report Title    │
-│  Field     │                                  │  Author          │
+│  Data Field│                                  │  Author          │
 │  Image     │  Bands + objects drawn here.     │  Zoom %          │
 │  Table     │  Click to select, drag to move,  │  ────────────    │
 │  Barcode   │  rubber-band for multi-select,   │  [ValueListEditor│
 │  Line      │  double-click to edit text       │   shows published│
 │  Shape     │                                  │   props of the   │
-│  RichText  │                                  │   selected obj]  │
+│  Memo      │                                  │   selected obj]  │
 │            │                                  │  [Apply Props]   │
 └────────────┴──────────────────────────────────┴──────────────────┘
 │ Status: 2 objects selected  at (120, 40)  160 × 20              │
@@ -93,10 +91,12 @@ Via **Insert** menu or Band Manager:
 Click an object type in the **Objects** toolbox on the left, then click
 inside a band on the canvas to place it. Pressing Esc cancels insert mode.
 
-Registered object types (from ObjectRegistry):
-- Label, FieldLabel, Image, Line, Shape, RichText
+Registered object types (toolbox `DisplayName` from ObjectRegistry):
+- Text, Label, Data Field, Memo, Image, Line, Shape, SubReport
 - Table (`Vittix.Report.Objects.Table`)
 - Barcode (`Vittix.Report.Objects.Barcode`)
+- Chart (`Vittix.Report.Objects.Chart`)
+- Cross-Tab (`Vittix.Report.Objects.CrossTab`)
 
 ### Alignment Toolbar
 All alignment operations are **fully undoable** (Ctrl+Z):
@@ -144,6 +144,7 @@ you can embed `TVittixReportDesigner` and drive the engine like this:
 
 ```delphi
 uses
+  Vittix.Report.Model,
   Vittix.Report.Engine,
   Vittix.Report.Serializer,
   Vittix.Report.Export.PDF;
@@ -153,13 +154,16 @@ var
   Engine : TReportEngine;
 begin
   Report := TReportSerializer.LoadFromFile('MyReport.vrt');
-  Engine := TReportEngine.Create(Report, MyADOQuery);
   try
-    Engine.Prepare;
-    // Engine.Pages contains TMetafile pages
-    TReportPDFExporter.ExportToFile(Engine.Pages, 'output.pdf');
+    Engine := TReportEngine.Create(Report, MyADOQuery);
+    try
+      Engine.Prepare;
+      // Engine.Pages contains TMetafile pages
+      TReportPDFExporter.ExportToFile(Engine.Pages, 'output.pdf');
+    finally
+      Engine.Free;
+    end;
   finally
-    Engine.Free;
     Report.Free;
   end;
 end;
@@ -208,7 +212,11 @@ Toolbox, PropertyBridge, Engine, Renderer, Preview, Interfaces, Utils,
 Aggregates, Expressions, Context, DataSources, Scripting,
 Objects.Barcode, Objects.Table, Export.PDF`
 
-No third-party libraries required beyond standard Delphi RTL + VCL.
+No third-party libraries are required for the `Vittix.Report.*` core units
+beyond standard Delphi RTL + VCL. The designer application itself
+additionally requires madExcept (used directly by `VittixDesigner.dpr`) and
+the data-access libraries noted in the root README (FireDAC, ADO), which the
+designer forms use for live data connectivity.
 
 ---
 

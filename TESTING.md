@@ -75,6 +75,7 @@ change — `Rebuild` costs materially more time.
 - Use `VittixRunner <reportfile.vrt>` to target a specific script case while developing object event handling.
 - Use `VittixRunner --keep-vector-pdf` to keep generated vector PDF smoke files under `build\vector-pdf-smoke` for manual inspection.
 - Run `VittixRunner --help` to list available runner switches.
+- For the complete option, combination, exit-code and strict-mode reference, see the VittixRunner CLI reference.
 
 ## 3.1) Vector PDF checks
 - Export a simple report with `Export to Vector PDF...`.
