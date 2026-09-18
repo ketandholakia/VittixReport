@@ -97,3 +97,80 @@ Thumbs.db
 # Cline local state
 /.cline/
 /.vscode/
+
+# Build and verification output (not source)
+*.log
+/regression_out/
+/stub_qr/
+
+# Test run artifacts
+/tests/dunitx-results*.xml
+/tests/audit_dunitx.xml
+/tests/failures*.txt
+/tests/*.clean
+/tests/*.tmp
+
+# Ad-hoc root-level debugging dumps
+/test_*.txt
+/test_*.xml
+/build_tail.txt
+/buildlog_read.txt
+/diff_a.txt
+/priorresults.txt
+/runlist.txt
+
+# Scratch drafts (tracked scratch tooling is unaffected)
+/scratch/DesignerControl*.pas
+/scratch/controller_draft.pas
+/scratch/old_serializer.pas
+/scratch/Vittix.Report.DesignerInteractionController.pas
+/scratch/ExprProbe.dpr
+/scratch/probe.bat
+/scratch/git_log_zoomin.txt
+/scratch/pkg_*_delta.txt
+/scratch/patch_*.py
+/scratch/add_bookmarks.py
+/scratch/finish_migration.py
+/scratch/fix_last.py
+/scratch/migrate_mouse.py
+/scratch/restore_designer.py
+
+# Local agent/assistant tooling state
+/.agents/
+/.commandcode/
+/.kilo/
+/.openclaw/
+/.zcode/
+/HEARTBEAT.md
+/IDENTITY.md
+/SOUL.md
+/TOOLS.md
+/USER.md
+/1788278426566_n6cw8.json
+
+# Assistant attachment staging (screenshots, clipboard dumps, API payloads)
+/.openclaw-attachments/
+
+# Ad-hoc local build/test wrappers. The tracked entry points are build.bat,
+# RunTests.bat and tools\ci_gate.ps1; these are one-off copies of the same work.
+/build_runtime.ps1
+/build_runtime_dpk.ps1
+/compile_in_temp.ps1
+/build_tests_18.cmd
+/force_build.bat
+/run_tests.bat
+/run_tests2.bat
+
+# Ad-hoc icon/DFM scratch tooling and scratch artwork
+/rename_icons.py
+/test.svg
+/vittixdesigner/extract_names.py
+/vittixdesigner/patch_dfm.py
+
+# Unreferenced Material Symbols download leftovers in the icon staging folder.
+# gen_png_rc.py only emits SVG-backed names, so nothing named *_16dp_* is ever
+# compiled into vittix_png_icons.RES or referenced by the designer.
+/vittixdesigner/resources/png/*_16dp_*
+
+# Export output written into the regression fixture folder by manual runs
+/reports/*.pdf
