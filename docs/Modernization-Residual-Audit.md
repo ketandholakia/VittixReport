@@ -186,3 +186,42 @@ None of the deferred items is an unfinished obligation, and none should be
 resumed merely because it appears on a list. In particular, "Phase 4B-2A fully
 implemented" does **not** mean all conceivable date functionality exists — the
 three date features remain deliberately Future.
+
+---
+
+## 8. Post-closure maintenance — `BUILD-GAP-QR-001`, second instance (demo)
+
+An **observed build failure** (the class of trigger §7 permits) surfaced after
+closure: compiling `demo\VittixReportDemo.dproj` failed with
+`Vittix.Report.Objects.Barcode.pas(134): E2003 Undeclared identifier: 'IQrCode'`
+(also `TEcc`, `IQrSegment`, `MakeSegments`, `EncodeSegments`) and the cascading
+`Vittix.Report.Serializer.pas(156): F2063`.
+
+**Cause — the same defect class as the Phase 5 fix, in a sixth project file.**
+Phase 5 corrected `packages\VittixReportRuntime.dproj` and
+`packages\VittixReportDesign.dproj`, which declared **no** `DCC_UnitSearchPath`
+at all. A systematic sweep of all six `.dproj` files after this report shows the
+demo was a variant of the same problem: it *did* declare a search path, but one
+without the vendored QR library —
+
+```
+demo\VittixReportDemo.dproj   .\;..\source;$(DCC_UnitSearchPath)          <- missing QR paths
+the other five                ..;..\source;..\source\ThirdParty\QRCodeGenLib\src\{QRCodeGen,Interfaces,Utils,Include};...
+```
+
+So the demo fell back to the ambient library path, where the untracked
+`stub_qr\` shadowed the real units.
+
+**Fix.** Added the same vendor search path the other five projects declare, on
+the same line (`demo\VittixReportDemo.dproj`). No code, package, test or `.vrt`
+change.
+
+**Verification.** `msbuild demo\VittixReportDemo.dproj /t:Rebuild` →
+**Build succeeded, 0 errors**.
+
+**Class closed.** All six project files now declare the vendor path
+(`VittixRunner`, `tests`, `vittixdesigner`, both packages, `demo`), so this
+recurrence is closed as a class rather than another instance.
+
+This was a maintenance fix from the frozen baseline, not a resumption of the
+modernization programme.
