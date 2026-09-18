@@ -1,0 +1,150 @@
+# VittixReport documentation site (MkDocs + Material).
+#
+# Layout note
+# -----------
+# docs_dir stays `docs/`. Documents that already live elsewhere in the tree
+# (the root manuals, the component READMEs, the development plans) are pulled
+# in with pymdownx.snippets instead of being moved, so there is exactly one
+# copy of every document and no path churn in the repository:
+#
+#     --8<-- "USER_MANUAL.md"
+#
+# resolves against the repository root because of `base_path` below.
+#
+# Because those documents were authored with links relative to the repository
+# root, use_directory_urls is disabled: every page gets a flat `<name>.html`
+# URL at the site root, which is where assets such as LICENSE are published
+# too. See docs/LICENSE.
+#
+# Build output goes to build/site/ so it lands inside the already-ignored
+# build/ directory rather than adding another ignore rule.
+
+site_name: VittixReport
+site_description: Delphi VCL reporting component - designer, engine, preview, print and export
+site_author: Ketan Dholakia
+site_url: https://ketandholakia.github.io/VittixReport/
+repo_url: https://github.com/ketandholakia/VittixReport
+repo_name: ketandholakia/VittixReport
+edit_uri: edit/main/
+
+docs_dir: docs
+site_dir: build/site
+use_directory_urls: false
+
+copyright: VittixReport - Delphi VCL report component
+
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.tracking
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.tabs.link
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      permalink_title: Link to this section
+      toc_depth: 3
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.snippets:
+      base_path:
+        - .
+      check_paths: true
+
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/ketandholakia/VittixReport
+
+nav:
+  - Home: index.md
+  - Project:
+      - README: readme.md
+      - User manual: user-manual.md
+      - Developer manual: developer-manual.md
+      - Testing: testing.md
+  - Reference:
+      - Report events: EVENTS.md
+      - Designer: designer.md
+      - Designer icon map: designer-icon-map.md
+      - Demo application: demo-app.md
+      - Demo report templates: demo-templates.md
+      - Regression fixtures: regression-fixtures.md
+      - Branding assets: branding.md
+  - Roadmap:
+      - TODO: todo.md
+      - Bug queue: bug-queue.md
+      - Designer UX roadmap: Designer-UX-Roadmap.md
+      - Embedded image plan: plan-embedded-image.md
+      - Text expression editor plan: plan-text-expression-editor.md
+      - Vector PDF plan: plan-vector-pdf.md
+      - Phase 4I-20 plan: plan-phase4i20.md
+  - Modernization:
+      - Phase 1 - characterization and safety: Phase1-Characterization-and-Safety.md
+      - Phase 2 - data capability and traversal diagnostics: Phase2-Data-Capability-and-Traversal-Diagnostics.md
+      - Phase 3 - performance foundations: Phase3-Performance-Foundations.md
+      - Phase 4 - checkpoint: Phase4-Checkpoint.md
+      - Phase 4A - expression compatibility contract: Phase4A-Expression-Compatibility-Contract.md
+      - Phase 4B - compatibility evaluator: Phase4B-Compatibility-Evaluator.md
+      - Phase 4B-2A - modern expression semantics: Phase4B2A-Modern-Expression-Semantics.md
+      - Phase 4B-2B - modern expression implementation: Phase4B2B-Modern-Expression-Implementation.md
+      - Phase 4B-2B - closure audit: phase4b2b-closure-audit.md
+      - Phase 4I-20 - expression engine design: Phase4I-20-ExpressionEngineDesign.md
+      - Phase 5 - quality, benchmarking and CI: Phase5-Quality-Benchmark-CI.md
+      - Phase 6 - output coverage: Phase6-Output-Coverage.md
+      - Residual audit: Modernization-Residual-Audit.md
+  - Analysis:
+      - Architecture analysis: architecture-analysis.md
+      - Technical evaluation: technical-evaluation.md
+      - Code review: code-review.md
+      - Code review v2: code-review-v2.md
+      - GAP-005 page ownership audit: GAP-005-Page-Ownership-Audit.md
+      - GAP-005 print audit: GAP-005-P3-Print-Audit.md
+      - GAP-005 residual review: GAP-005-Residual-Review.md
+  - License: https://github.com/ketandholakia/VittixReport/blob/main/LICENSE

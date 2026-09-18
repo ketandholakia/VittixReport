@@ -1,0 +1,3 @@
+*Source: `DEVELOPER_MANUAL.md`*
+
+--8<-- "DEVELOPER_MANUAL.md"
