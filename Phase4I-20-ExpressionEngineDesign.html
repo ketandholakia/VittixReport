@@ -1,0 +1,4368 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Delphi VCL reporting component - designer, engine, preview, print and export">
+      
+      
+        <meta name="author" content="Ketan Dholakia">
+      
+      
+        <link rel="canonical" href="https://ketandholakia.github.io/VittixReport/Phase4I-20-ExpressionEngineDesign.html">
+      
+      
+        <link rel="prev" href="phase4b2b-closure-audit.html">
+      
+      
+        <link rel="next" href="Phase5-Quality-Benchmark-CI.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Phase 4I-20 - expression engine design - VittixReport</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#phase-4i-20-expression-engine-replacement-design-document" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="index.html" title="VittixReport" class="md-header__button md-logo" aria-label="VittixReport" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            VittixReport
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Phase 4I-20 - expression engine design
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/ketandholakia/VittixReport" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ketandholakia/VittixReport
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="index.html" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="readme.html" class="md-tabs__link">
+          
+  
+  
+  Project
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="EVENTS.html" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="todo.html" class="md-tabs__link">
+          
+  
+  
+  Roadmap
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="Phase1-Characterization-and-Safety.html" class="md-tabs__link">
+          
+  
+  
+  Modernization
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="architecture-analysis.html" class="md-tabs__link">
+          
+  
+  
+  Analysis
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="https://github.com/ketandholakia/VittixReport/blob/main/LICENSE" class="md-tabs__link">
+        
+  
+  
+    
+  
+  License
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="index.html" title="VittixReport" class="md-nav__button md-logo" aria-label="VittixReport" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    VittixReport
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/ketandholakia/VittixReport" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ketandholakia/VittixReport
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="readme.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    README
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="user-manual.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User manual
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="developer-manual.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer manual
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="testing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="EVENTS.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Report events
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="designer.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Designer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="designer-icon-map.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Designer icon map
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="demo-app.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Demo application
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="demo-templates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Demo report templates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="regression-fixtures.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Regression fixtures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="branding.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Branding assets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Roadmap
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="todo.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TODO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="bug-queue.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bug queue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Designer-UX-Roadmap.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Designer UX roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="plan-embedded-image.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Embedded image plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="plan-text-expression-editor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Text expression editor plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="plan-vector-pdf.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vector PDF plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="plan-phase4i20.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4I-20 plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Modernization
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Modernization
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase1-Characterization-and-Safety.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 1 - characterization and safety
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase2-Data-Capability-and-Traversal-Diagnostics.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 2 - data capability and traversal diagnostics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase3-Performance-Foundations.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 3 - performance foundations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase4-Checkpoint.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4 - checkpoint
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase4A-Expression-Compatibility-Contract.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4A - expression compatibility contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase4B-Compatibility-Evaluator.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4B - compatibility evaluator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase4B2A-Modern-Expression-Semantics.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4B-2A - modern expression semantics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase4B2B-Modern-Expression-Implementation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4B-2B - modern expression implementation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="phase4b2b-closure-audit.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4B-2B - closure audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4I-20 - expression engine design
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="Phase4I-20-ExpressionEngineDesign.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4I-20 - expression engine design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-executive-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Executive Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-unitfile-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Unit/File Layout
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Unit/File Layout">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dependency-graph-after" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dependency Graph (after)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-treportexpressionevaluate-compatibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. TReportExpression.Evaluate Compatibility
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-typesignature-definitions-vittixreportexpressionparserpas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Type/Signature Definitions (Vittix.Report.ExpressionParser.pas)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Type/Signature Definitions (Vittix.Report.ExpressionParser.pas)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-token-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Token Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-ast-node-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 AST Node Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-parser-and-evaluator-signatures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Parser and Evaluator Signatures
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-lexer-signature" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 Lexer Signature
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-grammar-ebnf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Grammar (EBNF)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Grammar (EBNF)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#grammar-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Grammar Notes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-ownershiplifetime-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Ownership/Lifetime Strategy
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Ownership/Lifetime Strategy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-ast-node-ownership" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 AST Node Ownership
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-context-lifetime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 Context Lifetime
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63-diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 Diagnostics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#64-texpressionparser-lifetime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.4 TExpressionParser Lifetime
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-aggregate-iteration-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Aggregate Iteration Strategy
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Aggregate Iteration Strategy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-tdataset-aggregates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 TDataSet Aggregates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-tvittixuserdataset-aggregates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 TVittixUserDataSet Aggregates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73-aggregate-function-resolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3 Aggregate Function Resolution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#74-breaking-the-circular-dependency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.4 Breaking the Circular Dependency
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-diagnosticdefault-result-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Diagnostic/Default-Result Policy
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Diagnostic/Default-Result Policy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#81-safe-no-exception-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1 Safe No-Exception Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#82-diagnostics-object" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.2 Diagnostics Object
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#83-expression-level-error-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.3 Expression-Level Error Policy
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-explicit-null-semantics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Explicit NULL Semantics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Explicit NULL Semantics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#implementation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-source-positions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Source Positions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Source Positions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#101-source-position-tracking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.1 Source Position Tracking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#102-token-source-positions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.2 Token Source Positions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#103-diagnostic-source-positions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.3 Diagnostic Source Positions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#104-practical-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.4 Practical Use
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-parse-cache-recommendation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Parse-Cache Recommendation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. Parse-Cache Recommendation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#not-recommended-for-phase-4i-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NOT RECOMMENDED for Phase 4I-20
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recommended-for-future-phase-4i-30" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RECOMMENDED for Future Phase (4I-30)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-compatibilitycoercion-decisions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Compatibility/Coercion Decisions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="12. Compatibility/Coercion Decisions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#121-treportexpressionevaluate-return-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12.1 TReportExpression.Evaluate Return Type
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#122-null-literal-change" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12.2 NULL Literal Change
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#123-operator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12.3 Operator != → &lt;&gt;
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#124-andornot-support" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12.4 AND/OR/NOT Support
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#125-comparison-precedence-over-arithmetic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12.5 Comparison Precedence Over Arithmetic
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#126-aggregate-composition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12.6 Aggregate Composition
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#127-precedence-fix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12.7 Precedence Fix
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#128-parentheses" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12.8 Parentheses
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#129-quoted-string-with-double-quotes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12.9 Quoted String with Double Quotes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-parse-cache-recommendation-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. Parse Cache Recommendation (Summary)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#14-test-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. Test Plan
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="14. Test Plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#141-update-existing-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14.1 Update Existing Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#142-new-tests-testvittixreportexpressionspas-additions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14.2 New Tests (Test.Vittix.Report.Expressions.pas additions)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#143-regression-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14.3 Regression Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#15-risks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15. Risks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="15. Risks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#high-risk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HIGH RISK
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#medium-risk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MEDIUM RISK
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#low-risk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LOW RISK
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#16-unavoidable-api-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16. Unavoidable API Changes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#17-implementation-sequence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        17. Implementation Sequence
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#18-circular-dependency-resolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        18. Circular Dependency Resolution
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase5-Quality-Benchmark-CI.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 5 - quality, benchmarking and CI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase6-Output-Coverage.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 6 - output coverage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Modernization-Residual-Audit.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Residual audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysis
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Analysis
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="architecture-analysis.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="technical-evaluation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="code-review.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code review
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="code-review-v2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code review v2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="GAP-005-Page-Ownership-Audit.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GAP-005 page ownership audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="GAP-005-P3-Print-Audit.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GAP-005 print audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="GAP-005-Residual-Review.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GAP-005 residual review
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/ketandholakia/VittixReport/blob/main/LICENSE" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    License
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-executive-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Executive Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-unitfile-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Unit/File Layout
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Unit/File Layout">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dependency-graph-after" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dependency Graph (after)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-treportexpressionevaluate-compatibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. TReportExpression.Evaluate Compatibility
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-typesignature-definitions-vittixreportexpressionparserpas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Type/Signature Definitions (Vittix.Report.ExpressionParser.pas)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Type/Signature Definitions (Vittix.Report.ExpressionParser.pas)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-token-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Token Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-ast-node-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 AST Node Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-parser-and-evaluator-signatures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Parser and Evaluator Signatures
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-lexer-signature" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 Lexer Signature
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-grammar-ebnf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Grammar (EBNF)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Grammar (EBNF)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#grammar-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Grammar Notes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-ownershiplifetime-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Ownership/Lifetime Strategy
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Ownership/Lifetime Strategy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-ast-node-ownership" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 AST Node Ownership
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-context-lifetime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 Context Lifetime
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63-diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 Diagnostics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#64-texpressionparser-lifetime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.4 TExpressionParser Lifetime
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-aggregate-iteration-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Aggregate Iteration Strategy
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Aggregate Iteration Strategy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-tdataset-aggregates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 TDataSet Aggregates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-tvittixuserdataset-aggregates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 TVittixUserDataSet Aggregates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73-aggregate-function-resolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3 Aggregate Function Resolution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#74-breaking-the-circular-dependency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.4 Breaking the Circular Dependency
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-diagnosticdefault-result-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Diagnostic/Default-Result Policy
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Diagnostic/Default-Result Policy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#81-safe-no-exception-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1 Safe No-Exception Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#82-diagnostics-object" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.2 Diagnostics Object
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#83-expression-level-error-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.3 Expression-Level Error Policy
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-explicit-null-semantics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Explicit NULL Semantics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Explicit NULL Semantics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#implementation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-source-positions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Source Positions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Source Positions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#101-source-position-tracking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.1 Source Position Tracking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#102-token-source-positions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.2 Token Source Positions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#103-diagnostic-source-positions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.3 Diagnostic Source Positions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#104-practical-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.4 Practical Use
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-parse-cache-recommendation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Parse-Cache Recommendation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. Parse-Cache Recommendation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#not-recommended-for-phase-4i-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NOT RECOMMENDED for Phase 4I-20
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recommended-for-future-phase-4i-30" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RECOMMENDED for Future Phase (4I-30)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-compatibilitycoercion-decisions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Compatibility/Coercion Decisions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="12. Compatibility/Coercion Decisions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#121-treportexpressionevaluate-return-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12.1 TReportExpression.Evaluate Return Type
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#122-null-literal-change" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12.2 NULL Literal Change
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#123-operator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12.3 Operator != → &lt;&gt;
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#124-andornot-support" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12.4 AND/OR/NOT Support
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#125-comparison-precedence-over-arithmetic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12.5 Comparison Precedence Over Arithmetic
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#126-aggregate-composition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12.6 Aggregate Composition
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#127-precedence-fix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12.7 Precedence Fix
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#128-parentheses" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12.8 Parentheses
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#129-quoted-string-with-double-quotes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12.9 Quoted String with Double Quotes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-parse-cache-recommendation-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. Parse Cache Recommendation (Summary)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#14-test-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. Test Plan
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="14. Test Plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#141-update-existing-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14.1 Update Existing Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#142-new-tests-testvittixreportexpressionspas-additions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14.2 New Tests (Test.Vittix.Report.Expressions.pas additions)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#143-regression-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14.3 Regression Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#15-risks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15. Risks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="15. Risks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#high-risk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HIGH RISK
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#medium-risk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MEDIUM RISK
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#low-risk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LOW RISK
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#16-unavoidable-api-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16. Unavoidable API Changes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#17-implementation-sequence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        17. Implementation Sequence
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#18-circular-dependency-resolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        18. Circular Dependency Resolution
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="phase-4i-20-expression-engine-replacement-design-document">Phase 4I-20: Expression Engine Replacement — Design Document<a class="headerlink" href="#phase-4i-20-expression-engine-replacement-design-document" title="Link to this section">&para;</a></h1>
+<h2 id="1-executive-summary">1. Executive Summary<a class="headerlink" href="#1-executive-summary" title="Link to this section">&para;</a></h2>
+<p>Replace the heuristic string-replacement evaluator in <code>Vittix.Report.Expressions.pas</code> with a proper lexer/tokenizer → recursive-descent parser → AST → evaluator pipeline, while preserving the <code>TReportExpression.Evaluate</code> class-function signature. A new <code>Vittix.Report.ExpressionParser.pas</code> unit houses the lexer, parser, AST types, evaluator, and diagnostics. <code>Vittix.Report.Aggregates.pas</code> is refactored to use the new AST evaluator internally, breaking its circular dependency on <code>Vittix.Report.Expressions</code>.</p>
+<hr />
+<h2 id="2-unitfile-layout">2. Unit/File Layout<a class="headerlink" href="#2-unitfile-layout" title="Link to this section">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>source/Vittix.Report.Expressions.pas</code></td>
+<td><strong>Unchanged public API.</strong> <code>TReportExpression.Evaluate</code> preserved verbatim. Internally delegates to <code>TExpressionParser.Evaluate</code>. Removes all heuristic code (EvalSimpleMath, ResolveFieldTokens heuristic, etc.) after delegate is wired.</td>
+</tr>
+<tr>
+<td><code>source/Vittix.Report.ExpressionParser.pas</code></td>
+<td><strong>NEW.</strong> Lexer (<code>TExpressionLexer</code>), AST node types (<code>TExpressionNode</code> descendants), RecursiveDescentParser (<code>TExpressionParser</code>), Evaluator (<code>TExpressionEvaluator</code>), Diagnostics (<code>TExpressionDiagnostics</code>).</td>
+</tr>
+<tr>
+<td><code>source/Vittix.Report.Aggregates.pas</code></td>
+<td><strong>REFACTORED.</strong> <code>TReportAggregates.TryEvaluate</code> no longer calls <code>TReportExpression.Evaluate</code> (breaking circular dep). Instead calls <code>TExpressionParser.EvaluateAggregate</code> or constructs AST for the inner expression and evaluates it via <code>TExpressionEvaluator</code> with aggregate iteration context.</td>
+</tr>
+<tr>
+<td><code>tests/Test.Vittix.Report.Expressions.pas</code></td>
+<td><strong>UPDATED.</strong> Characterization tests that assert known-wrong results are replaced with correct-behavior assertions. No new test fixture class.</td>
+</tr>
+<tr>
+<td><code>tests/Test.Vittix.Report.ExpressionAudit.pas</code></td>
+<td><strong>UPDATED OR REPLACED.</strong> All 29 audit tests that assert defective behavior are rewritten to assert correct behavior, OR a new <code>Test.Vittix.Report.ExpressionEngine</code> fixture replaces them with proper unit tests.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="dependency-graph-after">Dependency Graph (after)<a class="headerlink" href="#dependency-graph-after" title="Link to this section">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Vittix.Report.ExpressionParser.pas
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  uses: System.SysUtils, System.Variants, System.Classes, Data.DB, Vittix.Report.Context, Vittix.Report.Utils
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>Vittix.Report.Expressions.pas
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  uses: Vittix.Report.ExpressionParser, Vittix.Report.Aggregates  (unchanged external)
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>Vittix.Report.Aggregates.pas
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>  uses: System.SysUtils, System.Variants, Data.DB, Vittix.Report.Context, Vittix.Report.ExpressionParser
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>  (NO longer uses Vittix.Report.Expressions — circular dep eliminated)
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>All other units (Engine, Bands, Objects, Export.Text, etc.)
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>  unchanged — still use Vittix.Report.Expressions only
+</code></pre></div>
+<hr />
+<h2 id="3-treportexpressionevaluate-compatibility">3. TReportExpression.Evaluate Compatibility<a class="headerlink" href="#3-treportexpressionevaluate-compatibility" title="Link to this section">&para;</a></h2>
+<p>The <strong>exact</strong> public signature is preserved:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">class</span><span class="w"> </span><span class="k">function</span><span class="w"> </span><span class="nf">Evaluate</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Expr</span><span class="o">:</span><span class="w"> </span><span class="k">string</span><span class="o">;</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">Context</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionContext</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="kt">Variant</span><span class="o">;</span>
+</code></pre></div>
+<p><strong>Implementation after Phase 4I-20:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">class</span><span class="w"> </span><span class="k">function</span><span class="w"> </span><span class="nc">TReportExpression</span><span class="o">.</span><span class="nf">Evaluate</span><span class="p">(</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">Expr</span><span class="o">:</span><span class="w"> </span><span class="k">string</span><span class="o">;</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">Context</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionContext</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="kt">Variant</span><span class="o">;</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="k">var</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span><span class="n">P</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionParser</span><span class="o">;</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="k">begin</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nb">Trim</span><span class="p">(</span><span class="n">Expr</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">''</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="k">Exit</span><span class="p">(</span><span class="s">''</span><span class="p">)</span><span class="o">;</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">  </span><span class="n">P</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">TExpressionParser</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">Expr</span><span class="o">,</span><span class="w"> </span><span class="n">Context</span><span class="p">)</span><span class="o">;</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">  </span><span class="k">try</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">    </span><span class="bp">Result</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">P</span><span class="o">.</span><span class="n">Evaluate</span><span class="o">;</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">  </span><span class="k">finally</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">    </span><span class="n">P</span><span class="o">.</span><span class="n">Free</span><span class="o">;</span>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">  </span><span class="k">end</span><span class="o">;</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="k">end</span><span class="o">;</span>
+</code></pre></div>
+<p>The old heuristic code (ResolveFieldTokens, EvalSimpleMath, FindComparisonOperator, TryEvalComparison, IsSingleTokenExpression) is removed. All characterizations of the old behavior are superseded by the new parser's documented behavior.</p>
+<hr />
+<h2 id="4-typesignature-definitions-vittixreportexpressionparserpas">4. Type/Signature Definitions (Vittix.Report.ExpressionParser.pas)<a class="headerlink" href="#4-typesignature-definitions-vittixreportexpressionparserpas" title="Link to this section">&para;</a></h2>
+<h3 id="41-token-types">4.1 Token Types<a class="headerlink" href="#41-token-types" title="Link to this section">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">type</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="n">TExpressionTokenKind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="n">tkNumber</span><span class="o">,</span><span class="w">           </span><span class="c1">// 42, 3.14, -7 (signed number literal)</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="n">tkString</span><span class="o">,</span><span class="w">           </span><span class="c1">// 'hello', 'a=b'</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="n">tkIdentifier</span><span class="o">,</span><span class="w">       </span><span class="c1">// Name, Amount, PageNo, SUM, COUNT — unquoted word</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="n">tkFieldRef</span><span class="o">,</span><span class="w">         </span><span class="c1">// [FieldName] — already resolved token reference</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span><span class="n">tkParamRef</span><span class="o">,</span><span class="w">         </span><span class="c1">// [Param.Name] — parameter reference</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span><span class="n">tkVariableRef</span><span class="o">,</span><span class="w">      </span><span class="c1">// [VarName] — variable reference</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span><span class="n">tkTrue</span><span class="o">,</span><span class="w">             </span><span class="c1">// TRUE</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">    </span><span class="n">tkFalse</span><span class="o">,</span><span class="w">            </span><span class="c1">// FALSE</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">    </span><span class="n">tkNull</span><span class="o">,</span><span class="w">             </span><span class="c1">// NULL</span>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">    </span><span class="n">tkAdd</span><span class="o">,</span><span class="w">              </span><span class="c1">// +</span>
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">    </span><span class="n">tkSubtract</span><span class="o">,</span><span class="w">         </span><span class="c1">// -</span>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">    </span><span class="n">tkMultiply</span><span class="o">,</span><span class="w">         </span><span class="c1">// *</span>
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="w">    </span><span class="n">tkDivide</span><span class="o">,</span><span class="w">           </span><span class="c1">// /</span>
+<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">    </span><span class="n">tkEqual</span><span class="o">,</span><span class="w">            </span><span class="c1">// =</span>
+<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="w">    </span><span class="n">tkNotEqual</span><span class="o">,</span><span class="w">         </span><span class="c1">// &lt;&gt;</span>
+<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="w">    </span><span class="n">tkLess</span><span class="o">,</span><span class="w">             </span><span class="c1">// &lt;</span>
+<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="w">    </span><span class="n">tkGreater</span><span class="o">,</span><span class="w">          </span><span class="c1">// &gt;</span>
+<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="w">    </span><span class="n">tkLessOrEqual</span><span class="o">,</span><span class="w">      </span><span class="c1">// &lt;=</span>
+<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="w">    </span><span class="n">tkGreaterOrEqual</span><span class="o">,</span><span class="w">   </span><span class="c1">// &gt;=</span>
+<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="w">    </span><span class="n">tkAnd</span><span class="o">,</span><span class="w">              </span><span class="c1">// AND</span>
+<a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a><span class="w">    </span><span class="n">tkOr</span><span class="o">,</span><span class="w">               </span><span class="c1">// OR</span>
+<a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="w">    </span><span class="n">tkNot</span><span class="o">,</span><span class="w">              </span><span class="c1">// NOT</span>
+<a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a><span class="w">    </span><span class="n">tkLParen</span><span class="o">,</span><span class="w">           </span><span class="c1">// (</span>
+<a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a><span class="w">    </span><span class="n">tkRParen</span><span class="o">,</span><span class="w">           </span><span class="c1">// )</span>
+<a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a><span class="w">    </span><span class="n">tkComma</span><span class="o">,</span><span class="w">            </span><span class="c1">// , (function args)</span>
+<a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a><span class="w">    </span><span class="n">tkEOF</span>
+<a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a><span class="w">  </span><span class="p">)</span><span class="o">;</span>
+<a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a>
+<a id="__codelineno-3-31" name="__codelineno-3-31" href="#__codelineno-3-31"></a><span class="w">  </span><span class="n">TExpressionSourcePos</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">record</span>
+<a id="__codelineno-3-32" name="__codelineno-3-32" href="#__codelineno-3-32"></a><span class="w">    </span><span class="n">Line</span><span class="o">:</span><span class="w"> </span><span class="kt">Integer</span><span class="o">;</span>
+<a id="__codelineno-3-33" name="__codelineno-3-33" href="#__codelineno-3-33"></a><span class="w">    </span><span class="n">Col</span><span class="o">:</span><span class="w"> </span><span class="kt">Integer</span><span class="o">;</span>
+<a id="__codelineno-3-34" name="__codelineno-3-34" href="#__codelineno-3-34"></a><span class="w">    </span><span class="kp">Index</span><span class="o">:</span><span class="w"> </span><span class="kt">Integer</span><span class="o">;</span><span class="w">  </span><span class="c1">// 0-based offset into source expression</span>
+<a id="__codelineno-3-35" name="__codelineno-3-35" href="#__codelineno-3-35"></a><span class="w">  </span><span class="k">end</span><span class="o">;</span>
+<a id="__codelineno-3-36" name="__codelineno-3-36" href="#__codelineno-3-36"></a>
+<a id="__codelineno-3-37" name="__codelineno-3-37" href="#__codelineno-3-37"></a><span class="w">  </span><span class="n">TExpressionToken</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">record</span>
+<a id="__codelineno-3-38" name="__codelineno-3-38" href="#__codelineno-3-38"></a><span class="w">    </span><span class="n">Kind</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionTokenKind</span><span class="o">;</span>
+<a id="__codelineno-3-39" name="__codelineno-3-39" href="#__codelineno-3-39"></a><span class="w">    </span><span class="n">Text</span><span class="o">:</span><span class="w"> </span><span class="k">string</span><span class="o">;</span><span class="w">       </span><span class="c1">// raw text (e.g. 'SUM', '(', '[Amount]', '3.14')</span>
+<a id="__codelineno-3-40" name="__codelineno-3-40" href="#__codelineno-3-40"></a><span class="w">    </span><span class="n">Value</span><span class="o">:</span><span class="w"> </span><span class="kt">Variant</span><span class="o">;</span><span class="w">     </span><span class="c1">// pre-resolved value where applicable (numbers, booleans, strings)</span>
+<a id="__codelineno-3-41" name="__codelineno-3-41" href="#__codelineno-3-41"></a><span class="w">    </span><span class="nb">Pos</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionSourcePos</span><span class="o">;</span>
+<a id="__codelineno-3-42" name="__codelineno-3-42" href="#__codelineno-3-42"></a><span class="w">  </span><span class="k">end</span><span class="o">;</span>
+</code></pre></div>
+<h3 id="42-ast-node-types">4.2 AST Node Types<a class="headerlink" href="#42-ast-node-types" title="Link to this section">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">type</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="n">TExpressionNode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="kp">abstract</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="kp">private</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="n">FSourcePos</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionSourcePos</span><span class="o">;</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="kp">public</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span><span class="k">property</span><span class="w"> </span><span class="py">SourcePos</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionSourcePos</span><span class="w"> </span><span class="kp">read</span><span class="w"> </span><span class="nf">FSourcePos</span><span class="o">;</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span><span class="k">constructor</span><span class="w"> </span><span class="nf">Create</span><span class="p">(</span><span class="n">ASourcePos</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionSourcePos</span><span class="p">)</span><span class="o">;</span><span class="w"> </span><span class="kp">virtual</span><span class="o">;</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">    </span><span class="k">function</span><span class="w"> </span><span class="nf">Evaluate</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Ctx</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionContext</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="kt">Variant</span><span class="o">;</span><span class="w"> </span><span class="kp">virtual</span><span class="o">;</span><span class="w"> </span><span class="kp">abstract</span><span class="o">;</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span><span class="k">function</span><span class="w"> </span><span class="nf">ToString</span><span class="o">:</span><span class="w"> </span><span class="k">string</span><span class="o">;</span><span class="w"> </span><span class="kp">override</span><span class="o">;</span><span class="w"> </span><span class="kp">virtual</span><span class="o">;</span><span class="w"> </span><span class="c1">// for debugging</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">  </span><span class="k">end</span><span class="o">;</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">  </span><span class="n">TExpressionLiteralNode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">class</span><span class="p">(</span><span class="n">TExpressionNode</span><span class="p">)</span>
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">  </span><span class="kp">private</span>
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">    </span><span class="n">FLiteralType</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionTokenKind</span><span class="o">;</span><span class="w"> </span><span class="c1">// tkNumber, tkString, tkTrue, tkFalse, tkNull</span>
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">    </span><span class="n">FLiteralValue</span><span class="o">:</span><span class="w"> </span><span class="kt">Variant</span><span class="o">;</span>
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="w">  </span><span class="kp">public</span>
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="w">    </span><span class="k">function</span><span class="w"> </span><span class="nf">Evaluate</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Ctx</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionContext</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="kt">Variant</span><span class="o">;</span><span class="w"> </span><span class="kp">override</span><span class="o">;</span>
+<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="w">  </span><span class="k">end</span><span class="o">;</span>
+<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a>
+<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a><span class="w">  </span><span class="n">TExpressionFieldRefNode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">class</span><span class="p">(</span><span class="n">TExpressionNode</span><span class="p">)</span>
+<a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a><span class="w">  </span><span class="kp">private</span>
+<a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a><span class="w">    </span><span class="n">FOriginalText</span><span class="o">:</span><span class="w"> </span><span class="k">string</span><span class="o">;</span><span class="w">  </span><span class="c1">// '[FieldName]' or '[Param.X]' etc.</span>
+<a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a><span class="w">  </span><span class="kp">public</span>
+<a id="__codelineno-4-24" name="__codelineno-4-24" href="#__codelineno-4-24"></a><span class="w">    </span><span class="k">function</span><span class="w"> </span><span class="nf">Evaluate</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Ctx</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionContext</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="kt">Variant</span><span class="o">;</span><span class="w"> </span><span class="kp">override</span><span class="o">;</span>
+<a id="__codelineno-4-25" name="__codelineno-4-25" href="#__codelineno-4-25"></a><span class="w">  </span><span class="k">end</span><span class="o">;</span>
+<a id="__codelineno-4-26" name="__codelineno-4-26" href="#__codelineno-4-26"></a>
+<a id="__codelineno-4-27" name="__codelineno-4-27" href="#__codelineno-4-27"></a><span class="w">  </span><span class="n">TExpressionIdentifierNode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">class</span><span class="p">(</span><span class="n">TExpressionNode</span><span class="p">)</span>
+<a id="__codelineno-4-28" name="__codelineno-4-28" href="#__codelineno-4-28"></a><span class="w">  </span><span class="kp">private</span>
+<a id="__codelineno-4-29" name="__codelineno-4-29" href="#__codelineno-4-29"></a><span class="w">    </span><span class="n">FName</span><span class="o">:</span><span class="w"> </span><span class="k">string</span><span class="o">;</span><span class="w">  </span><span class="c1">// unquoted identifier (for function names or variable refs)</span>
+<a id="__codelineno-4-30" name="__codelineno-4-30" href="#__codelineno-4-30"></a><span class="w">  </span><span class="kp">public</span>
+<a id="__codelineno-4-31" name="__codelineno-4-31" href="#__codelineno-4-31"></a><span class="w">    </span><span class="k">function</span><span class="w"> </span><span class="nf">Evaluate</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Ctx</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionContext</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="kt">Variant</span><span class="o">;</span><span class="w"> </span><span class="kp">override</span><span class="o">;</span>
+<a id="__codelineno-4-32" name="__codelineno-4-32" href="#__codelineno-4-32"></a><span class="w">  </span><span class="k">end</span><span class="o">;</span>
+<a id="__codelineno-4-33" name="__codelineno-4-33" href="#__codelineno-4-33"></a>
+<a id="__codelineno-4-34" name="__codelineno-4-34" href="#__codelineno-4-34"></a><span class="w">  </span><span class="n">TExpressionUnaryNode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">class</span><span class="p">(</span><span class="n">TExpressionNode</span><span class="p">)</span>
+<a id="__codelineno-4-35" name="__codelineno-4-35" href="#__codelineno-4-35"></a><span class="w">  </span><span class="kp">private</span>
+<a id="__codelineno-4-36" name="__codelineno-4-36" href="#__codelineno-4-36"></a><span class="w">    </span><span class="n">FOp</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionTokenKind</span><span class="o">;</span><span class="w"> </span><span class="c1">// tkNot, tkSubtract, tkAdd</span>
+<a id="__codelineno-4-37" name="__codelineno-4-37" href="#__codelineno-4-37"></a><span class="w">    </span><span class="n">FOperand</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionNode</span><span class="o">;</span>
+<a id="__codelineno-4-38" name="__codelineno-4-38" href="#__codelineno-4-38"></a><span class="w">  </span><span class="kp">public</span>
+<a id="__codelineno-4-39" name="__codelineno-4-39" href="#__codelineno-4-39"></a><span class="w">    </span><span class="k">function</span><span class="w"> </span><span class="nf">Evaluate</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Ctx</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionContext</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="kt">Variant</span><span class="o">;</span><span class="w"> </span><span class="kp">override</span><span class="o">;</span>
+<a id="__codelineno-4-40" name="__codelineno-4-40" href="#__codelineno-4-40"></a><span class="w">  </span><span class="k">end</span><span class="o">;</span>
+<a id="__codelineno-4-41" name="__codelineno-4-41" href="#__codelineno-4-41"></a>
+<a id="__codelineno-4-42" name="__codelineno-4-42" href="#__codelineno-4-42"></a><span class="w">  </span><span class="n">TExpressionBinaryNode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">class</span><span class="p">(</span><span class="n">TExpressionNode</span><span class="p">)</span>
+<a id="__codelineno-4-43" name="__codelineno-4-43" href="#__codelineno-4-43"></a><span class="w">  </span><span class="kp">private</span>
+<a id="__codelineno-4-44" name="__codelineno-4-44" href="#__codelineno-4-44"></a><span class="w">    </span><span class="n">FOp</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionTokenKind</span><span class="o">;</span>
+<a id="__codelineno-4-45" name="__codelineno-4-45" href="#__codelineno-4-45"></a><span class="w">    </span><span class="n">FLeft</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionNode</span><span class="o">;</span>
+<a id="__codelineno-4-46" name="__codelineno-4-46" href="#__codelineno-4-46"></a><span class="w">    </span><span class="n">FRight</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionNode</span><span class="o">;</span>
+<a id="__codelineno-4-47" name="__codelineno-4-47" href="#__codelineno-4-47"></a><span class="w">  </span><span class="kp">public</span>
+<a id="__codelineno-4-48" name="__codelineno-4-48" href="#__codelineno-4-48"></a><span class="w">    </span><span class="k">function</span><span class="w"> </span><span class="nf">Evaluate</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Ctx</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionContext</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="kt">Variant</span><span class="o">;</span><span class="w"> </span><span class="kp">override</span><span class="o">;</span>
+<a id="__codelineno-4-49" name="__codelineno-4-49" href="#__codelineno-4-49"></a><span class="w">  </span><span class="k">end</span><span class="o">;</span>
+<a id="__codelineno-4-50" name="__codelineno-4-50" href="#__codelineno-4-50"></a>
+<a id="__codelineno-4-51" name="__codelineno-4-51" href="#__codelineno-4-51"></a><span class="w">  </span><span class="n">TExpressionFunctionNode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">class</span><span class="p">(</span><span class="n">TExpressionNode</span><span class="p">)</span>
+<a id="__codelineno-4-52" name="__codelineno-4-52" href="#__codelineno-4-52"></a><span class="w">  </span><span class="kp">private</span>
+<a id="__codelineno-4-53" name="__codelineno-4-53" href="#__codelineno-4-53"></a><span class="w">    </span><span class="n">FName</span><span class="o">:</span><span class="w"> </span><span class="k">string</span><span class="o">;</span>
+<a id="__codelineno-4-54" name="__codelineno-4-54" href="#__codelineno-4-54"></a><span class="w">    </span><span class="n">FArgs</span><span class="o">:</span><span class="w"> </span><span class="n">TList</span><span class="o">&lt;</span><span class="n">TExpressionNode</span><span class="o">&gt;;</span>
+<a id="__codelineno-4-55" name="__codelineno-4-55" href="#__codelineno-4-55"></a><span class="w">  </span><span class="kp">public</span>
+<a id="__codelineno-4-56" name="__codelineno-4-56" href="#__codelineno-4-56"></a><span class="w">    </span><span class="k">function</span><span class="w"> </span><span class="nf">Evaluate</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Ctx</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionContext</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="kt">Variant</span><span class="o">;</span><span class="w"> </span><span class="kp">override</span><span class="o">;</span>
+<a id="__codelineno-4-57" name="__codelineno-4-57" href="#__codelineno-4-57"></a><span class="w">    </span><span class="k">function</span><span class="w"> </span><span class="nf">ArgCount</span><span class="o">:</span><span class="w"> </span><span class="kt">Integer</span><span class="o">;</span>
+<a id="__codelineno-4-58" name="__codelineno-4-58" href="#__codelineno-4-58"></a><span class="w">  </span><span class="k">end</span><span class="o">;</span>
+</code></pre></div>
+<h3 id="43-parser-and-evaluator-signatures">4.3 Parser and Evaluator Signatures<a class="headerlink" href="#43-parser-and-evaluator-signatures" title="Link to this section">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">type</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="n">TExpressionDiagnostics</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">class</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="kp">private</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="n">FMessages</span><span class="o">:</span><span class="w"> </span><span class="n">TStringList</span><span class="o">;</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span><span class="n">FErrorCount</span><span class="o">:</span><span class="w"> </span><span class="kt">Integer</span><span class="o">;</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="n">FWarningCount</span><span class="o">:</span><span class="w"> </span><span class="kt">Integer</span><span class="o">;</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">  </span><span class="kp">public</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">    </span><span class="k">constructor</span><span class="w"> </span><span class="nf">Create</span><span class="o">;</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">    </span><span class="k">destructor</span><span class="w"> </span><span class="nf">Destroy</span><span class="o">;</span><span class="w"> </span><span class="kp">override</span><span class="o">;</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">    </span><span class="k">procedure</span><span class="w"> </span><span class="nf">AddError</span><span class="p">(</span><span class="n">ASourcePos</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionSourcePos</span><span class="o">;</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">AMessage</span><span class="o">:</span><span class="w"> </span><span class="k">string</span><span class="p">)</span><span class="o">;</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">    </span><span class="k">procedure</span><span class="w"> </span><span class="nf">AddWarning</span><span class="p">(</span><span class="n">ASourcePos</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionSourcePos</span><span class="o">;</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">AMessage</span><span class="o">:</span><span class="w"> </span><span class="k">string</span><span class="p">)</span><span class="o">;</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">    </span><span class="k">property</span><span class="w"> </span><span class="py">ErrorCount</span><span class="o">:</span><span class="w"> </span><span class="kt">Integer</span><span class="w"> </span><span class="kp">read</span><span class="w"> </span><span class="nf">FErrorCount</span><span class="o">;</span>
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="w">    </span><span class="k">property</span><span class="w"> </span><span class="py">WarningCount</span><span class="o">:</span><span class="w"> </span><span class="kt">Integer</span><span class="w"> </span><span class="kp">read</span><span class="w"> </span><span class="nf">FWarningCount</span><span class="o">;</span>
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="w">    </span><span class="k">property</span><span class="w"> </span><span class="py">Messages</span><span class="o">:</span><span class="w"> </span><span class="n">TStrings</span><span class="w"> </span><span class="kp">read</span><span class="w"> </span><span class="nf">FMessages</span><span class="o">;</span>
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="w">  </span><span class="k">end</span><span class="o">;</span>
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="w">  </span><span class="n">TExpressionParser</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">class</span>
+<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="w">  </span><span class="kp">private</span>
+<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a><span class="w">    </span><span class="n">FLexer</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionLexer</span><span class="o">;</span>
+<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a><span class="w">    </span><span class="n">FDiagnostics</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionDiagnostics</span><span class="o">;</span>
+<a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a><span class="w">    </span><span class="n">FContext</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionContext</span><span class="o">;</span>
+<a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a><span class="w">  </span><span class="kp">public</span>
+<a id="__codelineno-5-23" name="__codelineno-5-23" href="#__codelineno-5-23"></a><span class="w">    </span><span class="k">constructor</span><span class="w"> </span><span class="nf">Create</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">AExpr</span><span class="o">:</span><span class="w"> </span><span class="k">string</span><span class="o">;</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">AContext</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionContext</span><span class="p">)</span><span class="o">;</span>
+<a id="__codelineno-5-24" name="__codelineno-5-24" href="#__codelineno-5-24"></a><span class="w">    </span><span class="k">destructor</span><span class="w"> </span><span class="nf">Destroy</span><span class="o">;</span><span class="w"> </span><span class="kp">override</span><span class="o">;</span>
+<a id="__codelineno-5-25" name="__codelineno-5-25" href="#__codelineno-5-25"></a><span class="w">    </span><span class="k">function</span><span class="w"> </span><span class="nf">Evaluate</span><span class="o">:</span><span class="w"> </span><span class="kt">Variant</span><span class="o">;</span>
+<a id="__codelineno-5-26" name="__codelineno-5-26" href="#__codelineno-5-26"></a><span class="w">    </span><span class="k">function</span><span class="w"> </span><span class="nf">EvaluateAggregate</span><span class="o">:</span><span class="w"> </span><span class="kt">Variant</span><span class="o">;</span><span class="w">  </span><span class="c1">// for TReportAggregates alternative entry</span>
+<a id="__codelineno-5-27" name="__codelineno-5-27" href="#__codelineno-5-27"></a><span class="w">    </span><span class="k">property</span><span class="w"> </span><span class="py">Diagnostics</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionDiagnostics</span><span class="w"> </span><span class="kp">read</span><span class="w"> </span><span class="nf">FDiagnostics</span><span class="o">;</span>
+<a id="__codelineno-5-28" name="__codelineno-5-28" href="#__codelineno-5-28"></a><span class="w">    </span><span class="k">property</span><span class="w"> </span><span class="py">HasErrors</span><span class="o">:</span><span class="w"> </span><span class="kt">Boolean</span><span class="w"> </span><span class="kp">read</span><span class="w"> </span><span class="p">(</span><span class="n">FDiagnostics</span><span class="o">.</span><span class="n">ErrorCount</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="o">;</span>
+<a id="__codelineno-5-29" name="__codelineno-5-29" href="#__codelineno-5-29"></a><span class="w">  </span><span class="k">end</span><span class="o">;</span>
+<a id="__codelineno-5-30" name="__codelineno-5-30" href="#__codelineno-5-30"></a>
+<a id="__codelineno-5-31" name="__codelineno-5-31" href="#__codelineno-5-31"></a><span class="w">  </span><span class="n">TExpressionEvaluator</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">class</span>
+<a id="__codelineno-5-32" name="__codelineno-5-32" href="#__codelineno-5-32"></a><span class="w">  </span><span class="kp">private</span>
+<a id="__codelineno-5-33" name="__codelineno-5-33" href="#__codelineno-5-33"></a><span class="w">    </span><span class="n">FContext</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionContext</span><span class="o">;</span>
+<a id="__codelineno-5-34" name="__codelineno-5-34" href="#__codelineno-5-34"></a><span class="w">    </span><span class="n">FGroupStart</span><span class="o">:</span><span class="w"> </span><span class="n">TBookmark</span><span class="o">;</span>
+<a id="__codelineno-5-35" name="__codelineno-5-35" href="#__codelineno-5-35"></a><span class="w">    </span><span class="n">FGroupEnd</span><span class="o">:</span><span class="w"> </span><span class="n">TBookmark</span><span class="o">;</span>
+<a id="__codelineno-5-36" name="__codelineno-5-36" href="#__codelineno-5-36"></a><span class="w">    </span><span class="n">FAggregateCaller</span><span class="o">:</span><span class="w"> </span><span class="n">TFunc</span><span class="o">&lt;</span><span class="k">string</span><span class="o">,</span><span class="w"> </span><span class="kt">Variant</span><span class="o">&gt;;</span><span class="w"> </span><span class="c1">// for aggregate function delegation</span>
+<a id="__codelineno-5-37" name="__codelineno-5-37" href="#__codelineno-5-37"></a><span class="w">  </span><span class="kp">public</span>
+<a id="__codelineno-5-38" name="__codelineno-5-38" href="#__codelineno-5-38"></a><span class="w">    </span><span class="k">constructor</span><span class="w"> </span><span class="nf">Create</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">AContext</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionContext</span><span class="p">)</span><span class="o">;</span>
+<a id="__codelineno-5-39" name="__codelineno-5-39" href="#__codelineno-5-39"></a><span class="w">    </span><span class="k">function</span><span class="w"> </span><span class="nf">EvaluateNode</span><span class="p">(</span><span class="n">Node</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionNode</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="kt">Variant</span><span class="o">;</span>
+<a id="__codelineno-5-40" name="__codelineno-5-40" href="#__codelineno-5-40"></a><span class="w">    </span><span class="k">function</span><span class="w"> </span><span class="nf">EvaluateAggregate</span><span class="p">(</span>
+<a id="__codelineno-5-41" name="__codelineno-5-41" href="#__codelineno-5-41"></a><span class="w">      </span><span class="k">const</span><span class="w"> </span><span class="n">FuncName</span><span class="o">:</span><span class="w"> </span><span class="k">string</span><span class="o">;</span>
+<a id="__codelineno-5-42" name="__codelineno-5-42" href="#__codelineno-5-42"></a><span class="w">      </span><span class="k">const</span><span class="w"> </span><span class="n">InnerExpr</span><span class="o">:</span><span class="w"> </span><span class="k">string</span><span class="o">;</span>
+<a id="__codelineno-5-43" name="__codelineno-5-43" href="#__codelineno-5-43"></a><span class="w">      </span><span class="k">const</span><span class="w"> </span><span class="n">Context</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionContext</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="kt">Variant</span><span class="o">;</span>
+<a id="__codelineno-5-44" name="__codelineno-5-44" href="#__codelineno-5-44"></a><span class="w">  </span><span class="k">end</span><span class="o">;</span>
+</code></pre></div>
+<h3 id="44-lexer-signature">4.4 Lexer Signature<a class="headerlink" href="#44-lexer-signature" title="Link to this section">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">type</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="n">TExpressionLexer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">class</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span><span class="kp">private</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="n">FSource</span><span class="o">:</span><span class="w"> </span><span class="k">string</span><span class="o">;</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span><span class="n">FPos</span><span class="o">:</span><span class="w"> </span><span class="kt">Integer</span><span class="o">;</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">    </span><span class="n">FLine</span><span class="o">:</span><span class="w"> </span><span class="kt">Integer</span><span class="o">;</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">    </span><span class="n">FCol</span><span class="o">:</span><span class="w"> </span><span class="kt">Integer</span><span class="o">;</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">    </span><span class="n">FTokens</span><span class="o">:</span><span class="w"> </span><span class="n">TList</span><span class="o">&lt;</span><span class="n">TExpressionToken</span><span class="o">&gt;;</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">    </span><span class="n">FCurrentIndex</span><span class="o">:</span><span class="w"> </span><span class="kt">Integer</span><span class="o">;</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">  </span><span class="kp">public</span>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">    </span><span class="k">constructor</span><span class="w"> </span><span class="nf">Create</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">ASource</span><span class="o">:</span><span class="w"> </span><span class="k">string</span><span class="p">)</span><span class="o">;</span>
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="w">    </span><span class="k">destructor</span><span class="w"> </span><span class="nf">Destroy</span><span class="o">;</span><span class="w"> </span><span class="kp">override</span><span class="o">;</span>
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="w">    </span><span class="k">procedure</span><span class="w"> </span><span class="nf">Tokenize</span><span class="o">;</span>
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="w">    </span><span class="k">function</span><span class="w"> </span><span class="nf">NextToken</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionToken</span><span class="o">;</span>
+<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="w">    </span><span class="k">function</span><span class="w"> </span><span class="nf">PeekToken</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionToken</span><span class="o">;</span>
+<a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="w">    </span><span class="k">function</span><span class="w"> </span><span class="nf">CurrentToken</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionToken</span><span class="o">;</span>
+<a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="w">    </span><span class="k">property</span><span class="w"> </span><span class="py">TokenCount</span><span class="o">:</span><span class="w"> </span><span class="kt">Integer</span><span class="w"> </span><span class="kp">read</span><span class="w"> </span><span class="nc">FTokens</span><span class="o">.</span><span class="nf">Count</span><span class="o">;</span>
+<a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a><span class="w">    </span><span class="k">property</span><span class="w"> </span><span class="py">Tokens</span><span class="p">[</span><span class="kp">Index</span><span class="o">:</span><span class="w"> </span><span class="kt">Integer</span><span class="p">]</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionToken</span><span class="w"> </span><span class="kp">read</span><span class="o">;</span>
+<a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a><span class="w">  </span><span class="k">end</span><span class="o">;</span>
+</code></pre></div>
+<hr />
+<h2 id="5-grammar-ebnf">5. Grammar (EBNF)<a class="headerlink" href="#5-grammar-ebnf" title="Link to this section">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>expression      := or_expression ;
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>or_expression   := and_expression ( 'OR' and_expression )* ;
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>and_expression  := not_expression ( 'AND' not_expression )* ;
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>not_expression  := 'NOT' not_expression
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>                  | comparison ;
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>comparison      := arithmetic ( comparison_op arithmetic )? ;
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>comparison_op   := '=' | '&lt;&gt;' | '&lt;' | '&gt;' | '&lt;=' | '&gt;=' ;
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>arithmetic      := term ( ('+' | '-') term )* ;
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>term            := factor ( ('*' | '/') factor )* ;
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>factor          := unary ;
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>unary           := '+' factor
+<a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>                  | '-' factor
+<a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a>                  | 'NOT' factor
+<a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>                  | primary ;
+<a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a>primary         := '(' expression ')'
+<a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a>                  | function_call
+<a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a>                  | literal
+<a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a>                  | field_or_var_ref ;
+<a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a>function_call   := identifier '(' [ argument ( ',' argument )* ] ')' ;
+<a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a>argument        := expression ;
+<a id="__codelineno-7-21" name="__codelineno-7-21" href="#__codelineno-7-21"></a>literal         := NUMBER
+<a id="__codelineno-7-22" name="__codelineno-7-22" href="#__codelineno-7-22"></a>                  | STRING
+<a id="__codelineno-7-23" name="__codelineno-7-23" href="#__codelineno-7-23"></a>                  | TRUE
+<a id="__codelineno-7-24" name="__codelineno-7-24" href="#__codelineno-7-24"></a>                  | FALSE
+<a id="__codelineno-7-25" name="__codelineno-7-25" href="#__codelineno-7-25"></a>                  | NULL ;
+<a id="__codelineno-7-26" name="__codelineno-7-26" href="#__codelineno-7-26"></a>field_or_var_ref := '[' ( 'Param.' identifier
+<a id="__codelineno-7-27" name="__codelineno-7-27" href="#__codelineno-7-27"></a>                        | 'Parameter.' identifier
+<a id="__codelineno-7-28" name="__codelineno-7-28" href="#__codelineno-7-28"></a>                        | 'Parameters.' identifier
+<a id="__codelineno-7-29" name="__codelineno-7-29" href="#__codelineno-7-29"></a>                        | identifier ( '.' identifier )? ) ']' ;
+</code></pre></div>
+<h3 id="grammar-notes">Grammar Notes<a class="headerlink" href="#grammar-notes" title="Link to this section">&para;</a></h3>
+<ol>
+<li><strong>Precedence (low to high):</strong> OR &lt; AND &lt; NOT &lt; comparison &lt; arithmetic (+,-) &lt; arithmetic (*,/) &lt; unary &lt; primary</li>
+<li><strong>Comparison</strong> is binary and only occurs at comparison level; no comparison chains (e.g., <code>a &lt; b &lt; c</code> parses as <code>(a &lt; b) &lt; c</code> which is then evaluated as boolean compare).</li>
+<li><strong>Function calls</strong> are parsed at primary level, meaning <code>SUM(1+2)</code> parses as <code>SUM((1+2))</code> — arguments are full expressions.</li>
+<li><strong>Field/Param/Variable references</strong> are at primary level and are distinguished in the lexer by the <code>[</code> prefix.</li>
+<li><strong>Parentheses</strong> at primary level give explicit grouping.</li>
+<li><strong>NOT</strong> is at the unary level (lower precedence than comparison, higher than arithmetic), so <code>NOT a = b</code> parses as <code>NOT (a = b)</code>.</li>
+</ol>
+<hr />
+<h2 id="6-ownershiplifetime-strategy">6. Ownership/Lifetime Strategy<a class="headerlink" href="#6-ownershiplifetime-strategy" title="Link to this section">&para;</a></h2>
+<h3 id="61-ast-node-ownership">6.1 AST Node Ownership<a class="headerlink" href="#61-ast-node-ownership" title="Link to this section">&para;</a></h3>
+<ul>
+<li><code>TExpressionParser</code> owns all AST nodes created during parsing.</li>
+<li>Nodes are stored in a <code>TList&lt;TExpressionNode&gt;</code> (or owned directly by parent nodes in the tree).</li>
+<li><code>TExpressionParser.Destroy</code> frees all nodes.</li>
+<li><code>TExpressionFunctionNode</code> owns its <code>FArgs</code> list and all argument nodes.</li>
+<li><code>TExpressionBinaryNode</code> and <code>TExpressionUnaryNode</code> own their child nodes.</li>
+<li><strong>No AST node holds a reference to a mutable context.</strong> The evaluator receives <code>TExpressionContext</code> (a record) by <code>const</code> at each <code>Evaluate</code> call.</li>
+</ul>
+<h3 id="62-context-lifetime">6.2 Context Lifetime<a class="headerlink" href="#62-context-lifetime" title="Link to this section">&para;</a></h3>
+<ul>
+<li><code>TExpressionContext</code> is a record passed by const reference. It contains borrowed references (bookmarks, TStrings, TDataSet). The parser and evaluator do NOT store the context beyond a single <code>Evaluate</code> call.</li>
+<li>The <code>TExpressionParser</code> stores <code>FContext</code> as a record field for the duration of <code>Evaluate</code> but does not retain it after.</li>
+</ul>
+<h3 id="63-diagnostics">6.3 Diagnostics<a class="headerlink" href="#63-diagnostics" title="Link to this section">&para;</a></h3>
+<ul>
+<li><code>TExpressionDiagnostics</code> is owned by <code>TExpressionParser</code> and freed in its destructor.</li>
+<li>Diagnostics are accumulated during parsing AND evaluation.</li>
+</ul>
+<h3 id="64-texpressionparser-lifetime">6.4 TExpressionParser Lifetime<a class="headerlink" href="#64-texpressionparser-lifetime" title="Link to this section">&para;</a></h3>
+<ul>
+<li>Created per expression in <code>TReportExpression.Evaluate</code>.</li>
+<li>Freed immediately after evaluation (try/finally).</li>
+<li>No caching by default (see Section 11 for cache recommendation).</li>
+</ul>
+<hr />
+<h2 id="7-aggregate-iteration-strategy">7. Aggregate Iteration Strategy<a class="headerlink" href="#7-aggregate-iteration-strategy" title="Link to this section">&para;</a></h2>
+<h3 id="71-tdataset-aggregates">7.1 TDataSet Aggregates<a class="headerlink" href="#71-tdataset-aggregates" title="Link to this section">&para;</a></h3>
+<p>When a <code>SUM/COUNT/AVG/MIN/MAX</code> function is evaluated over a <code>TDataSet</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>1. Save current bookmark (SaveBM)
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>2. DisableControls
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>3. If Context.GroupStart &lt;&gt; nil: GotoBookmark(GroupStart); else: First
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>4. Iterate while not Eof and not at GroupEnd:
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>   a. Evaluate inner expression for current row via EvaluateNode
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>   b. Accumulate per aggregate function
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>   c. Next
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>5. Restore bookmark (SaveBM), FreeBookmark(SaveBM), EnableControls
+</code></pre></div>
+<p>This mirrors the current <code>TReportAggregates.TryEvaluate</code> logic but:
+- Uses <code>EvaluateNode</code> instead of <code>TReportExpression.Evaluate</code> (eliminating circular dep).
+- The inner expression is parsed once into an AST, then <code>EvaluateNode</code> is called per row.
+- Bookmark leak is prevented by try/finally.</p>
+<h3 id="72-tvittixuserdataset-aggregates">7.2 TVittixUserDataSet Aggregates<a class="headerlink" href="#72-tvittixuserdataset-aggregates" title="Link to this section">&para;</a></h3>
+<p>When <code>Context.UserDataSet</code> is assigned (and <code>Context.DataSet</code> is nil or inactive):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>1. Call UserDataSet.First
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>2. Iterate while not UserDataSet.Eof:
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>   a. For each field reference in the AST, call UserDataSet.GetValue(fieldName)
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>   b. Evaluate inner expression via EvaluateNode (which uses UserDataSet for field refs)
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>   c. Accumulate per aggregate function
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>3. No bookmark save/restore (UserDataSet may not support bookmarks)
+</code></pre></div>
+<p><strong>Key design decision:</strong> <code>TExpressionNode.Evaluate</code> for <code>TExpressionFieldRefNode</code> checks <code>Context.UserDataSet</code> first via <code>SafeSourceFieldValue</code> (from <code>Vittix.Report.Utils</code>), then falls back to <code>Context.DataSet</code>. This is the same resolution order used by the current heuristic but moved to the AST evaluator.</p>
+<h3 id="73-aggregate-function-resolution">7.3 Aggregate Function Resolution<a class="headerlink" href="#73-aggregate-function-resolution" title="Link to this section">&para;</a></h3>
+<p>Aggregate functions are handled by <code>TExpressionFunctionNode.Evaluate</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">function</span><span class="w"> </span><span class="nc">TExpressionFunctionNode</span><span class="o">.</span><span class="nf">Evaluate</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Ctx</span><span class="o">:</span><span class="w"> </span><span class="n">TExpressionContext</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="kt">Variant</span><span class="o">;</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="k">begin</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="n">FName</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="p">[</span><span class="s">'SUM'</span><span class="o">,</span><span class="s">'COUNT'</span><span class="o">,</span><span class="s">'AVG'</span><span class="o">,</span><span class="s">'MIN'</span><span class="o">,</span><span class="s">'MAX'</span><span class="p">]</span><span class="w"> </span><span class="k">then</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span><span class="bp">Result</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">TExpressionEvaluator</span><span class="o">.</span><span class="n">EvaluateAggregate</span><span class="p">(</span><span class="n">FName</span><span class="o">,</span><span class="w"> </span><span class="k">Self</span><span class="o">,</span><span class="w"> </span><span class="n">Ctx</span><span class="p">)</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">  </span><span class="k">else</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">    </span><span class="bp">Result</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">Null</span><span class="o">;</span><span class="w"> </span><span class="c1">// unknown function — safe fallback</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="k">end</span><span class="o">;</span>
+</code></pre></div>
+<p><code>TExpressionEvaluator.EvaluateAggregate</code> performs the iteration described in 7.1/7.2, calling <code>EvaluateNode</code> on each argument node for each row.</p>
+<h3 id="74-breaking-the-circular-dependency">7.4 Breaking the Circular Dependency<a class="headerlink" href="#74-breaking-the-circular-dependency" title="Link to this section">&para;</a></h3>
+<p>Current: <code>Expressions.pas</code> → <code>Aggregates.pas</code> → <code>Expressions.pas</code> (circular).</p>
+<p>After: <code>Aggregates.pas</code> → <code>ExpressionParser.pas</code> → <code>Expressions.pas</code> (no cycle; ExpressionParser is new and lower in the dependency graph). <code>Expressions.pas</code> calls <code>ExpressionParser</code> but <code>ExpressionParser</code> does NOT call <code>Expressions.pas</code> — it calls <code>Utils</code> and <code>Context</code> only.</p>
+<hr />
+<h2 id="8-diagnosticdefault-result-policy">8. Diagnostic/Default-Result Policy<a class="headerlink" href="#8-diagnosticdefault-result-policy" title="Link to this section">&para;</a></h2>
+<h3 id="81-safe-no-exception-behavior">8.1 Safe No-Exception Behavior<a class="headerlink" href="#81-safe-no-exception-behavior" title="Link to this section">&para;</a></h3>
+<p>Every evaluation path that could fail returns a safe default:</p>
+<table>
+<thead>
+<tr>
+<th>Failure Mode</th>
+<th>Default Result</th>
+<th>Diagnostic</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Empty expression <code>''</code></td>
+<td><code>''</code> (empty string)</td>
+<td>None</td>
+</tr>
+<tr>
+<td>Unknown token/field</td>
+<td><code>0</code> (numeric) or <code>''</code> (string context)</td>
+<td>Warning (DEBUG only)</td>
+</tr>
+<tr>
+<td>Nil dataset</td>
+<td><code>0</code> for field ref</td>
+<td>Warning</td>
+</tr>
+<tr>
+<td>Inactive dataset</td>
+<td><code>0</code> for field ref</td>
+<td>Warning</td>
+</tr>
+<tr>
+<td>Field not found</td>
+<td><code>0</code> for field ref</td>
+<td>Warning</td>
+</tr>
+<tr>
+<td>Division by zero</td>
+<td><code>0</code></td>
+<td>Warning</td>
+</tr>
+<tr>
+<td>Unknown function <code>Foo(...)</code></td>
+<td><code>Null</code></td>
+<td>Warning</td>
+</tr>
+<tr>
+<td>Malformed expression (unbalanced parens, trailing op, etc.)</td>
+<td><code>0</code> or <code>''</code> depending on context</td>
+<td>Error</td>
+</tr>
+<tr>
+<td>Non-numeric value in arithmetic</td>
+<td><code>0</code></td>
+<td>Warning</td>
+</tr>
+<tr>
+<td>NULL in arithmetic</td>
+<td><code>0</code> (NULL + 1 = 0)</td>
+<td>None (NULL semantics)</td>
+</tr>
+<tr>
+<td>NULL in comparison</td>
+<td><code>Null = Null</code> → <code>Null</code> (NOT True, NOT False)</td>
+<td>None</td>
+</tr>
+</tbody>
+</table>
+<h3 id="82-diagnostics-object">8.2 Diagnostics Object<a class="headerlink" href="#82-diagnostics-object" title="Link to this section">&para;</a></h3>
+<ul>
+<li><code>TExpressionDiagnostics</code> collects errors and warnings with source positions.</li>
+<li>In normal (non-DEBUG) builds, diagnostics are populated but not surfaced externally (callers can check <code>HasErrors</code> and <code>Diagnostics.ErrorCount</code>).</li>
+<li>In DEBUG builds, diagnostics are also output via <code>OutputDebugString</code>.</li>
+<li>The diagnostics object is accessible via <code>TExpressionParser.Diagnostics</code> for testing.</li>
+</ul>
+<h3 id="83-expression-level-error-policy">8.3 Expression-Level Error Policy<a class="headerlink" href="#83-expression-level-error-policy" title="Link to this section">&para;</a></h3>
+<p>When the parser encounters a syntax error:
+- It does NOT raise an exception.
+- It records an error in diagnostics.
+- It attempts to produce a best-effort AST (skipping the malformed token).
+- The evaluator returns a safe default for the malformed portion.</p>
+<hr />
+<h2 id="9-explicit-null-semantics">9. Explicit NULL Semantics<a class="headerlink" href="#9-explicit-null-semantics" title="Link to this section">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>NULL Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>NULL</code> literal</td>
+<td>Variant <code>Null</code></td>
+</tr>
+<tr>
+<td><code>NULL + N</code></td>
+<td><code>0</code> (NULL absorbs arithmetic; result is NULL→0 for variant coercion)</td>
+</tr>
+<tr>
+<td><code>N + NULL</code></td>
+<td><code>0</code></td>
+</tr>
+<tr>
+<td><code>NULL = NULL</code></td>
+<td><code>Null</code> (unknown — not True, not False)</td>
+</tr>
+<tr>
+<td><code>NULL &lt;&gt; NULL</code></td>
+<td><code>Null</code></td>
+</tr>
+<tr>
+<td><code>N = NULL</code></td>
+<td><code>Null</code></td>
+</tr>
+<tr>
+<td><code>N &gt; NULL</code></td>
+<td><code>Null</code></td>
+</tr>
+<tr>
+<td><code>NULL AND True</code></td>
+<td><code>Null</code></td>
+</tr>
+<tr>
+<td><code>NULL OR True</code></td>
+<td><code>True</code> (OR with True wins)</td>
+</tr>
+<tr>
+<td><code>NOT NULL</code></td>
+<td><code>Null</code></td>
+</tr>
+<tr>
+<td><code>COUNT([Field])</code> with NULL values</td>
+<td>Counts only non-NULL values</td>
+</tr>
+<tr>
+<td><code>SUM([Field])</code> with NULL values</td>
+<td>Skips NULLs in sum</td>
+</tr>
+<tr>
+<td><code>AVG([Field])</code> with NULL values</td>
+<td>Sum / Count (non-NULL only)</td>
+</tr>
+<tr>
+<td><code>MIN/MAX([Field])</code> with NULL values</td>
+<td>Ignores NULLs</td>
+</tr>
+<tr>
+<td>String context: <code>NULL</code> rendered</td>
+<td><code>''</code> (empty string) via VarToStr</td>
+</tr>
+<tr>
+<td><code>[NullField]</code> (dataset field is NULL)</td>
+<td><code>Null</code> variant; arithmetic → 0; string → <code>''</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="implementation">Implementation<a class="headerlink" href="#implementation" title="Link to this section">&para;</a></h3>
+<p>All arithmetic and comparison operations in AST nodes check <code>VarIsNull</code> on operands before operating. When either operand is NULL, the result is <code>Null</code> (for comparisons) or <code>0</code> (for arithmetic, matching existing variant coercion behavior for downstream consumers). COUNT explicitly skips NULLs.</p>
+<hr />
+<h2 id="10-source-positions">10. Source Positions<a class="headerlink" href="#10-source-positions" title="Link to this section">&para;</a></h2>
+<h3 id="101-source-position-tracking">10.1 Source Position Tracking<a class="headerlink" href="#101-source-position-tracking" title="Link to this section">&para;</a></h3>
+<p>Every AST node stores its <code>TExpressionSourcePos</code> (Line, Col, Index in source string).</p>
+<h3 id="102-token-source-positions">10.2 Token Source Positions<a class="headerlink" href="#102-token-source-positions" title="Link to this section">&para;</a></h3>
+<p>The lexer records the position at the START of each token. When a token is created:
+- <code>Line</code> and <code>Col</code> are updated as the lexer scans.
+- Line numbers are 1-based; columns are 1-based.
+- Index is 0-based into the source string.</p>
+<h3 id="103-diagnostic-source-positions">10.3 Diagnostic Source Positions<a class="headerlink" href="#103-diagnostic-source-positions" title="Link to this section">&para;</a></h3>
+<p>Every diagnostic message includes the <code>TExpressionSourcePos</code> of the offending token, enabling precise error reporting (e.g., "Unexpected ')' at line 1, col 12").</p>
+<h3 id="104-practical-use">10.4 Practical Use<a class="headerlink" href="#104-practical-use" title="Link to this section">&para;</a></h3>
+<p>Currently <code>TExpressionContext</code> is a record passed around by callers (engine, designer). Source positions in AST nodes are primarily for:
+- Diagnostic messages
+- Future debugging/logging
+- Designer expression validation (highlighting errors in the expression editor)</p>
+<p>The <code>TExpressionSourcePos</code> record does NOT store the source expression string itself (nodes store only the position; the caller can map position back to the original expression text).</p>
+<hr />
+<h2 id="11-parse-cache-recommendation">11. Parse-Cache Recommendation<a class="headerlink" href="#11-parse-cache-recommendation" title="Link to this section">&para;</a></h2>
+<h3 id="not-recommended-for-phase-4i-20">NOT RECOMMENDED for Phase 4I-20<a class="headerlink" href="#not-recommended-for-phase-4i-20" title="Link to this section">&para;</a></h3>
+<p>Rationale:
+- <code>TReportExpression.Evaluate</code> is typically called per-row during rendering. For a report with N rows, each expression is evaluated N times. However, expression strings are typically small and parsing is fast (microseconds).
+- Caching introduces mutable state (cache invalidation when context changes for field values but not expression text).
+- The existing codebase has no precedent for expression-level caching.
+- Memory pressure from caching could be significant for reports with many unique expressions.</p>
+<h3 id="recommended-for-future-phase-4i-30">RECOMMENDED for Future Phase (4I-30)<a class="headerlink" href="#recommended-for-future-phase-4i-30" title="Link to this section">&para;</a></h3>
+<p>If profiling shows parsing is a bottleneck:
+- <strong>Cache key:</strong> <code>(Expr: string)</code> only — the expression text.
+- <strong>Cache value:</strong> Parsed <code>TExpressionNode</code> tree (or a serializable form).
+- <strong>Cache scope:</strong> Per-<code>TReportEngine</code> instance (lives for one report render).
+- <strong>Invalidation:</strong> Never needed for expression text. AST nodes re-evaluate against fresh <code>TExpressionContext</code> each call.
+- <strong>Implementation:</strong> <code>TDictionary&lt;string, TExpressionNode&gt;</code> owned by <code>TReportEngine</code>, freed in destructor.
+- <strong>Thread safety:</strong> Not required (engine is single-threaded).
+- <strong>This is an optimization only and does not affect correctness.</strong></p>
+<hr />
+<h2 id="12-compatibilitycoercion-decisions">12. Compatibility/Coercion Decisions<a class="headerlink" href="#12-compatibilitycoercion-decisions" title="Link to this section">&para;</a></h2>
+<h3 id="121-treportexpressionevaluate-return-type">12.1 TReportExpression.Evaluate Return Type<a class="headerlink" href="#121-treportexpressionevaluate-return-type" title="Link to this section">&para;</a></h3>
+<p><strong>UNCHANGED.</strong> Returns <code>Variant</code>. The new evaluator produces the same Variant types as the old heuristic for all currently supported expressions:</p>
+<table>
+<thead>
+<tr>
+<th>Expression</th>
+<th>Old Result</th>
+<th>New Result</th>
+<th>Match?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>''</code></td>
+<td><code>''</code></td>
+<td><code>''</code></td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>[PageNo]</code> (value=1)</td>
+<td><code>1</code> (Double)</td>
+<td><code>1</code> (Double)</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>[Name]</code> (value='Alice')</td>
+<td><code>'Alice'</code> (string)</td>
+<td><code>'Alice'</code> (string)</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>[Param.CompanyName]</code></td>
+<td><code>'Acme Corp'</code></td>
+<td><code>'Acme Corp'</code></td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>'hello'</code></td>
+<td><code>'hello'</code></td>
+<td><code>'hello'</code></td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>true</code></td>
+<td><code>True</code></td>
+<td><code>True</code></td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>false</code></td>
+<td><code>False</code></td>
+<td><code>False</code></td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>NULL</code></td>
+<td><code>'NULL'</code></td>
+<td><code>Null</code> (Variant)</td>
+<td><strong>CHANGE</strong> — see below</td>
+</tr>
+<tr>
+<td><code>1 + 2</code></td>
+<td><code>3</code> (Double)</td>
+<td><code>3</code> (Double)</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>200 &gt; 100</code></td>
+<td><code>True</code></td>
+<td><code>True</code></td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>SUM([Amount])</code></td>
+<td><code>350</code> (Double)</td>
+<td><code>350</code> (Double)</td>
+<td>Yes</td>
+</tr>
+</tbody>
+</table>
+<h3 id="122-null-literal-change">12.2 NULL Literal Change<a class="headerlink" href="#122-null-literal-change" title="Link to this section">&para;</a></h3>
+<p><strong>This is the one behavioral change for expressions the new parser handles.</strong> Currently <code>NULL</code> returns the string <code>'NULL'</code>. After Phase 4I-20, <code>NULL</code> returns the Variant <code>Null</code>. This is intentional — it enables proper NULL semantics in arithmetic and comparisons.</p>
+<p><strong>Impact:</strong> Tests that assert <code>VarToStr(TReportExpression.Evaluate('NULL', ...))</code> = <code>'NULL'</code> must be updated to check <code>VarIsNull(...)</code>. This is documented and expected.</p>
+<h3 id="123-operator">12.3 Operator <code>!=</code> → <code>&lt;&gt;</code><a class="headerlink" href="#123-operator" title="Link to this section">&para;</a></h3>
+<p><strong>NEW SUPPORT:</strong> <code>!=</code> is now supported as a synonym for <code>&lt;&gt;</code>. This is an addition, not a change. Existing behavior (which treated <code>!=</code> incorrectly) is replaced.</p>
+<h3 id="124-andornot-support">12.4 AND/OR/NOT Support<a class="headerlink" href="#124-andornot-support" title="Link to this section">&para;</a></h3>
+<p><strong>NEW SUPPORT.</strong> Currently AND/OR are treated as string text. After Phase 4I-20, they are boolean operators with proper short-circuit evaluation:
+- <code>A AND B</code>: evaluate A; if False, return False; else evaluate B.
+- <code>A OR B</code>: evaluate A; if True, return True; else evaluate B.
+- <code>NOT A</code>: evaluate A; return boolean negation (with NULL handling → Null).</p>
+<h3 id="125-comparison-precedence-over-arithmetic">12.5 Comparison Precedence Over Arithmetic<a class="headerlink" href="#125-comparison-precedence-over-arithmetic" title="Link to this section">&para;</a></h3>
+<p><strong>FIX.</strong> Currently comparisons are evaluated AFTER arithmetic tokenization, leading to text comparison of arithmetic expressions. After Phase 4I-20, the grammar ensures arithmetic is evaluated before comparison:
+- <code>[ID] &gt; 1</code> correctly evaluates <code>ID &gt; 1</code> numerically.
+- <code>1 + 2 &gt; 2</code> correctly evaluates <code>3 &gt; 2</code> → <code>True</code>.</p>
+<h3 id="126-aggregate-composition">12.6 Aggregate Composition<a class="headerlink" href="#126-aggregate-composition" title="Link to this section">&para;</a></h3>
+<p><strong>FIX.</strong> Currently <code>SUM([Amount]) + 1</code> returns <code>350</code> (aggregate shortcut discards <code>+ 1</code>). After Phase 4I-20, the aggregate is just a function node in the AST, so the full expression evaluates correctly: <code>SUM([Amount]) + 1 = 351</code>.</p>
+<h3 id="127-precedence-fix">12.7 Precedence Fix<a class="headerlink" href="#127-precedence-fix" title="Link to this section">&para;</a></h3>
+<p><strong>FIX.</strong> <code>2 + 3 * 4</code> now correctly evaluates to <code>14</code> (not <code>20</code>). <code>10 - 2 * 3</code> = <code>4</code> (not <code>24</code>). <code>10 / 2 * 3</code> = <code>15</code> (unchanged — left-to-right is correct for same-precedence).</p>
+<h3 id="128-parentheses">12.8 Parentheses<a class="headerlink" href="#128-parentheses" title="Link to this section">&para;</a></h3>
+<p><strong>FIX.</strong> <code>(1 + 2) * 3</code> now evaluates to <code>9</code> (not <code>0</code>). Parentheses are first-class in the grammar.</p>
+<h3 id="129-quoted-string-with-double-quotes">12.9 Quoted String with Double Quotes<a class="headerlink" href="#129-quoted-string-with-double-quotes" title="Link to this section">&para;</a></h3>
+<p><strong>BEHAVIOR CHANGE.</strong> Currently only single quotes are stripped. After Phase 4I-20, double-quoted strings are not recognized as string literals (they remain as identifiers/text). This matches the current test expectation (<code>'"hello"'</code> → <code>'"hello"'</code>). No change here — documented for clarity.</p>
+<hr />
+<h2 id="13-parse-cache-recommendation-summary">13. Parse Cache Recommendation (Summary)<a class="headerlink" href="#13-parse-cache-recommendation-summary" title="Link to this section">&para;</a></h2>
+<p>See Section 11. <strong>Do not implement a parse cache in Phase 4I-20.</strong> Create each <code>TExpressionParser</code> per call, free it after evaluation.</p>
+<hr />
+<h2 id="14-test-plan">14. Test Plan<a class="headerlink" href="#14-test-plan" title="Link to this section">&para;</a></h2>
+<h3 id="141-update-existing-tests">14.1 Update Existing Tests<a class="headerlink" href="#141-update-existing-tests" title="Link to this section">&para;</a></h3>
+<h4 id="testvittixreportexpressionspas">Test.Vittix.Report.Expressions.pas<a class="headerlink" href="#testvittixreportexpressionspas" title="Link to this section">&para;</a></h4>
+<p>Update the following tests to assert CORRECT behavior (not characterization):</p>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Current Expected</th>
+<th>New Expected</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Test_Arithmetic_Precedence_CurrentBehavior</code></td>
+<td><code>20.0</code></td>
+<td><code>14.0</code></td>
+<td>Operator precedence</td>
+</tr>
+<tr>
+<td><code>Test_Arithmetic_LeftToRight_CurrentBehavior</code></td>
+<td><code>24.0</code></td>
+<td><code>4.0</code></td>
+<td>Operator precedence</td>
+</tr>
+<tr>
+<td>All comparison tests</td>
+<td>Current text-compare results</td>
+<td>Numeric compare results</td>
+<td>Correct comparison</td>
+</tr>
+<tr>
+<td><code>Test_Aggregate_SUM_WithDataSet</code></td>
+<td><code>350.0</code></td>
+<td><code>350.0</code></td>
+<td>No change (was already correct)</td>
+</tr>
+<tr>
+<td><code>Test_Aggregate_SUM_WithUserDataSetNil_NotConfirmed</code></td>
+<td><code>'SUM(0)'</code></td>
+<td>Depends on aggregate impl</td>
+<td>See below</td>
+</tr>
+<tr>
+<td><code>Test_Comparison_AndNotSupported</code></td>
+<td><code>True</code> (text)</td>
+<td><code>True</code> (proper AND)</td>
+<td>New AND support</td>
+</tr>
+</tbody>
+</table>
+<p>Remove all <code>_CurrentBehavior</code> suffixes from test names after updating.</p>
+<h4 id="testvittixreportexpressionauditpas">Test.Vittix.Report.ExpressionAudit.pas<a class="headerlink" href="#testvittixreportexpressionauditpas" title="Link to this section">&para;</a></h4>
+<p><strong>Option A (Recommended):</strong> Delete this entire fixture. Its 29 tests all assert known-defective behavior that the new parser fixes. Maintaining it provides no value after the fix.</p>
+<p><strong>Option B:</strong> Rename to <code>TestExpressionEngineCorrectness</code> and flip every assertion to correct values with clear documentation comments.</p>
+<h3 id="142-new-tests-testvittixreportexpressionspas-additions">14.2 New Tests (Test.Vittix.Report.Expressions.pas additions)<a class="headerlink" href="#142-new-tests-testvittixreportexpressionspas-additions" title="Link to this section">&para;</a></h3>
+<p>Add a new test fixture <code>TTestExpressionEngineFixed</code> (or extend existing) with:</p>
+<h4 id="a-lexer-tests">A. Lexer Tests<a class="headerlink" href="#a-lexer-tests" title="Link to this section">&para;</a></h4>
+<ul>
+<li><code>Test_Lexer_Number</code> — verify <code>42</code> → tkNumber, <code>3.14</code> → tkNumber, <code>-7</code> → tkNumber</li>
+<li><code>Test_Lexer_String</code> — verify <code>'hello'</code> → tkString, <code>'a=b'</code> → tkString</li>
+<li><code>Test_Lexer_Identifier</code> — verify <code>SUM</code> → tkIdentifier, <code>Name</code> → tkIdentifier</li>
+<li><code>Test_Lexer_FieldRef</code> — verify <code>[Amount]</code> → tkFieldRef, <code>[Param.X]</code> → tkFieldRef</li>
+<li><code>Test_Lexer_Operators</code> — verify all operators tokenize correctly</li>
+<li><code>Test_Lexer_BooleansAndNull</code> — verify <code>TRUE</code>, <code>FALSE</code>, <code>NULL</code> tokens</li>
+</ul>
+<h4 id="b-parserast-tests">B. Parser/AST Tests<a class="headerlink" href="#b-parserast-tests" title="Link to this section">&para;</a></h4>
+<ul>
+<li><code>Test_Parser_Precedence</code> — <code>2 + 3 * 4</code> → AST with <code>*</code> deeper than <code>+</code></li>
+<li><code>Test_Parser_Parentheses</code> — <code>(1 + 2) * 3</code> → AST with <code>(1+2)</code> as inner group</li>
+<li><code>Test_Parser_Unary</code> — <code>-5 + +3</code> → unary nodes</li>
+<li><code>Test_Parser_AndOr</code> — <code>a AND b OR c</code> → correct tree shape</li>
+<li><code>Test_Parser_Not</code> — <code>NOT a</code> → unary NOT node</li>
+<li><code>Test_Parser_FunctionCall</code> — <code>SUM([Amount])</code> → function node with 1 arg</li>
+<li><code>Test_Parser_NestedFunctions</code> — <code>SUM(AVG([X]) + 1)</code> → correct nesting</li>
+<li><code>Test_Parser_Malformed_TrailingOp</code> — <code>1 +</code> → no exception, safe default</li>
+<li><code>Test_Parser_Malformed_UnbalancedParen</code> — <code>(1 + 2</code> → no exception, safe default</li>
+<li><code>Test_Parser_Malformed_UnknownFunction</code> — <code>Foo(1)</code> → no exception, Null result</li>
+</ul>
+<h4 id="c-evaluator-tests">C. Evaluator Tests<a class="headerlink" href="#c-evaluator-tests" title="Link to this section">&para;</a></h4>
+<ul>
+<li><code>Test_Evaluator_Number</code> — <code>42</code> → <code>42.0</code> (Double)</li>
+<li><code>Test_Evaluator_String</code> — <code>'hello'</code> → <code>'hello'</code></li>
+<li><code>Test_Evaluator_Boolean</code> — <code>TRUE</code> → <code>True</code>, <code>FALSE</code> → <code>False</code></li>
+<li><code>Test_Evaluator_NULL</code> — <code>NULL</code> → <code>Null</code> (variant)</li>
+<li><code>Test_Evaluator_NULL_Add_Number</code> — <code>NULL + 1</code> → <code>0</code></li>
+<li><code>Test_Evaluator_NULL_Compare</code> — <code>NULL = NULL</code> → <code>Null</code></li>
+<li><code>Test_Evaluator_Comparison_Numeric</code> — <code>5 &gt; 3</code> → <code>True</code></li>
+<li><code>Test_Evaluator_Comparison_String</code> — <code>'a' &lt; 'b'</code> → <code>True</code></li>
+<li><code>Test_Evaluator_AndShortCircuit</code> — <code>False AND [ErroringField]</code> → <code>False</code> (no field access needed)</li>
+<li><code>Test_Evaluator_OrShortCircuit</code> — <code>True OR [ErroringField]</code> → <code>True</code></li>
+<li><code>Test_Evaluator_Not</code> — <code>NOT TRUE</code> → <code>False</code>, <code>NOT NULL</code> → <code>Null</code></li>
+</ul>
+<h4 id="d-fieldparametervariable-reference-tests">D. Field/Parameter/Variable Reference Tests<a class="headerlink" href="#d-fieldparametervariable-reference-tests" title="Link to this section">&para;</a></h4>
+<ul>
+<li><code>Test_Evaluator_FieldRef</code> — <code>[Name]</code> → field value</li>
+<li><code>Test_Evaluator_FieldRef_NilDataset</code> — <code>[Name]</code> with nil DataSet → <code>0</code></li>
+<li><code>Test_Evaluator_ParamRef</code> — <code>[Param.X]</code> → parameter value</li>
+<li><code>Test_Evaluator_VariableRef</code> — <code>[VarName]</code> → variable value</li>
+<li><code>Test_Evaluator_UserDataSetField</code> — <code>[Amount]</code> with UserDataSet → value</li>
+</ul>
+<h4 id="e-aggregate-tests">E. Aggregate Tests<a class="headerlink" href="#e-aggregate-tests" title="Link to this section">&para;</a></h4>
+<ul>
+<li><code>Test_Aggregate_SUM</code> — <code>SUM([X])</code> over 3 rows → sum</li>
+<li><code>Test_Aggregate_COUNT</code> — <code>COUNT([X])</code> → row count (non-NULL)</li>
+<li><code>Test_Aggregate_COUNT_NullSkipping</code> — <code>COUNT([X])</code> where some X are NULL → count non-NULL</li>
+<li><code>Test_Aggregate_AVG</code> — <code>AVG([X])</code> → sum/count</li>
+<li><code>Test_Aggregate_MIN</code> — <code>MIN([X])</code> → minimum</li>
+<li><code>Test_Aggregate_MAX</code> — <code>MAX([X])</code> → maximum</li>
+<li><code>Test_Aggregate_EMPTY</code> — <code>SUM([X])</code> on empty dataset → <code>0</code></li>
+<li><code>Test_Aggregate_TDataSet</code> — aggregate over TDataSet with GroupStart/GroupEnd bookmarks</li>
+<li><code>Test_Aggregate_UserDataSet</code> — aggregate over TVittixUserDataSet (FIXES BUG-005)</li>
+<li><code>Test_Aggregate_Composition</code> — <code>SUM([X]) + 1</code> → sum + 1 (no truncation)</li>
+<li><code>Test_Aggregate_DoubleAggregate</code> — <code>SUM([X]) + SUM([Y])</code> → both evaluated</li>
+</ul>
+<h4 id="f-ast-immutability-tests">F. AST Immutability Tests<a class="headerlink" href="#f-ast-immutability-tests" title="Link to this section">&para;</a></h4>
+<ul>
+<li><code>Test_AST_NoMutableContext</code> — evaluate same AST with different contexts, verify independent results</li>
+</ul>
+<h4 id="g-diagnostics-tests">G. Diagnostics Tests<a class="headerlink" href="#g-diagnostics-tests" title="Link to this section">&para;</a></h4>
+<ul>
+<li><code>Test_Diagnostics_Malformed</code> — malformed expression increments ErrorCount</li>
+<li><code>Test_Diagnostics_NoErrors</code> — valid expression has ErrorCount = 0</li>
+</ul>
+<h3 id="143-regression-tests">14.3 Regression Tests<a class="headerlink" href="#143-regression-tests" title="Link to this section">&para;</a></h3>
+<ul>
+<li>All existing demo reports must still open and render identically.</li>
+<li>All existing PDF/export outputs must match previous output (visual diff).</li>
+<li>Empty dataset reports must still produce 1 page.</li>
+<li>Large dataset reports must still render without error.</li>
+<li>Long text wrapping must still work.</li>
+<li>Images must still render correctly.</li>
+<li>Print path must still work.</li>
+</ul>
+<hr />
+<h2 id="15-risks">15. Risks<a class="headerlink" href="#15-risks" title="Link to this section">&para;</a></h2>
+<h3 id="high-risk">HIGH RISK<a class="headerlink" href="#high-risk" title="Link to this section">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Risk</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R1</td>
+<td><strong>Behavior change on NULL literal.</strong> <code>NULL</code> changes from string <code>'NULL'</code> to variant <code>Null</code>. Downstream code checking <code>VarToStr(Result) = 'NULL'</code> will break.</td>
+<td>Document clearly. All tests using <code>VarToStr</code> on NULL must be updated. Add a migration note in CHANGELOG.</td>
+</tr>
+<tr>
+<td>R2</td>
+<td><strong>Aggregate composition behavior change.</strong> <code>SUM([X]) + 1</code> changes from <code>350</code> to <code>351</code>. Any test or report that relied on the truncation bug will break.</td>
+<td>Document as bug fix. Audit all test assertions for aggregate composition.</td>
+</tr>
+<tr>
+<td>R3</td>
+<td><strong>Comparison precedence change.</strong> <code>1 + 2 &gt; 2</code> changes from <code>False</code> (text compare) to <code>True</code> (numeric compare). Any PrintWhen conditions using arithmetic in comparisons will change behavior.</td>
+<td>Document as bug fix. Audit all PrintWhen conditions in existing reports.</td>
+</tr>
+<tr>
+<td>R4</td>
+<td><strong>Precedence change.</strong> <code>2 + 3 * 4</code> changes from <code>20</code> to <code>14</code>. Existing reports relying on left-to-right evaluation will produce different results.</td>
+<td>Document as bug fix. Test coverage will catch regressions.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="medium-risk">MEDIUM RISK<a class="headerlink" href="#medium-risk" title="Link to this section">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Risk</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R5</td>
+<td><strong>Circular dependency not fully eliminated.</strong> If <code>ExpressionParser.pas</code> accidentally uses <code>Expressions.pas</code>, package build fails.</td>
+<td>Strict dependency review. CI build verification.</td>
+</tr>
+<tr>
+<td>R6</td>
+<td><strong>TVittixUserDataSet aggregate iteration differs from TDataSet.</strong> UserDataSet has no bookmark support; group boundary detection must use field value comparison instead.</td>
+<td>Implement group-end detection by comparing current row field values to GroupEnd key. Document limitations.</td>
+</tr>
+<tr>
+<td>R7</td>
+<td><strong>NOT operator binding.</strong> <code>NOT a = b</code> could parse as <code>NOT (a = b)</code> or <code>(NOT a) = b</code>. Grammar specifies <code>NOT</code> at unary level → <code>NOT (a = b)</code>. This differs from some SQL dialects.</td>
+<td>Document explicitly. Align with Delphi <code>not</code> precedence.</td>
+</tr>
+<tr>
+<td>R8</td>
+<td><strong><code>!=</code> vs <code>&lt;&gt;</code> conflict.</strong> Both map to <code>tkNotEqual</code>. If someone writes <code>a != b &lt;&gt; c</code>, the lexer produces two <code>tkNotEqual</code> tokens. This is malformed and handled by error policy.</td>
+<td>Acceptable — <code>!=</code> is a synonym, not a replacement.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="low-risk">LOW RISK<a class="headerlink" href="#low-risk" title="Link to this section">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Risk</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R9</td>
+<td><strong>Double-quote string literals still unsupported.</strong> <code>'hello'</code> works; <code>"hello"</code> does not. Existing code relying on this quirk is unaffected.</td>
+<td>Document as known limitation.</td>
+</tr>
+<tr>
+<td>R10</td>
+<td><strong>Empty parens <code>()</code> in function calls.</strong> <code>SUM()</code> would parse but produce <code>0</code> for SUM. No exception raised.</td>
+<td>Acceptable — matches safe-fallback policy.</td>
+</tr>
+<tr>
+<td>R11</td>
+<td><strong>Variant coercion differences.</strong> Some edge cases in Double/Integer/Decimal variant coercion may differ between old and new code paths.</td>
+<td>Run comprehensive variant coercion tests.</td>
+</tr>
+<tr>
+<td>R12</td>
+<td><strong>GDI/memory leak in bookmark handling.</strong> Aggregate iteration saves/restores bookmarks; new code must follow try/finally pattern exactly.</td>
+<td>Code review + test with <code>ReportMemoryManager</code> on Win32.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="16-unavoidable-api-changes">16. Unavoidable API Changes<a class="headerlink" href="#16-unavoidable-api-changes" title="Link to this section">&para;</a></h2>
+<p>The following API changes are <strong>unavoidable</strong> given the requirements:</p>
+<table>
+<thead>
+<tr>
+<th>Change</th>
+<th>Why Unavoidable</th>
+<th>Impact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong><code>TReportExpression.Evaluate</code> for <code>NULL</code> literal returns <code>Null</code> instead of <code>'NULL'</code></strong></td>
+<td>Explicit NULL semantics require a null variant. String <code>'NULL'</code> is indistinguishable from a field literally containing the text "NULL".</td>
+<td>All callers/tests checking <code>VarToStr(Result) = 'NULL'</code> must update.</td>
+</tr>
+<tr>
+<td><strong><code>Vittix.Report.Aggregates.pas</code> no longer uses <code>Vittix.Report.Expressions</code></strong></td>
+<td>Circular dependency must be broken. Aggregates now uses <code>Vittix.Report.ExpressionParser</code> directly.</td>
+<td>Internal only — no public API change on <code>TReportAggregates.TryEvaluate</code> signature.</td>
+</tr>
+<tr>
+<td><strong><code>Vittix.Report.Aggregates.pas</code> removes circular unit reference</strong></td>
+<td>The new <code>ExpressionParser</code> breaks the cycle. <code>Aggregates</code> loses its <code>Expressions</code> in-uses clause.</td>
+<td>Build-order dependent; <code>ExpressionParser</code> must compile before <code>Aggregates</code> is removed from <code>Expressions</code>'s interface uses if any. (Not applicable since <code>Expressions</code> still imports <code>Aggregates</code> for the aggregate shortcut in <code>Evaluate</code>.)</td>
+</tr>
+<tr>
+<td><strong>Behavioral changes in evaluation results</strong> (precedence, comparison, aggregate composition)</td>
+<td>Required to correctly implement the specified grammar/semantics. Heuristic cannot produce correct results for these cases.</td>
+<td>Existing test assertions must be updated. Report outputs may differ for expressions using these patterns.</td>
+</tr>
+</tbody>
+</table>
+<p>The following are <strong>NOT</strong> API changes (implementation details):
+- Internal class additions in <code>ExpressionParser.pas</code> — no existing code imports this unit yet.
+- AST node types — purely internal.
+- Diagnostics object — new public type, but not imported by existing code.</p>
+<hr />
+<h2 id="17-implementation-sequence">17. Implementation Sequence<a class="headerlink" href="#17-implementation-sequence" title="Link to this section">&para;</a></h2>
+<ol>
+<li><strong>Create <code>Vittix.Report.ExpressionParser.pas</code></strong> with lexer, AST, parser, evaluator, diagnostics.</li>
+<li><strong>Refactor <code>Vittix.Report.Aggregates.pas</code></strong> to use <code>TExpressionEvaluator.EvaluateAggregate</code> instead of <code>TReportExpression.Evaluate</code>.</li>
+<li><strong>Update <code>Vittix.Report.Expressions.pas</code></strong> — replace heuristic internals with delegate to <code>TExpressionParser.Evaluate</code>.</li>
+<li><strong>Update tests</strong> — fix all characterization/audit assertions, add new tests.</li>
+<li><strong>Build and run all tests</strong> — verify no regressions.</li>
+<li><strong>Run demo reports</strong> — verify visual correctness.</li>
+</ol>
+<hr />
+<h2 id="18-circular-dependency-resolution">18. Circular Dependency Resolution<a class="headerlink" href="#18-circular-dependency-resolution" title="Link to this section">&para;</a></h2>
+<p><strong>Current cycle:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>Expressions.pas uses Aggregates.pas (for SUM/COUNT/AVG/MIN/MAX in Evaluate)
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>Aggregates.pas uses Expressions.pas (for TReportExpression.Evaluate in aggregate iteration)
+</code></pre></div></p>
+<p><strong>After Phase 4I-20:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>Expressions.pas uses ExpressionParser.pas (new — no cycle)
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>ExpressionParser.pas uses Context, Utils (no cycle)
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>Aggregates.pas uses ExpressionParser.pas (new — no cycle)
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>ExpressionParser.pas does NOT use Expressions.pas or Aggregates.pas
+</code></pre></div></p>
+<p><code>Expressions.pas</code> still uses <code>Aggregates.pas</code> for the aggregate shortcut (top-level <code>SUM(...)</code> detection before full parse). This is retained for backward compatibility — if <code>TReportAggregates.TryEvaluate</code> returns True, we use its result directly. But <code>Aggregates.pas</code> no longer calls back to <code>Expressions.pas</code>.</p>
+<p>Wait — this still creates a cycle: <code>Expressions → Aggregates → ExpressionParser</code>. But <code>ExpressionParser</code> does not use <code>Expressions</code>, so there is no cycle. <code>Expressions</code> uses both <code>Aggregates</code> and <code>ExpressionParser</code>, but neither of those uses <code>Expressions</code> back.</p>
+<p>Actually, after the refactor, we can simplify: <code>Expressions.Evaluate</code> can skip the <code>TReportAggregates.TryEvaluate</code> shortcut and let the parser handle aggregates natively via <code>TExpressionFunctionNode</code>. This eliminates the <code>Expressions → Aggregates</code> dependency too, leaving:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>ExpressionParser.pas — no VittixReport dependencies beyond Context/Utils
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>Expressions.pas — uses ExpressionParser (only)
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>Aggregates.pas — uses ExpressionParser (only)
+</code></pre></div>
+<p>But this requires <code>TReportAggregates.TryEvaluate</code> to be kept for backward compatibility even though it's no longer called internally. Keep it as a legacy class function that delegates to <code>TExpressionEvaluator.EvaluateAggregate</code>.</p>
+<p><strong>Final dependency graph:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>Context.pas — no VittixReport deps (leaf)
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>Utils.pas — uses UserDataSet (one-way)
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>ExpressionParser.pas — uses Context, Utils (leaf-level)
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>Expressions.pas — uses ExpressionParser, Aggregates (Aggregates kept for legacy API)
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>Aggregates.pas — uses ExpressionParser (cycle eliminated)
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>All other units — use Expressions (unchanged)
+</code></pre></div></p>
+<p>If we want to also eliminate <code>Expressions → Aggregates</code>, we make <code>TReportAggregates.TryEvaluate</code> a thin wrapper that delegates to the new evaluator, and remove it from <code>Expressions.pas</code> in-uses. The <code>Expressions.pas</code> class function handles aggregates natively. This is the cleaner end state.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      VittixReport - Delphi VCL report component
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/ketandholakia/VittixReport" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.tracking", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

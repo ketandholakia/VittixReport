@@ -1,0 +1,3404 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Delphi VCL reporting component - designer, engine, preview, print and export">
+      
+      
+        <meta name="author" content="Ketan Dholakia">
+      
+      
+        <link rel="canonical" href="https://ketandholakia.github.io/VittixReport/technical-evaluation.html">
+      
+      
+        <link rel="prev" href="architecture-analysis.html">
+      
+      
+        <link rel="next" href="code-review.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Technical evaluation - VittixReport</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#vittixreport-technical-evaluation-report" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="index.html" title="VittixReport" class="md-header__button md-logo" aria-label="VittixReport" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            VittixReport
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Technical evaluation
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/ketandholakia/VittixReport" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ketandholakia/VittixReport
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="index.html" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="readme.html" class="md-tabs__link">
+          
+  
+  
+  Project
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="EVENTS.html" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="todo.html" class="md-tabs__link">
+          
+  
+  
+  Roadmap
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="Phase1-Characterization-and-Safety.html" class="md-tabs__link">
+          
+  
+  
+  Modernization
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="architecture-analysis.html" class="md-tabs__link">
+          
+  
+  
+  Analysis
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="https://github.com/ketandholakia/VittixReport/blob/main/LICENSE" class="md-tabs__link">
+        
+  
+  
+    
+  
+  License
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="index.html" title="VittixReport" class="md-nav__button md-logo" aria-label="VittixReport" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    VittixReport
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/ketandholakia/VittixReport" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ketandholakia/VittixReport
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="readme.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    README
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="user-manual.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User manual
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="developer-manual.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer manual
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="testing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="EVENTS.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Report events
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="designer.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Designer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="designer-icon-map.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Designer icon map
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="demo-app.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Demo application
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="demo-templates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Demo report templates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="regression-fixtures.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Regression fixtures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="branding.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Branding assets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Roadmap
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="todo.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TODO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="bug-queue.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bug queue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Designer-UX-Roadmap.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Designer UX roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="plan-embedded-image.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Embedded image plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="plan-text-expression-editor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Text expression editor plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="plan-vector-pdf.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vector PDF plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="plan-phase4i20.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4I-20 plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Modernization
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Modernization
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase1-Characterization-and-Safety.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 1 - characterization and safety
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase2-Data-Capability-and-Traversal-Diagnostics.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 2 - data capability and traversal diagnostics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase3-Performance-Foundations.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 3 - performance foundations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase4-Checkpoint.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4 - checkpoint
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase4A-Expression-Compatibility-Contract.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4A - expression compatibility contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase4B-Compatibility-Evaluator.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4B - compatibility evaluator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase4B2A-Modern-Expression-Semantics.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4B-2A - modern expression semantics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase4B2B-Modern-Expression-Implementation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4B-2B - modern expression implementation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="phase4b2b-closure-audit.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4B-2B - closure audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase4I-20-ExpressionEngineDesign.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4I-20 - expression engine design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase5-Quality-Benchmark-CI.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 5 - quality, benchmarking and CI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase6-Output-Coverage.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 6 - output coverage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Modernization-Residual-Audit.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Residual audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysis
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Analysis
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="architecture-analysis.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical evaluation
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="technical-evaluation.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-executive-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Executive Summary
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Executive Summary">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#strengths" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Strengths
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#risks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Risks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#strategic-recommendations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Strategic Recommendations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-detailed-findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Detailed Findings
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Detailed Findings">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-architecture-design-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Architecture &amp; Design Patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-report-object-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Report Object Model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-data-binding-expression-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 Data Binding &amp; Expression Engine
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24-rendering-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.4 Rendering Engine
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#25-designer-experience" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.5 Designer Experience
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#26-export-output-formats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.6 Export &amp; Output Formats
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#27-performance-resource-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.7 Performance &amp; Resource Management
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#28-grouping-sorting-advanced-layouts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.8 Grouping, Sorting &amp; Advanced Layouts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#29-extensibility-plugin-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.9 Extensibility &amp; Plugin Architecture
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#210-delphi-specific-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.10 Delphi-Specific Considerations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#211-comparison-benchmark" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.11 Comparison Benchmark
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#212-code-quality-maintainability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.12 Code Quality &amp; Maintainability
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-priority-ranked-improvement-roadmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Priority-Ranked Improvement Roadmap
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Priority-Ranked Improvement Roadmap">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#quick-wins-low-effort-high-impact" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Wins (Low effort, high impact)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#architectural-medium-effort-structural-improvement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architectural (Medium effort, structural improvement)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#strategic-high-effort-long-term-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Strategic (High effort, long-term value)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-risk-assessment-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Risk Assessment Matrix
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-a-unit-dependency-graph-simplified" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix A: Unit Dependency Graph (Simplified)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-b-test-inventory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix B: Test Inventory
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="code-review.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code review
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="code-review-v2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code review v2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="GAP-005-Page-Ownership-Audit.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GAP-005 page ownership audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="GAP-005-P3-Print-Audit.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GAP-005 print audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="GAP-005-Residual-Review.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GAP-005 residual review
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/ketandholakia/VittixReport/blob/main/LICENSE" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    License
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-executive-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Executive Summary
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Executive Summary">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#strengths" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Strengths
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#risks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Risks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#strategic-recommendations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Strategic Recommendations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-detailed-findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Detailed Findings
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Detailed Findings">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-architecture-design-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Architecture &amp; Design Patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-report-object-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Report Object Model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-data-binding-expression-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 Data Binding &amp; Expression Engine
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24-rendering-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.4 Rendering Engine
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#25-designer-experience" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.5 Designer Experience
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#26-export-output-formats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.6 Export &amp; Output Formats
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#27-performance-resource-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.7 Performance &amp; Resource Management
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#28-grouping-sorting-advanced-layouts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.8 Grouping, Sorting &amp; Advanced Layouts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#29-extensibility-plugin-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.9 Extensibility &amp; Plugin Architecture
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#210-delphi-specific-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.10 Delphi-Specific Considerations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#211-comparison-benchmark" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.11 Comparison Benchmark
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#212-code-quality-maintainability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.12 Code Quality &amp; Maintainability
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-priority-ranked-improvement-roadmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Priority-Ranked Improvement Roadmap
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Priority-Ranked Improvement Roadmap">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#quick-wins-low-effort-high-impact" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Wins (Low effort, high impact)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#architectural-medium-effort-structural-improvement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architectural (Medium effort, structural improvement)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#strategic-high-effort-long-term-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Strategic (High effort, long-term value)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-risk-assessment-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Risk Assessment Matrix
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-a-unit-dependency-graph-simplified" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix A: Unit Dependency Graph (Simplified)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-b-test-inventory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix B: Test Inventory
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<p><em>Source: <code>VITTORIX_REPORT_TECHNICAL_EVALUATION.md</code></em></p>
+<h1 id="vittixreport-technical-evaluation-report">VittixReport — Technical Evaluation Report<a class="headerlink" href="#vittixreport-technical-evaluation-report" title="Link to this section">&para;</a></h1>
+<p><strong>Date:</strong> August 2026<br />
+<strong>Evaluator:</strong> Solar Pro4 (Upstage AI)<br />
+<strong>Scope:</strong> Full architectural, functional, and code-quality assessment of the VittixReport Delphi VCL reporting engine</p>
+<hr />
+<h2 id="1-executive-summary">1. Executive Summary<a class="headerlink" href="#1-executive-summary" title="Link to this section">&para;</a></h2>
+<h3 id="strengths">Strengths<a class="headerlink" href="#strengths" title="Link to this section">&para;</a></h3>
+<ul>
+<li><strong>Clean separation of engine/renderer/serializer:</strong> The TReportEngine, TReportRenderer, and TReportSerializer are well-isolated and testable in isolation.</li>
+<li><strong>Modern serialization format:</strong> JSON-based <code>.vrt</code> files with versioning, field-name embedding, and clone support — significantly more portable than binary DFM.</li>
+<li><strong>Abstract data-layer interface:</strong> <code>IReportDataSource</code>, <code>TVittixUserDataSet</code>, and named-dataset resolution decouple the engine from BDE/FireDAC/ADO.</li>
+<li><strong>Extensive object model:</strong> Bands, text, labels, fields, shapes, images, memos, sub-reports, lines, tables, cross-tabs, charts, barcodes — competitive breadth.</li>
+<li><strong>Expression engine:</strong> Custom parser with system tokens, field tokens, arithmetic, comparisons, boolean literals, and aggregate functions — all without external script dependencies.</li>
+<li><strong>Vector PDF exporter:</strong> Hand-written PDF 1.4 generator with embedded TrueType fonts viausp10.dll shaping, PNG/JPEG image XObjects, and alpha masks — a serious engineering effort.</li>
+<li><strong>Undo/redo infrastructure:</strong> Full command-pattern system with move, resize, insert, delete, z-order, property-change, font-change, page-settings, and metadata commands.</li>
+<li><strong>Designer integration:</strong> VCL-based designer with toolbox, property panel, structure tree, align/distribute commands, zoom, grid/snap, rulers, and expression editors.</li>
+<li><strong>Test coverage:</strong> DUnitX tests exist for engine dataset-state preservation, footer page-break recursion, and serializer round-trips/cloning/clipboard.</li>
+</ul>
+<h3 id="risks">Risks<a class="headerlink" href="#risks" title="Link to this section">&para;</a></h3>
+<ul>
+<li><strong>PDF export fragility:</strong> TReportPDFExporter depends on "Microsoft Print to PDF" virtual printer driver; silent failures when the driver is missing or reconfigured.</li>
+<li><strong>Print fidelity path:</strong> Renderer uses StretchDraw of metafiles/bitmaps to printer canvas — not GDI-metafile playback — so printer-output sharpness depends on printer DPI and may diverge from preview.</li>
+<li><strong>Legacy data-source coupling remains:</strong> TVittixReport still exposes DataSource and falls back to FDataSource.DataSet; dual paths duplicate resolution logic.</li>
+<li><strong>Expression engine limitations:</strong> No parentheses, no functions beyond aggregates, no string manipulation, no date arithmetic, no user-defined variables beyond simple name/value pairs.</li>
+<li><strong>Chart/cross-tab/maturity:</strong> Charts are GDI-drawn pie/bar/line only; cross-tab builds in-memory matrix with O(n²) dictionary lookups — fine for small data but not for large datasets.</li>
+<li><strong>64-bit pointer arithmetic risk:</strong> Vector PDF exporter uses NativeInt/Int64 bookmark comparisons and some AnsiString Pascal scripting — must be audited for 64-bit.</li>
+<li><strong>Single-threaded engine:</strong> No synchronization in engine; TReportEngine is not thread-safe; background generation would require a wrapper.</li>
+</ul>
+<h3 id="strategic-recommendations">Strategic Recommendations<a class="headerlink" href="#strategic-recommendations" title="Link to this section">&para;</a></h3>
+<ol>
+<li><strong>Replace printer-driver PDF with pure-vector path as default</strong> once Vector PDF is production-ready; deprecate Microsoft Print to PDF path.</li>
+<li><strong>Unify data resolution</strong> to the UserDataSet path and remove legacy DataSource fallback or gate it behind a conditional symbol.</li>
+<li><strong>Strengthen expression engine</strong> with parentheses, string functions, date functions, and user variables scoped to band/group/page — without a full script engine.</li>
+<li><strong>Formalize plugin/extension contract</strong> with <code>IReportPlugin</code> already declared but not wired; expose object registration and export-filter registration.</li>
+<li><strong>Add visual regression tests</strong> for preview/export parity; automate comparison of metafile content across preview and export paths.</li>
+</ol>
+<hr />
+<h2 id="2-detailed-findings">2. Detailed Findings<a class="headerlink" href="#2-detailed-findings" title="Link to this section">&para;</a></h2>
+<h3 id="21-architecture-design-patterns">2.1 Architecture &amp; Design Patterns<a class="headerlink" href="#21-architecture-design-patterns" title="Link to this section">&para;</a></h3>
+<p><strong>Overall pattern:</strong> Component-based layered architecture. The core layer (Model, Objects, Bands, Context, Expressions, Aggregates, PageSettings, Interfaces) sits at the bottom; the engine layer (Engine, LayoutPagination, LayoutCache, LayoutBookmarks, Scripting, UserDataSet, DataSources) builds on it; the rendering/export layer (Renderer, Export*) sits above; the designer and component layer (Component, DesignerControl, DesignerInteraction, Undo, PropertyBridge, Toolbox, Reg) sit at the top.</p>
+<p><strong>Separation of concerns:</strong></p>
+<ul>
+<li>Engine owns pagination, band loop, group detection, and page construction. It does not draw — it emits metafiles and export commands.</li>
+<li>Renderer owns metafile→bitmap conversion and printer metafile playback.</li>
+<li>Serializer owns JSON persistence.</li>
+<li>Designer owns interactive manipulation, selection, undo/redo, property editing.</li>
+</ul>
+<p>This is a healthy separation. The engine is testable without the designer; the serializer is testable without the engine.</p>
+<p><strong>Delphi-specific patterns:</strong></p>
+<ul>
+<li><code>TComponent</code> ownership is used for <code>TVittixReport</code> and <code>TVittixUserDataSet</code> — good.</li>
+<li>Streaming is JSON-based, not DFM-based — good for portability.</li>
+<li>RTTI is used in <code>TPropertyChangeCommand</code> and <code>TReportPropertyBridge</code> — appropriate for property editing and undo.</li>
+<li>Class-of registry (<code>TReportObjectClass</code>) and <code>RegisterReportObject</code> enable extensibility — good.</li>
+</ul>
+<p><strong>Inheritance hierarchy:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>TPersistent
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  TReportObject (published: Bounds, Visible, PrintWhen, OnBeforePrint, OnAfterPrint, AnchorRight, AnchorBottom, PageBreakBefore, PageBreakAfter, Locked)
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    TReportTextObject (Font, HAlign, VAlign, Background, Transparent, Border*, WordWrap, AutoSize, Padding*, conditional styles)
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>      TReportLabelObject
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>      TReportFieldObject (DisplayFormat, EditMask)
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>      TReportMemoObject (AutoHeight, MinHeight, AllowHTML)
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    TReportShapeObject
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    TReportImageObject (Picture, cached image, DataField, Stretch, Center, Proportional, Border*)
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    TReportSubReportObject (ReportJSON, DataSetName, MasterField, DetailField, Border*)
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    TReportLineObject (Orientation, ExtendToPageBottom)
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    TReportBarcodeObject (Value, DataField, Symbology, ShowText, BarColor, BackgroundColor)
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    TReportTableObject (Rows, Cols, HeaderRows, GridColor, HeaderColor)
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    TReportCrossTabObject (DataSetName, RowField, ColumnField, CellField, Aggregate, totals, fonts, CellFormat)
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    TReportChartObject (ChartType, DataSetName, DataFieldLabel, DataFieldValue, Title, ShowLegend)
+</code></pre></div>
+<p><code>TReportBand</code> also descends from <code>TReportObject</code> but adds children, band-type, data-binding, group, can-grow/shrink, background conditions, and page-override properties.</p>
+<p>The hierarchy is shallow and composable. Bands contain children; objects are not nested otherwise. This is appropriate for reporting.</p>
+<p><strong>Database coupling:</strong> The engine primarily uses <code>TDataSet</code> and <code>TVittixUserDataSet</code>. <code>IReportDataSource</code> is declared with JSON/CSV/REST scaffolds that raise "not implemented" — showing intent but no production implementation. The engine knows about <code>Data.DB</code> directly, which is fine for VCL reporting, but limits cross-platform potential. The dual resolution path (UserDataSet first, DataSource fallback) creates two code paths.</p>
+<p><strong>Verdict:</strong> Clean layered architecture. Inheritance is shallow and extensible. Data abstraction exists but is incomplete.</p>
+<hr />
+<h3 id="22-report-object-model">2.2 Report Object Model<a class="headerlink" href="#22-report-object-model" title="Link to this section">&para;</a></h3>
+<p><strong>Object catalog:</strong></p>
+<ul>
+<li>Bands: ReportTitle, PageHeader, MasterData, PageFooter, ReportSummary, GroupHeader, GroupFooter, ColumnHeader, Detail, Overlay — 10 band types.</li>
+<li>Text objects: Text, Label, Field, Memo — 4 types.</li>
+<li>Shapes: Rectangle, RoundRect, Ellipse, Line, DiagonalLine — 5 types.</li>
+<li>Image, SubReport, Line, Barcode — 4 types.</li>
+<li>Table, CrossTab, Chart — 3 advanced objects.</li>
+</ul>
+<p><strong>Composite pattern:</strong> Bands own children via <code>TObjectList&lt;TReportObject&gt;</code>. Objects are not nested beyond bands. This is a limited composite — appropriate for reporting but means no nested containers (e.g., grouped frames).</p>
+<p><strong>Property serialization:</strong></p>
+<ul>
+<li>JSON with <code>Version</code> key (currently 2).</li>
+<li>Per-class serializers registered in <code>GSerializers</code> dictionary, with inheritance-aware lookup.</li>
+<li>Base serializer writes common properties; subclass serializers write specific ones.</li>
+<li>Versioning strategy: <code>LoadFromJSON</code> reads <code>Version</code> and passes it to <code>JSONToObjectEx</code>; v1 files without <code>Children</code> arrays still load.</li>
+<li><code>CloneObject</code> and <code>CloneReport</code> provide deep cloning via JSON round-trip.</li>
+</ul>
+<p><strong>Z-ordering:</strong> The flat <code>Objects</code> list in <code>TReportModel</code> and <code>Children</code> list in <code>TReportBand</code> imply z-order = list order. <code>TZOrderCommand</code> supports bring-to-front/send-to-back. No explicit z-index property.</p>
+<p><strong>Anchoring:</strong> <code>AnchorRight</code> and <code>AnchorBottom</code> properties exist on <code>TReportObject</code> but are not actively applied during rendering — they are persisted but appear to be design-time/layout hints only.</p>
+<p><strong>Layout constraints:</strong> <code>CanGrow</code>/<code>CanShrink</code> on bands, <code>AutoSize</code>/<code>WordWrap</code> on text objects, <code>AutoHeight</code> on memos. These are rendering-time calculations, not constraints solved by a layout engine.</p>
+<p><strong>Master-detail:</strong> Supported via <code>MasterField</code>/<code>DetailField</code> on bands, with lookup by field value. Sub-reports have their own <code>DataSetName</code>/<code>MasterField</code>/<code>DetailField</code>. This is functional.</p>
+<p><strong>Verdict:</strong> Object model is comprehensive and serializable. Composite is band-scoped. Anchoring and layout constraints are present but limited.</p>
+<hr />
+<h3 id="23-data-binding-expression-engine">2.3 Data Binding &amp; Expression Engine<a class="headerlink" href="#23-data-binding-expression-engine" title="Link to this section">&para;</a></h3>
+<p><strong>Data binding:</strong></p>
+<ul>
+<li>Bands bind to datasets via <code>DataSetName</code> (named dataset lookup) or fall back to primary dataset.</li>
+<li>Text objects bind via <code>DataField</code> (reads <code>SafeSourceFieldAsString</code> / <code>SafeSourceFieldValue</code>).</li>
+<li>Field objects add <code>DisplayFormat</code> and <code>EditMask</code>.</li>
+<li>Images bind via <code>DataField</code> (file path or base64).</li>
+<li>Memos bind via <code>DataField</code> with multi-line support.</li>
+<li>Barcodes bind via <code>DataField</code>.</li>
+<li>Charts and cross-tabs bind via <code>DataSetName</code> + field selectors.</li>
+</ul>
+<p><strong>Expression parser/evaluator:</strong></p>
+<ul>
+<li>Custom <code>TReportExpression.Evaluate</code> in <code>Vittix.Report.Expressions</code>.</li>
+<li>Evaluation order: aggregate functions → system tokens → field tokens → quoted strings → boolean literals → comparisons → arithmetic → numeric fallback → string fallback.</li>
+<li>Aggregate functions: <code>SUM</code>, <code>COUNT</code>, <code>AVG</code>, <code>MIN</code>, <code>MAX</code> — evaluated over dataset range bounded by group bookmarks.</li>
+<li>System tokens: <code>[PageNo]</code>, <code>[TotalPages]</code>, <code>[RowNumber]</code>, <code>[Param.Name]</code>, <code>[ReportTitle]</code>, <code>[ReportDate]</code>, <code>[DateTime]</code>, <code>[Time]</code>, <code>[RecNo]</code>.</li>
+<li>Field tokens: <code>[FieldName]</code> and qualified <code>[DataSetName.FieldName]</code>.</li>
+<li>Arithmetic: <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code> on resolved numeric values.</li>
+<li>Comparisons: <code>&lt;=</code>, <code>&gt;=</code>, <code>&lt;&gt;</code>, <code>=</code>, <code>&lt;</code>, <code>&gt;</code> with numeric or string comparison.</li>
+<li>String literals: <code>'text'</code>.</li>
+<li>Boolean literals: <code>true</code>, <code>false</code>.</li>
+</ul>
+<p><strong>Aggregate functions:</strong></p>
+<ul>
+<li>Implemented in <code>TReportAggregates.TryEvaluate</code>.</li>
+<li>Scoped by <code>GroupStart</code>/<code>GroupEnd</code> bookmarks — so aggregates can be group-local.</li>
+<li>The bookmark leak bug (calling <code>GetBookmark</code> in loop without freeing) was fixed.</li>
+<li>Performance: each aggregate call traverses the dataset from group start to group end — O(n) per call per row. No caching. For multiple aggregates on the same range, this is repeated traversal.</li>
+</ul>
+<p><strong>Parameters and variables:</strong></p>
+<ul>
+<li><code>TReportEngine.Parameters</code> (TStrings) for runtime parameters, referenced as <code>[Param.Name]</code>.</li>
+<li><code>TReportModel.Variables</code> (TStrings name=value) for design-time constants, referenced as <code>[VarName]</code>.</li>
+<li>No page-level or group-level variable scoping beyond the group bookmark mechanism.</li>
+</ul>
+<p><strong>Null handling:</strong></p>
+<ul>
+<li><code>VarIsNull</code>/<code>VarIsEmpty</code> checks in expression evaluator and field resolution.</li>
+<li><code>SafeSourceFieldAsString</code> and <code>SafeSourceFieldValue</code> in <code>Vittix.Report.Utils</code> guard against missing fields and inactive datasets.</li>
+<li><code>FormatFieldDisplayValue</code> handles <code>VarIsNull</code> → empty string.</li>
+<li>Conditional expressions return <code>False</code> on exception.</li>
+</ul>
+<p><strong>Data type coercion:</strong></p>
+<ul>
+<li>Field values read as string via <code>AsString</code>; for aggregates, <code>ValVar</code> is coerced to <code>Double</code> via <code>VarAsType</code>.</li>
+<li><code>FormatFieldDisplayValue</code> handles <code>varDate</code> → <code>FormatDateTime</code>, numeric → <code>FormatFloat</code>, fallback to <code>Format</code>.</li>
+<li><code>EditMask</code> applied via <code>FormatMaskText</code>.</li>
+</ul>
+<p><strong>Verdict:</strong> Expression engine is functional for common reporting needs but lacks parentheses, functions beyond aggregates, string/date manipulation, and advanced scoping. Aggregate performance could degrade with many aggregates on large datasets.</p>
+<hr />
+<h3 id="24-rendering-engine">2.4 Rendering Engine<a class="headerlink" href="#24-rendering-engine" title="Link to this section">&para;</a></h3>
+<p><strong>Pipeline:</strong></p>
+<ol>
+<li><code>TReportEngine.Prepare</code> iterates bands/datasets, calling <code>PrintBand</code>.</li>
+<li><code>PrintBand</code> creates a metafile canvas (<code>TMetafileCanvas</code>) on a <code>TMetafile</code>, sets viewport origin to margins, clips to printable area, calls <code>ABand.Draw(FCanvas, Ctx)</code>.</li>
+<li>Each object's <code>Draw</code> uses GDI <code>TCanvas</code> operations: <code>Rectangle</code>, <code>FillRect</code>, <code>TextOut</code>, <code>DrawText</code>, <code>StretchDraw</code>, <code>MoveTo</code>/<code>LineTo</code>, <code>Ellipse</code>, <code>Pie</code>, <code>RoundRect</code>.</li>
+<li>After each page is complete, <code>EndCurrentPage</code> finalizes the metafile and adds it to <code>FPages</code>.</li>
+<li><code>TReportRenderer.Render</code> copies each engine metafile into a <code>TRenderPage</code> (bitmap + metafile), then <code>TReportRenderer.Print</code> stretches each bitmap onto the printer canvas.</li>
+</ol>
+<p><strong>Output fidelity:</strong></p>
+<ul>
+<li>Designer uses the same <code>Draw</code> methods for preview (design-time canvas).</li>
+<li>Preview uses <code>TReportRenderer</code> with metafile→bitmap→canvas.</li>
+<li>Print uses <code>StretchDraw</code> of bitmaps to printer canvas — not metafile playback. This means print output is rasterized at printer DPI, which can cause blurring on high-DPI printers and divergence from preview.</li>
+<li>Vector PDF exporter captures export commands during rendering and writes true vector PDF — but this is a separate code path, not the print path.</li>
+</ul>
+<p><strong>Pagination:</strong></p>
+<ul>
+<li><code>BandFitsOnPage</code> checks if <code>CurrentY + RequiredHeight &lt;= PageHeight - BottomMargin - FooterHeight</code>.</li>
+<li><code>EnsurePageSpaceForBand</code> starts a new page if not enough space.</li>
+<li><code>CanGrow</code>/<code>CanShrink</code> bands compute effective height via <code>MeasuredBottom</code> of children.</li>
+<li><code>StartNewPage</code> increments <code>FPageNumber</code>, creates new metafile.</li>
+<li>Footer is forced to bottom of page in <code>EndCurrentPage</code>.</li>
+<li>Overlay band is drawn last over full page.</li>
+<li><code>PageBreakBefore</code>/<code>PageBreakAfter</code> on objects trigger new pages.</li>
+<li><code>StartNewPage</code> on bands forces new page.</li>
+</ul>
+<p><strong>Widow/orphan control:</strong> Not explicitly implemented. <code>EnsurePageSpaceForBand</code> prevents bands from starting if they don't fit, but there's no logic to keep a minimum number of lines together or move orphaned lines to next page.</p>
+<p><strong>Keep-together:</strong> Not implemented as a property. Bands with <code>CanGrow</code> can expand, but there's no "keep this object with the next" logic.</p>
+<p><strong>DPI awareness:</strong> All dimensions are in pixels at 96 DPI. <code>TReportPageSettings</code> uses 96 DPI presets. The vector PDF exporter converts pixels to PDF points via <code>PDF_POINTS_PER_PIXEL = 72/96</code>. Printer output uses <code>StretchDraw</code> which scales to printer DPI — so output is DPI-dependent.</p>
+<p><strong>Background rendering:</strong> Overlay band supports watermark/stamp use case. No explicit watermark object, but overlay band with text/image children can serve this purpose.</p>
+<p><strong>Layers:</strong> No explicit layer/z-index system beyond list order. Overlay band is a special full-page layer drawn last.</p>
+<p><strong>Verdict:</strong> Rendering pipeline is functional and uses metafiles for preview. Print path rasterizes via StretchDraw — this is the weakest link for print fidelity. Pagination is functional but lacks advanced widow/orphan/keep-together rules.</p>
+<hr />
+<h3 id="25-designer-experience">2.5 Designer Experience<a class="headerlink" href="#25-designer-experience" title="Link to this section">&para;</a></h3>
+<p><strong>Visual designer:</strong> <code>TVittixReportDesigner</code> (in <code>Vittix.Report.DesignerControl</code>) is a custom control hosting the canvas. Bands are laid out vertically with headers showing band type and height. Objects are drawn within bands.</p>
+<p><strong>Drag-and-drop:</strong> Toolbox items can be dragged onto the designer. Fields from the dataset fields panel can be double-clicked or dragged into bands. The <code>DesignerDragOver</code>/<code>DesignerDragDrop</code> events handle this.</p>
+<p><strong>Alignment guides:</strong> <code>DesignerSnapToObjects</code> implements snap-to-object guides with threshold. <code>DesignerSnapV</code> implements grid snap. Rulers, grid, and margins are toggleable view options.</p>
+<p><strong>Property editors:</strong> <code>TReportPropertyBridge</code> uses RTTI to load/save published properties to a <code>TValueListEditor</code>. Special handling exists for font, color, expression, and script properties via dedicated editors and clickable buttons.</p>
+<p><strong>Component palette integration:</strong> <code>TVittixReport</code> has a custom component editor (<code>TVittixReportComponentEditor</code>) with verbs to launch the designer. <code>TVittixReportToolbox</code> is a registered component. <code>TVittixUserDataSet</code> is registered in the palette.</p>
+<p><strong>Undo/redo:</strong> <code>TCommandManager</code> with <code>TUndoableAction</code> commands. Commands include: <code>TMoveObjectCommand</code>, <code>TMultiMoveCommand</code>, <code>TInsertObjectCommand</code>, <code>TDeleteObjectsCommand</code>, <code>TBandResizeCommand</code>, <code>TDeleteBandCommand</code>, <code>TZOrderCommand</code>, <code>TPropertyChangeCommand</code>, plus designer-level commands for font, image picture, page settings, report snapshot, and metadata.</p>
+<p><strong>Script/expression editor:</strong> <code>Frm.ExpressionEditor</code>, <code>Frm.TextExpressionEditor</code>, <code>Frm.ScriptEditor</code> forms provide expression and script editing. The script engine (<code>TReportScriptEngine</code>) is a stub that fires events — the actual script execution is implemented by the host (e.g., runtime demo). There is no built-in PascalScript/DWScript integration.</p>
+<p><strong>Clipboard:</strong> <code>TReportSerializer.SerializeObjectListToJSON</code>/<code>DeserializeObjectListFromJSON</code> implement clipboard serialization with <code>VittixClipboard.1.0</code> format. Copy/paste in designer uses this.</p>
+<p><strong>Verdict:</strong> Designer is functional with toolbox, property panel, structure tree, align/distribute, undo/redo, and expression editors. Script editor lacks a real scripting backend. No syntax highlighting for expressions is evident.</p>
+<hr />
+<h3 id="26-export-output-formats">2.6 Export &amp; Output Formats<a class="headerlink" href="#26-export-output-formats" title="Link to this section">&para;</a></h3>
+<p><strong>Supported formats:</strong></p>
+<ul>
+<li>PDF (via Microsoft Print to PDF printer driver)</li>
+<li>Vector PDF (pure-vector, beta)</li>
+<li>HTML (absolute-positioned divs, inline SVG for lines, base64-embedded images)</li>
+<li>XLSX (Open XML, single sheet, text-only cells, auto column widths)</li>
+<li>Text (tab-separated, band-ordered)</li>
+<li>Email (sends PDF via email — uses Microsoft Print to PDF path)</li>
+</ul>
+<p><strong>PDF generation:</strong></p>
+<ul>
+<li><code>TReportPDFExporter</code> prints to "Microsoft Print to PDF" virtual printer. This is fragile — depends on driver presence and configuration.</li>
+<li><code>TReportVectorPDFExporter</code> is a hand-written PDF 1.4 generator. It captures export commands during rendering (text, lines, rectangles, fills, images), builds content streams, embeds TrueType fonts via <code>usp10.dll</code> ScriptItemize/ScriptShape/ScriptPlace, embeds JPEG/PNG images as XObjects, and writes cross-reference tables. This is a substantial engineering effort.</li>
+</ul>
+<p><strong>Excel export:</strong></p>
+<ul>
+<li><code>TReportXLSXExporter</code> creates a minimal XLSX with one sheet, styles.xml with 3 font styles (normal, bold, bold-italic), auto column widths, numeric/date detection.</li>
+<li>Does not preserve formulas, multiple sheets, cell merging, borders, or full formatting. Text-only.</li>
+</ul>
+<p><strong>HTML export:</strong></p>
+<ul>
+<li>Absolute-positioned <code>div</code> elements for text, rectangles, fills, lines (SVG), images (base64 or file://).</li>
+<li>CSS for print media.</li>
+<li>No real flow layout; positions are pixel-exact from the report design.</li>
+<li>Modern browser compatible for viewing, but not a flowing HTML document.</li>
+</ul>
+<p><strong>Streaming architecture:</strong></p>
+<ul>
+<li>PDF: file-based via printer driver; vector PDF supports stream-based output.</li>
+<li>HTML: file or stream via <code>TStreamWriter</code>.</li>
+<li>XLSX: file or stream via <code>TZipFile</code>.</li>
+<li>Text: file via <code>TStringList.SaveToFile</code>.</li>
+</ul>
+<p><strong>Verdict:</strong> Multiple export formats exist. Vector PDF is impressive but still beta. PDF via printer driver is fragile. Excel export is minimal. HTML export is pixel-positioned, not flowing.</p>
+<hr />
+<h3 id="27-performance-resource-management">2.7 Performance &amp; Resource Management<a class="headerlink" href="#27-performance-resource-management" title="Link to this section">&para;</a></h3>
+<p><strong>Memory management:</strong></p>
+<ul>
+<li><code>TObjectList&lt;T&gt;</code> with <code>OwnsObjects=True</code> is used consistently for owned collections.</li>
+<li><code>try/finally</code> blocks are used for <code>TFont</code>, <code>TPicture</code>, <code>TMetafile</code>, <code>TBitmap</code>, <code>TMemoryStream</code>, <code>TFileStream</code>.</li>
+<li><code>TVittixUserDataSet</code> uses <code>TComponent</code> ownership and <code>FreeNotification</code>.</li>
+<li><code>TVittixReport</code> cleans up <code>FUserDataSets</code>, <code>FParameters</code> in destructor.</li>
+<li><code>TReportEngine</code> frees <code>FCanvas</code>, <code>FCurrentPage</code>, <code>FPages</code>, <code>FNamedDataSets</code>, <code>FNamedUserDataSets</code>, <code>FParameters</code>, <code>FScriptEngine</code>, <code>FGroupHeaders</code>, <code>FGroupFooters</code>, <code>FDetailBands</code>, and bookmarks.</li>
+</ul>
+<p><strong>Potential leaks:</strong></p>
+<ul>
+<li>Image cache in <code>TReportImageObject</code> (<code>FCachedPicture</code>, <code>FCachedImagePath</code>, <code>FCachedImageValid</code>) — <code>ResetImageCache</code> is called at the start of each pass, which is good.</li>
+<li><code>TReportCrossTabObject</code> owns several <code>TList&lt;Variant&gt;</code> and <code>TDictionary</code> objects — all freed in destructor. Good.</li>
+<li><code>TReportChartObject</code> owns <code>TList&lt;TChartDataPoint&gt;</code> — freed in destructor. Good.</li>
+<li><code>TReportExportDocument</code> and <code>TReportExportPage</code> own command lists — freed correctly.</li>
+</ul>
+<p><strong>Dataset cursor strategy:</strong></p>
+<ul>
+<li>Engine uses <code>First</code>/<code>Next</code> iteration with <code>DisableControls</code>/<code>EnableControls</code>.</li>
+<li>Bookmarks used for group start/end and for detail band master-field matching.</li>
+<li><code>SafeRecordCount</code> used for progress total — may fetch all records for some dataset types.</li>
+<li><code>TVittixUserDataSet</code> can wrap any data source; for <code>TDataSet</code> backing, it uses the dataset directly.</li>
+</ul>
+<p><strong>Report generation speed:</strong></p>
+<ul>
+<li>Two-pass rendering doubles the work for reports with <code>TwoPassRendering=True</code> (default).</li>
+<li>Aggregate functions traverse the dataset range on each evaluation — no caching.</li>
+<li>Cross-tab builds in-memory matrix via dictionary lookups — O(n) traversal with O(1) lookup per cell, but dictionary operations add overhead.</li>
+<li>Charts traverse dataset once to build data points.</li>
+<li>For 10k+ records, the main cost is the per-row band drawing and any per-row expression evaluation. The engine is single-threaded.</li>
+</ul>
+<p><strong>Double-buffering:</strong> Not used in the engine. Preview uses metafile playback. Designer uses direct canvas drawing with selection handles.</p>
+<p><strong>Thread safety:</strong> <code>TReportEngine</code> has no synchronization. <code>GRegistryCS</code> in <code>Vittix.Report.Objects</code> protects the object registry. <code>TReportScriptEngine</code> is a <code>TComponent</code> and not thread-safe. The engine cannot be used from background threads without external synchronization.</p>
+<p><strong>Verdict:</strong> Memory management is generally sound. Performance for large datasets is acceptable for GDI-based rendering but not optimized. Thread safety is not a design goal.</p>
+<hr />
+<h3 id="28-grouping-sorting-advanced-layouts">2.8 Grouping, Sorting &amp; Advanced Layouts<a class="headerlink" href="#28-grouping-sorting-advanced-layouts" title="Link to this section">&para;</a></h3>
+<p><strong>Grouping:</strong></p>
+<ul>
+<li><code>TReportBand</code> with <code>btGroupHeader</code>/<code>btGroupFooter</code> types.</li>
+<li><code>GroupField</code> specifies the field to group by.</li>
+<li><code>GroupLevel</code> allows nested groups.</li>
+<li>Engine detects group breaks by comparing <code>FLastGroupValues</code> with current field value.</li>
+<li>Group start/end bookmarks bound aggregate ranges.</li>
+<li>Multiple group headers/footers supported via <code>FGroupHeaders</code>/<code>FGroupFooters</code> lists.</li>
+<li><code>StartNewPage</code> on group headers forces page break.</li>
+</ul>
+<p><strong>Sorting:</strong> Not explicitly supported. Dataset sorting must be done before binding. No sort expression or sort order property on bands.</p>
+<p><strong>Cross-tab/matrix:</strong></p>
+<ul>
+<li><code>TReportCrossTabObject</code> with <code>RowField</code>, <code>ColumnField</code>, <code>CellField</code>, <code>Aggregate</code>.</li>
+<li>Builds in-memory matrix with row/column/value dictionaries.</li>
+<li>Supports row/column grand totals.</li>
+<li>Supports <code>caSum</code>, <code>caCount</code>, <code>caMin</code>, <code>caMax</code>, <code>caAverage</code>, <code>caNone</code>.</li>
+<li>Sorts row/column axes via <code>TComparer&lt;Variant&gt;.Default</code>.</li>
+<li>Draws grid with header row/column and cell values.</li>
+</ul>
+<p><strong>Drill-down/interactive:</strong> No hyperlink or drill-down support. No interactive report features.</p>
+<p><strong>Multi-column/newspaper-style:</strong> Not supported. <code>btColumnHeader</code> exists but is for repeating column headers after group breaks, not for multi-column layout.</p>
+<p><strong>Label/sticker layout:</strong> Not supported.</p>
+<p><strong>Overflow handling:</strong></p>
+<ul>
+<li><code>TReportMemoObject</code> with <code>AutoHeight</code> and <code>WordWrap</code> handles multi-line text with dynamic height.</li>
+<li><code>TReportTextObject</code> with <code>AutoSize</code> and <code>WordWrap</code> can grow.</li>
+<li><code>TReportBand</code> with <code>CanGrow</code>/<code>CanShrink</code> can adjust height based on child content.</li>
+<li><code>MeasuredBottom</code> on memo/text objects computes text height for pagination.</li>
+</ul>
+<p><strong>Verdict:</strong> Grouping is functional with nested groups and aggregate scoping. Cross-tab is functional for moderate data. Sorting, drill-down, multi-column, and label layouts are not supported. Overflow handling is basic but functional for memos.</p>
+<hr />
+<h3 id="29-extensibility-plugin-architecture">2.9 Extensibility &amp; Plugin Architecture<a class="headerlink" href="#29-extensibility-plugin-architecture" title="Link to this section">&para;</a></h3>
+<p><strong>Custom component registration:</strong></p>
+<ul>
+<li><code>RegisterReportObject</code> and <code>GetRegisteredReportObjects</code> in <code>Vittix.Report.Core</code> / <code>Vittix.Report.Objects</code>.</li>
+<li><code>TVittixReportToolbox</code> reads from <code>GetRegisteredReportObjects</code> to populate toolbox.</li>
+<li><code>GSerializers</code> dictionary in <code>Vittix.Report.Serializer</code> maps object classes to serializers — third-party objects need a serializer.</li>
+<li><code>FindObjectClass</code> looks up by class name for deserialization.</li>
+</ul>
+<p><strong>Event hooks:</strong></p>
+<ul>
+<li><code>OnBeforePrintReport</code>, <code>OnAfterPrintReport</code>, <code>OnBeforeBand</code>, <code>OnAfterBand</code>, <code>OnBeforeObject</code>, <code>OnAfterObject</code> on <code>TReportEngine</code>.</li>
+<li><code>OnBeforePrint</code>/<code>OnAfterPrint</code> on bands and objects (string properties holding script names).</li>
+<li><code>OnBeforeObjectPrint</code>/<code>OnAfterObjectPrint</code> render hooks via <code>IReportRenderHooks</code>.</li>
+<li><code>OnLargeReport</code> on <code>TVittixReport</code> for progress/cancellation.</li>
+</ul>
+<p><strong>Plugin system:</strong></p>
+<ul>
+<li><code>IReportPlugin</code> interface declared in <code>Vittix.Report.Interfaces</code> but not wired.</li>
+<li><code>IReportExporter</code> interface for export filters — implemented by PDF, VectorPDF, HTML, XLSX, Text exporters. <code>ExportWith</code> on <code>TVittixReport</code> accepts any <code>IReportExporter</code>.</li>
+<li><code>IReportProgress</code> for progress/cancellation.</li>
+<li>No dynamic plugin loading (packages/BPLs) — extensions are compile-time.</li>
+</ul>
+<p><strong>Scriptable extension points:</strong></p>
+<ul>
+<li><code>TReportScriptEngine</code> is a stub that fires <code>OnBeforePrint</code>, <code>OnAfterPrint</code>, <code>OnObjectBeforePrint</code>, <code>OnObjectAfterPrint</code> events. The host implements the actual script execution.</li>
+<li><code>OnBeforePrint</code>/<code>OnAfterPrint</code> on bands/objects are strings that reference script names — resolved by the script engine.</li>
+<li>No built-in script engine (PascalScript, DWScript, FastScript) is integrated.</li>
+</ul>
+<p><strong>Template/style inheritance:</strong> No template system. No style inheritance. <code>CloneReport</code>/<code>CloneObject</code> provide copying but no inheritance hierarchy.</p>
+<p><strong>Verdict:</strong> Extension points exist (object registry, serializers, export interface, event hooks) but plugin system is incomplete. Scripting is stubbed. No template/style inheritance.</p>
+<hr />
+<h3 id="210-delphi-specific-considerations">2.10 Delphi-Specific Considerations<a class="headerlink" href="#210-delphi-specific-considerations" title="Link to this section">&para;</a></h3>
+<p><strong>Unicode support:</strong> Uses <code>System.UTF8</code> for file I/O (<code>TFile.ReadAllText</code>/<code>WriteAllText</code> with <code>TEncoding.UTF8</code>), <code>TNetEncoding.Base64</code> for image embedding, and <code>WideCharToMultiByte</code> in Vector PDF for font text mapping. <code>TReportExpression</code> uses <code>AnsiString</code> for some PDF text operations but the core is Unicode. The <code>AnsiString</code> usage in Vector PDF exporter should be audited.</p>
+<p><strong>Platform support:</strong> VCL-only. No FireMonkey (FMX) support. All rendering uses VCL <code>TCanvas</code>, <code>TBitmap</code>, <code>TMetafile</code>. No cross-platform path.</p>
+<p><strong>64-bit compatibility:</strong></p>
+<ul>
+<li><code>TReportEngine</code> uses <code>NativeInt</code> for bookmark comparisons in <code>TDeleteObjectsCommand</code> (sorting by <code>NativeInt(Pointer(L.OwnerList))</code>). This is 64-bit safe.</li>
+<li>Vector PDF exporter uses <code>Int64</code> for stream positions and <code>NativeInt</code> in some places.</li>
+<li><code>usp10.dll</code> functions are declared with <code>stdcall</code> — should work in 64-bit but need verification.</li>
+<li>Some <code>AnsiString</code> usage in Vector PDF should be reviewed for 64-bit.</li>
+<li>No pointer arithmetic that would break in 64-bit is evident.</li>
+</ul>
+<p><strong>VCL integration:</strong></p>
+<ul>
+<li><code>TVittixReport</code> is a non-visual <code>TComponent</code> that appears in the component tray.</li>
+<li><code>TVittixReportComponentEditor</code> launches the designer.</li>
+<li><code>TVittixReportPreview</code> is a VCL control for preview.</li>
+<li><code>TVittixReportDesigner</code> is a VCL control for design.</li>
+<li><code>TVittixReportToolbox</code> is a VCL control.</li>
+<li>No ActiveX/COM exposure.</li>
+</ul>
+<p><strong>Package architecture:</strong></p>
+<ul>
+<li><code>VittixReportRuntime.dproj</code> — runtime package.</li>
+<li><code>VittixReportDesign.dproj</code> — design-time package.</li>
+<li><code>VittixDesigner.dproj</code> — standalone designer executable.</li>
+<li><code>VittixReportTests.dproj</code> — test executable.</li>
+<li><code>VittixReportDemo.dproj</code> — demo application.</li>
+<li><code>VittixRunner.dproj</code> — console runner.</li>
+</ul>
+<p><strong>Verdict:</strong> VCL-only, Unicode-aware, likely 64-bit compatible with some Vector PDF auditing needed. Package structure is standard Delphi.</p>
+<hr />
+<h3 id="211-comparison-benchmark">2.11 Comparison Benchmark<a class="headerlink" href="#211-comparison-benchmark" title="Link to this section">&para;</a></h3>
+<p><strong>vs. FastReport VCL:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>VittixReport</th>
+<th>FastReport</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bands</td>
+<td>10 types</td>
+<td>10+ types</td>
+</tr>
+<tr>
+<td>Text/Field/Label/Memo</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Shapes</td>
+<td>Rectangle, RoundRect, Ellipse, Line, Diagonal</td>
+<td>More shapes</td>
+</tr>
+<tr>
+<td>Images</td>
+<td>Yes, with caching</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Sub-reports</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Tables</td>
+<td>Basic grid</td>
+<td>Advanced</td>
+</tr>
+<tr>
+<td>Cross-tab</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Charts</td>
+<td>Pie, Bar, Line (GDI)</td>
+<td>More chart types</td>
+</tr>
+<tr>
+<td>Barcodes</td>
+<td>Legacy + Code39</td>
+<td>Many symbologies</td>
+</tr>
+<tr>
+<td>Expressions</td>
+<td>Custom, aggregate functions</td>
+<td>FastScript-based</td>
+</tr>
+<tr>
+<td>Scripting</td>
+<td>Stub</td>
+<td>Full script engines</td>
+</tr>
+<tr>
+<td>PDF export</td>
+<td>Printer driver + Vector (beta)</td>
+<td>Multiple PDF engines</td>
+</tr>
+<tr>
+<td>Excel export</td>
+<td>Basic single-sheet</td>
+<td>More features</td>
+</tr>
+<tr>
+<td>HTML export</td>
+<td>Pixel-positioned</td>
+<td>More flowing</td>
+</tr>
+<tr>
+<td>Undo/redo</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Designer</td>
+<td>VCL, toolbox, property panel</td>
+<td>More polished</td>
+</tr>
+<tr>
+<td>Data binding</td>
+<td>UserDataSet + TDataSet</td>
+<td>Multiple data sources</td>
+</tr>
+<tr>
+<td>VAT/MSRP</td>
+<td>Open-source/unknown</td>
+<td>Commercial</td>
+</tr>
+</tbody>
+</table>
+<p><strong>vs. ReportBuilder:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>VittixReport</th>
+<th>ReportBuilder</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bands</td>
+<td>10 types</td>
+<td>10+ types</td>
+</tr>
+<tr>
+<td>Text/Field/Label/Memo</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Shapes</td>
+<td>Basic</td>
+<td>More</td>
+</tr>
+<tr>
+<td>Images</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Sub-reports</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Tables</td>
+<td>Basic</td>
+<td>Advanced</td>
+</tr>
+<tr>
+<td>Cross-tab</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Charts</td>
+<td>Basic</td>
+<td>More</td>
+</tr>
+<tr>
+<td>Barcodes</td>
+<td>Basic</td>
+<td>More</td>
+</tr>
+<tr>
+<td>Expressions</td>
+<td>Custom</td>
+<td>Robust</td>
+</tr>
+<tr>
+<td>Scripting</td>
+<td>Stub</td>
+<td>Supported</td>
+</tr>
+<tr>
+<td>PDF export</td>
+<td>Printer + Vector</td>
+<td>Multiple</td>
+</tr>
+<tr>
+<td>Excel export</td>
+<td>Basic</td>
+<td>More</td>
+</tr>
+<tr>
+<td>HTML export</td>
+<td>Pixel-positioned</td>
+<td>More</td>
+</tr>
+<tr>
+<td>Undo/redo</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Designer</td>
+<td>Functional</td>
+<td>More polished</td>
+</tr>
+<tr>
+<td>Data binding</td>
+<td>UserDataSet + TDataSet</td>
+<td>Multiple</td>
+</tr>
+<tr>
+<td>Commercial status</td>
+<td>Open-source/unknown</td>
+<td>Commercial</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Gaps:</strong></p>
+<ul>
+<li>No interactive PDF forms.</li>
+<li>No advanced charting (scatter, area, stacked, 3D).</li>
+<li>No barcode symbologies beyond Code39/legacy.</li>
+<li>No sorting expressions.</li>
+<li>No drill-down/hyperlink support.</li>
+<li>No multi-column layout.</li>
+<li>No label/sticker layout.</li>
+<li>No drawing tools (freehand, arrow, etc.).</li>
+<li>No report templates/styles.</li>
+<li>No script engine integration.</li>
+<li>No RDBMS-specific dataset components.</li>
+</ul>
+<p><strong>Competitive advantages:</strong></p>
+<ul>
+<li>JSON-based report files — portable and versionable.</li>
+<li>Vector PDF exporter with font embedding — impressive engineering.</li>
+<li>Clean separation of engine/renderer/serializer — testable.</li>
+<li>Abstract data layer — flexible data sources.</li>
+<li>Open-source/accessible code — modifiable.</li>
+</ul>
+<p><strong>Migration path:</strong> No FastReport/ReportBuilder template import. The JSON format is different. Migration would require a converter.</p>
+<hr />
+<h3 id="212-code-quality-maintainability">2.12 Code Quality &amp; Maintainability<a class="headerlink" href="#212-code-quality-maintainability" title="Link to this section">&para;</a></h3>
+<p><strong>Code metrics:</strong></p>
+<ul>
+<li><code>Vittix.Report.Component.pas</code> — 977 lines. Large but mostly boilerplate export methods.</li>
+<li><code>Vittix.Report.Objects.pas</code> — 1681+ lines. Large but contains many object implementations.</li>
+<li><code>Vittix.Report.Engine.pas</code> — 1692+ lines. Large but contains the full engine.</li>
+<li><code>Vittix.Report.Serializer.pas</code> — 1097 lines. Large but contains many serializers.</li>
+<li><code>Vittix.Report.VectorPDF.pas</code> — 1478 lines. Large but contains the full PDF generator.</li>
+<li>Most other units are under 300 lines.</li>
+</ul>
+<p><strong>Cyclomatic complexity:</strong> Not formally measured, but <code>TReportEngine.Prepare</code>, <code>TReportEngine.PrintBand</code>, <code>TReportVectorPDFExporter.ExportDocument</code>, and <code>TReportSerializer</code> methods are long and contain many branches. Refactoring into smaller methods would improve readability.</p>
+<p><strong>Test coverage:</strong></p>
+<ul>
+<li><code>Test.Vittix.Report.Engine</code> — 2 tests (dataset state preservation, footer page break recursion).</li>
+<li><code>Test.Vittix.Report.Serializer</code> — 5 tests (round-trip empty, round-trip with properties, clone report, clone object, clipboard).</li>
+<li><code>Test.Vittix.Report.Objects.Chart</code> — exists but not read in detail.</li>
+<li><code>Test.Vittix.Report.Expressions</code> — exists but not read in detail.</li>
+<li><code>Test.Vittix.Report.Undo</code> — exists but not read in detail.</li>
+<li><code>Test.Vittix.Report.Characterization</code> — exists but not read in detail.</li>
+</ul>
+<p>Test coverage is minimal. No visual regression tests. No performance tests. No integration tests for full report generation.</p>
+<p><strong>Documentation:</strong></p>
+<ul>
+<li>XMLDoc comments exist on some public methods (e.g., <code>TVittixReport.RegisterUserDataSet</code>, <code>TReportEngine.Prepare</code>).</li>
+<li>No comprehensive developer guide.</li>
+<li>No API reference documentation.</li>
+<li><code>ops_extract.txt</code> appears to be an operation extract, not documentation.</li>
+</ul>
+<p><strong>Error handling:</strong></p>
+<ul>
+<li><code>EReportException</code> declared in <code>Vittix.Report.Engine</code>.</li>
+<li><code>EReportDataSourceError</code> declared in <code>Vittix.Report.DataSources</code>.</li>
+<li>Most methods raise <code>Exception</code> with descriptive messages.</li>
+<li><code>try/except</code> blocks in expression evaluation and field resolution catch and return safe defaults.</li>
+<li><code>CheckLargeReport</code> event allows cancellation.</li>
+<li><code>OnBeforePrintReport</code> can cancel via <code>ACancel</code>.</li>
+</ul>
+<p><strong>Version control:</strong> Git repository exists. Multiple regression test output directories (<code>regression_out_tests2</code>, <code>regression_out_tests3</code>, <code>regression_out_tests4</code>, <code>regression_out_tests_fixed</code>) suggest iterative test fixing. <code>scratch/</code> directory contains experimental code.</p>
+<p><strong>Contribution patterns:</strong> Single developer pattern evident. No CI configuration visible. No code review history evident.</p>
+<p><strong>Verdict:</strong> Code is functional and mostly well-organized. Test coverage is minimal. Documentation is sparse. Long methods in engine, serializer, and vector PDF exporter could benefit from refactoring.</p>
+<hr />
+<h2 id="3-priority-ranked-improvement-roadmap">3. Priority-Ranked Improvement Roadmap<a class="headerlink" href="#3-priority-ranked-improvement-roadmap" title="Link to this section">&para;</a></h2>
+<h3 id="quick-wins-low-effort-high-impact">Quick Wins (Low effort, high impact)<a class="headerlink" href="#quick-wins-low-effort-high-impact" title="Link to this section">&para;</a></h3>
+<ol>
+<li><strong>Add parentheses and operator precedence to expression parser</strong> — Currently <code>2+3*4</code> evaluates left-to-right. Adding a simple recursive descent or shunting-yard parser would fix this without a full script engine.</li>
+<li><strong>Add string functions to expressions</strong> — <code>Upper</code>, <code>Lower</code>, <code>Trim</code>, <code>Substring</code>, <code>Length</code>, <code>Concat</code> — would significantly improve text manipulation without external dependencies.</li>
+<li><strong>Add date functions to expressions</strong> — <code>DateDiff</code>, <code>AddDays</code>, <code>FormatDateTime</code> — would help date-based reporting.</li>
+<li><strong>Fix print path to use metafile playback instead of StretchDraw</strong> — Replace <code>Printer.Canvas.StretchDraw(R, FPages[i].Bitmap)</code> with metafile playback for sharper print output.</li>
+<li><strong>Add basic sorting support</strong> — Add <code>SortField</code> and <code>SortOrder</code> properties to bands, with engine-side sorting via dataset <code>Sort</code> or in-memory sort for small datasets.</li>
+<li><strong>Add hyperlink/drill-down support</strong> — Add <code>Hyperlink</code> property to text objects and <code>OnObjectClick</code> event on preview.</li>
+<li><strong>Add basic formula support to cross-tab</strong> — Allow expressions in cell values, not just field references.</li>
+<li><strong>Use Vector PDF exporter as default PDF path</strong> — Once stable, make Vector PDF the default and deprecate printer-driver PDF.</li>
+<li><strong>Fix PDF export to not depend on printer driver</strong> — The Vector PDF path already exists; make it the primary path.</li>
+</ol>
+<h3 id="architectural-medium-effort-structural-improvement">Architectural (Medium effort, structural improvement)<a class="headerlink" href="#architectural-medium-effort-structural-improvement" title="Link to this section">&para;</a></h3>
+<ol>
+<li><strong>Unify data resolution</strong> — Remove dual <code>DataSource</code>/<code>UserDataSet</code> paths. Make <code>UserDataSet</code> the primary path and deprecate <code>DataSource</code> or gate it behind a conditional symbol.</li>
+<li><strong>Implement <code>IReportPlugin</code> wiring</strong> — Wire the declared <code>IReportPlugin</code> interface to allow third-party object registration and toolbox integration.</li>
+<li><strong>Integrate a script engine</strong> — Integrate PascalScript, DWScript, or FastScript for <code>OnBeforePrint</code>/<code>OnAfterPrint</code> scripts. The current stub is not useful.</li>
+<li><strong>Add report templates/styles</strong> — Add a style system where objects can inherit font/color/formatting from a style object.</li>
+<li><strong>Add multi-column layout</strong> — Add <code>Columns</code> property to page settings and implement newspaper-style multi-column layout.</li>
+<li><strong>Add label/sticker layout</strong> — Add a label layout mode with repeated label frames.</li>
+<li><strong>Add advanced widow/orphan/keep-together</strong> — Add <code>KeepTogether</code> property on objects and implement widow/orphan control in pagination.</li>
+<li><strong>Refactor long methods</strong> — Break up <code>TReportEngine.Prepare</code>, <code>TReportEngine.PrintBand</code>, <code>TReportVectorPDFExporter.ExportDocument</code>, and <code>TReportSerializer</code> methods into smaller, named methods.</li>
+<li><strong>Add barcode symbology expansion</strong> — Add Code128, EAN-13, UPC-A, QR code support.</li>
+</ol>
+<h3 id="strategic-high-effort-long-term-value">Strategic (High effort, long-term value)<a class="headerlink" href="#strategic-high-effort-long-term-value" title="Link to this section">&para;</a></h3>
+<ol>
+<li><strong>Add FireMonkey (FMX) rendering path</strong> — Abstract the rendering interface to support both VCL and FMX canvases for cross-platform reports.</li>
+<li><strong>Implement visual regression tests</strong> — Automate comparison of preview and export outputs to catch rendering regressions.</li>
+<li><strong>Add performance profiling and optimization</strong> — Profile large dataset rendering, cache aggregate results, optimize cross-tab matrix building.</li>
+<li><strong>Add thread-safe report generation</strong> — Make <code>TReportEngine</code> thread-safe or provide a wrapper for background generation.</li>
+<li><strong>Add REST/JSON data source implementation</strong> — Complete the <code>TRestReportDataSource</code> and <code>TJsonReportDataSource</code> scaffolds.</li>
+<li><strong>Add FastReport/ReportBuilder template import</strong> — Build a converter for competitive migration.</li>
+<li><strong>Add interactive PDF forms</strong> — Add form field support in Vector PDF exporter.</li>
+<li><strong>Add charting expansion</strong> — Add scatter, area, stacked bar, line with markers, and 3D chart types.</li>
+<li><strong>Add RTL language support</strong> — Vector PDF exporter already detects <code>SCRIPT_ANALYSIS_RTL</code> and rejects it. Proper RTL support would be a significant feature.</li>
+<li><strong>Add accessibility support</strong> — Add PDF/UA or accessibility tags to exported PDFs.</li>
+</ol>
+<hr />
+<h2 id="4-risk-assessment-matrix">4. Risk Assessment Matrix<a class="headerlink" href="#4-risk-assessment-matrix" title="Link to this section">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Likelihood</th>
+<th>Impact</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PDF export fails on systems without "Microsoft Print to PDF" driver</td>
+<td>High</td>
+<td>High</td>
+<td>Use Vector PDF exporter as default</td>
+</tr>
+<tr>
+<td>Print output diverges from preview due to StretchDraw rasterization</td>
+<td>High</td>
+<td>Medium</td>
+<td>Use metafile playback for printing</td>
+</tr>
+<tr>
+<td>Expression parser evaluates <code>2+3*4</code> as <code>20</code> instead of <code>14</code></td>
+<td>High</td>
+<td>Medium</td>
+<td>Add operator precedence</td>
+</tr>
+<tr>
+<td>Aggregate performance degrades with many aggregates on large datasets</td>
+<td>Medium</td>
+<td>Medium</td>
+<td>Cache aggregate results per group</td>
+</tr>
+<tr>
+<td>Thread safety issues if engine used from background thread</td>
+<td>Low</td>
+<td>High</td>
+<td>Document thread affinity; add synchronization</td>
+</tr>
+<tr>
+<td>64-bit issues in Vector PDF exporter (AnsiString, pointer arithmetic)</td>
+<td>Medium</td>
+<td>High</td>
+<td>Audit and fix before 64-bit release</td>
+</tr>
+<tr>
+<td>Dual DataSource/UserDataSet paths cause confusion</td>
+<td>High</td>
+<td>Low</td>
+<td>Unify to single path</td>
+</tr>
+<tr>
+<td>Script engine stub provides no real scripting capability</td>
+<td>High</td>
+<td>Medium</td>
+<td>Integrate PascalScript/DWScript</td>
+</tr>
+<tr>
+<td>No template import prevents FastReport/ReportBuilder migration</td>
+<td>High</td>
+<td>Medium</td>
+<td>Build converter or document manual migration</td>
+</tr>
+<tr>
+<td>Minimal test coverage misses regressions</td>
+<td>High</td>
+<td>Medium</td>
+<td>Add visual regression and integration tests</td>
+</tr>
+<tr>
+<td>Cross-tab memory usage for large datasets</td>
+<td>Medium</td>
+<td>Medium</td>
+<td>Stream or chunk large matrices</td>
+</tr>
+<tr>
+<td>JSON format changes break backward compatibility</td>
+<td>Low</td>
+<td>High</td>
+<td>Maintain version field and forward-compatibility</td>
+</tr>
+<tr>
+<td>VCL-only limits cross-platform adoption</td>
+<td>High</td>
+<td>Medium</td>
+<td>Abstract rendering interface for FMX</td>
+</tr>
+<tr>
+<td>No sorting support limits report flexibility</td>
+<td>High</td>
+<td>Low</td>
+<td>Add sorting properties</td>
+</tr>
+<tr>
+<td>No drill-down/hyperlink limits interactivity</td>
+<td>High</td>
+<td>Low</td>
+<td>Add hyperlink support</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="appendix-a-unit-dependency-graph-simplified">Appendix A: Unit Dependency Graph (Simplified)<a class="headerlink" href="#appendix-a-unit-dependency-graph-simplified" title="Link to this section">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Interfaces (root)
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  Context (root)
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    Expressions
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>      Aggregates
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    DataSources
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    UserDataSet
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    Bands
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>      Objects
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>        Table, CrossTab, Chart, Barcode
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    PageSettings
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>    Model
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    Serializer
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>      ObjectRegistry
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>    Engine
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>      LayoutPagination
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>      LayoutCache
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>      LayoutBookmarks
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>      Scripting
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>    Renderer
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>    Export*
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>      Export.Commands
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>      Export.PDF
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>      Export.VectorPDF (SVG, EMF)
+<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>      Export.XLSX
+<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>      Export.HTML
+<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>      Export.Text
+<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a>      Export.Email
+<a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a>    Component
+<a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a>      ComponentEditor
+<a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a>    DesignerControl
+<a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a>    DesignerInteraction
+<a id="__codelineno-1-32" name="__codelineno-1-32" href="#__codelineno-1-32"></a>    SelectionHelpers
+<a id="__codelineno-1-33" name="__codelineno-1-33" href="#__codelineno-1-33"></a>    Undo
+<a id="__codelineno-1-34" name="__codelineno-1-34" href="#__codelineno-1-34"></a>    PropertyBridge
+<a id="__codelineno-1-35" name="__codelineno-1-35" href="#__codelineno-1-35"></a>    Toolbox
+<a id="__codelineno-1-36" name="__codelineno-1-36" href="#__codelineno-1-36"></a>    Reg
+<a id="__codelineno-1-37" name="__codelineno-1-37" href="#__codelineno-1-37"></a>    CommandDispatcher
+<a id="__codelineno-1-38" name="__codelineno-1-38" href="#__codelineno-1-38"></a>    Interfaces (reused)
+</code></pre></div>
+<p><strong>Cycle check:</strong> <code>Context</code> is clean (no VittixReport imports). <code>Interfaces</code> is clean. <code>Expressions</code> imports <code>Context</code> and <code>Aggregates</code>. <code>Bands</code> imports <code>Objects</code> and <code>Context</code>. <code>Objects</code> imports <code>Context</code> and <code>Expressions</code>. <code>Serializer</code> imports <code>Model</code>, <code>Objects</code>, <code>Bands</code>, <code>PageSettings</code>, and specific object units. <code>Engine</code> imports <code>Model</code>, <code>Bands</code>, <code>Objects</code>, <code>Context</code>, <code>PageSettings</code>, <code>Scripting</code>, <code>Layout*</code>, <code>UserDataSet</code>, <code>Export.Commands</code>, <code>Interfaces</code>. <code>Renderer</code> imports <code>Model</code>, <code>UserDataSet</code>, <code>Engine</code>. No cycles detected.</p>
+<hr />
+<h2 id="appendix-b-test-inventory">Appendix B: Test Inventory<a class="headerlink" href="#appendix-b-test-inventory" title="Link to this section">&para;</a></h2>
+<ul>
+<li><code>Test.Vittix.Report.Engine</code> (2 tests)</li>
+<li><code>Test_H01_DatasetStatePreservation</code></li>
+<li><code>Test_C01_FooterPageBreakRecursion</code></li>
+<li><code>Test.Vittix.Report.Serializer</code> (5 tests)</li>
+<li><code>Test_RoundTrip_EmptyModel</code></li>
+<li><code>Test_RoundTrip_ModelWithProperties</code></li>
+<li><code>Test_CloneReport</code></li>
+<li><code>Test_CloneObject</code></li>
+<li><code>Test_Clipboard_SerializeDeserialize</code></li>
+<li><code>Test.Vittix.Report.Objects.Chart</code> — exists (contents not reviewed)</li>
+<li><code>Test.Vittix.Report.Expressions</code> — exists (contents not reviewed)</li>
+<li><code>Test.Vittix.Report.Undo</code> — exists (contents not reviewed)</li>
+<li><code>Test.Vittix.Report.Characterization</code> — exists (contents not reviewed)</li>
+</ul>
+<hr />
+<p><em>End of evaluation.</em></p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      VittixReport - Delphi VCL report component
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/ketandholakia/VittixReport" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.tracking", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

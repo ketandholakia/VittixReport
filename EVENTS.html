@@ -1,0 +1,2612 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Delphi VCL reporting component - designer, engine, preview, print and export">
+      
+      
+        <meta name="author" content="Ketan Dholakia">
+      
+      
+        <link rel="canonical" href="https://ketandholakia.github.io/VittixReport/EVENTS.html">
+      
+      
+        <link rel="prev" href="testing.html">
+      
+      
+        <link rel="next" href="designer.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Report events - VittixReport</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#vittixreport-events" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="index.html" title="VittixReport" class="md-header__button md-logo" aria-label="VittixReport" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            VittixReport
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Report events
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/ketandholakia/VittixReport" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ketandholakia/VittixReport
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="index.html" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="readme.html" class="md-tabs__link">
+          
+  
+  
+  Project
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="EVENTS.html" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="todo.html" class="md-tabs__link">
+          
+  
+  
+  Roadmap
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="Phase1-Characterization-and-Safety.html" class="md-tabs__link">
+          
+  
+  
+  Modernization
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="architecture-analysis.html" class="md-tabs__link">
+          
+  
+  
+  Analysis
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="https://github.com/ketandholakia/VittixReport/blob/main/LICENSE" class="md-tabs__link">
+        
+  
+  
+    
+  
+  License
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="index.html" title="VittixReport" class="md-nav__button md-logo" aria-label="VittixReport" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    VittixReport
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/ketandholakia/VittixReport" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ketandholakia/VittixReport
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="readme.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    README
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="user-manual.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User manual
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="developer-manual.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer manual
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="testing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Report events
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="EVENTS.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Report events
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#table-of-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Table of Contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#event-script-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event / Script Policy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-lifecycle-callback-wiring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime Lifecycle Callback Wiring
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start-callback-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start Callback Template
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#persisted-event-text-vs-runtime-callbacks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Persisted Event Text vs Runtime Callbacks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Persisted Event Text vs Runtime Callbacks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#object-script-host-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Object script-host contract
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#execution-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Execution Order
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Execution Order">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#demo-coverage-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Demo coverage notes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#expected-callback-trace-sample" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Expected Callback Trace Sample
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#safe-skip-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Safe Skip Examples
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#notes-and-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notes and Limitations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-demo-subtests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime Demo Subtests
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="designer.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Designer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="designer-icon-map.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Designer icon map
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="demo-app.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Demo application
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="demo-templates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Demo report templates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="regression-fixtures.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Regression fixtures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="branding.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Branding assets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Roadmap
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="todo.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TODO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="bug-queue.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bug queue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Designer-UX-Roadmap.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Designer UX roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="plan-embedded-image.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Embedded image plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="plan-text-expression-editor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Text expression editor plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="plan-vector-pdf.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vector PDF plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="plan-phase4i20.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4I-20 plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Modernization
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Modernization
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase1-Characterization-and-Safety.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 1 - characterization and safety
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase2-Data-Capability-and-Traversal-Diagnostics.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 2 - data capability and traversal diagnostics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase3-Performance-Foundations.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 3 - performance foundations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase4-Checkpoint.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4 - checkpoint
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase4A-Expression-Compatibility-Contract.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4A - expression compatibility contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase4B-Compatibility-Evaluator.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4B - compatibility evaluator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase4B2A-Modern-Expression-Semantics.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4B-2A - modern expression semantics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase4B2B-Modern-Expression-Implementation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4B-2B - modern expression implementation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="phase4b2b-closure-audit.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4B-2B - closure audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase4I-20-ExpressionEngineDesign.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4I-20 - expression engine design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase5-Quality-Benchmark-CI.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 5 - quality, benchmarking and CI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase6-Output-Coverage.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 6 - output coverage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Modernization-Residual-Audit.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Residual audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysis
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Analysis
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="architecture-analysis.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="technical-evaluation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="code-review.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code review
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="code-review-v2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code review v2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="GAP-005-Page-Ownership-Audit.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GAP-005 page ownership audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="GAP-005-P3-Print-Audit.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GAP-005 print audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="GAP-005-Residual-Review.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GAP-005 residual review
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/ketandholakia/VittixReport/blob/main/LICENSE" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    License
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#table-of-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Table of Contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#event-script-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event / Script Policy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-lifecycle-callback-wiring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime Lifecycle Callback Wiring
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start-callback-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start Callback Template
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#persisted-event-text-vs-runtime-callbacks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Persisted Event Text vs Runtime Callbacks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Persisted Event Text vs Runtime Callbacks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#object-script-host-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Object script-host contract
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#execution-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Execution Order
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Execution Order">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#demo-coverage-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Demo coverage notes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#expected-callback-trace-sample" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Expected Callback Trace Sample
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#safe-skip-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Safe Skip Examples
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#notes-and-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notes and Limitations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-demo-subtests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime Demo Subtests
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="vittixreport-events">VittixReport Events<a class="headerlink" href="#vittixreport-events" title="Link to this section">&para;</a></h1>
+<h2 id="table-of-contents">Table of Contents<a class="headerlink" href="#table-of-contents" title="Link to this section">&para;</a></h2>
+<ul>
+<li><a href="#event--script-policy">Event / Script Policy</a></li>
+<li><a href="#runtime-lifecycle-callback-wiring">Runtime Lifecycle Callback Wiring</a></li>
+<li><a href="#quick-start-callback-template">Quick Start Callback Template</a></li>
+<li><a href="#persisted-event-text-vs-runtime-callbacks">Persisted Event Text vs Runtime Callbacks</a></li>
+<li><a href="#execution-order">Execution Order</a></li>
+<li><a href="#expected-callback-trace-sample">Expected Callback Trace Sample</a></li>
+<li><a href="#safe-skip-examples">Safe Skip Examples</a></li>
+<li><a href="#notes-and-limitations">Notes and Limitations</a></li>
+</ul>
+<h2 id="event-script-policy">Event / Script Policy<a class="headerlink" href="#event-script-policy" title="Link to this section">&para;</a></h2>
+<ul>
+<li>Runtime Delphi lifecycle callbacks are assigned by the host application.</li>
+<li>Runtime callbacks are not stored in <code>.vrt</code>.</li>
+<li>Persisted event text is stored in <code>.vrt</code>.</li>
+<li>Designer does not validate or execute persisted event text.</li>
+<li>Persisted event text meaning is defined by the host application's callback/script layer.</li>
+</ul>
+<h2 id="runtime-lifecycle-callback-wiring">Runtime Lifecycle Callback Wiring<a class="headerlink" href="#runtime-lifecycle-callback-wiring" title="Link to this section">&para;</a></h2>
+<p>Illustrative Delphi example (adjust signatures to match current event declarations):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">procedure</span><span class="w"> </span><span class="nc">TMyHost</span><span class="o">.</span><span class="nf">ConfigureEngineEvents</span><span class="p">(</span><span class="n">AEngine</span><span class="o">:</span><span class="w"> </span><span class="n">TReportEngine</span><span class="p">)</span><span class="o">;</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="k">begin</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="n">AEngine</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">nil</span><span class="w"> </span><span class="k">then</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="k">Exit</span><span class="o">;</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span><span class="n">AEngine</span><span class="o">.</span><span class="n">OnBeforePrintReport</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">EngineBeforePrintReport</span><span class="o">;</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span><span class="n">AEngine</span><span class="o">.</span><span class="n">OnAfterPrintReport</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">EngineAfterPrintReport</span><span class="o">;</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">  </span><span class="n">AEngine</span><span class="o">.</span><span class="n">OnBeforeBand</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">EngineBeforeBand</span><span class="o">;</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">  </span><span class="n">AEngine</span><span class="o">.</span><span class="n">OnAfterBand</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">EngineAfterBand</span><span class="o">;</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">  </span><span class="n">AEngine</span><span class="o">.</span><span class="n">OnBeforeObject</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">EngineBeforeObject</span><span class="o">;</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">  </span><span class="n">AEngine</span><span class="o">.</span><span class="n">OnAfterObject</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">EngineAfterObject</span><span class="o">;</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="k">end</span><span class="o">;</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="k">procedure</span><span class="w"> </span><span class="nc">TMyHost</span><span class="o">.</span><span class="nf">EngineBeforePrintReport</span><span class="p">(</span><span class="n">Sender</span><span class="o">:</span><span class="w"> </span><span class="kt">TObject</span><span class="o">;</span><span class="w"> </span><span class="k">var</span><span class="w"> </span><span class="n">ACancel</span><span class="o">:</span><span class="w"> </span><span class="kt">Boolean</span><span class="p">)</span><span class="o">;</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="k">begin</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">  </span><span class="n">Log</span><span class="p">(</span><span class="s">'BeforeReport'</span><span class="p">)</span><span class="o">;</span>
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">  </span><span class="c1">// Optional: ACancel := True;</span>
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="k">end</span><span class="o">;</span>
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="k">procedure</span><span class="w"> </span><span class="nc">TMyHost</span><span class="o">.</span><span class="nf">EngineAfterPrintReport</span><span class="p">(</span><span class="n">Sender</span><span class="o">:</span><span class="w"> </span><span class="kt">TObject</span><span class="p">)</span><span class="o">;</span>
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="k">begin</span>
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="w">  </span><span class="n">Log</span><span class="p">(</span><span class="s">'AfterReport'</span><span class="p">)</span><span class="o">;</span>
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="k">end</span><span class="o">;</span>
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="k">procedure</span><span class="w"> </span><span class="nc">TMyHost</span><span class="o">.</span><span class="nf">EngineBeforeBand</span><span class="p">(</span><span class="n">Sender</span><span class="o">:</span><span class="w"> </span><span class="kt">TObject</span><span class="o">;</span><span class="w"> </span><span class="n">ABand</span><span class="o">:</span><span class="w"> </span><span class="n">TReportBand</span><span class="o">;</span><span class="w"> </span><span class="k">var</span><span class="w"> </span><span class="n">ACanPrint</span><span class="o">:</span><span class="w"> </span><span class="kt">Boolean</span><span class="p">)</span><span class="o">;</span>
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="k">begin</span>
+<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a><span class="w">  </span><span class="n">Log</span><span class="p">(</span><span class="s">'BeforeBand: '</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">ABand</span><span class="o">.</span><span class="n">Name</span><span class="p">)</span><span class="o">;</span>
+<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>
+<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a><span class="w">  </span><span class="c1">// Example skip by name/type</span>
+<a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nb">SameText</span><span class="p">(</span><span class="n">ABand</span><span class="o">.</span><span class="n">Name</span><span class="o">,</span><span class="w"> </span><span class="s">'DebugBand'</span><span class="p">)</span><span class="w"> </span><span class="k">then</span>
+<a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a><span class="w">    </span><span class="n">ACanPrint</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">False</span><span class="o">;</span>
+<a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a><span class="k">end</span><span class="o">;</span>
+<a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>
+<a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a><span class="k">procedure</span><span class="w"> </span><span class="nc">TMyHost</span><span class="o">.</span><span class="nf">EngineAfterBand</span><span class="p">(</span><span class="n">Sender</span><span class="o">:</span><span class="w"> </span><span class="kt">TObject</span><span class="o">;</span><span class="w"> </span><span class="n">ABand</span><span class="o">:</span><span class="w"> </span><span class="n">TReportBand</span><span class="p">)</span><span class="o">;</span>
+<a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a><span class="k">begin</span>
+<a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a><span class="w">  </span><span class="n">Log</span><span class="p">(</span><span class="s">'AfterBand: '</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">ABand</span><span class="o">.</span><span class="n">Name</span><span class="p">)</span><span class="o">;</span>
+<a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a><span class="k">end</span><span class="o">;</span>
+<a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>
+<a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a><span class="k">procedure</span><span class="w"> </span><span class="nc">TMyHost</span><span class="o">.</span><span class="nf">EngineBeforeObject</span><span class="p">(</span><span class="n">Sender</span><span class="o">:</span><span class="w"> </span><span class="kt">TObject</span><span class="o">;</span><span class="w"> </span><span class="n">AObject</span><span class="o">:</span><span class="w"> </span><span class="n">TReportObject</span><span class="o">;</span><span class="w"> </span><span class="k">var</span><span class="w"> </span><span class="n">ACanPrint</span><span class="o">:</span><span class="w"> </span><span class="kt">Boolean</span><span class="p">)</span><span class="o">;</span>
+<a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a><span class="k">begin</span>
+<a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a><span class="w">  </span><span class="n">Log</span><span class="p">(</span><span class="s">'BeforeObject: '</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">AObject</span><span class="o">.</span><span class="n">Name</span><span class="p">)</span><span class="o">;</span>
+<a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a>
+<a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a><span class="w">  </span><span class="c1">// Example skip by class/name</span>
+<a id="__codelineno-0-44" name="__codelineno-0-44" href="#__codelineno-0-44"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="n">AObject</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">TReportImageObject</span><span class="w"> </span><span class="k">then</span>
+<a id="__codelineno-0-45" name="__codelineno-0-45" href="#__codelineno-0-45"></a><span class="w">    </span><span class="n">ACanPrint</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">False</span><span class="o">;</span>
+<a id="__codelineno-0-46" name="__codelineno-0-46" href="#__codelineno-0-46"></a><span class="k">end</span><span class="o">;</span>
+<a id="__codelineno-0-47" name="__codelineno-0-47" href="#__codelineno-0-47"></a>
+<a id="__codelineno-0-48" name="__codelineno-0-48" href="#__codelineno-0-48"></a><span class="k">procedure</span><span class="w"> </span><span class="nc">TMyHost</span><span class="o">.</span><span class="nf">EngineAfterObject</span><span class="p">(</span><span class="n">Sender</span><span class="o">:</span><span class="w"> </span><span class="kt">TObject</span><span class="o">;</span><span class="w"> </span><span class="n">AObject</span><span class="o">:</span><span class="w"> </span><span class="n">TReportObject</span><span class="p">)</span><span class="o">;</span>
+<a id="__codelineno-0-49" name="__codelineno-0-49" href="#__codelineno-0-49"></a><span class="k">begin</span>
+<a id="__codelineno-0-50" name="__codelineno-0-50" href="#__codelineno-0-50"></a><span class="w">  </span><span class="n">Log</span><span class="p">(</span><span class="s">'AfterObject: '</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">AObject</span><span class="o">.</span><span class="n">Name</span><span class="p">)</span><span class="o">;</span>
+<a id="__codelineno-0-51" name="__codelineno-0-51" href="#__codelineno-0-51"></a><span class="k">end</span><span class="o">;</span>
+</code></pre></div>
+<p>Notes:
+- Callbacks are optional; unassigned handlers are nil-safe.
+- Keep handlers fast and deterministic for large reports.</p>
+<h2 id="quick-start-callback-template">Quick Start Callback Template<a class="headerlink" href="#quick-start-callback-template" title="Link to this section">&para;</a></h2>
+<p>Use this minimal wiring pattern in a host application:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">procedure</span><span class="w"> </span><span class="nc">TMyHost</span><span class="o">.</span><span class="nf">AttachReportEvents</span><span class="p">(</span><span class="n">AEngine</span><span class="o">:</span><span class="w"> </span><span class="n">TReportEngine</span><span class="p">)</span><span class="o">;</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">begin</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="n">AEngine</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">nil</span><span class="w"> </span><span class="k">then</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="k">Exit</span><span class="o">;</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span><span class="n">AEngine</span><span class="o">.</span><span class="n">OnBeforePrintReport</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">EngineBeforePrintReport</span><span class="o">;</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span><span class="n">AEngine</span><span class="o">.</span><span class="n">OnAfterPrintReport</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">EngineAfterPrintReport</span><span class="o">;</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">  </span><span class="n">AEngine</span><span class="o">.</span><span class="n">OnBeforeBand</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">EngineBeforeBand</span><span class="o">;</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">  </span><span class="n">AEngine</span><span class="o">.</span><span class="n">OnAfterBand</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">EngineAfterBand</span><span class="o">;</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">  </span><span class="n">AEngine</span><span class="o">.</span><span class="n">OnBeforeObject</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">EngineBeforeObject</span><span class="o">;</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">  </span><span class="n">AEngine</span><span class="o">.</span><span class="n">OnAfterObject</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">EngineAfterObject</span><span class="o">;</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="k">end</span><span class="o">;</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="k">procedure</span><span class="w"> </span><span class="nc">TMyHost</span><span class="o">.</span><span class="nf">EngineBeforeBand</span><span class="p">(</span><span class="n">Sender</span><span class="o">:</span><span class="w"> </span><span class="kt">TObject</span><span class="o">;</span><span class="w"> </span><span class="n">ABand</span><span class="o">:</span><span class="w"> </span><span class="n">TReportBand</span><span class="o">;</span><span class="w"> </span><span class="k">var</span><span class="w"> </span><span class="n">ACanPrint</span><span class="o">:</span><span class="w"> </span><span class="kt">Boolean</span><span class="p">)</span><span class="o">;</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="k">begin</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">  </span><span class="c1">// Example: skip an optional debug band</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nb">SameText</span><span class="p">(</span><span class="n">ABand</span><span class="o">.</span><span class="n">Name</span><span class="o">,</span><span class="w"> </span><span class="s">'DebugBand'</span><span class="p">)</span><span class="w"> </span><span class="k">then</span>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">    </span><span class="n">ACanPrint</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">False</span><span class="o">;</span>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="k">end</span><span class="o">;</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="k">procedure</span><span class="w"> </span><span class="nc">TMyHost</span><span class="o">.</span><span class="nf">EngineBeforeObject</span><span class="p">(</span><span class="n">Sender</span><span class="o">:</span><span class="w"> </span><span class="kt">TObject</span><span class="o">;</span><span class="w"> </span><span class="n">AObject</span><span class="o">:</span><span class="w"> </span><span class="n">TReportObject</span><span class="o">;</span><span class="w"> </span><span class="k">var</span><span class="w"> </span><span class="n">ACanPrint</span><span class="o">:</span><span class="w"> </span><span class="kt">Boolean</span><span class="p">)</span><span class="o">;</span>
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="k">begin</span>
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="w">  </span><span class="c1">// Example: skip one object by name</span>
+<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="nb">SameText</span><span class="p">(</span><span class="n">AObject</span><span class="o">.</span><span class="n">Name</span><span class="o">,</span><span class="w"> </span><span class="s">'objInternalOnly'</span><span class="p">)</span><span class="w"> </span><span class="k">then</span>
+<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="w">    </span><span class="n">ACanPrint</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">False</span><span class="o">;</span>
+<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a><span class="k">end</span><span class="o">;</span>
+</code></pre></div>
+<p>Quick notes:
+- Keep handlers side-effect-light.
+- <code>ACanPrint=False</code> skips printing for the current band/object.
+- Adjust signatures to match current event declarations in your runtime package version.</p>
+<h2 id="persisted-event-text-vs-runtime-callbacks">Persisted Event Text vs Runtime Callbacks<a class="headerlink" href="#persisted-event-text-vs-runtime-callbacks" title="Link to this section">&para;</a></h2>
+<ul>
+<li>Band <code>OnBeforePrint</code> / <code>OnAfterPrint</code> text is saved in <code>.vrt</code>.</li>
+<li>Object <code>OnBeforePrint</code> / <code>OnAfterPrint</code> text is saved in <code>.vrt</code>.</li>
+<li>Object event text fields are serialized only when non-empty.</li>
+<li>Empty object event text fields are omitted from serialization.</li>
+<li>Runtime callbacks are assigned in Delphi host code and are not serialized.</li>
+<li>Persisted event text is passed to host script handling.</li>
+<li>The designer does not guarantee a built-in script grammar.</li>
+<li>The designer does not validate, compile, or execute persisted event text.</li>
+<li>Object event text is stored for both text and non-text objects, but the host script layer may only support a subset of commands per object type.</li>
+</ul>
+<h3 id="object-script-host-contract">Object script-host contract<a class="headerlink" href="#object-script-host-contract" title="Link to this section">&para;</a></h3>
+<ul>
+<li>The engine does not interpret object event text directly.</li>
+<li>The host can assign script-host callbacks through <code>TReportScriptEngine</code>:</li>
+<li><code>OnObjectBeforePrint(AReport, AObject, Script, Context, var ACanPrint)</code></li>
+<li><code>OnObjectAfterPrint(AReport, AObject, Script, Context)</code></li>
+<li><code>OnObjectBeforePrint</code> can set <code>ACanPrint := False</code> to cancel printing that object.</li>
+<li>A minimal demo-safe parser can be implemented by the host (not by the engine core).</li>
+<li>Current demo host parser subset:</li>
+<li><code>CanPrint := False</code></li>
+<li><code>Text := 'literal'</code> (for <code>TReportTextObject</code> only)</li>
+<li><code>Text := Field('FieldName')</code> (for <code>TReportTextObject</code>, using current <code>Context.DataSet</code>)</li>
+<li><code>Visible := False|True</code></li>
+<li><code>AnchorRight := False|True</code></li>
+<li><code>AnchorBottom := False|True</code></li>
+<li><code>Background := clColorName</code> (for <code>TReportTextObject</code> only)</li>
+<li><code>FontColor := clColorName</code> (for <code>TReportTextObject</code> only)</li>
+<li><code>FontSize := &lt;integer&gt;</code> (for <code>TReportTextObject</code> only)</li>
+<li><code>FontName := &lt;string&gt;</code> (for <code>TReportTextObject</code> only)</li>
+<li><code>FontBold := False|True</code> (for <code>TReportTextObject</code> only)</li>
+<li><code>FontItalic := False|True</code> (for <code>TReportTextObject</code> only)</li>
+<li><code>HAlign := Left|Center|Right</code> (for <code>TReportTextObject</code> only)</li>
+<li><code>VAlign := Top|Center|Bottom</code> (for <code>TReportTextObject</code> only)</li>
+<li><code>PrintWhen := &lt;string&gt;</code> (for <code>TReportTextObject</code> only)</li>
+<li><code>DataField := &lt;string&gt;</code> (for <code>TReportTextObject</code> only)</li>
+<li><code>Expression := &lt;string&gt;</code> (for <code>TReportTextObject</code> only)</li>
+<li><code>DisplayFormat := &lt;string&gt;</code> (for <code>TReportFieldObject</code> only)</li>
+<li><code>EditMask := &lt;string&gt;</code> (for <code>TReportFieldObject</code> only)</li>
+<li><code>FontColorCondition := &lt;string&gt;</code> (for <code>TReportTextObject</code> only)</li>
+<li><code>BorderColor := clColorName</code> (for <code>TReportTextObject</code> only)</li>
+<li><code>Stretch := False|True</code> (for <code>TReportImageObject</code> only)</li>
+<li><code>Center := False|True</code> (for <code>TReportImageObject</code> only)</li>
+<li><code>Proportional := False|True</code> (for <code>TReportImageObject</code> only)</li>
+<li><code>DataField := &lt;string&gt;</code> (for <code>TReportImageObject</code> only)</li>
+<li><code>BorderColor := clColorName</code> (for <code>TReportImageObject</code> only)</li>
+<li><code>BorderVisible := False|True</code> (for <code>TReportImageObject</code> only)</li>
+<li><code>BorderWidth := &lt;integer&gt;</code> (for <code>TReportImageObject</code> only)</li>
+<li><code>Transparent := False|True</code> (for <code>TReportTextObject</code> only)</li>
+<li><code>AutoSize := False|True</code> (for <code>TReportTextObject</code> only)</li>
+<li><code>WordWrap := False|True</code> (for <code>TReportTextObject</code> only)</li>
+<li><code>BorderVisible := False|True</code> (for <code>TReportTextObject</code> only)</li>
+<li><code>BorderWidth := &lt;integer&gt;</code> (for <code>TReportTextObject</code> only)</li>
+<li><code>PaddingLeft := &lt;integer&gt;</code> (for <code>TReportTextObject</code> only)</li>
+<li><code>PaddingTop := &lt;integer&gt;</code> (for <code>TReportTextObject</code> only)</li>
+<li><code>PaddingRight := &lt;integer&gt;</code> (for <code>TReportTextObject</code> only)</li>
+<li><code>PaddingBottom := &lt;integer&gt;</code> (for <code>TReportTextObject</code> only)</li>
+<li><code>FontColorOnTrue := clColorName</code> (for <code>TReportTextObject</code> only)</li>
+<li><code>BackgroundOnTrue := clColorName</code> (for <code>TReportTextObject</code> only)</li>
+<li><code>BorderColorOnTrue := clColorName</code> (for <code>TReportTextObject</code> only)</li>
+<li><code>BackgroundCondition := &lt;string&gt;</code> (for <code>TReportTextObject</code> only)</li>
+<li><code>BorderColorCondition := &lt;string&gt;</code> (for <code>TReportTextObject</code> only)</li>
+<li><code>ScriptUnsupported[ObjectType]</code> is emitted when a command is not valid for the current object class.</li>
+<li>Bounded multi-command form is supported with semicolon separators, executed left-to-right:</li>
+<li><code>Visible := True; Text := Field('CustomerName')</code></li>
+<li><code>CanPrint := False</code> short-circuits remaining commands for that object.</li>
+<li>Statement splitting is quote-aware for single-quoted literals:</li>
+<li><code>Text := 'A;B'; Visible := True</code> keeps <code>A;B</code> as one text literal.</li>
+<li>Escaped single quotes in literals are preserved:</li>
+<li><code>Text := 'O''Reilly'</code></li>
+<li>Whitespace around assignments/separators is normalized by adapter parsing:</li>
+<li><code>Visible   :=   True ;   Text := 'WS'</code></li>
+<li>Trailing empty semicolon segments are ignored safely:</li>
+<li><code>Text := 'Tail'; ; ;</code></li>
+<li>Unknown commands are treated as unsupported text (logged by host/demo), not executed by engine core.</li>
+<li>Unsupported command diagnostics include explicit reason tags:</li>
+<li><code>ScriptUnsupported[UnknownCommand]</code></li>
+<li><code>ScriptUnsupported[FieldSyntax]</code></li>
+<li><code>ScriptUnsupported[FieldName]</code></li>
+<li><code>ScriptUnsupported[ColorValue]</code></li>
+<li><code>ScriptUnsupported[VisibleValue]</code></li>
+<li><code>ScriptUnsupported[ObjectType]</code></li>
+<li><code>ScriptUnsupported[TextLiteral]</code></li>
+<li>In the designer demo, this parser is implemented via reusable shared adapter unit (<code>source/Vittix.Report.ScriptHost.Adapter.pas</code>), not engine scripting logic.</li>
+</ul>
+<h2 id="execution-order">Execution Order<a class="headerlink" href="#execution-order" title="Link to this section">&para;</a></h2>
+<p>Object-level execution order:
+1. <code>PrintWhen</code>
+2. Persisted object <code>OnBeforePrint</code> text (if non-empty)
+3. Runtime <code>OnBeforeObject</code>
+4. Draw object
+5. Persisted object <code>OnAfterPrint</code> text (if non-empty)
+6. Runtime <code>OnAfterObject</code></p>
+<p><code>PrintWhen</code> gating rule:
+- If <code>PrintWhen=False</code>, the object is skipped.
+- When skipped by <code>PrintWhen</code>, persisted object event text and runtime object callbacks are not executed.</p>
+<p><code>CanPrint</code> rule:
+- If script-host <code>OnObjectBeforePrint</code> sets <code>ACanPrint=False</code>, the engine skips:
+- Runtime <code>OnBeforeObject</code>
+- Object draw
+- Persisted object <code>OnAfterPrint</code> text
+- Runtime <code>OnAfterObject</code></p>
+<h3 id="demo-coverage-notes">Demo coverage notes<a class="headerlink" href="#demo-coverage-notes" title="Link to this section">&para;</a></h3>
+<ul>
+<li>Runtime Event Callback Demo covers object script-host runtime execution, cancel behavior, parser edge cases, and unsupported-command diagnostics.</li>
+<li>The demo includes a non-text object mismatch path so <code>ScriptUnsupported[ObjectType]</code> is exercised instead of skipped.</li>
+<li>The demo keeps counting-pass inflation checks to confirm callbacks only run in the final render pass.</li>
+</ul>
+<p>Band/report order:
+- Report lifecycle callbacks wrap report execution (<code>OnBeforePrintReport</code> -&gt; render -&gt; <code>OnAfterPrintReport</code>).
+- Band persisted before/after text and band runtime before/after callbacks run around actual band printing as implemented by the engine.</p>
+<h2 id="expected-callback-trace-sample">Expected Callback Trace Sample<a class="headerlink" href="#expected-callback-trace-sample" title="Link to this section">&para;</a></h2>
+<p>Illustrative final-render trace for one printable object:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>BeforeReport
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>BeforeBand: MasterData
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>PrintWhen=True: objCustomerName
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>PersistedBeforeText: objCustomerName
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>BeforeObject: objCustomerName
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>DrawObject: objCustomerName
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>PersistedAfterText: objCustomerName
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>AfterObject: objCustomerName
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>AfterBand: MasterData
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>AfterReport
+</code></pre></div>
+<p>When <code>PrintWhen=False</code>, the object-level lines above are skipped for that object:
+- No persisted object <code>OnBeforePrint</code> text execution
+- No runtime <code>OnBeforeObject</code>
+- No draw
+- No persisted object <code>OnAfterPrint</code> text execution
+- No runtime <code>OnAfterObject</code></p>
+<h2 id="safe-skip-examples">Safe Skip Examples<a class="headerlink" href="#safe-skip-examples" title="Link to this section">&para;</a></h2>
+<p>Skip a band:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">if</span><span class="w"> </span><span class="nb">SameText</span><span class="p">(</span><span class="n">ABand</span><span class="o">.</span><span class="n">Name</span><span class="o">,</span><span class="w"> </span><span class="s">'MasterData'</span><span class="p">)</span><span class="w"> </span><span class="k">then</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="n">ACanPrint</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">False</span><span class="o">;</span>
+</code></pre></div></p>
+<p>Skip an object:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">AObject</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">TReportFieldObject</span><span class="p">)</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="nb">SameText</span><span class="p">(</span><span class="n">AObject</span><span class="o">.</span><span class="n">Name</span><span class="o">,</span><span class="w"> </span><span class="s">'fldInternalOnly'</span><span class="p">)</span><span class="w"> </span><span class="k">then</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="n">ACanPrint</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">False</span><span class="o">;</span>
+</code></pre></div></p>
+<p>Simple order logging:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">Log</span><span class="p">(</span><span class="s">'BeforeBand:'</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">ABand</span><span class="o">.</span><span class="n">Name</span><span class="p">)</span><span class="o">;</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">Log</span><span class="p">(</span><span class="s">'BeforeObject:'</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">AObject</span><span class="o">.</span><span class="n">Name</span><span class="p">)</span><span class="o">;</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">Log</span><span class="p">(</span><span class="s">'AfterObject:'</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">AObject</span><span class="o">.</span><span class="n">Name</span><span class="p">)</span><span class="o">;</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="n">Log</span><span class="p">(</span><span class="s">'AfterBand:'</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">ABand</span><span class="o">.</span><span class="n">Name</span><span class="p">)</span><span class="o">;</span>
+</code></pre></div></p>
+<h2 id="notes-and-limitations">Notes and Limitations<a class="headerlink" href="#notes-and-limitations" title="Link to this section">&para;</a></h2>
+<ul>
+<li>Runtime callbacks fire in final render pass only.</li>
+<li>Preview and export use the same engine event path.</li>
+<li>VittixReport does not provide filesystem/network/shell scripting.</li>
+<li>Host application owns script interpretation and safety policy.</li>
+<li>Persisted object event fields can be performance-sensitive on large reports.</li>
+</ul>
+<h2 id="runtime-demo-subtests">Runtime Demo Subtests<a class="headerlink" href="#runtime-demo-subtests" title="Link to this section">&para;</a></h2>
+<ul>
+<li>Runtime Event Callback Demo includes explicit host-script command subtests:</li>
+<li><code>Text := Field('CustomerName')</code></li>
+<li><code>Text := Field('NoSuchField')</code> (logs <code>ScriptFieldResolveMiss: NoSuchField</code>; does not count as unsupported)</li>
+<li><code>Text := Field('NoSuchField'); Foo := 1</code> (resolve-miss and unsupported can coexist; unsupported count increments only for <code>Foo := 1</code>)</li>
+<li><code>Background := clYellow</code></li>
+<li><code>Visible := False</code></li>
+<li><code>Foo := 1</code> (invalid command expected to be reported as <code>UnknownCommand</code>)</li>
+<li><code>Text := Field(CustomerName)</code> (invalid field syntax -&gt; <code>FieldSyntax</code>)</li>
+<li><code>Text := Field('   ')</code> (blank field name -&gt; <code>FieldName</code>)</li>
+<li><code>Background := clNotAColor</code> (invalid color token -&gt; <code>ColorValue</code>)</li>
+<li><code>Visible := Maybe</code> (invalid boolean token -&gt; <code>VisibleValue</code>)</li>
+<li><code>Text := Demo</code> (unquoted literal -&gt; <code>TextLiteral</code>)</li>
+<li><code>CanPrint := Maybe</code> (invalid cancel token -&gt; <code>CanPrintValue</code>)</li>
+<li><code>Foo := 1; Visible := Maybe; Text := Demo; Foo := 1</code> (multi-invalid sequence; validates duplicate reason aggregation)</li>
+<li><code>Text := 'OK'; Foo := 1; Visible := True; Text := Demo</code> (mixed valid+invalid sequence; validates left-to-right execution with unsupported tagging)</li>
+<li><code>CanPrint := False; Foo := 1; Text := Demo</code> (short-circuit sequence; later commands are not evaluated)</li>
+<li><code>Text := 'A;B'; Foo := 1</code> (quoted semicolon literal remains intact; following unsupported command is still tagged)</li>
+<li><code>FontColor := clNavy</code> (text-object font color command)</li>
+<li><code>BorderColor := clOlive</code> (text-object border color command)</li>
+<li><code>FontSize := 14</code> (text-object font size command)</li>
+<li><code>AnchorRight := True</code> (text-object right-anchor command)</li>
+<li><code>AnchorBottom := True</code> (text-object bottom-anchor command)</li>
+<li><code>FontName := Arial</code> (text-object font name command)</li>
+<li><code>FontBold := True</code> (text-object bold toggle command)</li>
+<li><code>FontItalic := True</code> (text-object italic toggle command)</li>
+<li><code>HAlign := Center</code> (text-object horizontal alignment command)</li>
+<li><code>VAlign := Bottom</code> (text-object vertical alignment command)</li>
+<li><code>PrintWhen := Value &gt; 0</code> (text-object print-when expression command)</li>
+<li><code>DataField := CustomerName</code> (text-object data-field binding command)</li>
+<li><code>Expression := Value + 1</code> (text-object expression command)</li>
+<li><code>DisplayFormat := #,##0.00; EditMask := '!99;0;_'</code> (field-object formatting command)</li>
+<li><code>FontColorCondition := Value &gt; 0</code> (text-object conditional font color expression)</li>
+<li><code>Stretch := False; Center := True; Proportional := False</code> (image-object fit command)</li>
+<li><code>DataField := ImagePath</code> (image-object data binding command)</li>
+<li><code>Transparent := False</code> (text-object transparency command)</li>
+<li><code>AutoSize := True</code> (text-object auto-size command)</li>
+<li><code>WordWrap := True</code> (text-object word-wrap command)</li>
+<li><code>BorderVisible := True</code> (text-object border toggle command)</li>
+<li><code>BorderWidth := 3</code> (text-object border width command)</li>
+<li><code>PaddingLeft := 12</code> (text-object left padding command)</li>
+<li><code>PaddingTop := 7</code> (text-object top padding command)</li>
+<li><code>PaddingRight := 9</code> (text-object right padding command)</li>
+<li><code>PaddingBottom := 4</code> (text-object bottom padding command)</li>
+<li><code>FontColorOnTrue := clMaroon</code> (text-object conditional font color command)</li>
+<li><code>BackgroundOnTrue := clYellow</code> (text-object conditional background command)</li>
+<li><code>BorderColorOnTrue := clRed</code> (text-object conditional border color command)</li>
+<li><code>BackgroundCondition := Value &gt; 0</code> (text-object conditional background expression)</li>
+<li><code>BorderColorCondition := Value &lt; 100</code> (text-object conditional border color expression)</li>
+<li>Keys are case-insensitive for supported commands (for example <code>text := 'lower'</code>, <code>cAnPrInT := False</code>)</li>
+<li>Non-text object with <code>Text := 'X'; Background := clYellow</code> (both commands report <code>ObjectType</code> unsupported)</li>
+<li>Each subtest reports PASS/FAIL in the demo output summary.</li>
+<li>Demo output also includes an unsupported-command diagnostics block grouped by subtest.</li>
+<li>Demo output includes a compact unsupported-reason summary block with per-reason counts.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      VittixReport - Delphi VCL report component
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/ketandholakia/VittixReport" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.tracking", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

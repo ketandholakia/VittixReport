@@ -1,0 +1,3972 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Delphi VCL reporting component - designer, engine, preview, print and export">
+      
+      
+        <meta name="author" content="Ketan Dholakia">
+      
+      
+        <link rel="canonical" href="https://ketandholakia.github.io/VittixReport/testing.html">
+      
+      
+        <link rel="prev" href="developer-manual.html">
+      
+      
+        <link rel="next" href="EVENTS.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Testing - VittixReport</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#0-automated-gate-run-this-before-the-manual-checklist" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="index.html" title="VittixReport" class="md-header__button md-logo" aria-label="VittixReport" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            VittixReport
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Testing
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/ketandholakia/VittixReport" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ketandholakia/VittixReport
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="index.html" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="readme.html" class="md-tabs__link">
+          
+  
+  
+  Project
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="EVENTS.html" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="todo.html" class="md-tabs__link">
+          
+  
+  
+  Roadmap
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="Phase1-Characterization-and-Safety.html" class="md-tabs__link">
+          
+  
+  
+  Modernization
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="architecture-analysis.html" class="md-tabs__link">
+          
+  
+  
+  Analysis
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="https://github.com/ketandholakia/VittixReport/blob/main/LICENSE" class="md-tabs__link">
+        
+  
+  
+    
+  
+  License
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="index.html" title="VittixReport" class="md-nav__button md-logo" aria-label="VittixReport" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    VittixReport
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/ketandholakia/VittixReport" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ketandholakia/VittixReport
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="readme.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    README
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="user-manual.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User manual
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="developer-manual.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer manual
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="testing.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#0-automated-gate-run-this-before-the-manual-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0) Automated gate (run this before the manual checklist)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-build-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1) Build checks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-designer-smoke-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2) Designer smoke test
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-regression-runner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3) Regression runner
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#31-vector-pdf-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1) Vector PDF checks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#32-print-fidelity-manual-gap-005p3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2) Print fidelity (manual — GAP-005/P3)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-manual-key-reports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4) Manual key reports
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-keyboard-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5) Keyboard tests
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-property-panel-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6) Property panel tests
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-rendering-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7) Rendering tests
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-diagnostics-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8) Diagnostics tests
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-memorygdi-stress" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9) Memory/GDI stress
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-gitrelease-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10) Git/release checklist
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-undoredo-stabilization-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11) Undo/Redo stabilization checklist
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11) Undo/Redo stabilization checklist">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-object-actions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic object actions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#property-actions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Property actions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#band-actions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Band actions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#page-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Page Setup
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#band-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Band Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#undoredo-ux" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Undo/Redo UX
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#safety" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Safety
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#undo-history-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Undo history policy
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-structure-tree-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12) Structure Tree checklist
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="12) Structure Tree checklist">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#selection-sync" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Selection sync
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#refresh-safety" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Refresh safety
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#context-menu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context menu
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deferrednot-implemented" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deferred/not implemented
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-uitoolbar-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13) UI/Toolbar checklist
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="13) UI/Toolbar checklist">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#toolbar-svg-icons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Toolbar SVG icons
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#view-toggles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        View toggles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#toolbar-zoom-selector" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Toolbar zoom selector
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#14-designer-ui-property-panel-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14) Designer UI / Property Panel checklist
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="14) Designer UI / Property Panel checklist">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#designer-event-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Designer Event Fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#band-event-script-helper" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Band Event Script Helper
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#band-event-script-snippets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Band Event Script Snippets
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#15-event-script-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15) Event / Script Policy
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="15) Event / Script Policy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#current-supported-items" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current supported items
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#object-event-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Object event fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#16-object-event-fields-phase-a-persistence-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16) Object Event Fields Phase A (Persistence Only)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#17-object-event-fields-phase-c-runtime-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        17) Object Event Fields Phase C (Runtime Execution)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="17) Object Event Fields Phase C (Runtime Execution)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#object-event-printwhen-ordering-regression" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Object Event / PrintWhen Ordering Regression
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#object-event-scripting-demo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Object Event Scripting Demo
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#18-designer-ui-variables-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        18) Designer UI / Variables checklist
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="18) Designer UI / Variables checklist">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#variables-panel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Variables panel
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#insertion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Insertion
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#runtime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#regression" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Regression
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#19-engine-runtime-events-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        19) Engine / Runtime Events checklist
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="19) Engine / Runtime Events checklist">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#no-handler-baseline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        No-handler baseline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#report-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Report events
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#band-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Band events
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#object-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Object events
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pass-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pass behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#safety_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Safety
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="EVENTS.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Report events
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="designer.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Designer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="designer-icon-map.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Designer icon map
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="demo-app.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Demo application
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="demo-templates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Demo report templates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="regression-fixtures.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Regression fixtures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="branding.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Branding assets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Roadmap
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="todo.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TODO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="bug-queue.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bug queue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Designer-UX-Roadmap.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Designer UX roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="plan-embedded-image.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Embedded image plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="plan-text-expression-editor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Text expression editor plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="plan-vector-pdf.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vector PDF plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="plan-phase4i20.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4I-20 plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Modernization
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Modernization
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase1-Characterization-and-Safety.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 1 - characterization and safety
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase2-Data-Capability-and-Traversal-Diagnostics.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 2 - data capability and traversal diagnostics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase3-Performance-Foundations.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 3 - performance foundations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase4-Checkpoint.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4 - checkpoint
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase4A-Expression-Compatibility-Contract.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4A - expression compatibility contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase4B-Compatibility-Evaluator.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4B - compatibility evaluator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase4B2A-Modern-Expression-Semantics.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4B-2A - modern expression semantics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase4B2B-Modern-Expression-Implementation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4B-2B - modern expression implementation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="phase4b2b-closure-audit.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4B-2B - closure audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase4I-20-ExpressionEngineDesign.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4I-20 - expression engine design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase5-Quality-Benchmark-CI.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 5 - quality, benchmarking and CI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase6-Output-Coverage.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 6 - output coverage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Modernization-Residual-Audit.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Residual audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysis
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Analysis
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="architecture-analysis.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="technical-evaluation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="code-review.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code review
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="code-review-v2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code review v2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="GAP-005-Page-Ownership-Audit.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GAP-005 page ownership audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="GAP-005-P3-Print-Audit.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GAP-005 print audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="GAP-005-Residual-Review.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GAP-005 residual review
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/ketandholakia/VittixReport/blob/main/LICENSE" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    License
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#0-automated-gate-run-this-before-the-manual-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0) Automated gate (run this before the manual checklist)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-build-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1) Build checks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-designer-smoke-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2) Designer smoke test
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-regression-runner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3) Regression runner
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#31-vector-pdf-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1) Vector PDF checks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#32-print-fidelity-manual-gap-005p3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2) Print fidelity (manual — GAP-005/P3)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-manual-key-reports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4) Manual key reports
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-keyboard-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5) Keyboard tests
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-property-panel-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6) Property panel tests
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-rendering-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7) Rendering tests
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-diagnostics-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8) Diagnostics tests
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-memorygdi-stress" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9) Memory/GDI stress
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-gitrelease-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10) Git/release checklist
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-undoredo-stabilization-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11) Undo/Redo stabilization checklist
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11) Undo/Redo stabilization checklist">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-object-actions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic object actions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#property-actions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Property actions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#band-actions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Band actions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#page-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Page Setup
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#band-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Band Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#undoredo-ux" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Undo/Redo UX
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#safety" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Safety
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#undo-history-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Undo history policy
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-structure-tree-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12) Structure Tree checklist
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="12) Structure Tree checklist">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#selection-sync" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Selection sync
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#refresh-safety" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Refresh safety
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#context-menu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context menu
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deferrednot-implemented" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deferred/not implemented
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-uitoolbar-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13) UI/Toolbar checklist
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="13) UI/Toolbar checklist">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#toolbar-svg-icons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Toolbar SVG icons
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#view-toggles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        View toggles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#toolbar-zoom-selector" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Toolbar zoom selector
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#14-designer-ui-property-panel-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14) Designer UI / Property Panel checklist
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="14) Designer UI / Property Panel checklist">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#designer-event-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Designer Event Fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#band-event-script-helper" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Band Event Script Helper
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#band-event-script-snippets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Band Event Script Snippets
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#15-event-script-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15) Event / Script Policy
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="15) Event / Script Policy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#current-supported-items" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current supported items
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#object-event-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Object event fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#16-object-event-fields-phase-a-persistence-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16) Object Event Fields Phase A (Persistence Only)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#17-object-event-fields-phase-c-runtime-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        17) Object Event Fields Phase C (Runtime Execution)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="17) Object Event Fields Phase C (Runtime Execution)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#object-event-printwhen-ordering-regression" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Object Event / PrintWhen Ordering Regression
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#object-event-scripting-demo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Object Event Scripting Demo
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#18-designer-ui-variables-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        18) Designer UI / Variables checklist
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="18) Designer UI / Variables checklist">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#variables-panel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Variables panel
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#insertion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Insertion
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#runtime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#regression" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Regression
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#19-engine-runtime-events-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        19) Engine / Runtime Events checklist
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="19) Engine / Runtime Events checklist">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#no-handler-baseline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        No-handler baseline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#report-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Report events
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#band-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Band events
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#object-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Object events
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pass-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pass behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#safety_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Safety
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+  <h1>Testing</h1>
+
+<p><em>Source: <code>TESTING.md</code></em></p>
+<div class="highlight"><pre><span></span><code># VittixReport Manual Testing Checklist
+</code></pre></div>
+<p>Use this checklist before releases or major engine changes.</p>
+<h2 id="0-automated-gate-run-this-before-the-manual-checklist">0) Automated gate (run this before the manual checklist)<a class="headerlink" href="#0-automated-gate-run-this-before-the-manual-checklist" title="Link to this section">&para;</a></h2>
+<p>Phase 5 adds a single regression gate. It builds the test project, runs the
+DUnitX suite (requiring exit 0 and <code>Tests Leaked : 0</code>), builds <code>VittixRunner</code>
+and runs it with <code>--strict</code> (requiring exit 0 — page counts reconciled against
+<code>reports/regression_baselines.json</code>), and enforces resource thresholds
+(USER handle delta 0, bounded GDI delta).</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>powershell -NoProfile -ExecutionPolicy Bypass -File tools\ci_gate.ps1
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>powershell -NoProfile -ExecutionPolicy Bypass -File tools\ci_gate.ps1 -IncludePackages
+</code></pre></div>
+<p><code>-IncludePackages</code> additionally builds the runtime package, the design package
+and the standalone designer. Logs land in <code>build\gate\</code>; informational
+benchmark timings land in <code>build\phase5-benchmark-timings.txt</code>.</p>
+<p>CI (<code>.github/workflows/build-and-test.yml</code>) runs the same script on a
+self-hosted Windows runner with RAD Studio installed. See
+<code>docs/Phase5-Quality-Benchmark-CI.md</code> for the gate contract.</p>
+<p><strong>Known hazard — incremental builds (stale binary).</strong> The gate builds with
+<code>/t:Build</code>. MSBuild's incremental check works off file-timestamp granularity, so
+a source edit made within the same second as a previous build can be missed,
+leaving a <strong>stale binary</strong>; the suite then reports failures that do not exist in
+the source. This was observed during GAP-005/P2 (a reverted mutation appeared to
+still fail until the project was rebuilt).</p>
+<p>If a result looks impossible, re-run with <code>/t:Rebuild</code> <strong>before</strong> investigating:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>msbuild tests\VittixReportTests.dproj /t:Rebuild /p:Config=Release /p:Platform=Win32
+</code></pre></div>
+<p>CI is not affected (fresh checkout builds from scratch). Whether the gate should
+use <code>Rebuild</code> is a deliberate future CI-determinism decision, not a default
+change — <code>Rebuild</code> costs materially more time.</p>
+<h2 id="1-build-checks">1) Build checks<a class="headerlink" href="#1-build-checks" title="Link to this section">&para;</a></h2>
+<ul>
+<li>Build runtime package/project in Debug.</li>
+<li>Build runtime package/project in Release.</li>
+<li>Build standalone designer.</li>
+<li>Confirm no compile errors.</li>
+</ul>
+<h2 id="2-designer-smoke-test">2) Designer smoke test<a class="headerlink" href="#2-designer-smoke-test" title="Link to this section">&para;</a></h2>
+<ul>
+<li>New report.</li>
+<li>Open report.</li>
+<li>Save / Save As.</li>
+<li>Preview.</li>
+<li>Export PDF.</li>
+<li>Use Sample Dataset.</li>
+<li>Reload Sample Dataset.</li>
+</ul>
+<h2 id="3-regression-runner">3) Regression runner<a class="headerlink" href="#3-regression-runner" title="Link to this section">&para;</a></h2>
+<ul>
+<li>Run: <code>Report -&gt; Regression Tests -&gt; Run Regression Test Reports</code>.</li>
+<li>Confirm all automatic reports pass.</li>
+<li>Confirm manual-only report <code>16_large_preview_warning.vrt</code> is not auto-run.</li>
+<li>Run <code>RunTests.bat</code> for the full regression suite.</li>
+<li>Confirm <code>RunTests.bat</code> also validates vector PDF command page counts and <code>%PDF-</code> smoke output.</li>
+<li>Confirm <code>RunTests.bat</code> validates vector PDF output through both file and <code>TMemoryStream</code> export paths.</li>
+<li>Confirm <code>30_invoice_named_datasets_contract.vrt</code> renders marker values from the six invoice <code>TVittixUserDataSet</code> aliases.</li>
+<li>Confirm <code>31_runtime_parameter_values.vrt</code> renders report heading, amount-in-words, bank text, and filter summary from runtime parameters.</li>
+<li>Confirm <code>32_image_binding_values.vrt</code> renders supplied logo/signature image paths and suppresses missing image output safely.</li>
+<li>Confirm <code>33_invoice_multipage_contract.vrt</code> produces multiple pages with one invoice page-header and page-footer marker per page.</li>
+<li>Confirm <code>34_reportdata_contract.vrt</code> renders executed-report rows through the <code>ReportData</code> alias and a supplied filter summary parameter.</li>
+<li>Run <code>RunTests-VectorPDF.bat</code> to build, run vector PDF smoke checks, and keep generated PDFs for inspection.</li>
+<li>Run <code>RunTests-Scripts.bat</code> to build and run only script-bearing regression reports.</li>
+<li>Run <code>RunTests-ScriptTrace.bat</code> to build and run trace-only script diagnostics.</li>
+<li>Run <code>VittixRunner --scripts</code> if you want the script-bearing filter without the batch wrapper.</li>
+<li>Run <code>VittixRunner --script-trace</code> to inspect script-only traces without pagination checks.</li>
+<li>Use <code>VittixRunner &lt;reportfile.vrt&gt;</code> to target a specific script case while developing object event handling.</li>
+<li>Use <code>VittixRunner --keep-vector-pdf</code> to keep generated vector PDF smoke files under <code>build\vector-pdf-smoke</code> for manual inspection.</li>
+<li>Run <code>VittixRunner --help</code> to list available runner switches.</li>
+</ul>
+<h2 id="31-vector-pdf-checks">3.1) Vector PDF checks<a class="headerlink" href="#31-vector-pdf-checks" title="Link to this section">&para;</a></h2>
+<ul>
+<li>Export a simple report with <code>Export to Vector PDF...</code>.</li>
+<li>Or run <code>VittixRunner --keep-vector-pdf</code> and open the generated PDFs from <code>build\vector-pdf-smoke</code>.</li>
+<li>Confirm text and lines are sharp/selectable compared with printer-based PDF output.</li>
+<li>Confirm page count matches preview.</li>
+<li>Confirm PNG and JPEG report images render.</li>
+<li>Confirm unsupported EMF/WMF/SVG images fail gracefully without breaking text or lines.</li>
+<li>Keep <code>Export PDF</code> behavior unchanged; it remains the printer-based exporter.
+  A report/printer page-size difference is reported <strong>non-interactively</strong> (a
+  debug-channel diagnostic via <code>OutputDebugString</code>); it must never block with a
+  dialog, because this path is used for silent/server-side export. The decision
+  is gate-covered by <code>Test_Mapping_SizeMismatchPredicate</code>; the non-interactive
+  behaviour is verified by review.</li>
+</ul>
+<h2 id="32-print-fidelity-manual-gap-005p3">3.2) Print fidelity (manual — GAP-005/P3)<a class="headerlink" href="#32-print-fidelity-manual-gap-005p3" title="Link to this section">&para;</a></h2>
+<p>P3 unified the three printer paths onto one shared mapping and made
+<code>TReportRenderer.Print</code> draw the <strong>metafile</strong> (vector), matching
+<code>TVittixReportPreview.Print</code> and the PDF exporter. Bitmaps are no longer used for
+printing; the geometry is unchanged (full stretch).</p>
+<p>Automated coverage asserts only <em>what the code asks the printer to draw</em>
+(<code>tests\Test.Gap005.PrintPath.pas</code>: the shared mapping, and that the print draw
+stays vector). <strong>It cannot prove what a driver renders</strong> — do this by hand after
+any change to a print path:</p>
+<ul>
+<li>Print a multi-page report (e.g. <code>41_twopass_totalpages.vrt</code>, 75 pages) from the
+  <strong>runtime component</strong> (<code>TVittixReport.Print</code>) and from the <strong>designer preview</strong>
+  Print button; the two must now look the same.</li>
+<li>Check text and line sharpness at 100% — vector output should not show the
+  double-resampling blur the old bitmap path produced.</li>
+<li>Confirm page count and page-break positions match the preview exactly.</li>
+<li>Confirm images (PNG/JPEG) and barcodes still render.</li>
+<li>Repeat with a page-size mismatch (A4 report on a Letter printer): distortion is
+  expected and pre-existing (full stretch is the deliberate default, P3 decision
+  D2). Record it, do not "fix" it here.</li>
+<li>Record the printer/driver used, plus pass/fail per item, in the release notes.</li>
+</ul>
+<p>If a printer is unavailable, record that the checklist was <strong>not executable</strong> in
+this environment rather than marking it passed.</p>
+<h2 id="4-manual-key-reports">4) Manual key reports<a class="headerlink" href="#4-manual-key-reports" title="Link to this section">&para;</a></h2>
+<ul>
+<li>Preview:</li>
+<li><code>15_large_preview_stress.vrt</code></li>
+<li><code>16_large_preview_warning.vrt</code></li>
+<li><code>22_expression_usage_demo.vrt</code></li>
+<li><code>23_invalid_datafield_diagnostics.vrt</code></li>
+<li><code>24_object_event_before_after_masterdata.vrt</code></li>
+<li><code>25_object_event_before_after_expression.vrt</code></li>
+<li><code>26_object_event_unsupported_cases.vrt</code></li>
+<li><code>27_object_event_image_cases.vrt</code></li>
+</ul>
+<h2 id="5-keyboard-tests">5) Keyboard tests<a class="headerlink" href="#5-keyboard-tests" title="Link to this section">&para;</a></h2>
+<ul>
+<li>Property panel <code>Ctrl+C</code> / <code>Ctrl+X</code> / <code>Ctrl+V</code> / <code>Delete</code>.</li>
+<li>Canvas <code>Delete</code>.</li>
+<li>Arrow nudge.</li>
+<li><code>Ctrl+Arrow</code> move by 1.</li>
+<li><code>Shift+Arrow</code> resize by 1.</li>
+<li><code>Ctrl+Shift+Arrow</code> move by grid size.</li>
+</ul>
+<h2 id="6-property-panel-tests">6) Property panel tests<a class="headerlink" href="#6-property-panel-tests" title="Link to this section">&para;</a></h2>
+<ul>
+<li>Boolean dropdown.</li>
+<li>Enum dropdown.</li>
+<li>DataField dropdown.</li>
+<li>Color picker.</li>
+<li>Font dialog.</li>
+<li>Group rows not editable.</li>
+</ul>
+<h2 id="7-rendering-tests">7) Rendering tests<a class="headerlink" href="#7-rendering-tests" title="Link to this section">&para;</a></h2>
+<ul>
+<li>Grouped report.</li>
+<li>CanGrow memo report.</li>
+<li>Barcode report.</li>
+<li>ImagePath report.</li>
+<li>PrintWhen reports.</li>
+<li>Conditional color reports.</li>
+</ul>
+<h2 id="8-diagnostics-tests">8) Diagnostics tests<a class="headerlink" href="#8-diagnostics-tests" title="Link to this section">&para;</a></h2>
+<p>Debug build:
+- Unresolved expression token logs once/deduped.
+- Invalid DataField logs once/deduped.</p>
+<p>Release build:
+- No debug diagnostics emitted.</p>
+<h2 id="9-memorygdi-stress">9) Memory/GDI stress<a class="headerlink" href="#9-memorygdi-stress" title="Link to this section">&para;</a></h2>
+<ul>
+<li>Open/close preview repeatedly.</li>
+<li>Export PDF repeatedly.</li>
+<li>Watch Memory, GDI Objects, USER Objects.</li>
+<li>Large preview warning Yes/No path.</li>
+</ul>
+<h2 id="10-gitrelease-checklist">10) Git/release checklist<a class="headerlink" href="#10-gitrelease-checklist" title="Link to this section">&para;</a></h2>
+<ul>
+<li><code>git status</code> clean.</li>
+<li><code>reports/README.md</code> aligned with runner list.</li>
+<li><code>TESTING.md</code> updated if reports/features change.</li>
+</ul>
+<h2 id="11-undoredo-stabilization-checklist">11) Undo/Redo stabilization checklist<a class="headerlink" href="#11-undoredo-stabilization-checklist" title="Link to this section">&para;</a></h2>
+<h3 id="basic-object-actions">Basic object actions<a class="headerlink" href="#basic-object-actions" title="Link to this section">&para;</a></h3>
+<ul>
+<li>Add object -&gt; Undo/Redo.</li>
+<li>Delete object -&gt; Undo/Redo.</li>
+<li>Mouse move -&gt; Undo/Redo.</li>
+<li>Mouse resize -&gt; Undo/Redo.</li>
+<li>Keyboard <code>Ctrl+Arrow</code> move -&gt; Undo/Redo.</li>
+<li>Keyboard <code>Shift+Arrow</code> resize -&gt; Undo/Redo.</li>
+</ul>
+<h3 id="property-actions">Property actions<a class="headerlink" href="#property-actions" title="Link to this section">&para;</a></h3>
+<ul>
+<li>Property panel Apply -&gt; Undo/Redo.</li>
+<li>Expression Helper OK -&gt; Undo/Redo.</li>
+<li>Font dialog OK -&gt; Undo/Redo.</li>
+<li>Font dialog Cancel -&gt; no undo entry.</li>
+<li>Apply with no change -&gt; no undo entry.</li>
+<li>Edit Report Title -&gt; commit boundary -&gt; Undo/Redo.</li>
+<li>Edit Report Author -&gt; commit boundary -&gt; Undo/Redo.</li>
+<li>Edit Report Description -&gt; Undo/Redo.</li>
+<li>Edit Title + Author before same commit boundary -&gt; one Undo/Redo step.</li>
+<li>Edit Title + Author + Description before same commit boundary -&gt; one Undo/Redo step.</li>
+<li>Tabbing out of Title/Author does not create separate undo entries.</li>
+<li>Save after metadata already committed does not create duplicate undo entry.</li>
+<li>Report Properties Cancel with Description change -&gt; no report change.</li>
+<li>Save/Reopen preserves Title, Author, and Description.</li>
+</ul>
+<h3 id="band-actions">Band actions<a class="headerlink" href="#band-actions" title="Link to this section">&para;</a></h3>
+<ul>
+<li>Add Band -&gt; Undo/Redo.</li>
+<li>Delete selected band -&gt; Undo/Redo.</li>
+<li>Delete child object inside band -&gt; band remains.</li>
+<li>Delete band with children -&gt; Undo/Redo restores children.</li>
+</ul>
+<h3 id="page-setup">Page Setup<a class="headerlink" href="#page-setup" title="Link to this section">&para;</a></h3>
+<ul>
+<li>Page Setup OK with changes -&gt; one Undo/Redo step.</li>
+<li>Page Setup OK with no changes -&gt; no undo entry.</li>
+<li>Page Setup Cancel -&gt; no undo entry.</li>
+<li>Page Setup Undo/Redo preserves earlier undo history.</li>
+</ul>
+<h3 id="band-manager">Band Manager<a class="headerlink" href="#band-manager" title="Link to this section">&para;</a></h3>
+<ul>
+<li>Band Manager Cancel after edits -&gt; no report change and no undo entry.</li>
+<li>Band Manager OK with no changes -&gt; no undo entry.</li>
+<li>Band Manager OK with mixed changes -&gt; one Undo/Redo.</li>
+<li>Previous undo history remains reachable after Band Manager OK.</li>
+</ul>
+<h3 id="undoredo-ux">Undo/Redo UX<a class="headerlink" href="#undoredo-ux" title="Link to this section">&para;</a></h3>
+<ul>
+<li>Edit menu captions show next action name.</li>
+<li>Toolbar hints show next action name.</li>
+<li>Empty stack shows plain disabled Undo/Redo.</li>
+</ul>
+<h3 id="safety">Safety<a class="headerlink" href="#safety" title="Link to this section">&para;</a></h3>
+<ul>
+<li>Structure tree refreshes after Undo/Redo.</li>
+<li>Property panel does not point to stale/deleted object.</li>
+<li>Preview works after deep Undo/Redo sequence.</li>
+</ul>
+<h3 id="undo-history-policy">Undo history policy<a class="headerlink" href="#undo-history-policy" title="Link to this section">&para;</a></h3>
+<ul>
+<li>New/Open/Load report clears undo history.</li>
+<li>Regression/demo/sample report loading clears undo history.</li>
+<li>Band Manager OK preserves prior undo history and adds one command when changed.</li>
+<li>Band Manager Cancel creates no undo entry.</li>
+<li>Page Setup and Report Metadata commits are undoable.</li>
+<li>Sample dataset / Reload Sample Dataset / Live Database Connection are not document undo actions.</li>
+</ul>
+<h2 id="12-structure-tree-checklist">12) Structure Tree checklist<a class="headerlink" href="#12-structure-tree-checklist" title="Link to this section">&para;</a></h2>
+<h3 id="selection-sync">Selection sync<a class="headerlink" href="#selection-sync" title="Link to this section">&para;</a></h3>
+<ul>
+<li>Select object on canvas -&gt; matching tree node highlights.</li>
+<li>Select band on canvas -&gt; matching tree node highlights.</li>
+<li>Click object node -&gt; designer selects object.</li>
+<li>Click band node -&gt; designer selects band.</li>
+<li>Double-click object/band node -&gt; designer keeps focus/selection.</li>
+</ul>
+<h3 id="refresh-safety">Refresh safety<a class="headerlink" href="#refresh-safety" title="Link to this section">&para;</a></h3>
+<ul>
+<li>Add object -&gt; tree updates.</li>
+<li>Delete object -&gt; tree updates.</li>
+<li>Undo/Redo object delete -&gt; tree updates.</li>
+<li>Add band -&gt; tree updates.</li>
+<li>Delete selected band -&gt; tree updates.</li>
+<li>Undo/Redo band delete -&gt; tree updates.</li>
+<li>New/Open/Load report -&gt; tree resets cleanly.</li>
+</ul>
+<h3 id="context-menu">Context menu<a class="headerlink" href="#context-menu" title="Link to this section">&para;</a></h3>
+<ul>
+<li>Right-click object node -&gt; node selected, Delete enabled.</li>
+<li>Right-click band node -&gt; node selected, Delete enabled.</li>
+<li>Right-click Report root -&gt; Delete disabled.</li>
+<li>Right-click empty area -&gt; Delete disabled/no crash.</li>
+<li>Context Delete object -&gt; Undo/Redo works.</li>
+<li>Context Delete band -&gt; Undo/Redo works.</li>
+<li>Expand All / Collapse All -&gt; no undo entry.</li>
+</ul>
+<h3 id="deferrednot-implemented">Deferred/not implemented<a class="headerlink" href="#deferrednot-implemented" title="Link to this section">&para;</a></h3>
+<ul>
+<li>Tree rename is not implemented.</li>
+<li>Tree drag/drop reorder is not implemented.</li>
+<li>Tree Add Band/Add Object context actions are not implemented.</li>
+</ul>
+<h2 id="13-uitoolbar-checklist">13) UI/Toolbar checklist<a class="headerlink" href="#13-uitoolbar-checklist" title="Link to this section">&para;</a></h2>
+<h3 id="toolbar-svg-icons">Toolbar SVG icons<a class="headerlink" href="#toolbar-svg-icons" title="Link to this section">&para;</a></h3>
+<ul>
+<li>Main toolbar loads without SVG/ImageList errors.</li>
+<li>Toolbar SVG icons are visible and readable.</li>
+<li>Toolbar SVG icons use dark neutral color, not pale/low-contrast color.</li>
+<li>Existing toolbar buttons still call the same actions.</li>
+<li>Undo/Redo buttons still enable/disable correctly.</li>
+</ul>
+<h3 id="view-toggles">View toggles<a class="headerlink" href="#view-toggles" title="Link to this section">&para;</a></h3>
+<ul>
+<li>Grid / Snap / Ruler / Margin toggles appear horizontally in one row.</li>
+<li>Grid / Snap / Ruler / Margin toggles are not clipped at normal window size.</li>
+<li>Grid toggle shows/hides grid immediately.</li>
+<li>Snap toggle changes snap behavior.</li>
+<li>Ruler toggle shows/hides ruler immediately.</li>
+<li>Margin toggle shows/hides margin guides immediately.</li>
+<li>View toggles do not create undo entries.</li>
+<li>View toggles do not mark report modified.</li>
+<li>Preview/export output is unchanged by view toggle state.</li>
+</ul>
+<h3 id="toolbar-zoom-selector">Toolbar zoom selector<a class="headerlink" href="#toolbar-zoom-selector" title="Link to this section">&para;</a></h3>
+<ul>
+<li>Toolbar zoom dropdown appears near Zoom In / Zoom Out.</li>
+<li>Dropdown includes 25%, 50%, 75%, 100%, 150%, 200%, Page width, Whole page.</li>
+<li>Selecting each percentage changes canvas zoom correctly.</li>
+<li>Page width fits visible page width.</li>
+<li>Whole page fits full page in visible area.</li>
+<li>Zoom In / Zoom Out update the dropdown text.</li>
+<li>Mouse-wheel zoom updates the dropdown text.</li>
+<li>Right-panel zoom Apply still syncs with toolbar dropdown if right-panel zoom remains.</li>
+<li>Zoom changes do not create undo entries.</li>
+<li>Zoom changes do not mark report modified.</li>
+<li>Preview/export output is unchanged by zoom state.</li>
+</ul>
+<h2 id="14-designer-ui-property-panel-checklist">14) Designer UI / Property Panel checklist<a class="headerlink" href="#14-designer-ui-property-panel-checklist" title="Link to this section">&para;</a></h2>
+<ul>
+<li>Selecting an object loads its properties.</li>
+<li>Header shows selected object/band type.</li>
+<li>Header shows object Name when available.</li>
+<li>Apply is disabled when no pending property edits.</li>
+<li>Editing a real property enables Apply.</li>
+<li>Clicking visual group rows does not mark panel dirty.</li>
+<li>Applying property changes creates one undoable batch.</li>
+<li>Apply disables again after successful Apply.</li>
+<li>Changing selection clears/reloads dirty state safely.</li>
+<li>Enter applies only when dirty and does not create noisy no-op undo.</li>
+<li>Property hint/status text appears for common rows.</li>
+<li>Property hint/status text covers DataField.</li>
+<li>Property hint/status text covers Expression.</li>
+<li>Property hint/status text covers PrintWhen.</li>
+<li>Property hint/status text covers FontColor / BackgroundColor / BorderColor.</li>
+<li>Expression Helper still works.</li>
+<li>Font dialog still works.</li>
+<li>Color picker still works.</li>
+<li>DataField picklist still works.</li>
+</ul>
+<h3 id="designer-event-fields">Designer Event Fields<a class="headerlink" href="#designer-event-fields" title="Link to this section">&para;</a></h3>
+<ul>
+<li>Select a band -&gt; [Events] group appears in property panel.</li>
+<li>OnBeforePrint appears once under/near [Events].</li>
+<li>OnAfterPrint appears once under/near [Events].</li>
+<li>OnBeforePrint hint explains persisted band script hook.</li>
+<li>OnAfterPrint hint explains persisted band script hook.</li>
+<li>Hints clarify these fields are different from runtime Delphi callbacks.</li>
+<li>Open OnBeforePrint helper from property ellipsis button.</li>
+<li>Open OnAfterPrint helper from property ellipsis button.</li>
+<li>Band Event Script dialog shows multiline editor.</li>
+<li>Editing OnBeforePrint / OnAfterPrint enables Apply.</li>
+<li>Cancel in Band Event Script dialog keeps property value unchanged.</li>
+<li>Applying event text creates one undoable property batch.</li>
+<li>Undo/Redo restores event text.</li>
+<li>Save/Reopen persists event text.</li>
+<li>Expression Helper still works for expression fields.</li>
+<li>Runtime Event Callback Demo remains unaffected.</li>
+<li>Select object -&gt; [Events] group appears in property panel.</li>
+<li>Object OnBeforePrint / OnAfterPrint appear once under/near [Events].</li>
+<li>Object event helper opens as Object Event Script.</li>
+<li>Object event text saves/reopens.</li>
+<li>Object event text helper remains editor-only (no designer-side validation or execution).</li>
+<li>Band event helper still works.</li>
+<li>Runtime Event Callback Demo covers non-text object mismatch handling and emits <code>ScriptUnsupported[ObjectType]</code>.</li>
+</ul>
+<h3 id="band-event-script-helper">Band Event Script Helper<a class="headerlink" href="#band-event-script-helper" title="Link to this section">&para;</a></h3>
+<ul>
+<li>Select a band and verify [Events] group appears.</li>
+<li>OnBeforePrint has helper/ellipsis editor.</li>
+<li>OnAfterPrint has helper/ellipsis editor.</li>
+<li>Opening helper shows multiline editor.</li>
+<li>Helper shows concise help text.</li>
+<li>Snippet combo/list is visible.</li>
+<li>Insert button inserts selected snippet at caret.</li>
+<li>Snippet text is clearly marked as host-script example/text only.</li>
+<li>Helper shows line/char count.</li>
+<li>Line/char count updates while typing.</li>
+<li>Line/char count updates after snippet insertion.</li>
+<li>Fixed-width editor font is used.</li>
+<li>OK writes edited text back to property grid only.</li>
+<li>OK enables Apply / dirty state.</li>
+<li>Ctrl+Enter closes helper with OK.</li>
+<li>Enter inside editor inserts newline.</li>
+<li>Cancel leaves property value unchanged.</li>
+<li>Dialog does not execute script.</li>
+<li>Dialog does not validate script syntax.</li>
+<li>Snippet insertion does not execute or validate script.</li>
+<li>Cancel discards inserted snippet text.</li>
+<li>Dialog does not auto-apply.</li>
+<li>Applying creates one undoable property batch.</li>
+<li>Undo/Redo restores event script text.</li>
+<li>Apply/Undo/Redo behavior remains unchanged.</li>
+<li>Save/Reopen preserves event script text.</li>
+<li>Expression Helper still works for Expression / PrintWhen / condition fields.</li>
+<li>Font / Color / DataField editors still work.</li>
+</ul>
+<h3 id="band-event-script-snippets">Band Event Script Snippets<a class="headerlink" href="#band-event-script-snippets" title="Link to this section">&para;</a></h3>
+<ul>
+<li>Snippet combo/list is visible.</li>
+<li>Snippet label clearly says host-script example / text only.</li>
+<li>Insert button is visible.</li>
+<li>Header / note snippet inserts plain text at caret.</li>
+<li>Visibility placeholder snippet inserts plain text at caret.</li>
+<li>Variable placeholder snippet inserts plain text at caret.</li>
+<li>If / then template inserts plain text at caret.</li>
+<li>Host callback note inserts plain text at caret.</li>
+<li>Snippet insertion updates Lines / Chars count.</li>
+<li>Cancel after snippet insertion leaves property value unchanged.</li>
+<li>OK after snippet insertion writes text back to property grid only.</li>
+<li>Dialog does not validate snippets.</li>
+<li>Dialog does not execute snippets.</li>
+<li>Dialog does not auto-apply.</li>
+<li>Apply / Undo / Redo behavior remains unchanged.</li>
+</ul>
+<h2 id="15-event-script-policy">15) Event / Script Policy<a class="headerlink" href="#15-event-script-policy" title="Link to this section">&para;</a></h2>
+<ul>
+<li>See host callback wiring and execution notes in <code>docs/EVENTS.md</code>.</li>
+<li>Related runtime persistence/execution checks: <code>## 16) Object Event Fields Phase A (Persistence Only)</code> and <code>## 17) Object Event Fields Phase C (Runtime Execution)</code>.</li>
+</ul>
+<h3 id="current-supported-items">Current supported items<a class="headerlink" href="#current-supported-items" title="Link to this section">&para;</a></h3>
+<ul>
+<li>Runtime Delphi lifecycle callbacks:</li>
+<li>OnBeforePrintReport</li>
+<li>OnAfterPrintReport</li>
+<li>OnBeforeBand</li>
+<li>OnAfterBand</li>
+<li>OnBeforeObject</li>
+<li>OnAfterObject</li>
+<li>Persisted band event text:</li>
+<li>TReportBand.OnBeforePrint</li>
+<li>TReportBand.OnAfterPrint</li>
+<li>Band event text is stored in <code>.vrt</code> and interpreted by the host application callback/script layer.</li>
+<li>Designer does not validate or execute script text.</li>
+<li>Runtime Delphi callbacks are not stored in <code>.vrt</code>.</li>
+</ul>
+<h3 id="object-event-fields">Object event fields<a class="headerlink" href="#object-event-fields" title="Link to this section">&para;</a></h3>
+<ul>
+<li>Persisted object <code>OnBeforePrint</code> / <code>OnAfterPrint</code> fields are supported.</li>
+<li>Object event text is stored in <code>.vrt</code> when non-empty and omitted when empty.</li>
+<li>Runtime callback assignment remains host-side and is not stored in <code>.vrt</code>.</li>
+<li>Designer editing remains text-only (no validation/compilation/execution).</li>
+</ul>
+<h2 id="16-object-event-fields-phase-a-persistence-only">16) Object Event Fields Phase A (Persistence Only)<a class="headerlink" href="#16-object-event-fields-phase-a-persistence-only" title="Link to this section">&para;</a></h2>
+<ul>
+<li>Old <code>.vrt</code> files load unchanged.</li>
+<li>Empty object <code>OnBeforePrint</code> / <code>OnAfterPrint</code> fields are omitted on save.</li>
+<li>Non-empty object <code>OnBeforePrint</code> / <code>OnAfterPrint</code> values save and reload correctly.</li>
+<li>Persistence-only baseline validated before runtime execution phase.</li>
+</ul>
+<h2 id="17-object-event-fields-phase-c-runtime-execution">17) Object Event Fields Phase C (Runtime Execution)<a class="headerlink" href="#17-object-event-fields-phase-c-runtime-execution" title="Link to this section">&para;</a></h2>
+<ul>
+<li>Object event fields appear under <code>[Events]</code> in property panel.</li>
+<li>Object Event Script helper opens for object <code>OnBeforePrint</code> and <code>OnAfterPrint</code>.</li>
+<li>Save/load preserves non-empty object event text.</li>
+<li>Empty object event fields are omitted from <code>.vrt</code> serialization.</li>
+<li>Empty object event fields keep output unchanged.</li>
+<li>Non-empty object <code>OnBeforePrint</code> executes during final render pass.</li>
+<li>Non-empty object <code>OnAfterPrint</code> executes during final render pass.</li>
+<li>Object event text does not execute during counting pass.</li>
+<li>Script host receives object <code>OnBeforePrint</code> text and object context during final render.</li>
+<li>Script host receives object <code>OnAfterPrint</code> text only when object draw completes.</li>
+<li>Script-host <code>OnObjectBeforePrint</code> and runtime <code>OnBeforeObject</code> can both cancel print;</li>
+<li>script-host cancel runs first and skips runtime <code>OnBeforeObject</code>.</li>
+<li>Demo host parser supports <code>CanPrint := False</code>.</li>
+<li>Demo host parser supports <code>Text := 'literal'</code> for <code>TReportTextObject</code>.</li>
+<li>Demo host parser supports <code>Text := Field('FieldName')</code> for <code>TReportTextObject</code>.</li>
+<li>Demo host parser supports <code>Visible := False|True</code>.</li>
+<li>Demo host parser supports <code>AnchorRight := False|True</code>.</li>
+<li>Demo host parser supports <code>AnchorBottom := False|True</code>.</li>
+<li>Demo host parser supports <code>Background := clColorName</code> for <code>TReportTextObject</code>.</li>
+<li>Demo host parser supports <code>FontColor := clColorName</code> for <code>TReportTextObject</code>.</li>
+<li>Demo host parser supports <code>FontSize := &lt;integer&gt;</code> for <code>TReportTextObject</code>.</li>
+<li>Demo host parser supports <code>FontName := &lt;string&gt;</code> for <code>TReportTextObject</code>.</li>
+<li>Demo host parser supports <code>FontBold := False|True</code> for <code>TReportTextObject</code>.</li>
+<li>Demo host parser supports <code>FontItalic := False|True</code> for <code>TReportTextObject</code>.</li>
+<li>Demo host parser supports <code>HAlign := Left|Center|Right</code> for <code>TReportTextObject</code>.</li>
+<li>Demo host parser supports <code>VAlign := Top|Center|Bottom</code> for <code>TReportTextObject</code>.</li>
+<li>Demo host parser supports <code>PrintWhen := &lt;string&gt;</code> for <code>TReportTextObject</code>.</li>
+<li>Demo host parser supports <code>DataField := &lt;string&gt;</code> for <code>TReportTextObject</code>.</li>
+<li>Demo host parser supports <code>Expression := &lt;string&gt;</code> for <code>TReportTextObject</code>.</li>
+<li>Demo host parser supports <code>DisplayFormat := &lt;string&gt;</code> for <code>TReportFieldObject</code>.</li>
+<li>Demo host parser supports <code>EditMask := &lt;string&gt;</code> for <code>TReportFieldObject</code>.</li>
+<li>Demo host parser supports <code>FontColorCondition := &lt;string&gt;</code> for <code>TReportTextObject</code>.</li>
+<li>Demo host parser supports <code>Stretch := False|True</code> for <code>TReportImageObject</code>.</li>
+<li>Demo host parser supports <code>Center := False|True</code> for <code>TReportImageObject</code>.</li>
+<li>Demo host parser supports <code>Proportional := False|True</code> for <code>TReportImageObject</code>.</li>
+<li>Demo host parser supports <code>DataField := &lt;string&gt;</code> for <code>TReportImageObject</code>.</li>
+<li>Demo host parser supports <code>BorderColor := clColorName</code> for <code>TReportImageObject</code>.</li>
+<li>Demo host parser supports <code>BorderVisible := False|True</code> for <code>TReportImageObject</code>.</li>
+<li>Demo host parser supports <code>BorderWidth := &lt;integer&gt;</code> for <code>TReportImageObject</code>.</li>
+<li>Demo host parser supports <code>BorderColor := clColorName</code> for <code>TReportTextObject</code>.</li>
+<li>Demo host parser supports <code>Transparent := False|True</code> for <code>TReportTextObject</code>.</li>
+<li>Demo host parser supports <code>AutoSize := False|True</code> for <code>TReportTextObject</code>.</li>
+<li>Demo host parser supports <code>WordWrap := False|True</code> for <code>TReportTextObject</code>.</li>
+<li>Demo host parser supports <code>BorderVisible := False|True</code> for <code>TReportTextObject</code>.</li>
+<li>Demo host parser supports <code>BorderWidth := &lt;integer&gt;</code> for <code>TReportTextObject</code>.</li>
+<li>Demo host parser supports <code>PaddingLeft := &lt;integer&gt;</code> for <code>TReportTextObject</code>.</li>
+<li>Demo host parser supports <code>PaddingTop := &lt;integer&gt;</code> for <code>TReportTextObject</code>.</li>
+<li>Demo host parser supports <code>PaddingRight := &lt;integer&gt;</code> for <code>TReportTextObject</code>.</li>
+<li>Demo host parser supports <code>PaddingBottom := &lt;integer&gt;</code> for <code>TReportTextObject</code>.</li>
+<li>Demo host parser supports <code>FontColorOnTrue := clColorName</code> for <code>TReportTextObject</code>.</li>
+<li>Demo host parser supports <code>BackgroundOnTrue := clColorName</code> for <code>TReportTextObject</code>.</li>
+<li>Demo host parser supports <code>BorderColorOnTrue := clColorName</code> for <code>TReportTextObject</code>.</li>
+<li>Demo host parser supports <code>BackgroundCondition := &lt;string&gt;</code> for <code>TReportTextObject</code>.</li>
+<li>Demo host parser supports <code>BorderColorCondition := &lt;string&gt;</code> for <code>TReportTextObject</code>.</li>
+<li>Unsupported script commands are logged by host/demo and do not crash.</li>
+<li>Unsupported script diagnostics include reason tags (for example:</li>
+<li><code>ScriptUnsupported[UnknownCommand]</code>, <code>ScriptUnsupported[FieldSyntax]</code>, <code>ScriptUnsupported[ColorValue]</code>).</li>
+<li>Demo parser command handling is routed through reusable host-side adapter logic (behavior unchanged).</li>
+<li>Runtime Event Callback Demo subtest <code>Text := Field('CustomerName')</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>Background := clYellow</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>AnchorRight := True</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>AnchorBottom := True</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>FontColor := clNavy</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>FontName := Arial</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>FontBold := True</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>FontItalic := True</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>HAlign := Center</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>VAlign := Bottom</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>PrintWhen := Value &gt; 0</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>DataField := CustomerName</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>Expression := Value + 1</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>DisplayFormat := #,##0.00; EditMask := '!99;0;_'</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>FontColorCondition := Value &gt; 0</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>Stretch := False; Center := True; Proportional := False</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>DataField := ImagePath</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>BorderColor := clOlive</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>FontSize := 14</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>Transparent := False</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>AutoSize := True</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>WordWrap := True</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>BorderVisible := True</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>BorderWidth := 3</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>PaddingLeft := 12</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>PaddingTop := 7</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>PaddingRight := 9</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>PaddingBottom := 4</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>FontColorOnTrue := clMaroon</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>BackgroundOnTrue := clYellow</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>BorderColorOnTrue := clRed</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>BackgroundCondition := Value &gt; 0</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>BorderColorCondition := Value &lt; 100</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>Visible := False</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>Text := 'O''Reilly'</code> (escaped quote literal) reports PASS.</li>
+<li>Runtime Event Callback Demo subtest whitespace-normalized sequence <code>Visible := True ; Text := 'WS'</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest trailing semicolon sequence <code>Text := 'Tail'; ; ;</code> reports PASS.</li>
+<li>Runtime Event Callback Demo subtest invalid command <code>Foo := 1</code> reports PASS for unsupported handling.</li>
+<li>Runtime Event Callback Demo subtest <code>Text := Field(CustomerName)</code> reports <code>FieldSyntax</code> unsupported PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>Text := Field('   ')</code> reports <code>FieldName</code> unsupported PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>Background := clNotAColor</code> reports <code>ColorValue</code> unsupported PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>Visible := Maybe</code> reports <code>VisibleValue</code> unsupported PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>Text := Demo</code> reports <code>TextLiteral</code> unsupported PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>CanPrint := Maybe</code> reports <code>CanPrintValue</code> unsupported PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>Foo := 1; Visible := Maybe; Text := Demo; Foo := 1</code> reports multi-invalid aggregation PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>Text := 'OK'; Foo := 1; Visible := True; Text := Demo</code> reports mixed valid+invalid sequence PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>CanPrint := False; Foo := 1; Text := Demo</code> reports short-circuit PASS.</li>
+<li>Runtime Event Callback Demo subtest <code>Text := 'A;B'; Foo := 1</code> reports quoted-semicolon + unsupported PASS.</li>
+<li>Runtime Event Callback Demo subtest on non-text object <code>Text := 'X'; Background := clYellow</code> reports object-type mismatch PASS.</li>
+<li>Runtime Event Callback Demo supports bounded semicolon command sequences and reports PASS.</li>
+<li><code>CanPrint := False; ...</code> short-circuits remaining commands for that object.</li>
+<li>In the mixed short-circuit subtest, no <code>UnknownCommand</code> or <code>TextLiteral</code> unsupported lines are emitted after <code>CanPrint := False</code>.</li>
+<li>Quote-aware semicolon split works: <code>Text := 'A;B'; Visible := True</code>.</li>
+<li>Quote-aware semicolon + unsupported mix keeps <code>A;B</code> as one literal and still reports following <code>UnknownCommand</code>.</li>
+<li>Object-type mismatch subtest reports <code>ScriptUnsupported[ObjectType]</code> for text-only commands on non-text objects.</li>
+<li>Runtime Event Callback Demo shows compact parser edge-case summary (EscapedQuote/WhitespaceNormalization/TrailingSemicolon).</li>
+<li>Runtime Event Callback Demo shows unsupported-command diagnostics grouped by subtest.</li>
+<li>Runtime Event Callback Demo shows compact unsupported-reason summary with per-reason counts.</li>
+<li>Runtime Event Callback Demo unsupported reason summary includes <code>UnknownCommand</code> when invalid command subtest runs.</li>
+<li>Runtime Event Callback Demo unsupported reason summary includes:</li>
+<li><code>UnknownCommand</code>, <code>FieldSyntax</code>, <code>FieldName</code>, <code>ColorValue</code>, <code>VisibleValue</code>, <code>TextLiteral</code>, <code>CanPrintValue</code>.</li>
+<li>Multi-invalid aggregation subtest confirms duplicate reason counting (for example <code>UnknownCommand</code> appears twice in one script and is counted accordingly).</li>
+<li>Mixed valid+invalid sequence confirms left-to-right behavior: valid commands apply while unsupported commands are still tagged and counted.</li>
+<li>Band script behavior remains unchanged.</li>
+<li>Preview and export use consistent object event execution behavior.</li>
+</ul>
+<h3 id="object-event-printwhen-ordering-regression">Object Event / PrintWhen Ordering Regression<a class="headerlink" href="#object-event-printwhen-ordering-regression" title="Link to this section">&para;</a></h3>
+<ol>
+<li>Create or use a report object with:</li>
+<li><code>PrintWhen</code> expression that evaluates to <code>False</code>.</li>
+<li>Persisted <code>OnBeforePrint</code> text.</li>
+<li>Persisted <code>OnAfterPrint</code> text.</li>
+<li>Runtime <code>OnBeforeObject</code> callback.</li>
+<li>Runtime <code>OnAfterObject</code> callback.</li>
+<li>Preview or export the report.</li>
+<li>Confirm:</li>
+<li>Object is not drawn.</li>
+<li>Persisted <code>OnBeforePrint</code> text is not executed.</li>
+<li>Persisted <code>OnAfterPrint</code> text is not executed.</li>
+<li>Runtime <code>OnBeforeObject</code> callback is not called.</li>
+<li>Runtime <code>OnAfterObject</code> callback is not called.</li>
+<li>Change <code>PrintWhen</code> so it evaluates to <code>True</code>.</li>
+<li>Preview or export again.</li>
+<li>Confirm execution order:</li>
+<li><code>PrintWhen</code>.</li>
+<li>Persisted object <code>OnBeforePrint</code>.</li>
+<li>Runtime <code>OnBeforeObject</code>.</li>
+<li>Object draw.</li>
+<li>Persisted object <code>OnAfterPrint</code>.</li>
+<li>Runtime <code>OnAfterObject</code>.</li>
+</ol>
+<p>Expected result:
+- Object persisted event text and runtime object callbacks are gated by <code>PrintWhen</code>.
+- Skipped objects must not execute before/after event logic.
+- Preview and export follow the same object event execution path and order.
+- If object script-host <code>OnBeforePrint</code> sets <code>CanPrint=False</code>, runtime <code>OnBeforeObject</code>, draw, persisted <code>OnAfterPrint</code>, and runtime <code>OnAfterObject</code> are skipped.</p>
+<h3 id="object-event-scripting-demo">Object Event Scripting Demo<a class="headerlink" href="#object-event-scripting-demo" title="Link to this section">&para;</a></h3>
+<ul>
+<li>Object event scripts execute in the final render pass only.</li>
+<li>Object event scripts remain skipped during counting pass.</li>
+<li>Object event cancel path suppresses runtime object callbacks and draw.</li>
+<li>Parser supports text literals, <code>Field(...)</code>, <code>Visible</code>, <code>Background</code>, case-insensitive keys, and multi-command scripts.</li>
+<li>Unsupported commands are tagged with reason codes and logged once per occurrence.</li>
+<li>Non-text object mismatch coverage is present and should report <code>ScriptUnsupported[ObjectType]</code>.</li>
+</ul>
+<h2 id="18-designer-ui-variables-checklist">18) Designer UI / Variables checklist<a class="headerlink" href="#18-designer-ui-variables-checklist" title="Link to this section">&para;</a></h2>
+<h3 id="variables-panel">Variables panel<a class="headerlink" href="#variables-panel" title="Link to this section">&para;</a></h3>
+<ul>
+<li>Variables panel appears in the designer left area.</li>
+<li>System variables group appears.</li>
+<li>Variables list includes Date, Time, Page, Page#, TotalPages, TotalPages#, Line, Line#.</li>
+<li>Deferred variables CopyName#, TableRow, TableColumn are safely handled or marked unsupported.</li>
+</ul>
+<h3 id="insertion">Insertion<a class="headerlink" href="#insertion" title="Link to this section">&para;</a></h3>
+<ul>
+<li>Double-click Date inserts supported token into Text/Expression row.</li>
+<li>Double-click Page inserts supported page token.</li>
+<li>Double-click TotalPages inserts supported total-pages token.</li>
+<li>Double-click Line inserts supported line/record token.</li>
+<li>Unsupported variable double-click shows safe message and does not insert misleading token.</li>
+<li>No compatible property row selected -&gt; safe fallback/no crash.</li>
+</ul>
+<h3 id="runtime">Runtime<a class="headerlink" href="#runtime" title="Link to this section">&para;</a></h3>
+<ul>
+<li>[Date] renders safely.</li>
+<li>[Time] renders safely.</li>
+<li>[Page] / [Page#] render page number.</li>
+<li>[TotalPages] / [TotalPages#] render total pages.</li>
+<li>[Line] / [Line#] render record/line value where dataset context exists.</li>
+<li>Existing legacy tokens still work:</li>
+<li>[PageNo]</li>
+<li>[TotalPages]</li>
+<li>[ReportTitle]</li>
+<li>[ReportDate]</li>
+<li>[DateTime]</li>
+<li>[RecNo]</li>
+</ul>
+<h3 id="regression">Regression<a class="headerlink" href="#regression" title="Link to this section">&para;</a></h3>
+<ul>
+<li>Dataset Fields panel still works.</li>
+<li>Expression Helper still works.</li>
+<li>Property Apply undo still works.</li>
+<li>Preview/export still works.</li>
+<li>Regression Test Reports still run.</li>
+</ul>
+<h2 id="19-engine-runtime-events-checklist">19) Engine / Runtime Events checklist<a class="headerlink" href="#19-engine-runtime-events-checklist" title="Link to this section">&para;</a></h2>
+<ul>
+<li>Host application callback wiring examples are documented in <code>docs/EVENTS.md</code>.</li>
+<li>For object persisted event ordering checks, see <code>## 17) Object Event Fields Phase C (Runtime Execution)</code>.</li>
+</ul>
+<h3 id="no-handler-baseline">No-handler baseline<a class="headerlink" href="#no-handler-baseline" title="Link to this section">&para;</a></h3>
+<ul>
+<li>Existing reports render unchanged when no event callbacks are assigned.</li>
+<li>Preview output unchanged.</li>
+<li>Export output unchanged.</li>
+<li>Regression Test Reports still pass.</li>
+</ul>
+<h3 id="report-events">Report events<a class="headerlink" href="#report-events" title="Link to this section">&para;</a></h3>
+<ul>
+<li>OnBeforePrintReport fires once per final render/export.</li>
+<li>OnAfterPrintReport fires once after final render/export.</li>
+<li>OnBeforePrintReport cancel behavior is safe if implemented.</li>
+</ul>
+<h3 id="band-events">Band events<a class="headerlink" href="#band-events" title="Link to this section">&para;</a></h3>
+<ul>
+<li>OnBeforeBand fires before actual band print.</li>
+<li>OnAfterBand fires after actual band print.</li>
+<li>OnBeforeBand CanPrint=False skips band safely if implemented.</li>
+<li>Existing band script-string OnBeforePrint/OnAfterPrint still executes.</li>
+</ul>
+<h3 id="object-events">Object events<a class="headerlink" href="#object-events" title="Link to this section">&para;</a></h3>
+<ul>
+<li>OnBeforeObject fires before actual object print.</li>
+<li>OnAfterObject fires after actual object print.</li>
+<li>OnBeforeObject CanPrint=False skips object safely.</li>
+<li>Existing PrintWhen behavior remains unchanged.</li>
+</ul>
+<h3 id="pass-behavior">Pass behavior<a class="headerlink" href="#pass-behavior" title="Link to this section">&para;</a></h3>
+<ul>
+<li>Events do not fire during measurement/counting pass.</li>
+<li>Events fire only during final render pass unless explicitly documented.</li>
+<li>TotalPages output remains stable.</li>
+</ul>
+<h3 id="safety_1">Safety<a class="headerlink" href="#safety_1" title="Link to this section">&para;</a></h3>
+<ul>
+<li>Nil/unassigned event handlers are safe.</li>
+<li>Event exceptions behave consistently with engine policy.</li>
+<li>Preview and export use the same event path.</li>
+<li>No .vrt schema/serializer change is required for runtime callbacks.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      VittixReport - Delphi VCL report component
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/ketandholakia/VittixReport" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.tracking", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

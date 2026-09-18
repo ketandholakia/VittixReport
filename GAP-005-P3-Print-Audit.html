@@ -1,0 +1,2679 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Delphi VCL reporting component - designer, engine, preview, print and export">
+      
+      
+        <meta name="author" content="Ketan Dholakia">
+      
+      
+        <link rel="canonical" href="https://ketandholakia.github.io/VittixReport/GAP-005-P3-Print-Audit.html">
+      
+      
+        <link rel="prev" href="GAP-005-Page-Ownership-Audit.html">
+      
+      
+        <link rel="next" href="GAP-005-Residual-Review.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>GAP-005 print audit - VittixReport</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#gap-005-p3-print-asymmetry-audit" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="index.html" title="VittixReport" class="md-header__button md-logo" aria-label="VittixReport" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            VittixReport
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              GAP-005 print audit
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/ketandholakia/VittixReport" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ketandholakia/VittixReport
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="index.html" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="readme.html" class="md-tabs__link">
+          
+  
+  
+  Project
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="EVENTS.html" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="todo.html" class="md-tabs__link">
+          
+  
+  
+  Roadmap
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="Phase1-Characterization-and-Safety.html" class="md-tabs__link">
+          
+  
+  
+  Modernization
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="architecture-analysis.html" class="md-tabs__link">
+          
+  
+  
+  Analysis
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="https://github.com/ketandholakia/VittixReport/blob/main/LICENSE" class="md-tabs__link">
+        
+  
+  
+    
+  
+  License
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="index.html" title="VittixReport" class="md-nav__button md-logo" aria-label="VittixReport" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    VittixReport
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/ketandholakia/VittixReport" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ketandholakia/VittixReport
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="readme.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    README
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="user-manual.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User manual
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="developer-manual.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer manual
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="testing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="EVENTS.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Report events
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="designer.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Designer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="designer-icon-map.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Designer icon map
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="demo-app.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Demo application
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="demo-templates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Demo report templates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="regression-fixtures.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Regression fixtures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="branding.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Branding assets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Roadmap
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="todo.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TODO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="bug-queue.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bug queue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Designer-UX-Roadmap.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Designer UX roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="plan-embedded-image.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Embedded image plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="plan-text-expression-editor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Text expression editor plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="plan-vector-pdf.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vector PDF plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="plan-phase4i20.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4I-20 plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Modernization
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Modernization
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase1-Characterization-and-Safety.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 1 - characterization and safety
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase2-Data-Capability-and-Traversal-Diagnostics.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 2 - data capability and traversal diagnostics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase3-Performance-Foundations.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 3 - performance foundations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase4-Checkpoint.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4 - checkpoint
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase4A-Expression-Compatibility-Contract.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4A - expression compatibility contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase4B-Compatibility-Evaluator.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4B - compatibility evaluator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase4B2A-Modern-Expression-Semantics.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4B-2A - modern expression semantics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase4B2B-Modern-Expression-Implementation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4B-2B - modern expression implementation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="phase4b2b-closure-audit.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4B-2B - closure audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase4I-20-ExpressionEngineDesign.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 4I-20 - expression engine design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase5-Quality-Benchmark-CI.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 5 - quality, benchmarking and CI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Phase6-Output-Coverage.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase 6 - output coverage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Modernization-Residual-Audit.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Residual audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysis
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Analysis
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="architecture-analysis.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="technical-evaluation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="code-review.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code review
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="code-review-v2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code review v2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="GAP-005-Page-Ownership-Audit.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GAP-005 page ownership audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GAP-005 print audit
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="GAP-005-P3-Print-Audit.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GAP-005 print audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Method
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-the-three-print-print-adjacent-paths" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. The three print / print-adjacent paths
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Findings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-answer-to-the-core-question" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Answer to the core question
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-verifiability-what-an-automated-guard-can-and-cannot-prove" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Verifiability — what an automated guard can and cannot prove
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-proposed-narrow-implementation-not-started" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Proposed narrow implementation (NOT started)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Proposed narrow implementation (NOT started)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-decisions-required-before-coding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 Decisions required before coding
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-scope-when-authorised" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 Scope (when authorised)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63-explicitly-out-of-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 Explicitly out of scope
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#64-acceptance-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.4 Acceptance template
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-stop-conditions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Stop conditions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-verification-of-this-audit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Verification of this audit
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-p3-implemented" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. P3 — implemented
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. P3 — implemented">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#91-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.1 Changes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#92-tests-and-mutation-proof" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.2 Tests and mutation proof
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#93-evidence-and-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.3 Evidence and limits
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#94-still-deferred" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.4 Still deferred
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="GAP-005-Residual-Review.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GAP-005 residual review
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/ketandholakia/VittixReport/blob/main/LICENSE" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    License
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Method
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-the-three-print-print-adjacent-paths" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. The three print / print-adjacent paths
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Findings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-answer-to-the-core-question" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Answer to the core question
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-verifiability-what-an-automated-guard-can-and-cannot-prove" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Verifiability — what an automated guard can and cannot prove
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-proposed-narrow-implementation-not-started" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Proposed narrow implementation (NOT started)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Proposed narrow implementation (NOT started)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-decisions-required-before-coding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 Decisions required before coding
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-scope-when-authorised" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 Scope (when authorised)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63-explicitly-out-of-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 Explicitly out of scope
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#64-acceptance-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.4 Acceptance template
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-stop-conditions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Stop conditions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-verification-of-this-audit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Verification of this audit
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-p3-implemented" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. P3 — implemented
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. P3 — implemented">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#91-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.1 Changes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#92-tests-and-mutation-proof" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.2 Tests and mutation proof
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#93-evidence-and-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.3 Evidence and limits
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#94-still-deferred" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.4 Still deferred
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="gap-005-p3-print-asymmetry-audit">GAP-005 / P3 — Print Asymmetry: Audit<a class="headerlink" href="#gap-005-p3-print-asymmetry-audit" title="Link to this section">&para;</a></h1>
+<p>Status: <strong>audit complete and P3 implemented (D1 = unify on metafile,
+D2 = keep full stretch).</strong>
+Tree: branch <code>main</code>, HEAD <code>549e0c4</code>, no commits.</p>
+<p>Predecessors: <code>docs/GAP-005-Page-Ownership-Audit.md</code> (§3 P3, §6 Step A),
+<code>docs/Phase6-Output-Coverage.md</code>, <code>docs/Phase5-Quality-Benchmark-CI.md</code>.</p>
+<p>Question: <strong>can physical printing use one consistent highest-fidelity page
+representation without introducing a new page-ownership architecture?</strong>
+Answer: <strong>yes (§4)</strong> — but two decisions must be taken first (§6.1), because the
+change alters printed output.</p>
+<hr />
+<h2 id="1-method">1. Method<a class="headerlink" href="#1-method" title="Link to this section">&para;</a></h2>
+<p>Read-only. All three printer paths were read directly, plus every <code>Printer.*</code>
+call site in the repository, the DPI handling, and the consumer call chains.</p>
+<h2 id="2-the-three-print-print-adjacent-paths">2. The three print / print-adjacent paths<a class="headerlink" href="#2-the-three-print-print-adjacent-paths" title="Link to this section">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Source drawn</th>
+<th>Destination mapping</th>
+<th>Entry point</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TReportRenderer.Print</code> (Renderer.pas 187–206)</td>
+<td><strong><code>FPages[i].Bitmap</code></strong> (raster)</td>
+<td><code>Rect(0,0,Printer.PageWidth,Printer.PageHeight)</code> — full stretch</td>
+<td><code>TVittixReport.Print</code> (Component.pas 690) — the <strong>runtime / embedded</strong> route</td>
+</tr>
+<tr>
+<td><code>TVittixReportPreview.Print</code> (Preview.pas 529–558)</td>
+<td><strong>metafile preferred</strong>, bitmap fallback</td>
+<td><code>Rect(0,0,Printer.PageWidth,Printer.PageHeight)</code> — full stretch</td>
+<td>Designer <code>Frm.Preview.btnPrintClick</code> (Frm.Preview.pas 299) — the <strong>designer</strong> route</td>
+</tr>
+<tr>
+<td><code>TReportPDFExporter.ExportPages</code> (Export.PDF.pas 113–176)</td>
+<td><strong><code>Pages[i]</code> metafile</strong> (engine metafiles)</td>
+<td><code>CalculatePDFDestRect(MF, PW, PH, ScaleMode)</code>, default <code>pesFullStretch</code></td>
+<td><code>TVittixReport.ExportToPDF</code> (Component.pas 703)</td>
+</tr>
+</tbody>
+</table>
+<p>Only these three places use <code>Vcl.Printers.Printer</code>. <strong>No <code>PixelsPerInch</code> usage
+exists anywhere</strong> — there is no explicit DPI handling.</p>
+<h2 id="3-findings">3. Findings<a class="headerlink" href="#3-findings" title="Link to this section">&para;</a></h2>
+<p><strong>F1 — Representation asymmetry (the P3 target).</strong>
+Two of the three paths already print the <strong>metafile</strong> (vector).
+<code>TReportRenderer.Print</code> is the outlier: it prints the <strong>raster bitmap</strong>. The same
+product therefore prints differently depending on the route — the embedded
+component prints a rasterisation; the designer prints vector.</p>
+<p><strong>F2 — Double resampling in the raster path.</strong>
+<code>Renderer.Print</code> draws a bitmap that was itself produced by rasterising the
+metafile at the logical page size (96-DPI pixels), then stretched to the printer's
+device rectangle (typically 300–600 DPI). That is <strong>two resamples</strong>; the vector
+path plays the EMF directly into the printer DC.</p>
+<p><strong>F3 — No shared destination-rect logic.</strong>
+Each path independently builds a full-stretch rect. An aspect-preserving,
+centred mapping <strong>already exists</strong> — <code>CalculatePDFDestRect</code> with
+<code>TPDFExportScaleMode = (pesFullStretch, pesFitPreserveAspectCentered)</code>
+(Export.PDF.pas 58–97) — but it is <strong>private to the PDF unit</strong> (implementation
+section), so the renderer and the preview cannot use it.</p>
+<p><strong>F4 — Full stretch is not aspect-preserving.</strong>
+All three paths stretch the report page to the printer's page rectangle. When the
+report aspect differs from the printer's (A4 report on a Letter printer) the
+output is <strong>distorted</strong>. This is pre-existing behaviour, not a P2/P3 regression,
+and changing it changes printed output.</p>
+<p><strong>F5 — The PDF path is printer-bound and interactive.</strong>
+<code>ExportToPDF</code> requires the literal <code>'Microsoft Print to PDF'</code> device
+(Export.PDF.pas 131–137) and calls <code>ShowMessage</code> on a page-size mismatch
+(155–159) — a modal dialog that blocks server/headless use. (The <em>vector</em> PDF
+exporter is a separate path and is unaffected.)</p>
+<p><strong>F6 — P2 changed the equation (why P3 is now tractable).</strong>
+Before P2, <code>Render</code> produced metafile <strong>and</strong> bitmap, so <code>Print</code> inherited a
+bitmap whether it wanted one or not. After P2 the bitmap exists <strong>only if
+requested</strong>, so the print path's representation is now an explicit choice — the
+cleaner experiment the audit anticipated: we can determine what printing needs
+instead of inheriting it.</p>
+<p><strong>F7 — Nothing about printing is automatically verified today.</strong>
+No automated coverage of any printer path (they require a driver). P2's
+<code>RasterCount</code> instrumentation now gives a <em>structural</em> handle: a vector print
+path must leave <code>RasterCount = 0</code>.</p>
+<h2 id="4-answer-to-the-core-question">4. Answer to the core question<a class="headerlink" href="#4-answer-to-the-core-question" title="Link to this section">&para;</a></h2>
+<p><strong>Yes — printing can use one representation, and the metafile is the right one</strong>,
+because:</p>
+<ol>
+<li>two of the three paths already do, so the target state is not novel;</li>
+<li>the metafile is the representation <code>Render</code> now retains by default (P2), so
+   choosing it removes the last production trigger for rasterisation;</li>
+<li>it eliminates the double resample (F2) and is the only path that can print
+   sharply at high printer DPI.</li>
+</ol>
+<p><strong>But</strong> the destination mapping is a <em>separate</em> decision from the source
+representation. Unifying the source (metafile) preserves current layout (full
+stretch); adopting <code>pesFitPreserveAspectCentered</code> would change layout on paper and
+must be an explicit, opted-in decision.</p>
+<h2 id="5-verifiability-what-an-automated-guard-can-and-cannot-prove">5. Verifiability — what an automated guard can and cannot prove<a class="headerlink" href="#5-verifiability-what-an-automated-guard-can-and-cannot-prove" title="Link to this section">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th>Automatable?</th>
+<th>Mechanism</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Which source a page is drawn from (metafile vs bitmap)</td>
+<td><strong>Yes</strong></td>
+<td><code>TRenderPage.RasterCount</code> must stay <strong>0</strong> after a print-path draw; a bitmap-sourced draw would increment it</td>
+</tr>
+<tr>
+<td>Destination rects / scaling maths</td>
+<td><strong>Yes</strong></td>
+<td>extract the mapping as a <strong>pure function</strong> and test it directly (the PDF unit already proves this shape)</td>
+</tr>
+<tr>
+<td>Page count / page-break sequence</td>
+<td><strong>Yes</strong></td>
+<td>draw into an injected <code>TCanvas</code> seam and count pages</td>
+</tr>
+<tr>
+<td>Actual printed pixels / driver fidelity</td>
+<td><strong>No</strong></td>
+<td>printer-driver dependent → <strong>manual checklist</strong></td>
+</tr>
+<tr>
+<td>Preview path</td>
+<td><strong>No</strong></td>
+<td>windowed control (Phase 6 finding) → <strong>manual</strong></td>
+</tr>
+</tbody>
+</table>
+<p>A recording/mock canvas can prove <em>what the code asked the printer to draw</em>. It
+<strong>cannot</strong> prove what a driver rendered. Any P3 work must therefore pair an
+automated structural guard with a manual fidelity checklist, and claim nothing
+more.</p>
+<h2 id="6-proposed-narrow-implementation-not-started">6. Proposed narrow implementation (NOT started)<a class="headerlink" href="#6-proposed-narrow-implementation-not-started" title="Link to this section">&para;</a></h2>
+<h3 id="61-decisions-required-before-coding">6.1 Decisions required before coding<a class="headerlink" href="#61-decisions-required-before-coding" title="Link to this section">&para;</a></h3>
+<ul>
+<li><strong>D1 — May P3 change printed output?</strong> Unifying <code>Renderer.Print</code> on the
+  metafile makes the runtime route match the designer route (sharper, same
+  layout). It is a <em>visible</em> change: better fidelity, identical geometry.</li>
+<li><strong>D2 — Scaling:</strong> keep <code>pesFullStretch</code> (current behaviour, no layout change)
+  or adopt aspect-preserving? Adopting the aspect mode now would alter every
+  printed page.</li>
+</ul>
+<h3 id="62-scope-when-authorised">6.2 Scope (when authorised)<a class="headerlink" href="#62-scope-when-authorised" title="Link to this section">&para;</a></h3>
+<ol>
+<li><strong>Extract a shared, pure print mapping</strong> — generalise the existing
+   <code>CalculatePDFDestRect</code> logic out of the PDF unit so the renderer, preview and
+   PDF exporter all use one implementation. Default mode unchanged.</li>
+<li><strong>Unify the source on the metafile</strong> in <code>TReportRenderer.Print</code>, matching the
+   preview, keeping the bitmap only as a documented fallback when a page has no
+   usable metafile (mirroring Preview.pas 546–549).</li>
+<li><strong>Introduce a canvas seam</strong> so the print loop can be driven by a
+   caller-provided <code>TCanvas</code> (<code>Print</code> passes <code>Printer.Canvas</code>; tests pass an
+   off-screen canvas). Prefer an internal/<code>protected</code> seam; report any public API
+   impact before adding it.</li>
+<li><strong>Automated guard</strong> (<code>tests/Test.Gap005.PrintPath.pas</code>): assert per page that
+   the metafile is chosen (<code>RasterCount = 0</code>), that the dest rect equals the
+   mapping function's result, the page/<code>NewPage</code> sequence, and that the fallback
+   engages only when the metafile is unusable — plus direct unit tests of the
+   pure mapping (both modes, degenerate inputs).</li>
+<li><strong>Manual fidelity checklist</strong> in <code>TESTING.md</code>.</li>
+</ol>
+<h3 id="63-explicitly-out-of-scope">6.3 Explicitly out of scope<a class="headerlink" href="#63-explicitly-out-of-scope" title="Link to this section">&para;</a></h3>
+<ul>
+<li><strong>P1</strong> (duplicate representations) and <strong>P5</strong> (eviction/streaming).</li>
+<li>Changing the <strong>default scaling</strong> (D2).</li>
+<li>Removing the PDF exporter's dependency on <code>Microsoft Print to PDF</code> or its modal
+  <code>ShowMessage</code> — noted, not fixed here.</li>
+<li>DPI rework, preview redesign, engine changes.</li>
+<li>Any <code>.vrt</code>, expression or serializer change.</li>
+</ul>
+<h3 id="64-acceptance-template">6.4 Acceptance template<a class="headerlink" href="#64-acceptance-template" title="Link to this section">&para;</a></h3>
+<ol>
+<li><code>tools\ci_gate.ps1</code> exit 0; DUnitX ≥ 643 + new; <code>Tests Leaked : 0</code>.</li>
+<li>All 42 corpus page counts unchanged (<code>VittixRunner --strict</code> exit 0).</li>
+<li>New structural print-guard tests pass, and — following the P2 pattern — a
+   <strong>mutation proof</strong> that reverting the print path to the bitmap makes them fail.</li>
+<li>Manual printer checklist executed and recorded (or explicitly recorded as NOT
+   executable in this environment).</li>
+<li><code>git status reports</code> clean; 42/42 fixtures byte-untouched.</li>
+</ol>
+<h2 id="7-stop-conditions">7. Stop conditions<a class="headerlink" href="#7-stop-conditions" title="Link to this section">&para;</a></h2>
+<p>Stop and report if: the canvas seam would require a <strong>public</strong> API break; the
+preview cannot be served by the same mapping without redesign; printing from the
+metafile turns out to lose content the bitmap path preserved (a finding, not an
+assumption); or <code>PageCount</code>/pagination semantics shift.</p>
+<h2 id="8-verification-of-this-audit">8. Verification of this audit<a class="headerlink" href="#8-verification-of-this-audit" title="Link to this section">&para;</a></h2>
+<ul>
+<li>Read-only: <strong>no production file modified</strong>.</li>
+<li>Baseline unchanged: DUnitX <strong>643/643</strong>, 0 leaked; <code>tools\ci_gate.ps1</code> exit 0;
+  <code>VittixRunner --strict</code> 41 pass / 1 skip / 0 mismatch; packages build with
+  0 errors; <code>reports/</code> fixtures byte-untouched; HEAD <strong>549e0c4</strong>; no commits.</li>
+</ul>
+<hr />
+<h2 id="9-p3-implemented">9. P3 — implemented<a class="headerlink" href="#9-p3-implemented" title="Link to this section">&para;</a></h2>
+<p>Decisions taken: <strong>D1 = unify on the metafile</strong>, <strong>D2 = keep full stretch</strong>.</p>
+<h3 id="91-changes">9.1 Changes<a class="headerlink" href="#91-changes" title="Link to this section">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Change</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>source/Vittix.Report.PrintMapping.pas</code></td>
+<td><strong>new</strong> — the single pure mapping: <code>TReportPrintScaleMode</code> (<code>prsFullStretch</code> default, <code>prsFitPreserveAspectCentered</code> available) and <code>CalculatePrintDestRect(...)</code></td>
+</tr>
+<tr>
+<td><code>source/Vittix.Report.Renderer.pas</code></td>
+<td><code>Print</code> now delegates to a new <strong>protected</strong> <code>DrawPageTo</code> seam; the source is the <strong>metafile</strong> (bitmap only as a defensive fallback). No public API added.</td>
+</tr>
+<tr>
+<td><code>source/Vittix.Report.Preview.pas</code></td>
+<td>uses the shared mapping (identical full-stretch rectangle — no behaviour change)</td>
+</tr>
+<tr>
+<td><code>source/Vittix.Report.Export.PDF.pas</code></td>
+<td>uses the shared mapping; the PDF-unit-private <code>TPDFExportScaleMode</code>/<code>CalculatePDFDestRect</code> were <strong>deleted</strong> (net −40 lines; its "fit" mode was unreachable dead code — <code>ScaleMode</code> was hardcoded to full stretch)</td>
+</tr>
+<tr>
+<td><code>packages/VittixReportRuntime.dpk</code></td>
+<td>registers the new unit</td>
+</tr>
+<tr>
+<td><code>tests/Test.Gap005.PrintPath.pas</code></td>
+<td><strong>new</strong> — 7 tests (see §9.2)</td>
+</tr>
+<tr>
+<td><code>TESTING.md</code></td>
+<td>new §3.2 manual print-fidelity checklist</td>
+</tr>
+</tbody>
+</table>
+<p>No public API changed: the seam is <code>protected</code> and driven by a test descendant.</p>
+<h3 id="92-tests-and-mutation-proof">9.2 Tests and mutation proof<a class="headerlink" href="#92-tests-and-mutation-proof" title="Link to this section">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>baseline: 643   new: 7   final: 650   passed: 650   failed: 0   errors: 0   leaked: 0
+</code></pre></div>
+<ul>
+<li><strong>Pure mapping:</strong> full stretch reproduces the exact previous rectangle and
+  ignores the page size; the aspect mode fits-and-centres and preserves the ratio;
+  degenerate/negative inputs never raise.</li>
+<li><strong>Draw seam:</strong> drawing every page leaves <code>RasterCount = 0</code> — i.e. the print
+  path is <strong>vector</strong>; a bitmap draw would increment it. Invalid arguments
+  (nil canvas, out-of-range index) draw nothing and rasterise nothing.</li>
+<li><strong>Mutation proof:</strong> forcing <code>DrawPageTo</code> back onto the bitmap made <strong>2 tests
+  fail</strong> (<code>Expected [0] but got [3] The print path must draw the metafile, not the
+  bitmap (P3)</code>), then the change was reverted and the suite returned to green.
+  The guard therefore detects a raster regression rather than merely observing one.</li>
+</ul>
+<h3 id="93-evidence-and-limits">9.3 Evidence and limits<a class="headerlink" href="#93-evidence-and-limits" title="Link to this section">&para;</a></h3>
+<ul>
+<li>Corpus unchanged: 42/42 page counts, 0 mismatches; GDI +8 / USER 0 identical to
+  before P3.</li>
+<li><strong>Not verified, not faked:</strong> actual printed pixels and driver fidelity — no
+  printer path can run headlessly. <code>TReportRenderer.Print</code> itself is never invoked
+  by the tests (it would open a device). The manual checklist in <code>TESTING.md</code> §3.2
+  covers it.</li>
+<li>The preview remains manual-only (windowed control).</li>
+</ul>
+<h3 id="94-still-deferred">9.4 Still deferred<a class="headerlink" href="#94-still-deferred" title="Link to this section">&para;</a></h3>
+<ul>
+<li><strong>P1</strong> (duplicate representations) — unchanged.</li>
+<li><strong>P5</strong> (eviction/streaming) — unchanged.</li>
+<li>The PDF exporter's dependency on <code>'Microsoft Print to PDF'</code> and its modal
+  <code>ShowMessage</code> (finding F5) — noted, not fixed.</li>
+<li>Any change to the <strong>default scaling</strong> (D2) — the aspect mode exists but is not
+  wired to any default.</li>
+<li>The designer's <code>Frm.Preview</code> still reads <code>Pages[0].Bitmap</code> for page dimensions.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      VittixReport - Delphi VCL report component
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/ketandholakia/VittixReport" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.tracking", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
