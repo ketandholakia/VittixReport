@@ -151,7 +151,8 @@ implementation
 uses
   System.UITypes,
   Winapi.Windows,
-  Vittix.Report.Export.PDF;
+  Vittix.Report.Export.Commands,
+  Vittix.Report.Export.VectorPDF;
 
 
 type
@@ -746,6 +747,7 @@ procedure TfrmPreview.btnSavePDFClick(Sender: TObject);
 var
   Dlg: TSaveDialog;
   Eng: TReportEngine;
+  ExportDoc: TReportExportDocument;
 begin
   if not Assigned(FReport) then
   begin
@@ -766,19 +768,26 @@ begin
     try
       Screen.Cursor := crHourGlass;
       try
-        Eng := TReportEngine.Create(FReport, FDataSet);
+        // Default PDF export: the native Vector PDF writer (no printer driver).
+        ExportDoc := TReportExportDocument.Create;
         try
-          Eng.Prepare;
-          if Eng.Pages.Count = 0 then
-          begin
-            MessageDlg('No pages were generated. Add a MasterData band with objects ' +
-              'and ensure a DataSet is assigned.', mtWarning, [mbOK], 0);
-            Exit;
+          Eng := TReportEngine.Create(FReport, FDataSet);
+          try
+            Eng.ExportDocument := ExportDoc;
+            Eng.Prepare;
+            if ExportDoc.Pages.Count = 0 then
+            begin
+              MessageDlg('No pages were generated. Add a MasterData band with objects ' +
+                'and ensure a DataSet is assigned.', mtWarning, [mbOK], 0);
+              Exit;
+            end;
+            TReportVectorPDFExporter.ExportDocument(ExportDoc, Dlg.FileName);
+            SetStatusText('Exported to ' + Dlg.FileName);
+          finally
+            Eng.Free;
           end;
-          TReportPDFExporter.ExportToFile(Eng.Pages, Dlg.FileName);
-          SetStatusText('Exported to ' + Dlg.FileName);
         finally
-          Eng.Free;
+          ExportDoc.Free;
         end;
       finally
         Screen.Cursor := crDefault;

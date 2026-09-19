@@ -147,21 +147,28 @@ uses
   Vittix.Report.Model,
   Vittix.Report.Engine,
   Vittix.Report.Serializer,
-  Vittix.Report.Export.PDF;
+  Vittix.Report.Export.Commands,
+  Vittix.Report.Export.VectorPDF;
 
 var
   Report : TReportModel;
   Engine : TReportEngine;
+  ExportDoc: TReportExportDocument;
 begin
   Report := TReportSerializer.LoadFromFile('MyReport.vrt');
   try
-    Engine := TReportEngine.Create(Report, MyADOQuery);
+    ExportDoc := TReportExportDocument.Create;
     try
-      Engine.Prepare;
-      // Engine.Pages contains TMetafile pages
-      TReportPDFExporter.ExportToFile(Engine.Pages, 'output.pdf');
+      Engine := TReportEngine.Create(Report, MyADOQuery);
+      try
+        Engine.ExportDocument := ExportDoc;
+        Engine.Prepare;
+        TReportVectorPDFExporter.ExportDocument(ExportDoc, 'output.pdf');
+      finally
+        Engine.Free;
+      end;
     finally
-      Engine.Free;
+      ExportDoc.Free;
     end;
   finally
     Report.Free;

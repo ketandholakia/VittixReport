@@ -40,6 +40,10 @@ type
     [Test] procedure Test_ExportToPDF_IndicFixture_EmbedsType0Font;
     [Test] procedure Test_ExportToPDF_RichMemoFixture_ContainsText;
     [Test] procedure Test_PrinterExporter_PreservedAsCompatibilityPath;
+
+    { Source-level guard: the Preview window's default "Export PDF" action must
+      stay on the Vector PDF writer. }
+    [Test] procedure Test_PreviewDefaultExport_UsesVectorPdfOnly;
   end;
 
 {
@@ -389,6 +393,23 @@ begin
   Exporter := TReportPDFExporter.Create;
   Assert.AreEqual('PDF Document', Exporter.FormatName);
   Assert.AreEqual('pdf', Exporter.DefaultExtension);
+end;
+
+procedure TReportComponentTests.Test_PreviewDefaultExport_UsesVectorPdfOnly;
+var
+  Path, Src: string;
+begin
+  { Frm.Preview.pas belongs to the designer project, which the test project does
+    not link, so the smallest appropriate coverage is a source-level guard: it
+    fails if the printer exporter is reintroduced on the Preview default path. }
+  Path := TPath.Combine(GetCurrentDir, 'vittixdesigner\Frm.Preview.pas');
+  Assert.IsTrue(FileExists(Path), 'Preview unit not found: ' + Path);
+  Src := TFile.ReadAllText(Path);
+
+  Assert.IsTrue(Pos('TReportVectorPDFExporter', Src) > 0,
+    'Frm.Preview.pas must export through the Vector PDF writer');
+  Assert.IsFalse(Pos('TReportPDFExporter', Src) > 0,
+    'Frm.Preview.pas must not reference the printer exporter (its default export must be Vector PDF)');
 end;
 
 initialization

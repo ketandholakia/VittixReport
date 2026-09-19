@@ -8,7 +8,7 @@ VittixReport is a modular reporting framework for Delphi (VCL) with a visual des
 - **TReportModel**: In-memory representation of a report (bands, objects, settings).
 - **TReportEngine**: Processes a `TReportModel` and a `TDataSet` to generate report pages.
 - **TReportRenderer**: Renders pages to bitmaps/metafiles for preview/export.
-- **TReportPDFExporter**: Exports pages to PDF using Windows Print to PDF.
+- **TReportPDFExporter**: Compatibility PDF exporter (prints to Windows Print to PDF). The default PDF export is the native vector writer (`Vittix.Report.Export.VectorPDF`), used by `ExportToPDF` / the designers' Export PDF actions.
 - **TVittixReportPreview**: VCL control for displaying report pages.
 
 ### File Structure

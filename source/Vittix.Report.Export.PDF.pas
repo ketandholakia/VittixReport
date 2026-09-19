@@ -3,24 +3,33 @@ unit Vittix.Report.Export.PDF;
 {
   Vittix.Report.Export.PDF
   ========================
-  Exports a rendered report (list of TMetafile pages) to a PDF file by
-  printing to the "Microsoft Print to PDF" virtual printer built into
+  Compatibility PDF exporter: prints a rendered report (a list of TMetafile
+  pages) to the "Microsoft Print to PDF" virtual printer built into
   Windows 10 / 11.
 
-  Architecture changes in this revision
-  --------------------------------------
-  • TReportPDFExporter now implements IReportExporter instead of coupling
-    directly to TReportEngine.  Any TObjectList<TMetafile> can be passed in —
-    pages may come from TReportEngine, a cache, or any other producer.
-  • The legacy class method ExportToPDF(Engine, FileName) is retained as
-    an overloaded convenience wrapper for backward compatibility.
+  Role
+  ----
+  This is NOT the default PDF path.  The default is the native vector writer
+  (Vittix.Report.Export.VectorPDF), reached through TVittixReport.ExportToPDF /
+  ExportToVectorPDF and every normal user-facing "Export PDF" action.  This
+  unit is the explicit compatibility path behind
+  TVittixReport.ExportToPrinterPDF and the designers' printer action - see
+  docs/ADR-Export-PDF.md.
+
+  API
+  ---
+  • TReportPDFExporter implements IReportExporter (ExportPages / FormatName /
+    DefaultExtension), so any TObjectList<TMetafile> can be passed in - pages
+    may come from TReportEngine, a cache, or any other producer.
+  • class function ExportToFile(const Pages: TObjectList<TMetafile>;
+    const FileName: string) is a convenience wrapper around ExportPages.
 
   Limitations
   -----------
   • Relies on "Microsoft Print to PDF" being available (Win10+).
   • Does not select a custom output path natively; Windows may show a Save
-    dialog if the printer's port is not pre-configured.  For silent PDF
-    generation consider a third-party library (e.g. Skia, FreeSpire.PDF).
+    dialog if the printer's port is not pre-configured.  For silent,
+    printer-independent PDF generation use the vector exporter.
 }
 
 interface

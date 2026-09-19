@@ -386,6 +386,12 @@ Initial implementation:
 - Existing `TVittixReport.ExportToPDF` remains printer-based and unchanged.
 - Added separate designer File menu action `Export to Vector PDF...`.
 
+> **Superseded by M8 (2026-09-19).**  The statements above describe M6 at the
+> time it shipped (vector PDF as an *additional*, beta path).  Since M8,
+> `ExportToPDF` and every normal user-facing `Export PDF` action resolve to
+> Vector PDF; the printer implementation moved to the explicit compatibility
+> entry points.  See `docs/ADR-Export-PDF.md` §6 and §10.
+
 Review verification (post-implementation):
 - `ExportToVectorPDF` (file and stream overloads) mirrors the existing
   `ExportToPDF` resolution/cleanup pattern exactly - no discrepancies.

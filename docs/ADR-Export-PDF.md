@@ -28,8 +28,15 @@ APIs on `TVittixReport`:
 | `ExportToPDF` | `Vittix.Report.Export.PDF.pas` → `TReportPDFExporter` (`IReportExporter`) | Prints the rendered `TMetafile` pages to the Windows virtual printer `Microsoft Print to PDF` |
 | `ExportToVectorPDF` (file + stream) | `Vittix.Report.Export.VectorPDF.pas` → `TReportVectorPDFExporter` | Writes a PDF directly from the semantic export command document (`TReportExportDocument`) |
 
-The designer exposes both (`Export PDF`, `Export to Vector PDF...`); the vector
-action is labelled **Beta**.
+*Baseline state (E0, before this ADR's decision).*  At that point the designer
+exposed both (`Export PDF` = printer, `Export to Vector PDF...` = beta).
+
+> **Current state (after §6.3, 2026-09-19).**  The table above describes the E0
+> baseline.  Today `ExportToPDF`, `ExportToVectorPDF` and **every normal
+> user-facing "Export PDF" action (Designer main window, Preview window) resolve
+> to Vector PDF**; the printer implementation is reachable only through the
+> explicit compatibility entry points (`ExportToPrinterPDF`, and the Designer's
+> *Export to PDF (Printer / compatibility)...* action).  See §6.4 and §10.
 
 The purpose of E0 is to characterise both, identify their feature/Unicode
 differences, and decide which one is the supported production path and what
@@ -181,7 +188,7 @@ the smoke test cannot fail on this class of defect.
   printer path to an optional compatibility fallback. Do not retire the printer
   path in this cycle (the vector path is not yet proven end-to-end).
 
-## 6. Decision (proposed — awaiting sign-off)
+## 6. Decision (accepted — C-4a)
 
 **Adopt Option C.**
 
@@ -289,6 +296,44 @@ only its preserved public surface is asserted.
   next change; belongs to E1/E6, not E0.
 * Correct the documentation drift in §8.
 * Add a Unicode end-to-end test once the writer is fixed.
+
+---
+
+## 10. C-4a caller audit (2026-09-19)
+
+Repository-wide search for `ExportToPDF` / `ExportToVectorPDF` /
+`ExportToPrinterPDF` / `TReportPDFExporter`, classified by layer.  Purpose: the
+compatibility evidence needed before any future deprecation decision.
+
+| # | Occurrence | Layer | Classification |
+| --- | --- | --- | --- |
+| 1 | `source\Vittix.Report.Component.pas` — `ExportToPrinterPDF` (decl + impl) | Production API | **Intentional compatibility API** |
+| 2 | `source\Vittix.Report.Export.PDF.pas` — `TReportPDFExporter` | Production | **Intentional compatibility implementation** |
+| 3 | `vittixdesigner\Frm.Main.pas` — *Export to PDF (Printer / compatibility)...* | Production UI | **Intentional compatibility UI** |
+| 4 | `vittixdesigner\Frm.Preview.pas` — Preview **Export PDF** | Production UI | **Was an un-migrated default → migrated to Vector PDF in this pass** |
+| 5 | `source\Vittix.Report.Export.Email.pas` — PDF attachment (`SendEmailWithReport`) | Production library | **Unresolved — deliberately deferred** (see below) |
+| 6 | `tests\Test.Vittix.Report.ExportCapture.pas` — `function ExportToPDF(ADoc: TReportExportDocument)` + 7 call sites | Test | **NOT a printer caller** — a test-local helper that calls the **vector** exporter; a name collision only |
+| 7 | `tests\Test.Vittix.Report.Component.pas` — migration tests + printer-surface assertion | Test | Coverage (never prints) |
+| 8 | `README.md`, `docs\index.md`, `DEVELOPER_MANUAL.md`, `docs\ADR-Export-PDF.md`, `VectorPDF_DevelopmentPlan.md`, `vittixdesigner\README.md` | Documentation | Current-state docs — updated where they described the old default |
+| 9 | `docs\GAP-005-*`, `Modernization-Residual-Audit.md`, `VittixReport_CodeReview.md`, `VITTORIX_REPORT_TECHNICAL_EVALUATION.md`, `REPORTING_COMPONENT_ARCHITECTURE_ANALYSIS.md` | Documentation (historical) | **Historical facts — retained, not reclassified as runtime callers** |
+| 10 | Dead / unused production caller | — | **None found** |
+
+### 10.1 Email PDF attachment — deferred decision
+
+`TReportEmailExporter.SendEmailWithReport(Pages: TObjectList<TMetafile>;
+ATitle)` builds its PDF attachment with `TReportPDFExporter.ExportToFile`, so it
+is **structurally based on the printer device**.  It is therefore a *second*
+un-migrated default path, but it is **not** migrated here: its signature takes
+engine metafiles, so moving it to Vector PDF requires an API decision
+(accept a `TReportExportDocument`, or capture one internally), and that decision
+is explicitly deferred to a separate change.  Until then, "Send as Email (PDF)"
+still needs `Microsoft Print to PDF`.
+
+### 10.2 Deprecation stance (unchanged)
+
+`ExportToPrinterPDF` is **not** deprecated and must not be removed: the explicit
+compatibility surface above, plus the email deferral, still depend on the printer
+implementation existing.
 
 ---
 
