@@ -1,6 +1,6 @@
 # ADR: Export PDF Path (Baseline & Decision)
 
-Status: **Proposed — decision pending sign-off**
+Status: **Accepted — C-4a: Vector PDF is the default PDF export** (implemented 2026-09-19)
 Date: 2026-09-19
 Scope: `E0 — Export Baseline & PDF Decision` (see [Export roadmap](Export-Roadmap.md))
 Deciders: project owner
@@ -152,7 +152,7 @@ the smoke test cannot fail on this class of defect.
 
 | Capability | Printer PDF | Vector PDF |
 | --- | --- | --- |
-| Produces viewable output today | **Yes** (driver-dependent) | **No** — blank pages (§3.3) |
+| Produces viewable output today | Yes (driver-dependent) | **Yes** (since the page-object fix) |
 | Environment dependency | `Microsoft Print to PDF` required | None |
 | Silent / no-dialog export | Not guaranteed | Yes (stream overload) |
 | Server / non-interactive | Fragile (may show Save dialog) | Yes |
@@ -219,38 +219,48 @@ the smoke test cannot fail on this class of defect.
 | Progressive / CMYK JPEG | ⚠️ | not distinguished from baseline JPEG (pre-existing) |
 | PNG transparency | ⚠️ | flattened to white (no alpha) |
 | PDF/A, tagged PDF | ❌ | not implemented |
-| Printer-based `ExportToPDF` | — | existing **compatibility** path; would be demoted if this decision is accepted |
+| Printer-based exporter | — | retained as the **compatibility** path (`ExportToPrinterPDF`) |
 
-### 6.3 The decision on the table
+### 6.3 Decision (accepted 2026-09-19)
 
-**Option C-4a (recommended): adopt Vector PDF as the default PDF export**, and
-re-label `ExportToPDF` (printer-based) as a compatibility path.
+**C-4a — adopt Vector PDF as the default PDF export; keep the printer-based
+exporter as a compatibility path (not deprecated).**
 
-*Rationale:* the vector path is printer-independent, silent/server-capable,
-byte-deterministic, Unicode-capable with subsetted fonts, and now renders every
-corpus report.  The printing path keeps a hard `Microsoft Print to PDF`
-dependency and cannot guarantee a caller-chosen output path.
+Contract:
 
-**Accepted limitations if C-4a is chosen:** Indic text *extraction* stays
-approximate (rendering is correct); `GSUB`/`GPOS` are dropped from embedded
-fonts by design; progressive/CMYK JPEG and PNG alpha remain unsupported;
-SVG/EMF/WMF conversion stays beta.
+```
+Default PDF export        -> Vector PDF
+Legacy/compatibility PDF  -> printer-based (Microsoft Print to PDF)
+```
 
-**Option C-4b: keep the printer path as the default** for one more cycle, and
-continue hardening the vector path (e.g. verify the SVG/EMF sub-backends,
-cluster-level `/ToUnicode`).
+Public API: `ExportToPDF(...)` **keeps its name** and now routes to the Vector
+PDF writer; the printer implementation is preserved unchanged behind a new,
+explicitly named `ExportToPrinterPDF(...)`.  No existing call site breaks, and
+applications that need the printer path opt in by name.
 
-**Option C-4c: expose the choice without changing the default** (documented
-capability matrix + explicit API), deferring the default flip.
+Accepted limitations (see §6.2): approximate Indic text extraction;
+`GSUB`/`GPOS` dropped from embedded fonts by design; progressive/CMYK JPEG and
+PNG alpha unsupported; SVG/EMF/WMF conversion stays beta.
 
-### 6.4 Owed by the decider
+### 6.4 Migration record (implemented)
 
-* Confirm **C-4a / C-4b / C-4c**.
-* If C-4a: confirm the printer path becomes **compatibility-only** (recommended)
-  or is **deprecated**, and whether `ExportToPDF`'s public behaviour may change.
+| Item | Status |
+| --- | --- |
+| `ExportToPDF` → Vector PDF (default) | ✅ routes to `ExportToVectorPDF` |
+| Printer implementation preserved | ✅ unchanged, exposed as `ExportToPrinterPDF` |
+| Designer **Export PDF** action | ✅ uses the Vector writer |
+| Designer printer action | ✅ re-labelled *Export to PDF (Printer / compatibility)...* |
+| Runner / CLI PDF behaviour | ✅ already Vector PDF (`--keep-vector-pdf` smoke); no change needed |
+| Regression tests | ✅ `ExportToPDF` byte-identical to `ExportToVectorPDF`; Indic fixture embeds `/Type0`; rich memo fixture still exports; printer exporter surface preserved |
+| Printer path removed | ❌ not removed |
+| Printer path marked deprecated | ❌ not deprecated (compatibility evidence to be collected first) |
 
-No default-exporter code change has been made; this section records the
-capability evidence only.
+Verification: 680/680 DUnitX pass (0 leaked); runtime, design and designer
+builds pass; MkDocs builds.
+
+The printer path's *actual print* is not exercised by the suite because it
+requires the `Microsoft Print to PDF` device and may present a save dialog;
+only its preserved public surface is asserted.
 
 ---
 

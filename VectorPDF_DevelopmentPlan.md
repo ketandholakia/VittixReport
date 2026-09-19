@@ -447,6 +447,17 @@ Safe commit condition:
 - Manual visual comparison found no blocking preview/vector PDF mismatch.
 - Current printer-based `Export PDF` remains unchanged.
 
+### M8 - Default PDF Migration
+
+Status: Complete (2026-09-19)
+
+`ExportToPDF` (component) and the designer's **Export PDF** action now use the
+Vector PDF writer.  The printer-based implementation is preserved unchanged as
+`ExportToPrinterPDF` (component) and *Export to PDF (Printer /
+compatibility)...* (designer).  No public API was removed.  See
+`docs/ADR-Export-PDF.md` §6 for the accepted capability matrix and the
+migration record.
+
 ## Deferred
 
 - Replacing current PDF exporter.

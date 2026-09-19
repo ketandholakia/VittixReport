@@ -40,9 +40,10 @@ in the Phase 4A and Phase 4B documents under **Modernization**.
 
 ## Export
 
-Vector PDF (with SVG and EMF sub-backends; beta - embeds TrueType fonts for non-Latin text,
-no glyph subsetting), raster PDF via the Windows printing
-system, XLSX, HTML, plain text and email.
+**Vector PDF** is the default PDF export (native writer, no printer driver; embedded TrueType
+fonts incl. non-Latin text, with glyph subsetting, plus SVG/EMF sub-backends), alongside
+XLSX, HTML, plain text and email. A printer-based PDF exporter is retained as a
+compatibility path (`ExportToPrinterPDF`).
 
 ## Getting started
 
@@ -76,23 +77,28 @@ system, XLSX, HTML, plain text and email.
       Vittix.Report.Model,
       Vittix.Report.Engine,
       Vittix.Report.Serializer,
-      Vittix.Report.Export.PDF;
+      Vittix.Report.Export.Commands,
+      Vittix.Report.Export.VectorPDF;
 
     procedure GenerateInvoicePDF;
     var
       Report: TReportModel;
       Engine: TReportEngine;
+      ExportDoc: TReportExportDocument;
     begin
       Report := TReportSerializer.LoadFromFile('C:\Reports\Invoice.vrt');
+      ExportDoc := TReportExportDocument.Create;
       try
         Engine := TReportEngine.Create(Report, qryInvoiceData);
         try
+          Engine.ExportDocument := ExportDoc;
           Engine.Prepare;
-          TReportPDFExporter.ExportToFile(Engine.Pages, 'C:\Output\Invoice_001.pdf');
+          TReportVectorPDFExporter.ExportDocument(ExportDoc, 'C:\Output\Invoice_001.pdf');
         finally
           Engine.Free;
         end;
       finally
+        ExportDoc.Free;
         Report.Free;
       end;
     end;
@@ -120,8 +126,8 @@ Recorded against `96197c1` (`main`), with the modernization baseline tagged
 
 - Delphi 12.2 or later, RAD Studio 23.0 is what the project files are built with
 - Windows 10 or later, Win32 or Win64
-- PDF export through the Windows printing system needs a PDF printer such as
-  *Microsoft Print to PDF*
+- The default Vector PDF export requires no printer.  The printer-based
+  compatibility path needs a PDF printer such as *Microsoft Print to PDF*
 
 ## Documentation map
 

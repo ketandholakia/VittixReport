@@ -16,7 +16,7 @@ Unlike legacy reporting tools, VittixReport relies entirely on standard Delphi R
 * **🧩 Rich Object Library:** Out-of-the-box support for text labels, data fields, rich text, images, shapes, lines, barcodes, tables, and nested sub-reports.
 * **🚀 Runtime Event Scripting:** Hook into the engine's rendering pipeline with `OnBeforePrint` / `OnAfterPrint` events at both the band and object level, driven by your host application's Delphi code.
 * **📊 Band-Oriented Layout:** Supports standard structural bands including Report Title, Page Header/Footer, Master Data (with runtime `TDataSet` binding), and Report Summary.
-* **🖨️ Print & Export:** Built-in PDF export (via Windows Print to PDF) and native system printing capabilities.
+* **🖨️ Print & Export:** Built-in **Vector PDF** export (the default — no printer driver required), a printer-based PDF compatibility path, and native system printing capabilities.
 
 ## Project Structure
 
@@ -31,7 +31,7 @@ Unlike legacy reporting tools, VittixReport relies entirely on standard Delphi R
 * Windows 10 or later
 * Win32 or Win64 target platform
 
-*PDF export currently relies on the Windows printing system, such as Microsoft Print to PDF.*
+*The default Vector PDF export needs no printer driver. The printer-based compatibility path requires the Windows printing system, such as Microsoft Print to PDF.*
 
 ## Getting Started
 
@@ -61,36 +61,48 @@ To use VittixReport in your own Delphi VCL application:
 
 ### Example: Export a Report to PDF
 
+The default PDF export is the native **Vector PDF** writer (no printer driver
+required, silent/server capable).  The printer-based exporter is retained as a
+compatibility path.
+
 ```delphi
 uses
   Vittix.Report.Model,
   Vittix.Report.Engine,
   Vittix.Report.Serializer,
-  Vittix.Report.Export.PDF;
+  Vittix.Report.Export.Commands,
+  Vittix.Report.Export.VectorPDF;
 
 procedure GenerateInvoicePDF;
 var
   Report: TReportModel;
   Engine: TReportEngine;
+  ExportDoc: TReportExportDocument;
 begin
   Report := TReportSerializer.LoadFromFile('C:\Reports\Invoice.vrt');
+  ExportDoc := TReportExportDocument.Create;
   try
     Engine := TReportEngine.Create(Report, qryInvoiceData);
     try
+      Engine.ExportDocument := ExportDoc;
       Engine.Prepare;
 
-      TReportPDFExporter.ExportToFile(
-        Engine.Pages,
+      TReportVectorPDFExporter.ExportDocument(
+        ExportDoc,
         'C:\Output\Invoice_001.pdf'
       );
     finally
       Engine.Free;
     end;
   finally
+    ExportDoc.Free;
     Report.Free;
   end;
 end;
 ```
+
+On the `TVittixReport` component the same is `ExportToPDF(...)`; the
+printer-based compatibility path is `ExportToPrinterPDF(...)`.
 
 ## File Format
 - Reports are saved as JSON (`.vrt`). See `Vittix.Report.Serializer` for details.
