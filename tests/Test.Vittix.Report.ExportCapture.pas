@@ -100,6 +100,11 @@ type
     [Test] procedure Test_Memo_VectorPDF_UnicodeRich_RTLFallback;
     [Test] procedure Test_Memo_VectorPDF_UnicodeRich_MixedRunsWithFallback;
     [Test] procedure Test_Memo_AllowHTML_False_NoRichPath;
+
+    { Corpus fixture guard: reports\43_memo_html.vrt must stay in the current
+      (v2 "Objects") format; a legacy top-level "Bands" block is ignored by
+      the loader and yields an empty report and a blank Vector PDF. }
+    [Test] procedure Test_Corpus_MemoHtml_LoadsAndExportsContent;
   end;
 
 implementation
@@ -2112,6 +2117,66 @@ begin
   finally
     Doc.Free;
     Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_Corpus_MemoHtml_LoadsAndExportsContent;
+var
+  Path: string;
+  DS: TClientDataSet;
+  Model: TReportModel;
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Ms: TBytesStream;
+  Pdf: AnsiString;
+  Cmd: TReportExportCommand;
+  HasRich: Boolean;
+begin
+  Path := TPath.Combine(GetCurrentDir, 'reports\43_memo_html.vrt');
+  Assert.IsTrue(FileExists(Path), 'corpus fixture missing: ' + Path);
+
+  DS := BuildDataSet;
+  Model := TReportSerializer.LoadFromFile(Path);
+  try
+    Assert.IsTrue(Model.Objects.Count >= 1,
+      '43_memo_html must load objects; a legacy top-level "Bands" block is ignored');
+
+    Doc := TReportExportDocument.Create;
+    Engine := TReportEngine.Create(Model, DS, nil, nil);
+    try
+      Engine.ExportDocument := Doc;
+      Engine.Prepare;
+
+      Assert.IsTrue(Doc.Pages.Count = 1, 'expected a single page');
+      Assert.IsTrue(Doc.Pages[0].Commands.Count >= 1,
+        'AllowHTML memo must capture at least one command (was blank with the legacy fixture)');
+
+      HasRich := False;
+      for Cmd in Doc.Pages[0].Commands do
+        if (Cmd is TReportExportTextCommand) and
+           (Length(TReportExportTextCommand(Cmd).Runs) > 0) then
+          HasRich := True;
+      Assert.IsTrue(HasRich, 'AllowHTML memo must capture rich runs');
+
+      Ms := TBytesStream.Create;
+      try
+        TReportVectorPDFExporter.ExportDocument(Doc, Ms);
+        SetLength(Pdf, Ms.Size);
+        if Ms.Size > 0 then
+          Move(Ms.Bytes[0], Pdf[1], Ms.Size);
+      finally
+        Ms.Free;
+      end;
+
+      Assert.IsTrue(Pos('Normal text', string(Pdf)) > 0,
+        'Vector PDF must contain the rendered memo text');
+    finally
+      Engine.Free;
+      Doc.Free;
+    end;
+  finally
     Model.Free;
     DS.Free;
   end;
