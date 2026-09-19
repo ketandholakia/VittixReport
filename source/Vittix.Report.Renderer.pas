@@ -9,7 +9,8 @@ uses
   Data.DB,
   Vittix.Report.Model,
   Vittix.Report.UserDataSet,
-  Vittix.Report.Engine;
+  Vittix.Report.Engine,
+  Vittix.Report.Export.Commands;
 
 type
   { Rendered page container.
@@ -65,6 +66,7 @@ type
     FPages: TObjectList<TRenderPage>;
     FParameters: TStrings;
     FTwoPassRendering: Boolean;
+    FExportDocument: TReportExportDocument;
     procedure SetParameters(const Value: TStrings);
   protected
     { Draws one retained page into ACanvas using the shared mapping
@@ -91,6 +93,15 @@ type
     property Pages: TObjectList<TRenderPage> read FPages;
     property Parameters: TStrings read FParameters write SetParameters;
     property TwoPassRendering: Boolean read FTwoPassRendering write FTwoPassRendering;
+
+    { Optional semantic export-capture target.  When assigned, `Render` also
+      points the engine's export capture at this document, so consumers that
+      need a Vector PDF (e.g. the e-mail export) can produce one WITHOUT
+      re-running the engine - the engine is freed as soon as `Render` returns.
+      Borrowed reference: the caller owns and frees the document, and it must
+      outlive this renderer.  nil (the default) preserves the previous
+      behaviour exactly. }
+    property ExportDocument: TReportExportDocument read FExportDocument write FExportDocument;
   end;
 
 implementation
@@ -182,6 +193,8 @@ begin
 
   AEngine.Parameters.Assign(FParameters);
   AEngine.TwoPassRendering := FTwoPassRendering;
+  // Optional Vector PDF capture: harmless when nil (the engine's default).
+  AEngine.ExportDocument := FExportDocument;
   AEngine.Prepare;
 
   for i := 0 to AEngine.Pages.Count - 1 do

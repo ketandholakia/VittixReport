@@ -311,23 +311,47 @@ compatibility evidence needed before any future deprecation decision.
 | 2 | `source\Vittix.Report.Export.PDF.pas` — `TReportPDFExporter` | Production | **Intentional compatibility implementation** |
 | 3 | `vittixdesigner\Frm.Main.pas` — *Export to PDF (Printer / compatibility)...* | Production UI | **Intentional compatibility UI** |
 | 4 | `vittixdesigner\Frm.Preview.pas` — Preview **Export PDF** | Production UI | **Was an un-migrated default → migrated to Vector PDF in this pass** |
-| 5 | `source\Vittix.Report.Export.Email.pas` — PDF attachment (`SendEmailWithReport`) | Production library | **Unresolved — deliberately deferred** (see below) |
+| 5 | `source\Vittix.Report.Export.Email.pas` — PDF attachment (`SendEmailWithReport`) | Production library | **Resolved in §10.1** — new Vector PDF overload added; printer-backed `Pages` overload retained |
 | 6 | `tests\Test.Vittix.Report.ExportCapture.pas` — `function ExportToPDF(ADoc: TReportExportDocument)` + 7 call sites | Test | **NOT a printer caller** — a test-local helper that calls the **vector** exporter; a name collision only |
 | 7 | `tests\Test.Vittix.Report.Component.pas` — migration tests + printer-surface assertion | Test | Coverage (never prints) |
 | 8 | `README.md`, `docs\index.md`, `DEVELOPER_MANUAL.md`, `docs\ADR-Export-PDF.md`, `VectorPDF_DevelopmentPlan.md`, `vittixdesigner\README.md` | Documentation | Current-state docs — updated where they described the old default |
 | 9 | `docs\GAP-005-*`, `Modernization-Residual-Audit.md`, `VittixReport_CodeReview.md`, `VITTORIX_REPORT_TECHNICAL_EVALUATION.md`, `REPORTING_COMPONENT_ARCHITECTURE_ANALYSIS.md` | Documentation (historical) | **Historical facts — retained, not reclassified as runtime callers** |
 | 10 | Dead / unused production caller | — | **None found** |
 
-### 10.1 Email PDF attachment — deferred decision
+### 10.1 Email PDF attachment — resolved (was: deferred)
 
 `TReportEmailExporter.SendEmailWithReport(Pages: TObjectList<TMetafile>;
-ATitle)` builds its PDF attachment with `TReportPDFExporter.ExportToFile`, so it
-is **structurally based on the printer device**.  It is therefore a *second*
-un-migrated default path, but it is **not** migrated here: its signature takes
-engine metafiles, so moving it to Vector PDF requires an API decision
-(accept a `TReportExportDocument`, or capture one internally), and that decision
-is explicitly deferred to a separate change.  Until then, "Send as Email (PDF)"
-still needs `Microsoft Print to PDF`.
+ATitle)` built its PDF attachment with `TReportPDFExporter.ExportToFile`, making
+it structurally printer-backed.  It was the second un-migrated default path.
+
+**Resolution (additive, 2026-09-19):**
+
+* `TReportEmailExporter` gained an overload
+  `SendEmailWithReport(const ADocument: TReportExportDocument; ATitle)` that
+  produces the attachment with the **Vector PDF** writer.  Both overloads funnel
+  into one private `SendEmailWithAttachment(PdfFile, Title)` so the MAPI /
+  subject / body / attachment logic does not know which producer ran.
+* The **existing `Pages` overload is unchanged** and remains the printer-backed
+  compatibility path.
+* `TReportRenderer` gained an optional `ExportDocument: TReportExportDocument`.
+  When assigned, `Render` points the engine's export capture at it, so the
+  component's modal preview can attach a Vector PDF **after** the engine has
+  been freed (the engine does not survive `Render`).  `nil` preserves the old
+  behaviour exactly.
+* Consumers migrated: the Designer *Send as Email (PDF)...* action and the
+  component preview's *Email PDF* button (which falls back to the metafile
+  overload only if no document was captured).
+
+**Precise goal — and its limit.**  This change *removes the `Microsoft Print to
+PDF` dependency from normal "Send as Email (PDF)"*; it does **not** make e-mail
+export server-capable.  MAPI with `MAPI_DIALOG` opens the desktop mail client, so
+the feature remains interactive/desktop-oriented by construction.
+
+### 10.2 Deprecation stance (unchanged)
+
+`ExportToPrinterPDF` is **not** deprecated and must not be removed.  After
+§10.1 it is required only by the explicit compatibility surfaces and by the
+retained `SendEmailWithReport(Pages, …)` overload.
 
 ### 10.2 Deprecation stance (unchanged)
 

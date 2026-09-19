@@ -521,16 +521,25 @@ var
   Metafiles: TObjectList<TMetafile>;
   i: Integer;
 begin
-  if Assigned(Renderer) then
+  if not Assigned(Renderer) then
+    Exit;
+
+  // Preferred: Vector PDF from the captured export document (no printer driver).
+  if Assigned(Renderer.ExportDocument) and
+     (Renderer.ExportDocument.Pages.Count > 0) then
   begin
-    Metafiles := TObjectList<TMetafile>.Create(False);
-    try
-      for i := 0 to Renderer.Pages.Count - 1 do
-        Metafiles.Add(Renderer.Pages[i].Metafile);
-      TReportEmailExporter.SendEmailWithReport(Metafiles, 'VittixReport');
-    finally
-      Metafiles.Free;
-    end;
+    TReportEmailExporter.SendEmailWithReport(Renderer.ExportDocument, 'VittixReport');
+    Exit;
+  end;
+
+  // Compatibility fallback: printer-backed PDF from the retained metafiles.
+  Metafiles := TObjectList<TMetafile>.Create(False);
+  try
+    for i := 0 to Renderer.Pages.Count - 1 do
+      Metafiles.Add(Renderer.Pages[i].Metafile);
+    TReportEmailExporter.SendEmailWithReport(Metafiles, 'VittixReport');
+  finally
+    Metafiles.Free;
   end;
 end;
 
@@ -559,6 +568,7 @@ var
   BtnZoomIn, BtnZoomOut, BtnZoom100: TButton;
   BtnFitPage, BtnFitWidth          : TButton;
   NavHelp  : TPreviewNavHelper;
+  ExportDoc: TReportExportDocument;
 begin
   if FReportJSON = '' then
     raise Exception.Create(
@@ -566,8 +576,14 @@ begin
 
   Model := TReportSerializer.LoadFromJSON(FReportJSON);
   try
+    ExportDoc := nil;
     Renderer := TReportRenderer.Create;
     try
+      // Capture the semantic export document as well, so the preview's
+      // "Email PDF" button can produce a Vector PDF after the engine - which
+      // Render frees internally - is gone.
+      ExportDoc := TReportExportDocument.Create;
+      Renderer.ExportDocument := ExportDoc;
       ConfigureRenderer(Renderer);
       var Engine := CreateEngine(Model);
       try
@@ -664,6 +680,7 @@ begin
       end;
     finally
       Renderer.Free;
+      ExportDoc.Free;   // nil-safe; owns the export document for the modal preview
     end;
   finally
     Model.Free;

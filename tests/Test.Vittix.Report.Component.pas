@@ -44,6 +44,12 @@ type
     { Source-level guard: the Preview window's default "Export PDF" action must
       stay on the Vector PDF writer. }
     [Test] procedure Test_PreviewDefaultExport_UsesVectorPdfOnly;
+
+    { Email PDF: the renderer must be able to carry an export document so the
+      e-mail attachment can be a Vector PDF without re-running the engine, and
+      the Designer must actually use that overload. }
+    [Test] procedure Test_Renderer_ExportDocument_CapturesVectorCommands;
+    [Test] procedure Test_DesignerEmail_UsesVectorDocumentOverload;
   end;
 
 {
@@ -69,6 +75,8 @@ uses
   Vittix.Report.Bands,
   Vittix.Report.Serializer,
   Vittix.Report.Interfaces,
+  Vittix.Report.Export.Commands,
+  Vittix.Report.Export.VectorPDF,
   Vittix.Report.Export.PDF;
 
 procedure TReportComponentTests.BeforeObjectHandler(Sender: TObject;
@@ -410,6 +418,73 @@ begin
     'Frm.Preview.pas must export through the Vector PDF writer');
   Assert.IsFalse(Pos('TReportPDFExporter', Src) > 0,
     'Frm.Preview.pas must not reference the printer exporter (its default export must be Vector PDF)');
+end;
+
+procedure TReportComponentTests.Test_Renderer_ExportDocument_CapturesVectorCommands;
+var
+  Rpt: TVittixReport;
+  R  : TReportRenderer;
+  Model: TReportModel;
+  Engine: TReportEngine;
+  Doc: TReportExportDocument;
+  Ms: TBytesStream;
+begin
+  { The e-mail attachment path relies on the renderer carrying an export
+    document: Render() frees the engine internally, so a document captured
+    during Render is the only way to produce a Vector PDF afterwards. }
+  Rpt := MakeReport(BuildTinyReportJSON);
+  Model := nil;
+  Doc := nil;
+  R := nil;
+  try
+    Model := TReportSerializer.LoadFromJSON(BuildTinyReportJSON);
+    Doc := TReportExportDocument.Create;
+    R := TReportRenderer.Create;
+    try
+      R.ExportDocument := Doc;
+
+      Engine := TVittixReportAccess(Rpt).CreateEngine(Model);
+      try
+        R.Render(Engine, Model.PageSettings.PageWidth, Model.PageSettings.PageHeight);
+      finally
+        Engine.Free;
+      end;
+
+      Assert.IsTrue(Doc.Pages.Count >= 1,
+        'Renderer must capture the assigned export document during Render');
+      Assert.IsTrue(Doc.Pages[0].Commands.Count >= 1,
+        'captured export page must contain commands');
+
+      // The captured document must be usable for Vector PDF without a printer.
+      Ms := TBytesStream.Create;
+      try
+        TReportVectorPDFExporter.ExportDocument(Doc, Ms);
+        Assert.IsTrue(Ms.Size > 200, 'captured document must export a Vector PDF');
+      finally
+        Ms.Free;
+      end;
+    finally
+      R.Free;
+      Doc.Free;
+      Model.Free;
+    end;
+  finally
+    Rpt.Free;
+  end;
+end;
+
+procedure TReportComponentTests.Test_DesignerEmail_UsesVectorDocumentOverload;
+var
+  Src: string;
+begin
+  { Frm.Main.pas is not linked into the test project, so this is a
+    source-level guard that the Designer's e-mail action attaches a Vector PDF
+    (the document overload) rather than the printer-backed Pages overload. }
+  Src := TFile.ReadAllText(TPath.Combine(GetCurrentDir, 'vittixdesigner\Frm.Main.pas'));
+  Assert.IsTrue(Pos('SendEmailWithReport(ExportDoc', Src) > 0,
+    'Designer e-mail must attach a Vector PDF export document');
+  Assert.IsFalse(Pos('SendEmailWithReport(Eng.Pages', Src) > 0,
+    'Designer e-mail must not use the printer-backed Pages overload');
 end;
 
 initialization

@@ -1699,6 +1699,7 @@ procedure TfrmMain.mnuExportEmailClick(Sender: TObject);
 var
   Eng: TReportEngine;
   DS: TDataSet;
+  ExportDoc: TReportExportDocument;
 begin
   CommitReportMetadataChanges(True);
   Screen.Cursor := crHourGlass;
@@ -1713,17 +1714,24 @@ begin
         DS := FDataSource1.DataSet;
     end;
 
-    Eng := TReportEngine.Create(FDesigner.Report, DS);
+    // Vector PDF attachment: no printer driver required.
+    ExportDoc := TReportExportDocument.Create;
     try
-      Eng.Prepare;
-      if Eng.Pages.Count = 0 then
-      begin
-        ShowMessage('No pages were generated.');
-        Exit;
+      Eng := TReportEngine.Create(FDesigner.Report, DS);
+      try
+        Eng.ExportDocument := ExportDoc;
+        Eng.Prepare;
+        if ExportDoc.Pages.Count = 0 then
+        begin
+          ShowMessage('No pages were generated.');
+          Exit;
+        end;
+        TReportEmailExporter.SendEmailWithReport(ExportDoc, FDesigner.Report.Title);
+      finally
+        Eng.Free;
       end;
-      TReportEmailExporter.SendEmailWithReport(Eng.Pages, FDesigner.Report.Title);
     finally
-      Eng.Free;
+      ExportDoc.Free;
     end;
   finally
     Screen.Cursor := crDefault;
