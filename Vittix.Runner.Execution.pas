@@ -478,6 +478,9 @@ begin
           raise Exception.CreateFmt(
             'Vector PDF page content mismatch: engine=%d pdf=%d',
             [PageCount, CountAsciiOccurrences(Header, '/Contents ')]);
+        if not VectorPdfPageObjectsWellFormed(Header, PageCount) then
+          raise Exception.Create(
+            'Vector PDF page object malformed: /Contents is not inside the page dictionary');
 
         VectorPdfStream := TMemoryStream.Create;
         try
@@ -500,6 +503,9 @@ begin
           raise Exception.CreateFmt(
             'Vector PDF stream page mismatch: engine=%d stream=%d',
             [PageCount, CountAsciiOccurrences(StreamHeader, '/Type /Page ')]);
+        if not VectorPdfPageObjectsWellFormed(StreamHeader, PageCount) then
+          raise Exception.Create(
+            'Vector PDF stream page object malformed: /Contents is not inside the page dictionary');
 
         // -- HTML export smoke test --
         if IsExportHTMLReport then

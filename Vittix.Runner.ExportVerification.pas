@@ -25,6 +25,14 @@ function BytesContainAscii(const ABytes: TBytes; const AText: AnsiString): Boole
 
 function CountAsciiOccurrences(const ABytes: TBytes; const AText: AnsiString): Integer;
 
+{ Structural check for Vector PDF page objects: each page dictionary must be
+  bracket-balanced and must contain /Contents INSIDE it.  This catches the
+  malformation where /Resources is closed one level too early so /Contents
+  lands outside the page object - structurally valid-looking text that renders
+  as a blank page and defeats the string-marker checks above. }
+function VectorPdfPageObjectsWellFormed(const ABytes: TBytes;
+  APageCount: Integer): Boolean;
+
 function PdfPointNumber(AValue: Integer): AnsiString;
 
 function ExportDocumentContainsText(ADocument: TReportExportDocument;
@@ -46,6 +54,78 @@ function BuildImageBindingData(const ALogoFile, ASignatureFile,
   AMissingImageFile: string): TFDMemTable;
 
 implementation
+
+function VectorPdfPageObjectsWellFormed(const ABytes: TBytes;
+  APageCount: Integer): Boolean;
+var
+  S: string;
+  ObjMarker: string;
+  I, P, ObjStart, ObjEnd: Integer;
+  Depth, MinDepth, ContentsDepth: Integer;
+  Body: string;
+  Found: Integer;
+begin
+  Result := False;
+  if APageCount <= 0 then
+    Exit(True);
+  if Length(ABytes) = 0 then
+    Exit;
+
+  S := TEncoding.ASCII.GetString(ABytes);
+  ObjMarker := ' 0 obj' + #10;
+
+  Found := 0;
+  I := 1;
+  while True do
+  begin
+    P := PosEx(ObjMarker, S, I);
+    if P = 0 then
+      Break;
+    ObjStart := P + Length(ObjMarker);
+    ObjEnd := PosEx('endobj', S, ObjStart);
+    if ObjEnd = 0 then
+      Exit;
+    I := ObjEnd + Length('endobj');
+    Body := Copy(S, ObjStart, ObjEnd - ObjStart);
+
+    if Pos('/Type /Page ', Body) = 0 then
+      Continue;
+
+    Depth := 0;
+    MinDepth := 0;
+    ContentsDepth := -1;
+    P := 1;
+    while P <= Length(Body) do
+    begin
+      if (P < Length(Body)) and (Body[P] = '<') and (Body[P + 1] = '<') then
+      begin
+        Inc(Depth);
+        Inc(P, 2);
+        Continue;
+      end;
+      if (P < Length(Body)) and (Body[P] = '>') and (Body[P + 1] = '>') then
+      begin
+        Dec(Depth);
+        if Depth < MinDepth then
+          MinDepth := Depth;
+        Inc(P, 2);
+        Continue;
+      end;
+      if (ContentsDepth < 0) and (Copy(Body, P, 9) = '/Contents') then
+        ContentsDepth := Depth;
+      Inc(P);
+    end;
+
+    if (MinDepth < 0) or (Depth <> 0) then
+      Exit;                      // page dictionary is not bracket-balanced
+    if ContentsDepth < 1 then
+      Exit;                      // /Contents is not inside the page dictionary
+
+    Inc(Found);
+  end;
+
+  Result := Found = APageCount;
+end;
 
 function IsHtmlSmokeReport(const AReportName: string): Boolean;
 begin

@@ -11,6 +11,7 @@ interface
 
 uses
   DUnitX.TestFramework,
+  System.SysUtils,
   Vittix.Runner.ExportVerification;
 
 type
@@ -23,6 +24,13 @@ type
     [Test] procedure Test_OtherVrtReport_False;
     [Test] procedure Test_EmptyString_False;
     [Test] procedure Test_WhitespacePaddedName_False;
+
+    // Vector PDF page-object structure (the /Contents-inside-the-page check).
+    [Test] procedure Test_VectorPdf_WellFormedPage_True;
+    [Test] procedure Test_VectorPdf_ContentsOutsidePage_False;
+    [Test] procedure Test_VectorPdf_ExtraCloseBrace_False;
+    [Test] procedure Test_VectorPdf_NoContents_False;
+    [Test] procedure Test_VectorPdf_PageCountMismatch_False;
   end;
 
 implementation
@@ -55,6 +63,80 @@ end;
 procedure TRunnerExportVerificationTests.Test_WhitespacePaddedName_False;
 begin
   Assert.IsFalse(IsHtmlSmokeReport(' 38_export_html.vrt'));
+end;
+
+{ --- Vector PDF page-object structure -------------------------------------- }
+
+function AsciiBytes(const S: AnsiString): TBytes;
+var
+  I: Integer;
+begin
+  SetLength(Result, Length(S));
+  for I := 1 to Length(S) do
+    Result[I - 1] := Ord(S[I]);
+end;
+
+// A well-formed page object: /Contents sits inside the page dictionary.
+function WellFormedPage: TBytes;
+begin
+  Result := AsciiBytes(
+    '3 0 obj' + #10 +
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 100 100] /Resources << /Font << ' +
+    '/F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >> ' +
+    '/Contents 4 0 R >>' + #10 +
+    'endobj' + #10);
+end;
+
+procedure TRunnerExportVerificationTests.Test_VectorPdf_WellFormedPage_True;
+begin
+  Assert.IsTrue(VectorPdfPageObjectsWellFormed(WellFormedPage, 1));
+end;
+
+// Regression for the E0 defect: /Contents emitted AFTER the page dictionary
+// closes (the page dictionary is then one '>>' short / not balanced).
+function ContentsOutsidePage: TBytes;
+begin
+  Result := AsciiBytes(
+    '3 0 obj' + #10 +
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 100 100] /Resources << /Font << ' +
+    '/F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >> >> ' +
+    '/Contents 4 0 R >>' + #10 +
+    'endobj' + #10);
+end;
+
+procedure TRunnerExportVerificationTests.Test_VectorPdf_ContentsOutsidePage_False;
+begin
+  Assert.IsFalse(VectorPdfPageObjectsWellFormed(ContentsOutsidePage, 1));
+end;
+
+procedure TRunnerExportVerificationTests.Test_VectorPdf_ExtraCloseBrace_False;
+var
+  B: TBytes;
+begin
+  // Balanced-looking but an extra '>>' makes the depth go negative.
+  B := AsciiBytes(
+    '3 0 obj' + #10 +
+    '<< /Type /Page /Resources << /Font << /F1 << /Type /Font >> >> >> >> ' +
+    '/Contents 4 0 R >>' + #10 +
+    'endobj' + #10);
+  Assert.IsFalse(VectorPdfPageObjectsWellFormed(B, 1));
+end;
+
+procedure TRunnerExportVerificationTests.Test_VectorPdf_NoContents_False;
+var
+  B: TBytes;
+begin
+  B := AsciiBytes(
+    '3 0 obj' + #10 +
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 100 100] >>' + #10 +
+    'endobj' + #10);
+  Assert.IsFalse(VectorPdfPageObjectsWellFormed(B, 1));
+end;
+
+procedure TRunnerExportVerificationTests.Test_VectorPdf_PageCountMismatch_False;
+begin
+  // One well-formed page object, but two pages expected.
+  Assert.IsFalse(VectorPdfPageObjectsWellFormed(WellFormedPage, 2));
 end;
 
 initialization

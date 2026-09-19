@@ -1718,12 +1718,11 @@ begin
         '/F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> ' +
         '/F2 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> ' +
         '/F3 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique >> ' +
-        '/F4 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-BoldOblique >> ' +
-        '>>');
+        '/F4 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-BoldOblique >> ');
       for I := 0 to High(UnicodeFonts) do
         WriteAnsi(' /' + UnicodeFonts[I].ResourceName + ' ' +
           AnsiString(IntToStr(UnicodeFonts[I].Type0ObjectNo)) + ' 0 R');
-      WriteAnsi(' >>');
+      WriteAnsi(' >>');   // close /Resources /Font
 
       if Length(PageImages[PageIndex]) > 0 then
       begin
