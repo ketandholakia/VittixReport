@@ -347,6 +347,25 @@ PDF` dependency from normal "Send as Email (PDF)"*; it does **not** make e-mail
 export server-capable.  MAPI with `MAPI_DIALOG` opens the desktop mail client, so
 the feature remains interactive/desktop-oriented by construction.
 
+**Verification scope (recorded deliberately).**  The e-mail path itself was not
+executed during verification: invoking it would open a real mail client via MAPI.
+What is proven is the *renderer capture seam* (unit-tested: the assigned
+document is populated during `Render` and exports a Vector PDF) plus source
+guards and compilation for the call sites.  **A source guard is not an
+integration test** — an actual MAPI send remains unverified and should be
+smoke-tested manually on a machine with a configured mail client.
+
+### 10.1a Milestone status
+
+```text
+C-4a — Vector PDF default                       COMPLETE
+Email Vector PDF migration — Option B           COMPLETE
+Printer PDF                                     COMPATIBILITY / NOT DEPRECATED
+```
+
+Commits: `1cc5d62` (Vector PDF default) and `e69e52d` (email Option B), kept as
+separate focused commits rather than squashed.
+
 ### 10.2 Deprecation stance (unchanged)
 
 `ExportToPrinterPDF` is **not** deprecated and must not be removed.  After
