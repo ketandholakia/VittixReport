@@ -62,6 +62,7 @@ uses
   Test.Vittix.Report.Export.HTML in 'Test.Vittix.Report.Export.HTML.pas',
   Test.Vittix.Report.Export.XLSX in 'Test.Vittix.Report.Export.XLSX.pas',
   Test.Vittix.Report.DesignerLoad in 'Test.Vittix.Report.DesignerLoad.pas',
+  Test.Vittix.Report.DesignerZoom in 'Test.Vittix.Report.DesignerZoom.pas',
   Test.Vittix.Report.ExpressionAudit in 'Test.Vittix.Report.ExpressionAudit.pas',
   Test.Vittix.Report.Serializer.Registry in 'Test.Vittix.Report.Serializer.Registry.pas',
   Test.Vittix.Report.Component in 'Test.Vittix.Report.Component.pas';

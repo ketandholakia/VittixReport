@@ -103,6 +103,14 @@ TDesignerGridUnit = (guCentimeters, guInches, guPixels, guPoints);
     FBandGap     : Integer;
     FZoom       : Integer;
 
+    { Uniform-zoom content layer.  Report objects are rendered once at 1:1
+      logical page coordinates into this metafile and then scaled uniformly
+      (StretchDraw) into the designer canvas, so that object geometry AND
+      content metrics (fonts, padding, pen widths, ...) scale together.
+      Interactive chrome (selection, handles, guides, band headers) is drawn
+      separately in screen space.  Rebuilt by UpdateContentMetafile. }
+    FContentMeta: Vcl.Graphics.TMetafile;
+
     { Layout (recomputed when report changes) }
     FBandLayouts  : TDesignerBandLayouts;
     FObjectBandMap: TDictionary<TReportObject, TReportBand>;
@@ -201,7 +209,9 @@ TDesignerGridUnit = (guCentimeters, guInches, guPixels, guPoints);
     procedure DrawMarginGuides;
     procedure DrawGrid;
     procedure DrawBandZones;
-    procedure DrawBandChildren(const BL: TBandLayout);
+    procedure DrawBandContentLive(const BL: TBandLayout);
+    procedure DrawBandObjectOutlines;
+    procedure DrawBandSelectionRects;
     procedure DrawBandHeaders;
     procedure DrawSelectionHandles;
     procedure DrawRubberBand;
@@ -253,6 +263,19 @@ TDesignerGridUnit = (guCentimeters, guInches, guPixels, guPoints);
     constructor Create(AOwner: TComponent); override;
     destructor  Destroy; override;
     procedure UpdateSurfaceExtent;
+
+    { Renders every band child at 1:1 logical page coordinates into
+      ContentMetafile.  Returns False when the layer could not be produced.
+      Called automatically by Paint. }
+    function  UpdateContentMetafile: Boolean;
+
+    { Renders the 1:1 content layer uniformly scaled into APageRect on
+      ACanvas (the designer's uniform-zoom transform).  Returns False when
+      the caller should fall back to live screen-space drawing.  Exposed so
+      hosted surfaces (and regression tests) can reproduce the designer's
+      uniform-zoom rendering without a window handle. }
+    function  RenderContentTo(ACanvas: TCanvas; const APageRect: TRect): Boolean;
+    property  ContentMetafile: Vcl.Graphics.TMetafile read FContentMeta;
 
     { Report management }
     procedure LoadReport(AReport: TReportModel; TakeOwnership: Boolean = False;
@@ -466,6 +489,7 @@ begin
   FCommands.Free;
   FObjectBandMap.Free;
   FSelected.Free;
+  FContentMeta.Free;
   if FOwnsReport then
     FReport.Free;
   inherited;
@@ -696,7 +720,7 @@ begin
       PageLeft + Scale(PM.Left),
       PageTop + Scale(BL.Y),
       PageLeft + Scale(PM.Left) + PrintableW,
-      PageTop + Scale(BL.Y) + BAND_HDR_H);
+      PageTop + Scale(BL.Y + BAND_HDR_H));
     if PtInRect(HeaderRect, ScreenPt) then
     begin
       HitBand := BL.Band;
@@ -1758,17 +1782,104 @@ begin
   Canvas.Font.Style := [];
 end;
 
-procedure TVittixReportDesigner.DrawBandChildren(const BL: TBandLayout);
+{ -- Uniform-zoom content layer -------------------------------------------- }
+
+function TVittixReportDesigner.UpdateContentMetafile: Boolean;
+var
+  MetaCanvas: TMetafileCanvas;
+  I         : Integer;
+  BL        : TBandLayout;
+  Obj       : TReportObject;
+  Ctx       : TExpressionContext;
+  PM        : TReportMargins;
+  PrintableW: Integer;
+begin
+  Result := False;
+
+  { Rebuild the logical content layer from scratch.  Its size is the logical
+    page, so it is zoom-independent and can be scaled by any zoom factor. }
+  FreeAndNil(FContentMeta);
+  FContentMeta := TMetafile.Create;
+  FContentMeta.Enhanced := True;
+  FContentMeta.Width    := FReport.PageSettings.PageWidth;
+  FContentMeta.Height   := FReport.PageSettings.PageHeight;
+
+  MetaCanvas := nil;
+  try
+    MetaCanvas := TMetafileCanvas.Create(FContentMeta, 0);
+
+    PM := FReport.PageSettings.Margins;
+    PrintableW := FReport.PageSettings.PageWidth - PM.Left - PM.Right;
+    if PrintableW < 0 then
+      PrintableW := 0;
+
+    { Content is rendered in logical report coordinates.  A child's Bounds.Top
+      is band-body relative, so each band's origin is (left margin, band Y +
+      band header); PageBottom is likewise logical. }
+    Ctx := Default(TExpressionContext);
+    Ctx.DataSet := FDataSet;
+    Ctx.PageNumber := 1;
+    Ctx.TotalPages := 1;
+    Ctx.ReportTitle := FReport.Title;
+    Ctx.ReportDate := Now;
+    Ctx.PageBottom := FReport.PageSettings.PageHeight - PM.Bottom;
+
+    for I := 0 to High(FBandLayouts) do
+    begin
+      BL := FBandLayouts[I];
+      if BL.Band.Children.Count = 0 then
+        Continue;
+
+      SaveDC(MetaCanvas.Handle);
+      try
+        SetViewportOrgEx(MetaCanvas.Handle, PM.Left, BL.Y + BAND_HDR_H, nil);
+        IntersectClipRect(MetaCanvas.Handle, 0, 0, PrintableW, BL.Height);
+        for Obj in BL.Band.Children do
+          Obj.Draw(MetaCanvas, Ctx);
+      finally
+        RestoreDC(MetaCanvas.Handle, -1);
+      end;
+    end;
+  except
+    FreeAndNil(MetaCanvas);
+    FreeAndNil(FContentMeta);
+    Exit;
+  end;
+
+  MetaCanvas.Free;   // finalize the metafile
+
+  Result := Assigned(FContentMeta) and (FContentMeta.Width > 0) and
+    (FContentMeta.Height > 0);
+end;
+
+function TVittixReportDesigner.RenderContentTo(ACanvas: TCanvas;
+  const APageRect: TRect): Boolean;
+begin
+  Result := False;
+  if not Assigned(ACanvas) then
+    Exit;
+  if (APageRect.Right <= APageRect.Left) or (APageRect.Bottom <= APageRect.Top) then
+    Exit;
+
+  if not UpdateContentMetafile then
+    Exit;
+
+  ACanvas.StretchDraw(APageRect, FContentMeta);
+  Result := True;
+end;
+
+procedure TVittixReportDesigner.DrawBandContentLive(const BL: TBandLayout);
 var
   Obj : TReportObject;
-  OR_ : TRect;
   Ctx : TExpressionContext;
   SaveDC: Integer;
   OldBounds: TRect;
 begin
   if BL.Band.Children.Count = 0 then Exit;
 
-  { Draw object borders and selection rectangles in screen-space }
+  { Fallback path, used only when the uniform content layer cannot be
+    produced: draw object content live in zoomed screen space.  Object
+    geometry scales via ObjScreenRect; content metrics do not. }
   SaveDC := Winapi.Windows.SaveDC(Canvas.Handle);
   try
     Canvas.Brush.Style := bsClear;
@@ -1791,33 +1902,63 @@ begin
 
     for Obj in BL.Band.Children do
     begin
-      OR_ := ObjScreenRect(Obj);
-
-      if not FSelected.Contains(Obj) then
-      begin
-        Canvas.Brush.Style := bsClear;
-        Canvas.Pen.Color := $00C0C0C0;
-        Canvas.Rectangle(OR_);
-      end;
-
       OldBounds := Obj.Bounds;
       try
-        Obj.Bounds := OR_;
+        Obj.Bounds := ObjScreenRect(Obj);
         Obj.Draw(Canvas, Ctx);
       finally
         Obj.Bounds := OldBounds;
       end;
-
-      { Object border }
-      Canvas.Brush.Style := bsClear;
-      if FSelected.Contains(Obj) then
-      begin
-        Canvas.Pen.Color := $000080FF;   // bright selection color
-        Canvas.Rectangle(OR_);
-      end
     end;
   finally
     Winapi.Windows.RestoreDC(Canvas.Handle, SaveDC);
+  end;
+end;
+
+procedure TVittixReportDesigner.DrawBandObjectOutlines;
+var
+  I  : Integer;
+  BL : TBandLayout;
+  Obj: TReportObject;
+  OR_: TRect;
+begin
+  Canvas.Brush.Style := bsClear;
+  Canvas.Pen.Style   := psSolid;
+  Canvas.Pen.Width   := 1;
+  Canvas.Pen.Color   := $00C0C0C0;
+  for I := 0 to High(FBandLayouts) do
+  begin
+    BL := FBandLayouts[I];
+    for Obj in BL.Band.Children do
+      if not FSelected.Contains(Obj) then
+      begin
+        OR_ := ObjScreenRect(Obj);
+        Canvas.Rectangle(OR_);
+      end;
+  end;
+end;
+
+procedure TVittixReportDesigner.DrawBandSelectionRects;
+var
+  I  : Integer;
+  BL : TBandLayout;
+  Obj: TReportObject;
+  OR_: TRect;
+begin
+  if FSelected.Count = 0 then Exit;
+  Canvas.Brush.Style := bsClear;
+  Canvas.Pen.Style   := psSolid;
+  Canvas.Pen.Width   := 1;
+  Canvas.Pen.Color   := $000080FF;   // bright selection color
+  for I := 0 to High(FBandLayouts) do
+  begin
+    BL := FBandLayouts[I];
+    for Obj in BL.Band.Children do
+      if FSelected.Contains(Obj) then
+      begin
+        OR_ := ObjScreenRect(Obj);
+        Canvas.Rectangle(OR_);
+      end;
   end;
 end;
 
@@ -1840,7 +1981,9 @@ begin
   Canvas.Font.Assign(Font);
   Canvas.Font.Name   := 'Segoe UI';
   Canvas.Font.Color  := clBlack;
-  Canvas.Font.Size   := 8;
+  { Band header height is logical (BAND_HDR_H) and scales with zoom, so the
+    label font must scale with it to keep header/body/object origins consistent. }
+  Canvas.Font.Height := -Max(1, Scale(11));
   Canvas.Font.Style  := [fsBold];
 
   for I := 0 to High(FBandLayouts) do
@@ -1850,7 +1993,7 @@ begin
       PageLeft + Scale(PM.Left),
       PageTop + Scale(BL.Y),
       PageLeft + Scale(PM.Left) + PrintableW,
-      PageTop + Scale(BL.Y) + BAND_HDR_H);
+      PageTop + Scale(BL.Y + BAND_HDR_H));
 
     Canvas.Brush.Color := $00E0E0E0;
     Canvas.FillRect(BR);
@@ -2302,9 +2445,18 @@ begin
   DrawMarginGuides;
   DrawBandZones;
 
-  { Children of each band }
-  for I := 0 to High(FBandLayouts) do
-    DrawBandChildren(FBandLayouts[I]);
+  { Screen-space object outlines, drawn under the report content. }
+  DrawBandObjectOutlines;
+
+  { Report content: rendered 1:1 in logical report coordinates, then scaled
+    uniformly by zoom so geometry AND content metrics scale together.  Falls
+    back to live screen-space drawing if the layer cannot be produced. }
+  if not RenderContentTo(Canvas, Bounds(PageLeft, PageTop, PageWidth, PageHeight)) then
+    for I := 0 to High(FBandLayouts) do
+      DrawBandContentLive(FBandLayouts[I]);
+
+  { Selection rectangles sit on top of the report content. }
+  DrawBandSelectionRects;
 
   DrawBandHeaders;
   DrawSelectionHandles;
