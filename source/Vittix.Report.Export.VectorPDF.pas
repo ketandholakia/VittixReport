@@ -16,6 +16,7 @@ uses
   Vcl.Imaging.GIFImg,
   Vittix.Report.Export.VectorPDF.SVG,
   Vittix.Report.Export.VectorPDF.EMF,
+  Vittix.Report.Export.VectorPDF.Subset,
   Vittix.Report.Export.Commands;
 
 type
@@ -167,6 +168,7 @@ var
   PageContentObjNos: TArray<Integer>;
   Img: TPdfImageXObject;
   UnicodeFonts: TPdfUnicodeFontResourceArray;
+  SubsetFontBytes: TBytes;
 
   procedure WriteAnsi(const S: AnsiString);
   begin
@@ -1819,10 +1821,14 @@ begin
       EndObject;
 
       BeginObject(UnicodeFonts[I].FontFileObjectNo);
-      WriteAnsi('<< /Length ' + AnsiString(IntToStr(Length(UnicodeFonts[I].FontFileBytes))) +
-        ' /Length1 ' + AnsiString(IntToStr(Length(UnicodeFonts[I].FontFileBytes))) + ' >>' + #10);
+      // Embed only the glyphs actually used (glyph ids preserved, whole-font
+      // fallback if the font cannot be subset).
+      SubsetFontBytes := SubsetTrueTypeFont(UnicodeFonts[I].FontFileBytes,
+        UnicodeFonts[I].UsedGlyphIds);
+      WriteAnsi('<< /Length ' + AnsiString(IntToStr(Length(SubsetFontBytes))) +
+        ' /Length1 ' + AnsiString(IntToStr(Length(SubsetFontBytes))) + ' >>' + #10);
       WriteAnsi('stream' + #10);
-      WriteAnsi(BytesToAnsiString(UnicodeFonts[I].FontFileBytes));
+      WriteAnsi(BytesToAnsiString(SubsetFontBytes));
       WriteAnsi(#10 + 'endstream' + #10);
       EndObject;
 

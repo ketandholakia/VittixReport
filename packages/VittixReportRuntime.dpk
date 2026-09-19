@@ -91,5 +91,6 @@ contains
   Vittix.Report.Component       in '..\source\Vittix.Report.Component.pas',
   Vittix.Report.Export.HTML in '..\source\Vittix.Report.Export.HTML.pas',
   Vittix.Report.Export.VectorPDF.EMF in '..\source\Vittix.Report.Export.VectorPDF.EMF.pas',
+  Vittix.Report.Export.VectorPDF.Subset in '..\source\Vittix.Report.Export.VectorPDF.Subset.pas',
   Vittix.Report.Export.XLSX in '..\source\Vittix.Report.Export.XLSX.pas';
 end.
