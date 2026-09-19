@@ -271,15 +271,12 @@ Changes made:
 
 Known limitations (unchanged by this pass, called out explicitly so they
 are a documented decision rather than a silent gap):
-- No font embedding. Text is always drawn with one of four built-in
-  Helvetica variants; `TextCmd.FontName` is not used for the actual glyph
-  rendering (only for wrap/alignment measurement). Non-Latin-1 text
-  (including Devanagari, Gujarati, and other Indic scripts used in GST
-  invoices) will not render correctly, since core PDF Type1 fonts only
-  support WinAnsi/Latin-1 and `PdfText` converts through `AnsiString`
-  using the system default codepage. Do not point real Indic-language
-  reports at "Export Vector PDF" until a follow-up milestone addresses
-  this - see M5.6 below.
+- ~~No font embedding.~~ **Superseded by M5.6.** Latin-1 text is still drawn
+  with one of the four built-in Helvetica variants; non-Latin-1 text is now
+  shaped (Uniscribe) and drawn with an embedded TrueType font (`Type0` /
+  `Identity-H` → `CIDFontType2` → `/FontFile2` + `CIDToGIDMap` + `/ToUnicode`),
+  with a rasterise-or-logged-skip fallback. Glyph subsetting is still not
+  implemented, so embedded fonts are written whole.
 - A single word wider than `Bounds.Width` is not mid-word split.
 - Progressive/CMYK JPEG files are not distinguished from baseline JPEG
   and would embed incorrectly if encountered (pre-existing limitation).
@@ -294,13 +291,24 @@ Safe commit condition:
 
 ### M5.6 - Font Embedding and Indic/Unicode Text Export
 
-Status: Pending
+Status: Implemented (glyph subsetting pending)
+
+Result:
+- Non-Latin-1 text is shaped with Uniscribe and drawn with an embedded
+  TrueType font: `Type0` / `Identity-H` → `CIDFontType2` → `FontDescriptor`
+  `/FontFile2` + `CIDToGIDMap` + `/ToUnicode` CMap.
+- Fallbacks: rasterise the run into an image XObject, or skip it with a
+  logged warning.
+- Still open: glyph **subsetting** (fonts are embedded whole, so files are
+  large) and end-to-end visual verification on a real Indic-script report.
+
+The option evaluation below is kept for historical context.
 
 Goal:
 Make vector PDF export usable for real GST invoices containing Indic-script
 text, not just Latin-1 reports.
 
-Options to evaluate (not yet decided):
+Options evaluated:
 - Rasterize just the non-Latin-1 text runs via GDI into a small image
   XObject placed at the correct position. Reuses existing font rendering,
   guarantees visual fidelity, avoids full font-embedding complexity. Would
@@ -310,12 +318,34 @@ Options to evaluate (not yet decided):
   Meaningfully larger effort: glyph subsetting, CID-to-GID mapping,
   `/ToUnicode` CMap for text extraction/search.
 
-Interim mitigation until this lands:
+Interim mitigation (historical - the labels referenced here have been
+corrected now that embedding is implemented):
 - Detect non-Latin-1 text at export time and fail that text command
   gracefully (skip with a logged warning) rather than silently emitting
   `?` or blank output.
 - Keep "Export Vector PDF" labeled as Latin-text-only (beta) in the
   designer UI (M6) until this milestone is complete.
+
+### M5.7 - Page Object Structural Fix
+
+Status: Complete
+
+The Vector PDF page object was malformed: `/Resources /Font` was closed one
+level too early, so the `UF*` font entries and `/XObject` were emitted at the
+wrong nesting level and an extra `>>` closed the page dictionary before
+`/Contents`. Every generated PDF therefore had the page contents **outside**
+the page object, which renders as a blank page.
+
+Fixed by emitting the font/image resource entries inside the correct
+dictionaries and placing `/Contents` inside the page object. The runner's
+Vector PDF smoke check was hardened at the same time: it now verifies the page
+dictionary is bracket-balanced and that `/Contents` is **inside** the page
+object (`VectorPdfPageObjectsWellFormed` in `Vittix.Runner.ExportVerification`),
+instead of only grepping for `/Contents` anywhere in the file.
+
+Known remaining gap (unrelated, pre-existing): an `AllowHTML` rich memo
+captures no export commands, so its Vector PDF page has an empty content
+stream - rich-text PDF export remains deferred.
 
 ### M6 - API and Designer Integration
 

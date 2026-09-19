@@ -5,6 +5,15 @@ Date: 2026-09-19
 Scope: `E0 — Export Baseline & PDF Decision` (see [Export roadmap](Export-Roadmap.md))
 Deciders: project owner
 
+**Update 2026-09-19 (after the baseline):** the blocking defect in §3.3 has
+been fixed and the smoke check hardened (§6.1–6.2). Vector PDF now renders:
+40 of the 41 corpus PDFs produce ink and extractable text; the remaining one is
+an `AllowHTML` rich memo whose content is not captured into export commands (a
+pre-existing, documented deferred item — "Rich text PDF export"). The
+"Latin-text-only" labels listed in §8 were corrected. §6 items 3–5 (migrate the
+default, re-label the capability, glyph subsetting + Indic end-to-end
+verification) remain open.
+
 ---
 
 ## 1. Context

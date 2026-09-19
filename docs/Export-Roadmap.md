@@ -239,8 +239,11 @@ Microsoft Print to PDF
 
 and therefore has an environment dependency.
 
-The vector implementation is currently Beta and has documented limitations,
-including Latin-only text support.
+The vector implementation is currently Beta. It is not Latin-only: non-Latin
+(Unicode) text is rendered through Uniscribe shaping with an embedded TrueType
+font (`Type0` / `CIDFontType2` / `/FontFile2` / `ToUnicode`), with a
+rasterise-or-skip fallback. Glyph subsetting is not implemented, so embedded
+fonts are written whole.
 
 ### Work
 

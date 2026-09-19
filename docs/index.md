@@ -40,7 +40,8 @@ in the Phase 4A and Phase 4B documents under **Modernization**.
 
 ## Export
 
-Vector PDF (with SVG and EMF sub-backends; Latin-text-only beta), raster PDF via the Windows printing
+Vector PDF (with SVG and EMF sub-backends; beta - embeds TrueType fonts for non-Latin text,
+no glyph subsetting), raster PDF via the Windows printing
 system, XLSX, HTML, plain text and email.
 
 ## Getting started
