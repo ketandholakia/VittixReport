@@ -12,10 +12,9 @@ been fixed and the smoke check hardened (§6.1–6.2). Vector PDF now renders:
 file used a legacy top-level `"Bands"` block the serialiser does not read, so
 it loaded with zero objects. Converting it to the current format removed the
 last blank page and, for the first time, exercised rich-text memo export
-through the corpus. The "Latin-text-only" labels listed in §8 were corrected.
-§6 items 3–5 (migrate the default, re-label the capability, glyph subsetting +
-Indic end-to-end verification) remain open; subsetting and Indic verification
-have since been completed separately.
+through the corpus. The "Latin-text-only" labels listed in §8 were corrected.  Subsetting and Indic
+end-to-end verification were then completed, and the final capability matrix and
+the default-exporter decision are recorded in **§6**.
 
 ---
 
@@ -161,8 +160,8 @@ the smoke test cannot fail on this class of defect.
 | Unicode / non-Latin-1 text | Via the print driver | Embedded TrueType (Type0/CIDFontType2) + Uniscribe shaping; raster/skip fallback |
 | Multi-page | Yes | Yes (page tree emitted) |
 | Images (JPEG/PNG) | Via driver | JPEG/PNG XObjects (+ PNG `/SMask`) |
-| EMF/WMF/SVG images | Via driver | Not supported (documented) |
-| Font subsetting | n/a | **No** — whole font file embedded (1.5 MB for one short line) |
+| EMF/WMF/SVG images | Via driver | Partial — sub-backends attempt conversion, skip gracefully (beta; not verified here) |
+| Font subsetting | n/a | **Yes** — retain-GID sparse subset, ~52 KB vs a 5.3 MB font |
 | Deterministic bytes | No | Yes |
 | Test coverage | Print-path/GAP-005 tests | Runner smoke only (structural strings) |
 
@@ -186,28 +185,72 @@ the smoke test cannot fail on this class of defect.
 
 **Adopt Option C.**
 
-1. **Immediate (blocking):** fix the vector page object in
-   `Vittix.Report.Export.VectorPDF.pas`:
-   * emit `/Contents … 0 R` **inside** the page dictionary (remove the extra
-     `>>`);
-   * emit `UF*` font entries inside `/Resources /Font`;
-   * emit `/XObject << … >>` inside `/Resources`.
-2. **Immediate (same change):** replace the runner's string-marker vector check
-   with a check that **parses** the page object (at minimum: `/Contents` occurs
-   inside the page dictionary; ideally render or extract text and require
-   non-empty output).
-3. **Keep** the printer path as the supported default until (1)+(2) ship and are
-   verified on the existing report corpus.
-4. **Then** migrate the supported default to Vector PDF and re-label it from
-   "Beta / Latin-text-only" to its verified capability set; demote
-   `ExportToPDF` to compatibility-only.
-5. **Unicode text work (was M5.6):** the embedding pipeline exists; after the
-   structural fix, verify it end-to-end (Devanagari/Gujarati sample report,
-   text extraction, visual parity vs preview) and decide whether to add glyph
-   **subsetting** (files are large) before calling Unicode "supported".
+### 6.1 Completed since the baseline (2026-09-19)
 
-Items owed by the decider: confirm Option C (or choose A/B), and confirm whether
-the printer path should ultimately be *compatibility-only* or *deprecated*.
+1. ~~Fix the vector page object~~ — **done**: `/Contents` is emitted inside the
+   page dictionary, resource entries nest correctly.
+2. ~~Replace the string-marker smoke check~~ — **done**:
+   `VectorPdfPageObjectsWellFormed` parses each page object.
+3. ~~Keep the printer path as the default until (1)+(2) ship~~ — **satisfied**:
+   the default is still `ExportToPDF`.
+4. **Migrate the default to Vector PDF** — **open (this decision)**.
+5. ~~Unicode work (was M5.6)~~ — **done**: Uniscribe shaping + embedded
+   TrueType, glyph **subsetting** (`SubsetTrueTypeFont`, glyph ids preserved),
+   and Hindi/Gujarati fixtures verified end-to-end.  Not open.
+
+### 6.2 Vector PDF capability matrix (verified 2026-09-19)
+
+| Capability | Vector PDF | Evidence / notes |
+| --- | --- | --- |
+| Basic text (Latin-1) | ✅ | built-in Helvetica paths; corpus renders + extracts |
+| Unicode / embedded fonts | ✅ | `Type0`/`Identity-H`/`CIDFontType2`/`FontFile2`/`ToUnicode` |
+| TrueType glyph subsetting | ✅ | ~52 KB vs a 5.3 MB font; used-glyph outlines byte-identical to source |
+| Devanagari (Hindi) rendering | ✅ | `tests/indic_hindi.vrt` renders with embedded Nirmala UI |
+| Gujarati rendering | ✅ | `tests/indic_gujarati.vrt` renders |
+| Rich / `AllowHTML` memo runs | ✅ | `43_memo_html` renders all runs (bold/italic/underline/colour) |
+| Images (JPEG / PNG / GIF) | ✅ | DCTDecode / FlateDecode XObjects (+ PNG `/SMask`) |
+| Barcodes | ✅ | command-captured bars; corpus renders |
+| Multi-page | ✅ | 75-page corpus report renders |
+| Page-object structure | ✅ | structural check + unit tests |
+| Deterministic bytes; no printer dependency | ✅ | pure RTL/GDI writer; stream overload |
+| SVG / EMF / WMF image content | ⚠️ partial | dedicated sub-backends (`TryDrawSVGToPDFCommands`, `TryDrawEMFToPDFCommands`) attempt conversion and skip gracefully on failure; **not independently verified in this pass** |
+| Shaping tables (`GSUB`/`GPOS`/`GDEF`) | ⚠️ by design | **dropped by subsetting** — text is pre-shaped into glyph ids, so a viewer does not need them; the embedded font is not reusable as a shaping source |
+| Indic text *extraction* | ⚠️ approximate | glyph-level `/ToUnicode`, not cluster-level; rendered glyphs are correct but copy/search of Indic clusters is imperfect |
+| Progressive / CMYK JPEG | ⚠️ | not distinguished from baseline JPEG (pre-existing) |
+| PNG transparency | ⚠️ | flattened to white (no alpha) |
+| PDF/A, tagged PDF | ❌ | not implemented |
+| Printer-based `ExportToPDF` | — | existing **compatibility** path; would be demoted if this decision is accepted |
+
+### 6.3 The decision on the table
+
+**Option C-4a (recommended): adopt Vector PDF as the default PDF export**, and
+re-label `ExportToPDF` (printer-based) as a compatibility path.
+
+*Rationale:* the vector path is printer-independent, silent/server-capable,
+byte-deterministic, Unicode-capable with subsetted fonts, and now renders every
+corpus report.  The printing path keeps a hard `Microsoft Print to PDF`
+dependency and cannot guarantee a caller-chosen output path.
+
+**Accepted limitations if C-4a is chosen:** Indic text *extraction* stays
+approximate (rendering is correct); `GSUB`/`GPOS` are dropped from embedded
+fonts by design; progressive/CMYK JPEG and PNG alpha remain unsupported;
+SVG/EMF/WMF conversion stays beta.
+
+**Option C-4b: keep the printer path as the default** for one more cycle, and
+continue hardening the vector path (e.g. verify the SVG/EMF sub-backends,
+cluster-level `/ToUnicode`).
+
+**Option C-4c: expose the choice without changing the default** (documented
+capability matrix + explicit API), deferring the default flip.
+
+### 6.4 Owed by the decider
+
+* Confirm **C-4a / C-4b / C-4c**.
+* If C-4a: confirm the printer path becomes **compatibility-only** (recommended)
+  or is **deprecated**, and whether `ExportToPDF`'s public behaviour may change.
+
+No default-exporter code change has been made; this section records the
+capability evidence only.
 
 ---
 
