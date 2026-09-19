@@ -150,6 +150,12 @@ type
     procedure Execute;
     procedure Print;
     procedure ExportToPDF(const AFileName: string);
+
+    { Legacy / compatibility PDF export: renders the pages and prints them to
+      the Windows "Microsoft Print to PDF" device (requires that printer).
+      Retained for applications and environments that depend on the printer
+      path; ExportToPDF is the default (native Vector) PDF export. }
+    procedure ExportToPrinterPDF(const AFileName: string);
     procedure ExportToVectorPDF(const AFileName: string); overload;
     procedure ExportToVectorPDF(AStream: TStream); overload;
     procedure ExportToHTML(const AFileName: string); overload;
@@ -697,10 +703,24 @@ begin
 end;
 
 // ---------------------------------------------------------------------------
-//  ExportToPDF
+//  ExportToPDF  (default: native Vector PDF)
+//
+//  Since the Vector PDF migration the default PDF export is the native vector
+//  writer.  It needs no printer driver and supports silent / server-side
+//  export.  The printer-based implementation is preserved unchanged as
+//  ExportToPrinterPDF (compatibility path).
 // ---------------------------------------------------------------------------
 
 procedure TVittixReport.ExportToPDF(const AFileName: string);
+begin
+  ExportToVectorPDF(AFileName);
+end;
+
+// ---------------------------------------------------------------------------
+//  ExportToPrinterPDF  (legacy / compatibility: Windows printer driver)
+// ---------------------------------------------------------------------------
+
+procedure TVittixReport.ExportToPrinterPDF(const AFileName: string);
 var
   Model  : TReportModel;
   Engine : TReportEngine;

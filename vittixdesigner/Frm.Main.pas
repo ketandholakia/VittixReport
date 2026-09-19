@@ -1582,6 +1582,7 @@ var
   dlgPDF: TSaveDialog;
   Eng   : TReportEngine;
   DS    : TDataSet;
+  ExportDoc: TReportExportDocument;
 begin
   CommitReportMetadataChanges(True);
 
@@ -1611,61 +1612,7 @@ begin
         Exit;
       end;
 
-      Eng := TReportEngine.Create(FDesigner.Report, DS);
-      try
-        Eng.Prepare;
-        if Eng.Pages.Count = 0 then
-        begin
-          ShowMessage('No pages were generated. Add a MasterData band with objects and ensure a DataSet is assigned.');
-          Exit;
-        end;
-        TReportPDFExporter.ExportToFile(Eng.Pages, dlgPDF.FileName);
-      finally
-        Eng.Free;
-      end;
-    finally
-      Screen.Cursor := crDefault;
-    end;
-  finally
-    dlgPDF.Free;
-  end;
-end;
-
-procedure TfrmMain.mnuExportVectorPDFClick(Sender: TObject);
-var
-  dlgPDF: TSaveDialog;
-  Eng   : TReportEngine;
-  DS    : TDataSet;
-  ExportDoc: TReportExportDocument;
-begin
-  CommitReportMetadataChanges(True);
-
-  dlgPDF := TSaveDialog.Create(nil);
-  try
-    dlgPDF.Filter     := 'PDF Files (*.pdf)|*.pdf|All Files (*.*)|*.*';
-    dlgPDF.DefaultExt := 'pdf';
-    dlgPDF.Title      := 'Export Report to Vector PDF (Beta)';
-    if FCurrentFile <> '' then
-      dlgPDF.FileName := ChangeFileExt(FCurrentFile, '.vector.pdf');
-    if not dlgPDF.Execute then Exit;
-
-    Screen.Cursor := crHourGlass;
-    try
-      DS := nil;
-      if Assigned(FDataSource1) then
-        DS := FDataSource1.DataSet;
-      if not Assigned(DS) then
-      begin
-        UseSampleDataSet;
-        if Assigned(FDataSource1) then
-          DS := FDataSource1.DataSet;
-      end;
-      if not Assigned(DS) then
-      begin
-        ShowMessage('Vector PDF export (beta) requires a dataset for report preparation.');
-        Exit;
-      end;
-
+      // Default PDF export: the native Vector PDF writer (no printer driver).
       ExportDoc := TReportExportDocument.Create;
       try
         Eng := TReportEngine.Create(FDesigner.Report, DS);
@@ -1683,6 +1630,62 @@ begin
         end;
       finally
         ExportDoc.Free;
+      end;
+    finally
+      Screen.Cursor := crDefault;
+    end;
+  finally
+    dlgPDF.Free;
+  end;
+end;
+
+procedure TfrmMain.mnuExportVectorPDFClick(Sender: TObject);
+var
+  dlgPDF: TSaveDialog;
+  Eng   : TReportEngine;
+  DS    : TDataSet;
+begin
+  CommitReportMetadataChanges(True);
+
+  dlgPDF := TSaveDialog.Create(nil);
+  try
+    dlgPDF.Filter     := 'PDF Files (*.pdf)|*.pdf|All Files (*.*)|*.*';
+    dlgPDF.DefaultExt := 'pdf';
+    dlgPDF.Title      := 'Export Report to PDF (Printer / compatibility)';
+    if FCurrentFile <> '' then
+      dlgPDF.FileName := ChangeFileExt(FCurrentFile, '.printer.pdf');
+    if not dlgPDF.Execute then Exit;
+
+    Screen.Cursor := crHourGlass;
+    try
+      DS := nil;
+      if Assigned(FDataSource1) then
+        DS := FDataSource1.DataSet;
+      if not Assigned(DS) then
+      begin
+        UseSampleDataSet;
+        if Assigned(FDataSource1) then
+          DS := FDataSource1.DataSet;
+      end;
+      if not Assigned(DS) then
+      begin
+        ShowMessage('Printer PDF export requires a dataset for report preparation.');
+        Exit;
+      end;
+
+      // Compatibility path: prints the rendered pages to the
+      // "Microsoft Print to PDF" device (needs that printer installed).
+      Eng := TReportEngine.Create(FDesigner.Report, DS);
+      try
+        Eng.Prepare;
+        if Eng.Pages.Count = 0 then
+        begin
+          ShowMessage('No pages were generated. Add a MasterData band with objects and ensure a DataSet is assigned.');
+          Exit;
+        end;
+        TReportPDFExporter.ExportToFile(Eng.Pages, dlgPDF.FileName);
+      finally
+        Eng.Free;
       end;
     finally
       Screen.Cursor := crDefault;

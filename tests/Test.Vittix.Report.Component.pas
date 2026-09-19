@@ -31,6 +31,15 @@ type
     [Test] procedure Test_CreateEngine_WiresPrintEvents;
     [Test] procedure Test_CreateEngine_NoDatasets_NoException;
     [Test] procedure Test_RendererPath_PropagatesTwoPassAndParameters;
+
+    { Vector PDF migration (C-4a): ExportToPDF is the default native Vector PDF
+      export; the printer-based implementation is preserved as
+      ExportToPrinterPDF (compatibility). }
+    [Test] procedure Test_ExportToPDF_RoutesToVectorExporter;
+    [Test] procedure Test_ExportToPDF_ProducesValidPdfWithText;
+    [Test] procedure Test_ExportToPDF_IndicFixture_EmbedsType0Font;
+    [Test] procedure Test_ExportToPDF_RichMemoFixture_ContainsText;
+    [Test] procedure Test_PrinterExporter_PreservedAsCompatibilityPath;
   end;
 
 {
@@ -46,9 +55,17 @@ implementation
 uses
   System.Classes,
   System.SysUtils,
+  System.Types,
+  System.IOUtils,
+  Data.DB,
+  Datasnap.DBClient,
   Vittix.Report.Engine,
   Vittix.Report.Renderer,
-  Vittix.Report.Model;
+  Vittix.Report.Model,
+  Vittix.Report.Bands,
+  Vittix.Report.Serializer,
+  Vittix.Report.Interfaces,
+  Vittix.Report.Export.PDF;
 
 procedure TReportComponentTests.BeforeObjectHandler(Sender: TObject;
   AEngine: TObject; AObject: TReportObject; const Context: TExpressionContext;
@@ -202,6 +219,176 @@ begin
   finally
     Rpt.Free;
   end;
+end;
+
+{ ===================== Vector PDF migration (C-4a) ===================== }
+
+{ A minimal report with a literal-text title band, so it renders without any
+  data-bound objects. }
+function BuildTinyReportJSON: string;
+var
+  Model: TReportModel;
+  Band : TReportBand;
+  Txt  : TReportTextObject;
+begin
+  Model := TReportModel.Create;
+  try
+    Model.Title := 'Migration Test';
+    Band := TReportBand.Create;
+    Band.BandType := btReportTitle;
+    Band.Height := 60;
+    Txt := TReportTextObject.Create;
+    Txt.Text := 'Vector PDF default export';
+    Txt.Bounds := Rect(20, 10, 400, 40);
+    Band.Children.Add(Txt);
+    Model.Objects.Add(Band);
+    Result := TReportSerializer.SaveToJSON(Model);
+  finally
+    Model.Free;
+  end;
+end;
+
+function MakeReport(const AJSON: string): TVittixReport;
+var
+  DS: TClientDataSet;
+  Src: TDataSource;
+begin
+  Result := TVittixReport.Create(nil);
+  DS := TClientDataSet.Create(Result);
+  DS.FieldDefs.Add('Name', ftString, 20);
+  DS.CreateDataSet;
+  DS.AppendRecord(['row1']);
+  DS.First;
+  Src := TDataSource.Create(Result);
+  Src.DataSet := DS;
+  Result.DataSource := Src;
+  Result.ReportJSON := AJSON;
+end;
+
+function ReadFileBytes(const APath: string): TBytes;
+begin
+  Result := TFile.ReadAllBytes(APath);
+end;
+
+function StartsWithPdfHeader(const ABytes: TBytes): Boolean;
+begin
+  Result := (Length(ABytes) >= 5) and (ABytes[0] = Ord('%')) and
+    (ABytes[1] = Ord('P')) and (ABytes[2] = Ord('D')) and
+    (ABytes[3] = Ord('F')) and (ABytes[4] = Ord('-'));
+end;
+
+function BytesToAnsi(const ABytes: TBytes): AnsiString;
+begin
+  SetLength(Result, Length(ABytes));
+  if Length(ABytes) > 0 then
+    Move(ABytes[0], Result[1], Length(ABytes));
+end;
+
+procedure TReportComponentTests.Test_ExportToPDF_RoutesToVectorExporter;
+var
+  Rpt: TVittixReport;
+  DefaultFile, VectorFile: string;
+  DefaultBytes, VectorBytes: TBytes;
+begin
+  DefaultFile := TPath.Combine(TPath.GetTempPath, 'vittix_mig_default.pdf');
+  VectorFile  := TPath.Combine(TPath.GetTempPath, 'vittix_mig_vector.pdf');
+  Rpt := MakeReport(BuildTinyReportJSON);
+  try
+    Rpt.ExportToPDF(DefaultFile);
+    Rpt.ExportToVectorPDF(VectorFile);
+
+    DefaultBytes := ReadFileBytes(DefaultFile);
+    VectorBytes  := ReadFileBytes(VectorFile);
+
+    Assert.IsTrue(StartsWithPdfHeader(DefaultBytes), 'ExportToPDF must write a PDF');
+    Assert.IsTrue(Length(DefaultBytes) > 200, 'exported PDF is implausibly small');
+    Assert.AreEqual(Length(VectorBytes), Length(DefaultBytes),
+      'ExportToPDF must route to the same writer as ExportToVectorPDF');
+    Assert.IsTrue(CompareMem(VectorBytes, DefaultBytes, Length(DefaultBytes)),
+      'ExportToPDF output must be byte-identical to ExportToVectorPDF output');
+  finally
+    Rpt.Free;
+    if FileExists(DefaultFile) then TFile.Delete(DefaultFile);
+    if FileExists(VectorFile) then TFile.Delete(VectorFile);
+  end;
+end;
+
+procedure TReportComponentTests.Test_ExportToPDF_ProducesValidPdfWithText;
+var
+  Rpt: TVittixReport;
+  FileName: string;
+  Pdf: AnsiString;
+begin
+  FileName := TPath.Combine(TPath.GetTempPath, 'vittix_mig_text.pdf');
+  Rpt := MakeReport(BuildTinyReportJSON);
+  try
+    Rpt.ExportToPDF(FileName);
+    Pdf := BytesToAnsi(ReadFileBytes(FileName));
+    Assert.IsTrue(Pos('%%EOF', string(Pdf)) > 0, 'PDF must be terminated');
+    Assert.IsTrue(Pos('Vector PDF default export', string(Pdf)) > 0,
+      'PDF must contain the rendered title text');
+  finally
+    Rpt.Free;
+    if FileExists(FileName) then TFile.Delete(FileName);
+  end;
+end;
+
+procedure TReportComponentTests.Test_ExportToPDF_IndicFixture_EmbedsType0Font;
+var
+  Rpt: TVittixReport;
+  Fixture, FileName: string;
+  Pdf: AnsiString;
+begin
+  Fixture := TPath.Combine(GetCurrentDir, 'tests\indic_hindi.vrt');
+  Assert.IsTrue(FileExists(Fixture), 'Indic fixture missing: ' + Fixture);
+  FileName := TPath.Combine(TPath.GetTempPath, 'vittix_mig_indic.pdf');
+
+  Rpt := MakeReport(TFile.ReadAllText(Fixture));
+  try
+    Rpt.ExportToPDF(FileName);
+    Pdf := BytesToAnsi(ReadFileBytes(FileName));
+    Assert.IsTrue(Pos('/Type0', string(Pdf)) > 0,
+      'Indic report must export an embedded Type0 font through the default path');
+    Assert.IsTrue(Pos('/FontFile2', string(Pdf)) > 0, 'expected an embedded font file');
+  finally
+    Rpt.Free;
+    if FileExists(FileName) then TFile.Delete(FileName);
+  end;
+end;
+
+procedure TReportComponentTests.Test_ExportToPDF_RichMemoFixture_ContainsText;
+var
+  Rpt: TVittixReport;
+  Fixture, FileName: string;
+  Pdf: AnsiString;
+begin
+  Fixture := TPath.Combine(GetCurrentDir, 'reports\43_memo_html.vrt');
+  Assert.IsTrue(FileExists(Fixture), 'rich memo fixture missing: ' + Fixture);
+  FileName := TPath.Combine(TPath.GetTempPath, 'vittix_mig_memo.pdf');
+
+  Rpt := MakeReport(TFile.ReadAllText(Fixture));
+  try
+    Rpt.ExportToPDF(FileName);
+    Pdf := BytesToAnsi(ReadFileBytes(FileName));
+    Assert.IsTrue(Pos('Normal text', string(Pdf)) > 0,
+      'rich memo fixture must still export its text through the default path');
+  finally
+    Rpt.Free;
+    if FileExists(FileName) then TFile.Delete(FileName);
+  end;
+end;
+
+procedure TReportComponentTests.Test_PrinterExporter_PreservedAsCompatibilityPath;
+var
+  Exporter: IReportExporter;
+begin
+  { The printer implementation must remain reachable and unchanged.  Its
+    ExportPages needs the "Microsoft Print to PDF" device (and may show a
+    save dialog), so the actual print is deliberately NOT exercised here -
+    only the preserved public surface is asserted. }
+  Exporter := TReportPDFExporter.Create;
+  Assert.AreEqual('PDF Document', Exporter.FormatName);
+  Assert.AreEqual('pdf', Exporter.DefaultExtension);
 end;
 
 initialization

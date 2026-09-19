@@ -717,7 +717,7 @@ object frmMain: TfrmMain
         OnClick = mnuExportPDFClick
       end
       object mnuExportVectorPDF: TMenuItem
-        Caption = 'Export to &Vector PDF (Beta)...'
+        Caption = 'Export to PDF (&Printer / compatibility)...'
         OnClick = mnuExportVectorPDFClick
       end
       object mnuSep2: TMenuItem
