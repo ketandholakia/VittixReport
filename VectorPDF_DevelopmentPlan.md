@@ -352,9 +352,15 @@ dictionary is bracket-balanced and that `/Contents` is **inside** the page
 object (`VectorPdfPageObjectsWellFormed` in `Vittix.Runner.ExportVerification`),
 instead of only grepping for `/Contents` anywhere in the file.
 
-Known remaining gap (unrelated, pre-existing): an `AllowHTML` rich memo
-captures no export commands, so its Vector PDF page has an empty content
-stream - rich-text PDF export remains deferred.
+Known remaining gap: **resolved.** The `43_memo_html` blank page was traced to
+the fixture, not to rich-text capture: the file was written in a legacy format
+with a top-level `"Bands"` block, which the serializer does not read, so the
+report loaded with **zero objects** and produced an empty content stream. Rich
+text memo capture itself already worked (the engine emits
+`TReportExportTextCommand.Runs` for `AllowHTML` memos, and the writer renders
+those runs). The fixture was converted to the current v2 `"Objects"` format
+(band type 4 = `btReportSummary`, same page count), after which all 41 corpus
+PDFs contain real page content.
 
 ### M6 - API and Designer Integration
 
@@ -446,7 +452,8 @@ Safe commit condition:
 - Replacing current PDF exporter.
 - Full SVG support.
 - EMF/WMF vector parsing into PDF commands.
-- Rich text PDF export.
+- Rich text PDF export. *(Done: `AllowHTML` memo runs are captured and
+  rendered; see M5.7.)*
 - Advanced font embedding.
 - Unicode shaping/complex script rendering.
 - PDF/A compliance.

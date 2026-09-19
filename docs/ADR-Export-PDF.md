@@ -7,12 +7,15 @@ Deciders: project owner
 
 **Update 2026-09-19 (after the baseline):** the blocking defect in §3.3 has
 been fixed and the smoke check hardened (§6.1–6.2). Vector PDF now renders:
-40 of the 41 corpus PDFs produce ink and extractable text; the remaining one is
-an `AllowHTML` rich memo whose content is not captured into export commands (a
-pre-existing, documented deferred item — "Rich text PDF export"). The
-"Latin-text-only" labels listed in §8 were corrected. §6 items 3–5 (migrate the
-default, re-label the capability, glyph subsetting + Indic end-to-end
-verification) remain open.
+**all 41 corpus PDFs contain real page content.** The last blank report
+(`43_memo_html`) turned out to be a *fixture* problem, not a rich-text gap: the
+file used a legacy top-level `"Bands"` block the serialiser does not read, so
+it loaded with zero objects. Converting it to the current format removed the
+last blank page and, for the first time, exercised rich-text memo export
+through the corpus. The "Latin-text-only" labels listed in §8 were corrected.
+§6 items 3–5 (migrate the default, re-label the capability, glyph subsetting +
+Indic end-to-end verification) remain open; subsetting and Indic verification
+have since been completed separately.
 
 ---
 
