@@ -1674,7 +1674,7 @@ begin
           Eng.Prepare;
           if ExportDoc.Pages.Count = 0 then
           begin
-            ShowMessage('No pages were generated. Add a MasterData band with objects and ensure a DataSet is assigned. Full Unicode/font embedding is still pending in Vector PDF beta.');
+            ShowMessage('No pages were generated. Add a MasterData band with objects and ensure a DataSet is assigned.');
             Exit;
           end;
           TReportVectorPDFExporter.ExportDocument(ExportDoc, dlgPDF.FileName);
