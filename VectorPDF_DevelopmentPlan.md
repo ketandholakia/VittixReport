@@ -297,10 +297,19 @@ Result:
 - Non-Latin-1 text is shaped with Uniscribe and drawn with an embedded
   TrueType font: `Type0` / `Identity-H` → `CIDFontType2` → `FontDescriptor`
   `/FontFile2` + `CIDToGIDMap` + `/ToUnicode` CMap.
+- **Glyph subsetting implemented** (`Vittix.Report.Export.VectorPDF.Subset`,
+  `SubsetTrueTypeFont`): only the used glyphs are embedded.  Glyph ids are
+  preserved (sparse long `loca`), because the writer emits text as glyph ids
+  under an identity CIDToGIDMap; `name`/`post`/`GSUB`/`GPOS`/`GDEF` are
+  dropped.  Measured: an embedded Nirmala UI subset is ~52 KB instead of the
+  whole 5.3 MB collection, with the used glyph outlines byte-identical to the
+  source face and identical advance widths.
 - Fallbacks: rasterise the run into an image XObject, or skip it with a
-  logged warning.
-- Still open: glyph **subsetting** (fonts are embedded whole, so files are
-  large) and end-to-end visual verification on a real Indic-script report.
+  logged warning.  If the font cannot be parsed or subset, the whole font is
+  embedded (never worse than before).
+- Still open: Indic **text extraction** is approximate (glyph-level
+  `/ToUnicode`, not cluster-level), and glyph subsetting does not trim
+  `hmtx`/`cmap`.
 
 The option evaluation below is kept for historical context.
 
