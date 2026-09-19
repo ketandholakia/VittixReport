@@ -123,6 +123,7 @@ nav:
       - Bug queue: bug-queue.md
       - Designer UX roadmap: Designer-UX-Roadmap.md
       - Export roadmap: Export-Roadmap.md
+      - Export PDF ADR (E0): ADR-Export-PDF.md
       - Embedded image plan: plan-embedded-image.md
       - Text expression editor plan: plan-text-expression-editor.md
       - Vector PDF plan: plan-vector-pdf.md
