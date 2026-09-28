@@ -1,5 +1,29 @@
 # Phase 4I-20 Implementation Plan
 
+> **v1.0 scope:** none — the whole plan is deferred to v1.1, see BACKLOG_v1.1.md.
+
+## V1.0 Scope Triage
+
+App need:
+None for v1.0. This plan is an internal rewrite of the expression evaluator (heuristic
+scanner → AST recursive descent). It is not user-visible except through expression
+semantics, and current default rendering works: the legacy evaluator is the active path
+(`emLegacy` is the default mode; the modern opt-in engine from Phase 4B-2B already exists
+separately, closed at tag `vittixreport-modernization-closed`) and is characterized by the
+retained expression test fixtures. The plan was never started — no
+`Vittix.Report.Expression.Parser.pas` exists.
+
+IN v1.0:
+Nothing.
+
+DEFER to v1.1:
+The entire plan, unchanged (see BACKLOG_v1.1.md). If a genuine expression mis-evaluation
+bug surfaces during the v1.0 soak, it is fixed as a `[fix]` inside the existing evaluator
+with a failing test — the AST rewrite is not a prerequisite for any bug fix.
+
+CUT:
+Nothing is deleted; the plan document is preserved intact for v1.1.
+
 ## Scope and constraints
 
 - Start from `549e0c456389bd0ce79b4499bb7010d3d3f9bd13` on `main`.

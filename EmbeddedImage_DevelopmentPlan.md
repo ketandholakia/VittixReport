@@ -1,5 +1,40 @@
 # Embedded Image Data Development Plan
 
+> **v1.0 scope:** static embedded images as already shipped — serialization
+> (`PictureData`/`PictureClass`), runtime rendering when `DataField` is empty, and the M2
+> designer import workflow — stays as-is and receives only `[fix]` repairs — everything
+> else deferred, see BACKLOG_v1.1.md.
+
+## V1.0 Scope Triage
+
+App need:
+Image support the application uses today is static image placement (file-path images) and
+— since M2 — designer import of embedded images with existing persistence. Persistent
+embedded-image serialization was already present before this plan and works; M1 confirmed
+the serializer round-trips `PictureData`. No regression/corpus report uses `PictureData`,
+and no known report requires it, so nothing further is *required* for v1.0.
+
+IN v1.0:
+The M1+M2 behavior exactly as it stands at tag `v1.0-freeze-start` (embedded static image
+import, persistence, preview/print rendering when `DataField` is empty), plus `[fix]`
+repairs only.
+
+DEFER to v1.1:
+M3 clear/replace workflow polish and the Embedded/None status indication (load/replace
+already works via `Load Embedded Image...`); M4 embedded-image regression fixture
+(`[test]`-class — may be pulled forward during the freeze only if a characterization test
+is actually needed); M5 vector PDF export of embedded PNG/JPEG. M5 note: embedded images
+are dropped by the default (Vector) PDF export today — only file-path images are emitted.
+No known report hits this. If a real v1.0 soak report loses an embedded image in PDF
+output, that is a preview/export mismatch and is treated as a `[fix]` bug, not as plan
+work. M7 extended formats (BMP→PNG conversion, WMF/EMF vector preservation, SVG) defer
+for the same reasons recorded in the Vector PDF plan.
+
+CUT:
+M6 dynamic image fallback (`UseEmbeddedImageAsFallback`) — no demonstrated application
+need, and it would change output of existing dynamic reports; it stays documented in the
+M6 section below and is not carried into the v1.1 backlog.
+
 ## Goal
 
 Allow image objects to store image content inside the report file instead of requiring an external image path, while preserving existing dynamic `DataField` image behavior and existing report compatibility.

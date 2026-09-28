@@ -1,49 +1,52 @@
 # VittixReport TODO
 
-## Refactor Roadmap
-| Step | Area | Status | Notes |
-|---|---|---|---|
-| 1 | Designer preferences service | Complete | Grid, rulers, colors, and MRU persistence are split out; recent-files menu wiring is being separated next. |
-| 2 | Selection manager | Complete | Tree sync, core selection mutators, keyboard nudge/resize helpers, rubber-band selection application, and empty-space rubber-band start are extracted; the drag gesture still remains in the designer control. |
-| 3 | Surface interaction controller | Complete | Hit-test/geometry helpers are split; interaction state container is added and mouse event migration is next. |
-| 4 | Command dispatcher | Complete | A wrapper around `TCommandManager` has been added, the designer control exposes it, and the main form routes undo/redo and command execution through it. |
-| 5 | Layout/render tree | Complete | Layout helpers now cover designer band ordering, engine band cache classification, shared pagination/group-flow helpers, pass setup/group-break initialization, per-record master/detail print flow, the dataset-loop wrapper around the master pass, detail-band bookmark/traversal helpers, and pass finalization. |
+## ⛔ V1.0 FEATURE FREEZE (active since 2026-09-28)
 
-## ?? Important  Commonly Needed
-| # | Feature | Detail | Dev Status |
-|---|---------|--------|------------|
-| 1 | SaveToJSON / LoadFromJSON | The Serializer only has SaveToFile/LoadFromFile. TVittixReport.ReportJSON and the component editor both call these  they don't exist yet, which means the component and component editor will fail to compile. | Complete |
-| 2 | TReportRenderer.Print | The renderer has no Print method. TVittixReport.Print works around it via TVittixReportPreview but that's a roundabout path. | Complete |
-| 3 | Native PDF Export (Stream-based) | Native vector PDF now supports file and `TStream` output for silent/server-side use. The printer-based `Export PDF` path remains available for compatibility. | Complete |
-| 4 | Two-pass rendering for [TotalPages] | TotalPages is always 0 while the engine runs. FastReport renders twice  first pass counts pages, second pass fills in the total. | [x] Complete |
+See `AGENTS.md` for the full policy. Until `v1.0.0` is tagged, only `[fix]`, `[test]`, and
+`[chore]` changes are allowed. New ideas and deferred plan work belong in `BACKLOG_v1.1.md`.
 
-## ?? Designer Gaps
-| # | Feature | Detail | Dev Status |
-|---|---------|--------|------------|
-| 5 | Sub-reports | A band object that contains its own nested TReportModel with its own dataset. Essential for master-detail layouts. | Complete |
-| 6 | Detail band with its own dataset | Currently the engine only loops one FMasterBand over one FDataSet. FastReport supports multiple detail bands each with their own linked dataset. | Complete |
-| 7 | Cross-tab / matrix object | Pivoted data table  rows and columns both come from data. | Complete |
-| 8 | Rich text / HTML memo | TReportMemoObject renders plain text only. No bold/italic mid-string, no HTML markup inside a cell. | Complete |
-| 9 | Format strings on fields | TReportFieldObject needs `DisplayFormat` property (e.g., `#,##0.00`). Use `FormatFloat`/`FormatDateTime` in engine. | Complete |
-| 10 | Conditional formatting / Expressions | Need a lightweight expression parser. Allow properties to be expressions, e.g., `Font.Color := IF(Value < 0, clRed, clBlack)`. | Complete |
-| 11 | OnBeforePrint / OnAfterPrint events on bands | TReportScriptEngine is a stub  events are declared but do nothing. Bands have no OnBeforePrint event property for user code to intercept. | Complete |
-| 12 | Export to Excel (XLSX) | Only PDF exists. No XLSX, CSV, HTML, or RTF exporter. | Complete |
-| 13 | Export to HTML | Very common requirement for web preview. | Complete |
+## Drain record (2026-09-28)
 
-## ?? Nice to Have
-| # | Feature | Detail | Dev Status |
-|---|---------|--------|------------|
-| 14 | Field list drag-and-drop | Currently double-click only. Drag from field list to band is the standard UX. | Complete |
-| 15 | Copy/paste between reports | Clipboard is internal to one designer session only. | Complete |
-| 16 | Snap to other objects (smart guides) | Only grid snap exists. No alignment guides relative to other objects. | Complete |
-| 17 | Property editor for Font | Font shows as a raw string in the value list editor, no font picker dialog. | Complete |
-| 18 | Colour picker for Color properties | No colour dialog in the property panel. | Complete |
-| 19 | Object locking | No Locked property to prevent accidental moves. | Complete |
-| 20 | Report variables / parameters | Add `Variables` dictionary to TReportModel. Allow syntax `[<VarName>]` in text objects. | Complete |
-| 22 | Chart object | Pie/bar/line chart bound to dataset. | Complete |
-| 23 | Subreport as a child band | Inline nested report in a band. | Complete |
-| 24 | [RecNo] system token | Current record number within the group or report. | Complete |
-| 25 | Alternating row colors | Odd/even row background on master data band. | Complete |
-| 26 | Print preview zoom + fit-page | The inline preview (Execute) has no zoom controls. | Complete |
-| 27 | Multiple paper sizes per section | Landscape summary page after portrait data. | Complete |
-| 28 | Email export | Send PDF directly via MAPI/SMTP. | Complete |
+TODO.md was drained at the v1.0 feature freeze. Classification of every prior item:
+
+- **A (actual bug):** none open in this file. Open bug work lives in `VittixReport_BugQueue.md`.
+- **B (in-flight v1.0 work):** none — nothing was in flight at the freeze.
+- **C (deferred feature/enhancement):** 2 items, moved to `BACKLOG_v1.1.md`:
+  - Designer drag-gesture extraction (Refactor Roadmap step 2 residual, noted in the step's status line).
+  - Mouse-event migration to the surface interaction controller (Refactor Roadmap step 3 residual, noted in the step's status line).
+- **D (completed):** everything else. All entries in all four tables below were marked
+  `Complete` before the freeze; they are preserved here in condensed form, and the full
+  original tables remain retrievable at the freeze baseline:
+  `git show v1.0-freeze-start:TODO.md`.
+
+No item was discarded.
+
+## Completed archive
+
+### Refactor Roadmap (steps 1–5) — all Complete
+
+Designer preferences service; selection manager (drag-gesture residual → backlog); surface
+interaction controller (mouse-event migration residual → backlog); command dispatcher; layout/
+render-tree helpers (band ordering, pagination/group flow, master/detail pass, bookmarks, finalization).
+
+### Important — Commonly Needed (items 1–4) — all Complete
+
+SaveToJSON/LoadFromJSON; TReportRenderer.Print; native stream-based PDF export; two-pass
+rendering for `[TotalPages]`.
+
+### Designer Gaps (items 5–13) — all Complete
+
+Sub-reports; detail band with own dataset; cross-tab/matrix object; rich text/HTML memo;
+field display formats; conditional formatting/expressions; OnBeforePrint/OnAfterPrint band
+events; XLSX export; HTML export.
+
+### Nice to Have (items 14–28, no 21) — all Complete
+
+Field list drag-and-drop; copy/paste between reports; smart guides; font property editor;
+colour picker; object locking; report variables/parameters; chart object; subreport child
+band; `[RecNo]` token; alternating row colors; preview zoom/fit-page; multiple paper sizes
+per section; email export.
+
+## Open items
+
+None. Do not add new feature items here during the freeze — use `BACKLOG_v1.1.md`.

@@ -1,5 +1,32 @@
 # VittixReport Codex Instructions
 
+## ⛔ V1.0 FEATURE FREEZE (active since 2026-09-28)
+
+The freeze baseline is tagged `v1.0-freeze-start`. Until `v1.0.0` is tagged, ONLY these changes are allowed:
+
+- `[fix]` Bug fixes (P0/P1 from `VittixReport_BugQueue.md`, or bugs found during soak)
+- `[test]` Tests, golden files, failing-test reproductions
+- `[chore]` Documentation corrections for existing behavior only
+
+FORBIDDEN during the freeze:
+
+- New features
+- New plan files
+- Refactors not attached to a bug
+- "Small improvements"
+- Finishing deferred plan items merely for completeness
+
+Commit prefixes during the freeze: `[fix] ...`, `[test] ...`, `[chore] ...` only. No `[feature]` commits.
+
+Feature-vs-bug test:
+
+> Does the report render what the designer says it should?
+>
+> - YES → not a bug → add to `BACKLOG_v1.1.md` and stop.
+> - NO → bug → write a failing test → fix it.
+
+Parked ideas and deferred plan work live in `BACKLOG_v1.1.md`. Do not start them until v1.0.0 ships.
+
 ## Project Type
 
 This repository is a Delphi VCL report component/library named VittixReport.

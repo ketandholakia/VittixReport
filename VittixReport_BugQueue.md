@@ -11,6 +11,8 @@
 
 ## Minor
 
+- [ ] BUG-M1 Unattributed GDI handle growth in regression runs (+8 across the 30-report suite: 16 -> 24). Open follow-up documented in `VectorPDF_DevelopmentPlan.md` M6/M7 and `TextExpressionEditor_DevelopmentPlan.md` M9 validation record. Not yet isolated to vector PDF export vs. engine/preview paths; compare against a pre-M5.5 baseline and check image-heavy reports (`07_imagepath_test`, `27_object_event_image_cases`). Investigation is `[fix]`-eligible during the v1.0 freeze.
+
 ## Refactor
 
 Always work top-down:

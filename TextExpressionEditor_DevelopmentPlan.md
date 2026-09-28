@@ -1,5 +1,34 @@
 # Text / DataField / Expression Editor Development Plan
 
+> **v1.0 scope:** the shipped editor (M1–M6, M8, M9: Text/DataField/Expression/PrintWhen
+> editing with Data/Variables/Functions insertion panels) stays as-is and receives only
+> `[fix]` repairs — everything else deferred, see BACKLOG_v1.1.md.
+
+## V1.0 Scope Triage
+
+App need:
+Production reports require editing of `Text`, `DataField`, `Expression`, and `PrintWhen`
+with insertion of dataset fields, system variables (`Date`, `Page`, `TotalPages`, `RecNo`,
+…), and aggregate snippets (`SUM/COUNT/AVG/MIN/MAX`). All of that is implemented (M1–M6,
+M8) and regression-validated (M9, 2026-05-25). No missing expression blocks real report
+correctness: everything the editor inserts is resolvable by the evaluator, and `IF()` —
+unsupported by the evaluator — is deliberately not offered as a snippet.
+
+IN v1.0:
+Current editor behavior exactly as it stands at tag `v1.0-freeze-start`, plus `[fix]`
+repairs only.
+
+DEFER to v1.1:
+M7 named dataset tree, including its prerequisites (per-dataset field metadata in
+standalone report files, dataset-qualified `Dataset.FieldName` expression syntax) —
+deferred before the freeze with a recorded decision; M8 polish leftovers (syntax
+highlighting, autocomplete, line-number gutter); the `IF()` function and its snippet
+(blocked on evaluator support).
+
+CUT:
+None. Every unfinished item in this plan is a reasoned deferral, not dead work; there is
+no partially-built feature to remove.
+
 ## Goal
 
 Add a unified designer dialog for editing report text, data field bindings, and expressions.

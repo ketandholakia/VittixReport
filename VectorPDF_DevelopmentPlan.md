@@ -1,5 +1,37 @@
 # VittixReport Vector PDF Development Plan
 
+> **v1.0 scope:** the already-shipped default Vector PDF export (M1–M8: text/lines/shapes,
+> word wrap, JPEG/PNG images, font embedding with glyph subsetting, email attachment) stays
+> as-is and receives only `[fix]` regression repairs — everything else deferred, see
+> BACKLOG_v1.1.md.
+
+## V1.0 Scope Triage
+
+App need:
+Vector PDF has been the default PDF export since M8 (2026-09-19; `ExportToPDF` and the
+designer's Export PDF action resolve to it, with the printer path kept as an explicit
+compatibility entry point). The application requires: valid multi-page PDFs with sharp
+selectable text (Latin-1 via built-in Helvetica; non-Latin-1 via embedded subset TrueType),
+lines/rectangles/borders, JPEG/PNG images, wrapped memo text, and PDF attachment in email
+export. All of this shipped and passed the 41-report corpus regression (M5.7).
+
+IN v1.0:
+The implemented M1–M8 behavior exactly as it stands at tag `v1.0-freeze-start`, plus
+`[fix]` repairs for defects found in real reports during soak (tracked in
+`VittixReport_BugQueue.md`, including the open GDI-handle delta investigation BUG-M1).
+No new capability, no new milestones.
+
+DEFER to v1.1:
+Cluster-level Indic text extraction (current `/ToUnicode` is glyph-level) and `hmtx`/`cmap`
+trimming in glyph subsetting (M5.6 "still open"); progressive/CMYK JPEG handling, PNG alpha,
+and mid-word split for over-wide words (M5.5 documented limitations); full SVG support;
+EMF/WMF vector parsing into PDF commands; PDF/A compliance.
+
+CUT:
+"Replacing the current PDF exporter" from the historical Deferred list (that replacement
+happened as M8 — the item is done, not future work); "silent printer-driver PDF export
+fixes" (the printer path is now the explicit compatibility fallback, not the product path).
+
 ## Goal
 
 Add a sharp, vector-friendly PDF export path while preserving the existing printer-based PDF exporter for backward compatibility.
