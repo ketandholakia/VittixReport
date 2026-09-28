@@ -443,6 +443,11 @@ Open follow-up (not blocking M6, tracked for M7):
   Before M7 closes, compare against a pre-M5.5 baseline and check whether
   the delta concentrates on image-heavy reports (`07_imagepath_test`,
   `27_object_event_image_cases`).
+- Resolved (2026-09-28): audited as BUG-M1 and closed as expected one-time
+  VCL/GDI cache initialization, not a leak. The +8 predates M5.5 (identical
+  at commit `0bd2087`), Vector PDF export adds no persistent handles, and no
+  accumulation occurs across repeated full-suite runs in one process. See
+  `VittixReport_BugQueue.md`.
 
 ### M7 - Regression and Quality Pass
 
