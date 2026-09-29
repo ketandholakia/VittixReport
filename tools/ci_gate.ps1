@@ -178,10 +178,11 @@ if (-not $SkipRunner) {
 
 # --- Optional packaging smoke ----------------------------------------------
 if ($IncludePackages) {
-  Write-Step 'Packaging smoke: runtime package, design package, designer'
+  Write-Step 'Packaging smoke: runtime package, design package, designer, demo'
   Invoke-Msbuild 'packages\VittixReportRuntime.dproj' 'Build'
   Invoke-Msbuild 'packages\VittixReportDesign.dproj' 'Build'
   Invoke-Msbuild 'vittixdesigner\VittixDesigner.dproj' 'Build'
+  Invoke-Msbuild 'demo\VittixReportDemo.dproj' 'Build'
 }
 
 Write-Host ''

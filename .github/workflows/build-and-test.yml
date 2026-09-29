@@ -30,11 +30,22 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
+# One gate at a time: the self-hosted runner owns in-use binaries (exes/BPLs),
+# so overlapping runs would collide.
+concurrency:
+  group: build-and-test-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  checks: write
+
 jobs:
   gate:
     # Self-hosted: needs Delphi. The labels must exist on the runner; adjust to
     # match your runner's labels (e.g. [self-hosted, windows, delphi]).
     runs-on: [self-hosted, windows, delphi]
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
@@ -44,6 +55,14 @@ jobs:
         shell: powershell
         run: |
           powershell -NoProfile -ExecutionPolicy Bypass -File tools\ci_gate.ps1 -IncludePackages
+
+      - name: Publish DUnitX test results
+        if: always()
+        uses: mikepenz/action-junit-report@v4
+        with:
+          report_paths: tests/dunitx-results.xml
+          require_tests: false
+          check_name: DUnitX test results
 
       - name: Upload gate artifacts
         if: always()
