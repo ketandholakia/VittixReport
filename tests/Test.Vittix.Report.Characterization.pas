@@ -91,6 +91,8 @@ type
     // --- 7. Expression operator precedence ---
     [Test]
     procedure Test_ExpressionPrecedence_CurrentBehavior;
+    [Test]
+    procedure Test_ExpressionPrecedence_LegacyAndModern_Pinned;
 
     // --- 8. SubReport repeated JSON parsing ---
     [Test]
@@ -140,6 +142,7 @@ type
 implementation
 
 uses
+  Vittix.Report.Expression.Mode,
   Vittix.Report.Expressions;
 
 { Helper methods }
@@ -648,6 +651,43 @@ begin
   Ctx.TotalPages := 1;
   Assert.AreEqual(Double(20.0), Double(TReportExpression.Evaluate('2 + 3 * 4', Ctx)),
     'Current behavior: left-to-right evaluation (should be 14 with precedence)');
+end;
+
+procedure TTestCharacterization.Test_ExpressionPrecedence_LegacyAndModern_Pinned;
+var
+  CtxLegacy, CtxModern: TExpressionContext;
+begin
+  // T3: precedence pinned in both modes on the same expression trees.
+  // Legacy (emLegacy, the default) evaluates strictly left-to-right by
+  // contract - do not change (see Test_ExpressionPrecedence_CurrentBehavior).
+  // Modern (ExpressionLanguageVersion = 1, opt-in) applies real operator
+  // precedence.
+  CtxLegacy := Default(TExpressionContext);
+  CtxLegacy.PageNumber := 1;
+  CtxLegacy.TotalPages := 1;
+  CtxLegacy.ExpressionMode := emLegacy; // explicit: the default
+  CtxModern := CtxLegacy;
+  CtxModern.ExpressionMode := emModern;
+
+  Assert.AreEqual(Double(20.0),
+    Double(TReportExpression.Evaluate('2 + 3 * 4', CtxLegacy)),
+    'Legacy: flat left-to-right gives (2 + 3) * 4 = 20 (contract)');
+  Assert.AreEqual(Double(0.0),
+    Double(TReportExpression.Evaluate('(2 + 3) * 4', CtxLegacy)),
+    'Legacy: no working parentheses (compat contract) -> 0');
+  Assert.AreEqual(Double(14.0),
+    Double(TReportExpression.Evaluate('2 + 3 * 4', CtxModern)),
+    'Modern: real precedence gives 2 + (3 * 4) = 14');
+  Assert.AreEqual(Double(20.0),
+    Double(TReportExpression.Evaluate('(2 + 3) * 4', CtxModern)),
+    'Modern: parenthesized (2 + 3) * 4 = 20');
+
+  // Modern NULL propagation (OD-2): NULL operands yield NULL - not a number
+  // and not the legacy zero fallback.
+  Assert.IsTrue(VarIsNull(TReportExpression.Evaluate('NULL + 1', CtxModern)),
+    'Modern: NULL arithmetic propagates NULL');
+  Assert.IsTrue(VarIsNull(TReportExpression.Evaluate('(2 + 3) * NULL', CtxModern)),
+    'Modern: NULL propagates through a precedence tree');
 end;
 
 { --- 8. SubReport repeated JSON parsing --- }
