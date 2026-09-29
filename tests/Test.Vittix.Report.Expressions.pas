@@ -98,6 +98,12 @@ type
     procedure Test_Aggregate_SUM_WithDataSet;
     [Test]
     procedure Test_Aggregate_SUM_WithUserDataSetNil_NotConfirmed;
+    [Test]
+    procedure Test_Aggregate_MinMax_EmptyRange_ReturnsZero_CurrentBehavior;
+    [Test]
+    procedure Test_Aggregate_MinMax_EmptyGroupRange_ReturnsZero_CurrentBehavior;
+    [Test]
+    procedure Test_Aggregate_Modern_MinMax_EmptyRange_ReturnsNull;
 
     // --- Variables ---
     [Test]
@@ -107,6 +113,7 @@ type
 implementation
 
 uses
+  Vittix.Report.Expression.Mode,
   Vittix.Report.UserDataSet;
 
 { TTestExpressionEngine }
@@ -315,6 +322,105 @@ begin
   Ctx.DataSet := nil;
   Ctx.UserDataSet := nil;
   Assert.AreEqual('SUM(0)', VarToStr(TReportExpression.Evaluate('SUM([Amount])', Ctx)));
+end;
+
+procedure TTestExpressionEngine.Test_Aggregate_MinMax_EmptyRange_ReturnsZero_CurrentBehavior;
+var
+  Empty: TClientDataSet;
+  Ctx: TExpressionContext;
+begin
+  // T4 characterization: MIN/MAX over an empty range (an ACTIVE dataset with
+  // zero rows) return 0 in the legacy default mode, not Null; SUM/AVG also
+  // return 0 and COUNT returns 0.  Preview and export share this evaluation,
+  // so they agree with each other; the modern engine's documented contract
+  // differs (OD-1: SUM/AVG/MIN/MAX -> NULL for empty/all-null input) - see
+  // the paired modern test below.  Aligning legacy is deferred (v1.1).
+  Empty := TClientDataSet.Create(nil);
+  try
+    Empty.FieldDefs.Add('Amount', ftFloat, 0, False);
+    Empty.CreateDataSet;
+    Ctx := Default(TExpressionContext);
+    Ctx.DataSet := Empty;
+    Assert.AreEqual(Double(0.0),
+      Double(TReportExpression.Evaluate('MIN([Amount])', Ctx)), 0.0001,
+      'MIN over an empty range currently returns 0');
+    Assert.AreEqual(Double(0.0),
+      Double(TReportExpression.Evaluate('MAX([Amount])', Ctx)), 0.0001,
+      'MAX over an empty range currently returns 0');
+    Assert.AreEqual(Double(0.0),
+      Double(TReportExpression.Evaluate('SUM([Amount])', Ctx)), 0.0001,
+      'SUM over an empty range currently returns 0');
+    Assert.AreEqual(Double(0.0),
+      Double(TReportExpression.Evaluate('COUNT([Amount])', Ctx)), 0.0001,
+      'COUNT over an empty range currently returns 0');
+    Assert.AreEqual(Double(0.0),
+      Double(TReportExpression.Evaluate('AVG([Amount])', Ctx)), 0.0001,
+      'AVG over an empty range currently returns 0');
+  finally
+    Empty.Free;
+  end;
+end;
+
+procedure TTestExpressionEngine.Test_Aggregate_MinMax_EmptyGroupRange_ReturnsZero_CurrentBehavior;
+var
+  Ctx: TExpressionContext;
+  GroupStart, GroupEnd: TBookmark;
+begin
+  // T4 characterization: MIN/MAX over an empty group range also return 0 in
+  // legacy mode.  The bookmarks are at the same row, so the traversal breaks
+  // on the group-end boundary before visiting any row.
+  FDataSet.First;
+  GroupStart := FDataSet.GetBookmark;
+  GroupEnd := FDataSet.GetBookmark; // same position: the range is empty
+  try
+    Ctx := FContext;
+    Ctx.GroupStart := GroupStart;
+    Ctx.GroupEnd := GroupEnd;
+    Assert.AreEqual(Double(0.0),
+      Double(TReportExpression.Evaluate('MIN([Amount])', Ctx)), 0.0001,
+      'MIN over an empty group range currently returns 0');
+    Assert.AreEqual(Double(0.0),
+      Double(TReportExpression.Evaluate('MAX([Amount])', Ctx)), 0.0001,
+      'MAX over an empty group range currently returns 0');
+  finally
+    FDataSet.FreeBookmark(GroupEnd);
+    FDataSet.FreeBookmark(GroupStart);
+  end;
+end;
+
+procedure TTestExpressionEngine.Test_Aggregate_Modern_MinMax_EmptyRange_ReturnsNull;
+var
+  Empty: TClientDataSet;
+  Ctx: TExpressionContext;
+begin
+  // T4 consistency check: the modern engine documents OD-1 - empty or
+  // all-null SUM/AVG/MIN/MAX are NULL and COUNT is 0 - so the legacy zero
+  // results above are a legacy-mode difference, deliberately opt-out of by
+  // reports that select ExpressionLanguageVersion = 1.
+  Empty := TClientDataSet.Create(nil);
+  try
+    Empty.FieldDefs.Add('Amount', ftFloat, 0, False);
+    Empty.CreateDataSet;
+    Ctx := Default(TExpressionContext);
+    Ctx.DataSet := Empty;
+    Assert.IsTrue(
+      VarIsNull(TReportExpression.Evaluate('MIN([Amount])', Ctx, emModern)),
+      'Modern: MIN over an empty range is NULL (OD-1)');
+    Assert.IsTrue(
+      VarIsNull(TReportExpression.Evaluate('MAX([Amount])', Ctx, emModern)),
+      'Modern: MAX over an empty range is NULL (OD-1)');
+    Assert.IsTrue(
+      VarIsNull(TReportExpression.Evaluate('SUM([Amount])', Ctx, emModern)),
+      'Modern: SUM over an empty range is NULL (OD-1)');
+    Assert.IsTrue(
+      VarIsNull(TReportExpression.Evaluate('AVG([Amount])', Ctx, emModern)),
+      'Modern: AVG over an empty range is NULL (OD-1)');
+    Assert.AreEqual(Double(0.0),
+      Double(TReportExpression.Evaluate('COUNT([Amount])', Ctx, emModern)), 0.0001,
+      'Modern: COUNT over an empty range is 0 (OD-1)');
+  finally
+    Empty.Free;
+  end;
 end;
 
 // --- Variables ---

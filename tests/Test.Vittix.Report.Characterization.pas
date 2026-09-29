@@ -87,6 +87,8 @@ type
     // --- 6. Aggregates with TVittixUserDataSet ---
     [Test]
     procedure Test_Aggregate_SUM_UserDataSet_SilentlyFails_CurrentBehavior;
+    [Test]
+    procedure Test_Aggregate_UDSDrivenBand_RendersFallbackText_CurrentBehavior;
 
     // --- 7. Expression operator precedence ---
     [Test]
@@ -630,6 +632,81 @@ begin
       Assert.AreEqual('SUM(10)', VarToStr(Result),
         'SUM currently resolves to SUM(10) with nil DataSet (current behavior); '
         + 'UserDataSet aggregate support remains unresolved (BUG-005)');
+    finally
+      UserDataSet.Free;
+    end;
+  finally
+    DataSet.Free;
+  end;
+end;
+
+procedure TTestCharacterization.Test_Aggregate_UDSDrivenBand_RendersFallbackText_CurrentBehavior;
+var
+  DataSet: TClientDataSet;
+  UserDataSet: TVittixUserDataSet;
+  Model: TReportModel;
+  Band: TReportBand;
+  Text: TReportTextObject;
+  Engine: TReportEngine;
+  ExportDoc: TReportExportDocument;
+  Page: TReportExportPage;
+  Cmd: TReportExportCommand;
+  Texts: TStringList;
+begin
+  // T4: engine-level reachability check - a band driven by a
+  // TVittixUserDataSet reaches aggregate evaluation with Context.DataSet =
+  // nil (the engine's UDS path prints bands with a nil DataSet), so SUM(...)
+  // degrades to the unresolved-token fallback text.  Current behavior;
+  // BUG-005; the real fix is modern-evaluator work deferred with Phase4I-20.
+  DataSet := TClientDataSet.Create(nil);
+  try
+    DataSet.FieldDefs.Add('Amount', ftFloat, 0, False);
+    DataSet.CreateDataSet;
+    DataSet.AppendRecord([10.0]);
+    DataSet.AppendRecord([20.0]);
+    DataSet.AppendRecord([30.0]);
+    DataSet.First;
+
+    UserDataSet := TVittixUserDataSet.Create(nil);
+    try
+      UserDataSet.DataSet := DataSet;
+
+      Model := CreateSimpleReport;
+      try
+        Band := TReportBand(Model.Objects[0]);
+        Text := TReportTextObject.Create;
+        Text.Name := 'txtSumOverUds';
+        Text.Bounds := Rect(2, 2, 160, 16);
+        Text.Expression := 'SUM([Amount])';
+        Band.Children.Add(Text);
+
+        ExportDoc := TReportExportDocument.Create;
+        Engine := TReportEngine.Create(Model, UserDataSet, nil, nil);
+        try
+          Engine.ExportDocument := ExportDoc;
+          Engine.Prepare;
+
+          Texts := TStringList.Create;
+          try
+            for Page in ExportDoc.Pages do
+              for Cmd in Page.Commands do
+                if Cmd is TReportExportTextCommand then
+                  Texts.Add(TReportExportTextCommand(Cmd).Text);
+            Assert.IsTrue(Texts.Count >= 1,
+              'the UDS-driven master band text must be captured');
+            Assert.AreEqual('SUM(10)', Texts[0],
+              'current behavior: an aggregate over a UDS-driven band renders '
+              + 'the fallback text (BUG-005 unresolved; fix deferred)');
+          finally
+            Texts.Free;
+          end;
+        finally
+          Engine.Free;
+          ExportDoc.Free;
+        end;
+      finally
+        Model.Free;
+      end;
     finally
       UserDataSet.Free;
     end;
