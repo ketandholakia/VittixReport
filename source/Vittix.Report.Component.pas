@@ -580,8 +580,9 @@ begin
     Renderer := TReportRenderer.Create;
     try
       // Capture the semantic export document as well, so the preview's
-      // "Email PDF" button can produce a Vector PDF after the engine - which
-      // Render frees internally - is gone.
+      // "Email PDF" button can produce a Vector PDF after the engine and
+      // renderer - both freed by this method below - are gone.  (Render does
+      // NOT free the engine; the caller owns it.)
       ExportDoc := TReportExportDocument.Create;
       Renderer.ExportDocument := ExportDoc;
       ConfigureRenderer(Renderer);

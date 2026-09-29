@@ -19,10 +19,10 @@ Unlike legacy reporting tools, the VittixReport runtime relies on the standard D
 * **⚡ Self-Contained Core:** The core runtime is the standard Delphi 12.2 RTL and VCL plus the vendored, MIT-licensed QR-code generator library (`source/ThirdParty/QRCodeGenLib`) — no external component packs to install. *(Note: the standalone visual designer application additionally requires madExcept and uses the FireDAC/ADO data-access components that ship with RAD Studio; its SVG-sourced icons are compiled to PNG resources, so no external SVG component library is needed.)*
 * **🔄 Unlimited Undo/Redo:** The designer implements a deep undo/redo stack for *every* action, including complex multi-object alignments, property changes, and band management.
 * **📄 JSON Report Format (`.vrt`):** Say goodbye to binary blobs. Reports are stored in a human-readable, easily diffable JSON format.
-* **🧩 Rich Object Library:** Out-of-the-box support for text labels, data fields, rich text, images, shapes, lines, barcodes, tables, and nested sub-reports.
+* **🧩 Rich Object Library:** Out-of-the-box support for text labels, data fields, rich text (HTML memos), images, shapes, lines, barcodes (Code 39, Code 128, EAN-13 and QR), tables, charts, crosstabs, and nested sub-reports.
 * **🚀 Runtime Event Scripting:** Hook into the engine's rendering pipeline with `OnBeforePrint` / `OnAfterPrint` events at both the band and object level, driven by your host application's Delphi code.
-* **📊 Band-Oriented Layout:** Supports standard structural bands including Report Title, Page Header/Footer, Master Data (with runtime `TDataSet` binding), and Report Summary.
-* **🖨️ Print & Export:** Built-in **Vector PDF** export (the default — no printer driver required), a printer-based PDF compatibility path, and native system printing capabilities.
+* **📊 Band-Oriented Layout:** Supports standard structural bands including Report Title, Page Header/Footer, Group Header/Footer, Master Data (with runtime `TDataSet` binding), Detail bands, and Report Summary.
+* **🖨️ Print & Export:** Built-in **Vector PDF** export (the default — no printer driver required), a printer-based PDF compatibility path, HTML, XLSX and text export, and native system printing capabilities.
 
 ## Project Structure
 
@@ -35,11 +35,18 @@ Unlike legacy reporting tools, the VittixReport runtime relies on the standard D
 * Delphi 12.2 or later
 * VCL application target
 * Windows 10 or later
-* Win32 or Win64 target platform
+* Win32 or Win64 target platform (packages and CI gate build Win32; the standalone designer also builds Win64 via `build.bat`)
 
 *The default Vector PDF export needs no printer driver. The printer-based compatibility path requires the Windows printing system, such as Microsoft Print to PDF.*
 
 ## Getting Started
+
+### Building and testing from the command line
+- `build.bat` — builds the packages and the designer
+- `tools\ci_gate.ps1` (PowerShell) — the full quality gate: builds and runs the DUnitX suite (693 tests, leak-checked), runs the `VittixRunner --strict` pagination baseline (41 reports), enforces USER/GDI handle budgets, and optionally (`-IncludePackages`) builds both packages and the designer
+- `TESTING.md` — the gate contract and the manual test checklists
+- `reports/` — 45 `.vrt` regression fixtures with pinned page-count baselines
+- See `DEVELOPMENT_PLAN.md` for the current work programme
 
 ### Building the Standalone Designer
 
