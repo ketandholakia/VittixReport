@@ -1,6 +1,7 @@
 package VittixReportRuntime;
 
 {$R *.res}
+{$RUNONLY}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
 {$ALIGN 8}
 {$ASSERTIONS ON}
@@ -92,5 +93,26 @@ contains
   Vittix.Report.Export.HTML in '..\source\Vittix.Report.Export.HTML.pas',
   Vittix.Report.Export.VectorPDF.EMF in '..\source\Vittix.Report.Export.VectorPDF.EMF.pas',
   Vittix.Report.Export.VectorPDF.Subset in '..\source\Vittix.Report.Export.VectorPDF.Subset.pas',
-  Vittix.Report.Export.XLSX in '..\source\Vittix.Report.Export.XLSX.pas';
+  Vittix.Report.Export.XLSX in '..\source\Vittix.Report.Export.XLSX.pas',
+  Vittix.Report.LoadResult      in '..\source\Vittix.Report.LoadResult.pas',
+  Vittix.Report.Objects.Unknown in '..\source\Vittix.Report.Objects.Unknown.pas',
+  { ThirdParty: QRCodeGenLib (vendored, MIT). Declared explicitly so the BPL
+    carries no implicitly-imported units (W1033) and consumers that also have
+    these units on their search path cannot double-compile them. }
+  QlpIQrCode               in '..\source\ThirdParty\QRCodeGenLib\src\Interfaces\QlpIQrCode.pas',
+  QlpIQrSegment            in '..\source\ThirdParty\QRCodeGenLib\src\Interfaces\QlpIQrSegment.pas',
+  QlpIQrTemplate           in '..\source\ThirdParty\QRCodeGenLib\src\Interfaces\QlpIQrTemplate.pas',
+  QlpIReedSolomonGenerator in '..\source\ThirdParty\QRCodeGenLib\src\Interfaces\QlpIReedSolomonGenerator.pas',
+  QlpBitBuffer             in '..\source\ThirdParty\QRCodeGenLib\src\QRCodeGen\QlpBitBuffer.pas',
+  QlpQrCode                in '..\source\ThirdParty\QRCodeGenLib\src\QRCodeGen\QlpQrCode.pas',
+  QlpQrCodeCommons         in '..\source\ThirdParty\QRCodeGenLib\src\QRCodeGen\QlpQrCodeCommons.pas',
+  QlpQrSegment             in '..\source\ThirdParty\QRCodeGenLib\src\QRCodeGen\QlpQrSegment.pas',
+  QlpQrSegmentMode         in '..\source\ThirdParty\QRCodeGenLib\src\QRCodeGen\QlpQrSegmentMode.pas',
+  QlpQrTemplate            in '..\source\ThirdParty\QRCodeGenLib\src\QRCodeGen\QlpQrTemplate.pas',
+  QlpReedSolomonGenerator  in '..\source\ThirdParty\QRCodeGenLib\src\QRCodeGen\QlpReedSolomonGenerator.pas',
+  QlpArrayUtils            in '..\source\ThirdParty\QRCodeGenLib\src\Utils\QlpArrayUtils.pas',
+  QlpBits                  in '..\source\ThirdParty\QRCodeGenLib\src\Utils\QlpBits.pas',
+  QlpConverters            in '..\source\ThirdParty\QRCodeGenLib\src\Utils\QlpConverters.pas',
+  QlpGuard                 in '..\source\ThirdParty\QRCodeGenLib\src\Utils\QlpGuard.pas',
+  QlpQRCodeGenLibTypes     in '..\source\ThirdParty\QRCodeGenLib\src\Utils\QlpQRCodeGenLibTypes.pas';
 end.

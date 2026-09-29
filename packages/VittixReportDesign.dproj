@@ -45,10 +45,12 @@
         <DCC_K>false</DCC_K>
         <DCC_N>false</DCC_N>
         <DCC_S>false</DCC_S>
-        <DCC_UnitSearchPath>..;..\source;..\source\ThirdParty\QRCodeGenLib\src\QRCodeGen;..\source\ThirdParty\QRCodeGenLib\src\Interfaces;..\source\ThirdParty\QRCodeGenLib\src\Utils;..\source\ThirdParty\QRCodeGenLib\src\Include;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>..\build\dcp;..;..\source;..\source\ThirdParty\QRCodeGenLib\src\QRCodeGen;..\source\ThirdParty\QRCodeGenLib\src\Interfaces;..\source\ThirdParty\QRCodeGenLib\src\Utils;..\source\ThirdParty\QRCodeGenLib\src\Include;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_ImageBase>00400000</DCC_ImageBase>
         <GenDll>true</GenDll>
         <GenPackage>true</GenPackage>
+        <DCC_BplOutput>..\build\bpl</DCC_BplOutput>
+        <DCC_DcpOutput>..\build\dcp</DCC_DcpOutput>
         <SanitizedProjectName>VittixReportDesign</SanitizedProjectName>
         <DesignOnlyPackage>true</DesignOnlyPackage>
         <DCC_Namespace>Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;System;Xml;Data;Datasnap;Web;Soap;DUnitX.Loggers.GUI;$(DCC_Namespace)</DCC_Namespace>
@@ -61,7 +63,7 @@
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=;ProgramID=com.embarcadero.$(MSBuildProjectName)</VerInfo_Keys>
         <VerInfo_Locale>1033</VerInfo_Locale>
-        <DCC_UsePackage>vcl;rtl;dbrtl;vclimg;adortl;VittixReportRuntime;xmlrtl;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>vcl;rtl;dbrtl;vclimg;VittixReportRuntime;xmlrtl;$(DCC_UsePackage)</DCC_UsePackage>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win64)'!=''">
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;$(DCC_Namespace)</DCC_Namespace>
@@ -104,7 +106,6 @@
         <DCCReference Include="designide.dcp"/>
         <DCCReference Include="xmlrtl.dcp"/>
         <DCCReference Include="VittixReportRuntime.dcp"/>
-        <DCCReference Include="adortl.dcp"/>
         <DCCReference Include="..\source\Vittix.Report.ComponentEditor.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Reg.pas"/>
         <BuildConfiguration Include="Base">

@@ -49,6 +49,9 @@
         <DCC_ImageBase>00400000</DCC_ImageBase>
         <GenDll>true</GenDll>
         <GenPackage>true</GenPackage>
+        <RuntimeOnlyPackage>true</RuntimeOnlyPackage>
+        <DCC_BplOutput>..\build\bpl</DCC_BplOutput>
+        <DCC_DcpOutput>..\build\dcp</DCC_DcpOutput>
         <SanitizedProjectName>VittixReportRuntime</SanitizedProjectName>
         <DCC_Namespace>Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;System;Xml;Data;Datasnap;Web;Soap;DUnitX.Loggers.GUI;$(DCC_Namespace)</DCC_Namespace>
         <VerInfo_Locale>16393</VerInfo_Locale>
@@ -158,6 +161,25 @@
         <DCCReference Include="..\source\Vittix.Report.Export.HTML.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Export.VectorPDF.EMF.pas"/>
         <DCCReference Include="..\source\Vittix.Report.Export.XLSX.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Export.VectorPDF.Subset.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.LoadResult.pas"/>
+        <DCCReference Include="..\source\Vittix.Report.Objects.Unknown.pas"/>
+        <DCCReference Include="..\source\ThirdParty\QRCodeGenLib\src\Interfaces\QlpIQrCode.pas"/>
+        <DCCReference Include="..\source\ThirdParty\QRCodeGenLib\src\Interfaces\QlpIQrSegment.pas"/>
+        <DCCReference Include="..\source\ThirdParty\QRCodeGenLib\src\Interfaces\QlpIQrTemplate.pas"/>
+        <DCCReference Include="..\source\ThirdParty\QRCodeGenLib\src\Interfaces\QlpIReedSolomonGenerator.pas"/>
+        <DCCReference Include="..\source\ThirdParty\QRCodeGenLib\src\QRCodeGen\QlpBitBuffer.pas"/>
+        <DCCReference Include="..\source\ThirdParty\QRCodeGenLib\src\QRCodeGen\QlpQrCode.pas"/>
+        <DCCReference Include="..\source\ThirdParty\QRCodeGenLib\src\QRCodeGen\QlpQrCodeCommons.pas"/>
+        <DCCReference Include="..\source\ThirdParty\QRCodeGenLib\src\QRCodeGen\QlpQrSegment.pas"/>
+        <DCCReference Include="..\source\ThirdParty\QRCodeGenLib\src\QRCodeGen\QlpQrSegmentMode.pas"/>
+        <DCCReference Include="..\source\ThirdParty\QRCodeGenLib\src\QRCodeGen\QlpQrTemplate.pas"/>
+        <DCCReference Include="..\source\ThirdParty\QRCodeGenLib\src\QRCodeGen\QlpReedSolomonGenerator.pas"/>
+        <DCCReference Include="..\source\ThirdParty\QRCodeGenLib\src\Utils\QlpArrayUtils.pas"/>
+        <DCCReference Include="..\source\ThirdParty\QRCodeGenLib\src\Utils\QlpBits.pas"/>
+        <DCCReference Include="..\source\ThirdParty\QRCodeGenLib\src\Utils\QlpConverters.pas"/>
+        <DCCReference Include="..\source\ThirdParty\QRCodeGenLib\src\Utils\QlpGuard.pas"/>
+        <DCCReference Include="..\source\ThirdParty\QRCodeGenLib\src\Utils\QlpQRCodeGenLibTypes.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

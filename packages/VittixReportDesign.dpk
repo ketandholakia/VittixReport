@@ -35,8 +35,7 @@ requires
   vclimg,
   designide,
   xmlrtl,
-  VittixReportRuntime,
-  adortl;
+  VittixReportRuntime;
 
 contains
   Vittix.Report.ComponentEditor in '..\source\Vittix.Report.ComponentEditor.pas',
