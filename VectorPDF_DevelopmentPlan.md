@@ -313,6 +313,10 @@ are a documented decision rather than a silent gap):
 - Progressive/CMYK JPEG files are not distinguished from baseline JPEG
   and would embed incorrectly if encountered (pre-existing limitation).
 - PNG transparency is flattened onto white; no alpha channel support.
+  (Preview note, verified 2026-09-29: the preview/print metafile path is not
+  self-consistent either - scaled alpha PNGs play their transparent region back as
+  black - so preview and PDF disagree until alpha is handled end to end; the aligned
+  decision and test references are recorded in BACKLOG_v1.1.md.)
 
 Safe commit condition:
 - Existing sample reports with text, lines, shapes, JPEG, and PNG export
