@@ -120,7 +120,7 @@ packaging warnings stop burying real ones.*
 - **Test plan:** engine-level test in `tests/Test.Vittix.Report.Phase4B2B.pas` (end-to-end section) with `ExpressionLanguageVersion = 1`, an in-memory dataset, and a text object whose expression is `SUM([Amount]) + COUNT([ID])`; assert the combined value. The existing `Test_Modern_AggregateComposition` misses this because its context has `Hooks = nil` — the new test must go through `TReportEngine`.
 - **Done when:** new test red→green; all Phase4B2B + Engine suites green; gate green.
 
-### DP-10 — Memo segments lose Color/FontName/Size (finding **H-3**) — Effort S
+### DP-10 ✅ — Memo segments lose Color/FontName/Size (finding **H-3**) — Effort S — fixed in `478ef24` + `765d11e`
 - **Files:** `source/Vittix.Report.Objects.pas:1439-1443` (`AddLineSegment` else-branch), draw path :1646-1658.
 - **Bug:** only `Text/Style/Width` are stored; zero-initialized records mean every segment draws `clBlack` with the object's base font, and run advance widths (measured with the *intended* fonts) mismatch what is drawn. Affects HTML memos (`<font color|face|size>`) and conditional font colors, in preview **and** exports.
 - **Fix (3 lines, from report §5 H-3):**
