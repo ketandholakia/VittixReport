@@ -314,28 +314,30 @@ end;
 procedure DrawLegacyBarcode(C: TCanvas; const S: string; const R: TRect; BarTop,
   BarBottom, DrawW: Integer);
 var
-  I, B, XPos: Integer;
+  I, B, TotalSlots, CumSlots, X0, XStart, XEnd: Integer;
   Ch: Char;
 begin
-  XPos := R.Left + 4;
+  TotalSlots := Length(S) * 8;
+  if TotalSlots <= 0 then
+    Exit;
+
+  X0 := R.Left + 4;
+  CumSlots := 0;
+  C.Brush.Color := C.Pen.Color;
   for I := 1 to Length(S) do
   begin
     Ch := S[I];
     for B := 0 to 6 do
     begin
-      if XPos >= R.Left + 4 + DrawW then
-        Break;
-
+      XStart := X0 + Round(CumSlots * DrawW / TotalSlots);
+      Inc(CumSlots);
+      XEnd := X0 + Round(CumSlots * DrawW / TotalSlots);
       if ((Ord(Ch) shr B) and 1) = 1 then
-      begin
-        C.MoveTo(XPos, BarTop);
-        C.LineTo(XPos, BarBottom);
-      end;
-      Inc(XPos);
+        C.FillRect(Rect(XStart, BarTop, Min(XEnd, X0 + DrawW), BarBottom));
+      if XEnd >= X0 + DrawW then
+        Exit;
     end;
-    Inc(XPos);
-    if XPos >= R.Left + 4 + DrawW then
-      Break;
+    Inc(CumSlots); // inter-character gap slot
   end;
 end;
 
@@ -343,7 +345,7 @@ procedure DrawCode39Barcode(C: TCanvas; const S: string; const R: TRect; BarTop,
   BarBottom, DrawW: Integer);
 var
   Encoded, Pattern: string;
-  I, J, UnitW, ModuleUnits, TotalUnits, XPos, W: Integer;
+  I, J, ModuleUnits, TotalUnits, CumUnits, X0, XStart, XEnd: Integer;
 begin
   Encoded := NormalizeCode39Text(S);
   TotalUnits := 0;
@@ -358,9 +360,12 @@ begin
     if I < Length(Encoded) then
       Inc(TotalUnits);
   end;
+  if TotalUnits <= 0 then
+    Exit;
 
-  UnitW := Max(1, DrawW div Max(1, TotalUnits));
-  XPos := R.Left + 4;
+  X0 := R.Left + 4;
+  CumUnits := 0;
+  C.Brush.Color := C.Pen.Color;
   for I := 1 to Length(Encoded) do
   begin
     Pattern := Code39Pattern(Encoded[I]);
@@ -370,17 +375,16 @@ begin
         ModuleUnits := 3
       else
         ModuleUnits := 1;
-      W := UnitW * ModuleUnits;
+      XStart := X0 + Round(CumUnits * DrawW / TotalUnits);
+      Inc(CumUnits, ModuleUnits);
+      XEnd := X0 + Round(CumUnits * DrawW / TotalUnits);
       if Odd(J) then
-      begin
-        C.Brush.Color := C.Pen.Color;
-        C.FillRect(Rect(XPos, BarTop, Min(XPos + W, R.Left + 4 + DrawW), BarBottom));
-      end;
-      Inc(XPos, W);
-      if XPos >= R.Left + 4 + DrawW then
+        C.FillRect(Rect(XStart, BarTop, Min(XEnd, X0 + DrawW), BarBottom));
+      if XEnd >= X0 + DrawW then
         Exit;
     end;
-      Inc(XPos, UnitW);
+    if I < Length(Encoded) then
+      Inc(CumUnits); // inter-character gap
   end;
 end;
 
@@ -814,24 +818,23 @@ end;
 procedure DrawBarcodeElements(C: TCanvas; const AElements: string;
   const R: TRect; BarTop, BarBottom, DrawW: Integer);
 var
-  I, UnitW, TotalUnits, XPos, W: Integer;
+  I, TotalUnits, CumUnits, X0, XStart, XEnd: Integer;
 begin
   TotalUnits := BarcodeElementTotalUnits(AElements);
   if TotalUnits <= 0 then
     Exit;
 
-  UnitW := Max(1, DrawW div TotalUnits);
-  XPos := R.Left + 4;
+  X0 := R.Left + 4;
+  CumUnits := 0;
+  C.Brush.Color := C.Pen.Color;
   for I := 1 to Length(AElements) do
   begin
-    W := UnitW * (Ord(AElements[I]) - 48);
+    XStart := X0 + Round(CumUnits * DrawW / TotalUnits);
+    Inc(CumUnits, Ord(AElements[I]) - 48);
+    XEnd := X0 + Round(CumUnits * DrawW / TotalUnits);
     if Odd(I) then
-    begin
-      C.Brush.Color := C.Pen.Color;
-      C.FillRect(Rect(XPos, BarTop, Min(XPos + W, R.Left + 4 + DrawW), BarBottom));
-    end;
-    Inc(XPos, W);
-    if XPos >= R.Left + 4 + DrawW then
+      C.FillRect(Rect(XStart, BarTop, Min(XEnd, X0 + DrawW), BarBottom));
+    if XEnd >= X0 + DrawW then
       Exit;
   end;
 end;
