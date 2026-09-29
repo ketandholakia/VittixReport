@@ -167,6 +167,12 @@ Thumbs.db
 /vittixdesigner/extract_names.py
 /vittixdesigner/patch_dfm.py
 
+# One-off doc anchor/mojibake diagnostics from the Sep-2026 site cleanup.
+# The fixes they supported are now committed; these stay local-only.
+/check_anchors.py
+/debug_anchors.py
+/debug_headings.py
+
 # Unreferenced Material Symbols download leftovers in the icon staging folder.
 # gen_png_rc.py only emits SVG-backed names, so nothing named *_16dp_* is ever
 # compiled into vittix_png_icons.RES or referenced by the designer.
