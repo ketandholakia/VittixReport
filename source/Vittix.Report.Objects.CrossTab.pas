@@ -41,6 +41,9 @@ type
     FColTotals: TDictionary<Integer, Variant>;
     FGrandTotal: Variant;
     FCounts: TDictionary<string, Integer>; // Used for Averages
+    // Cells skipped by the aggregate guards during the last PrepareMatrix
+    // (non-numeric values in numeric aggregates, mixed-type min/max compare).
+    FSkippedCells: Integer;
 
     procedure SetFont(const Value: TFont);
     procedure SetHeaderFont(const Value: TFont);
@@ -79,7 +82,19 @@ implementation
 uses
   System.Math,
   System.Generics.Defaults,
-  Vittix.Report.Expressions;
+  Vittix.Report.Expressions
+  {$IFDEF DEBUG}
+  , Vittix.Report.Utils   // DebugLogDataFieldIssue - the established render-path diagnostic
+  {$ENDIF}
+  ;
+
+{ True for the variant types the cell arithmetic accepts. Mirrors the set
+  FormatCell already treats as numeric. }
+function VarTypeIsNumeric(const V: Variant): Boolean;
+begin
+  Result := VarType(V) in [varDouble, varSingle, varCurrency, varInteger,
+    varSmallint, varShortInt, varByte, varWord, varLongWord, varInt64];
+end;
 
 { TReportCrossTabObject }
 
@@ -148,6 +163,7 @@ begin
   FColTotals.Clear;
   FCounts.Clear;
   FGrandTotal := Null;
+  FSkippedCells := 0;
   FMatrixPrepared := False;
 end;
 
@@ -164,10 +180,18 @@ end;
 procedure TReportCrossTabObject.AggregateValue(AValue: Variant; var ACurrent: Variant; var ACount: Integer);
 begin
   if VarIsNull(AValue) or VarIsEmpty(AValue) then Exit;
-  
+
   case FAggregate of
     caSum, caAverage:
       begin
+        // DP-11: a non-numeric cell must be skipped and counted, not raise
+        // on '+'/'/' (text in a numeric aggregate) or silently concatenate
+        // ('N/A'+'5'+'7' -> 'N/A57').
+        if not VarTypeIsNumeric(AValue) then
+        begin
+          Inc(FSkippedCells);
+          Exit;
+        end;
         if VarIsNull(ACurrent) then
           ACurrent := AValue
         else
@@ -185,6 +209,12 @@ begin
       begin
         if VarIsNull(ACurrent) then
           ACurrent := AValue
+        else if VarType(AValue) <> VarType(ACurrent) then
+        begin
+          // DP-11: a mixed-type compare would raise; keep the first-seen
+          // type (uniform-string min/max keeps working).
+          Inc(FSkippedCells);
+        end
         else if AValue < ACurrent then
           ACurrent := AValue;
       end;
@@ -192,6 +222,10 @@ begin
       begin
         if VarIsNull(ACurrent) then
           ACurrent := AValue
+        else if VarType(AValue) <> VarType(ACurrent) then
+        begin
+          Inc(FSkippedCells);
+        end
         else if AValue > ACurrent then
           ACurrent := AValue;
       end;
@@ -203,6 +237,7 @@ end;
 procedure TReportCrossTabObject.PrepareMatrix(const Context: TExpressionContext);
 var
   DS: TDataSet;
+  RowFld, ColFld, CellFld: TField;
   RowVal, ColVal, CellVal: Variant;
   BM: TBookmark;
   RowIdx, ColIdx: Integer;
@@ -212,29 +247,51 @@ var
 begin
   if FMatrixPrepared then Exit;
   ClearMatrix;
-  
+
   if (FRowField = '') or (FColumnField = '') or (FCellField = '') then
   begin
     FMatrixPrepared := True;
     Exit;
   end;
-  
+
   DS := ResolveDataSet(Context);
   if not Assigned(DS) or not DS.Active then
   begin
     FMatrixPrepared := True;
     Exit;
   end;
-  
+
+  // DP-11: resolve the three fields ONCE via FindField (nil, not raise, on
+  // a missing name) instead of FieldByName per record. A typo'd field name
+  // renders an empty table with a DEBUG diagnostic instead of aborting the
+  // whole report render; the retained TField references also remove the
+  // per-record linear field lookup.
+  RowFld  := DS.FindField(FRowField);
+  ColFld  := DS.FindField(FColumnField);
+  CellFld := DS.FindField(FCellField);
+  {$IFDEF DEBUG}
+  if not Assigned(RowFld) then
+    DebugLogDataFieldIssue(Self.ClassName, Self.Name, FRowField, 'crosstab row field missing', DS);
+  if not Assigned(ColFld) then
+    DebugLogDataFieldIssue(Self.ClassName, Self.Name, FColumnField, 'crosstab column field missing', DS);
+  if not Assigned(CellFld) then
+    DebugLogDataFieldIssue(Self.ClassName, Self.Name, FCellField, 'crosstab cell field missing', DS);
+  {$ENDIF}
+  if (not Assigned(RowFld)) or (not Assigned(ColFld)) or (not Assigned(CellFld)) then
+  begin
+    FMatrixPrepared := True;
+    Exit;
+  end;
+
   BM := DS.GetBookmark;
   DS.DisableControls;
   try
     DS.First;
     while not DS.Eof do
     begin
-      RowVal := DS.FieldByName(FRowField).Value;
-      ColVal := DS.FieldByName(FColumnField).Value;
-      CellVal := DS.FieldByName(FCellField).Value;
+      RowVal := RowFld.Value;
+      ColVal := ColFld.Value;
+      CellVal := CellFld.Value;
       
       if VarIsNull(RowVal) then RowVal := '(Null)';
       if VarIsNull(ColVal) then ColVal := '(Null)';
@@ -315,9 +372,21 @@ begin
         FGrandTotal := FGrandTotal / CurCount;
     end;
     
-    // Sort axes natively using variants
-    FRowValues.Sort(TComparer<Variant>.Default);
-    FColValues.Sort(TComparer<Variant>.Default);
+    {$IFDEF DEBUG}
+    if FSkippedCells > 0 then
+      DebugLogDataFieldIssue(Self.ClassName, Self.Name, FCellField,
+        Format('crosstab: %d cell value(s) skipped by aggregate guards', [FSkippedCells]), DS);
+    {$ENDIF}
+
+    // Sort axes natively using variants. DP-11: a mixed-type axis (e.g. the
+    // '(Null)' sentinel next to numbers) raises inside the default variant
+    // comparer - fall back to insertion order rather than aborting.
+    try
+      FRowValues.Sort(TComparer<Variant>.Default);
+      FColValues.Sort(TComparer<Variant>.Default);
+    except
+      // keep insertion order; rendering proceeds
+    end;
 
     if DS.BookmarkValid(BM) then
       DS.GotoBookmark(BM);
