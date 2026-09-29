@@ -64,6 +64,10 @@ type
   public
     constructor Create(ADesigner: TVittixReportDesigner;
       const ABeforeJSON, AAfterJSON: string);
+    { LoadReport frees the previous report model, so every older history
+      entry holding TReportObject pointers into it dangles once this command
+      runs. The manager must drop that history (DP-08). }
+    function InvalidatesObjectRefs: Boolean; override;
     procedure Execute; override;
     procedure Rollback; override;
   end;
@@ -219,6 +223,11 @@ begin
     Model.Free;
     raise;
   end;
+end;
+
+function TReportSnapshotCommand.InvalidatesObjectRefs: Boolean;
+begin
+  Result := True;
 end;
 
 procedure TReportSnapshotCommand.Execute;

@@ -286,7 +286,23 @@ end;
 
 procedure TCommandManager.DoCommand(C: TUndoableAction);
 begin
-  C.Execute;
+  if C.InvalidatesObjectRefs then
+  begin
+    // The command is about to replace the object graph that older history
+    // entries hold raw pointers into (DP-08).  Discard those entries BEFORE
+    // Execute: if the replacement itself dies partway through, the old
+    // entries are already dangling, so keeping them is never the safe choice.
+    FUndo.Clear;
+    FRedo.Clear;
+  end;
+  try
+    C.Execute;
+  except
+    // The caller passed ownership: a command whose Execute failed must not
+    // enter (or corrupt) the history stacks.
+    C.Free;
+    raise;
+  end;
   FUndo.Add(C);
   FRedo.Clear;
 end;
@@ -296,7 +312,13 @@ var Cmd: TUndoableAction;
 begin
   if FUndo.Count = 0 then Exit;
   Cmd := FUndo.Last; FUndo.Extract(Cmd);
-  Cmd.Rollback; FRedo.Add(Cmd);
+  try
+    Cmd.Rollback;
+  except
+    Cmd.Free;  // ownership stays with the manager; a failed rollback is dropped
+    raise;
+  end;
+  FRedo.Add(Cmd);
 end;
 
 procedure TCommandManager.RedoLast;
@@ -304,7 +326,13 @@ var Cmd: TUndoableAction;
 begin
   if FRedo.Count = 0 then Exit;
   Cmd := FRedo.Last; FRedo.Extract(Cmd);
-  Cmd.Execute; FUndo.Add(Cmd);
+  try
+    Cmd.Execute;
+  except
+    Cmd.Free;  // ownership stays with the manager; a failed redo is dropped
+    raise;
+  end;
+  FUndo.Add(Cmd);
 end;
 
 procedure TCommandManager.Clear; begin FUndo.Clear; FRedo.Clear; end;
@@ -364,8 +392,19 @@ begin
   ActionName := 'Move Object';
 end;
 
-procedure TMoveObjectCommand.Execute;  begin FObj.Bounds := FNewBounds; end;
-procedure TMoveObjectCommand.Rollback; begin FObj.Bounds := FOldBounds; end;
+procedure TMoveObjectCommand.Execute;
+begin
+  // Guard: after an object-graph replacement a stale command could surface
+  // here (DP-08 defense-in-depth) - never dereference absent storage.
+  if not Assigned(FObj) then Exit;
+  FObj.Bounds := FNewBounds;
+end;
+
+procedure TMoveObjectCommand.Rollback;
+begin
+  if not Assigned(FObj) then Exit;
+  FObj.Bounds := FOldBounds;
+end;
 
 // ===========================================================================
 // TMultiMoveCommand
