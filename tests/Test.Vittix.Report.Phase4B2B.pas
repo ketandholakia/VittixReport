@@ -191,6 +191,7 @@ type
     [Test] procedure Test_EndToEnd_ModernPrecedence;
     [Test] procedure Test_EndToEnd_ModernNullSemantics;
     [Test] procedure Test_EndToEnd_ModernAggregateComposition;
+    [Test] procedure Test_EndToEnd_MultiAggregateCacheDisambiguation;
     [Test] procedure Test_EndToEnd_FixtureLoadsWithModernVersion;
     [Test] procedure Test_EndToEnd_AllModernFixturesRender;
     [Test] procedure Test_EndToEnd_TextExporterUsesModernMode;
@@ -1706,6 +1707,75 @@ begin
 
         Assert.IsTrue(FoundComposition,
           Format('Modern aggregate composition not found. Expected 36.5, got: %s',
+            [string.Join('|', Texts)]));
+      finally
+        Doc.Free;
+      end;
+    finally
+      Engine.Free;
+    end;
+  finally
+    DS.Free;
+    Model.Free;
+  end;
+end;
+
+procedure TPhase4B2BEndToEndTests.Test_EndToEnd_MultiAggregateCacheDisambiguation;
+var
+  Model: TReportModel;
+  DS: TClientDataSet;
+  Engine: TReportEngine;
+  Doc: TReportExportDocument;
+  Texts: TArray<string>;
+  I: Integer;
+  FoundMulti: Boolean;
+  FoundCollision: Boolean;
+begin
+  // DP-09 / H-1: two aggregates in one expression must keep distinct cache
+  // identities. SUM([Amount]) + COUNT([ID]) over 10.5/20.0/5.0 = 35.5 + 3
+  // = 38.5. Keying the engine aggregate cache on the whole expression text
+  // made the COUNT lookup hit the SUM entry, rendering 71 (SUM twice).
+  // This test only passes through TReportEngine - the engine is what
+  // supplies Context.Hooks; the Hooks=nil unit tests cannot see the cache.
+  Model := LoadModernReport('modern_aggregate_multi.vrt');
+  DS := CreateTestDataSet;
+  try
+    Engine := TReportEngine.Create(Model, DS, nil);
+    try
+      Doc := TReportExportDocument.Create;
+      try
+        Engine.ExportDocument := Doc;
+        Engine.Prepare;
+
+        Texts := [];
+        for var Page in Doc.Pages do
+          for var Cmd in Page.Commands do
+            if Cmd is TReportExportTextCommand then
+            begin
+              var ListHelper := TList<string>.Create;
+              try
+                ListHelper.AddRange(Texts);
+                ListHelper.Add(TReportExportTextCommand(Cmd).Text);
+                Texts := ListHelper.ToArray;
+              finally
+                ListHelper.Free;
+              end;
+            end;
+
+        FoundMulti := False;
+        FoundCollision := False;
+        for I := 0 to High(Texts) do
+        begin
+          if Texts[I] = '38.5' then
+            FoundMulti := True;
+          if Texts[I] = '71' then
+            FoundCollision := True;
+        end;
+
+        Assert.IsTrue(FoundMulti,
+          Format('SUM + COUNT must render 38.5, got: %s', [string.Join('|', Texts)]));
+        Assert.IsFalse(FoundCollision,
+          Format('cache-key collision signature (71 = SUM twice) must not render; got: %s',
             [string.Join('|', Texts)]));
       finally
         Doc.Free;
