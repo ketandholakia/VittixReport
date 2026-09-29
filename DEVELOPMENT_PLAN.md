@@ -56,40 +56,40 @@ next wave touches), but items inside a wave are independent and can be taken in 
 *No runtime behavior changes. Do this first so later diffs are clean and the
 packaging warnings stop burying real ones.*
 
-### DP-01 ⬜ Remove tracked junk and backup files — Effort S
+### DP-01 ✅ Remove tracked junk and backup files — Effort S
 - **Files:** `vittixdesigner/bugreport.txt` (tracked crash dump), `source/Vittix.Report.Export.VectorPDF.pas.bak`, `tests/Test.Vittix.Runner.JsonFormatter.pas.bak/.clean/.tmp`, stray local-only clutter (root logs, `1788278426566_n6cw8.json`, one-off bat/ps1 duplicates — untracked, just delete).
 - **Action:** `git rm` the tracked ones; delete untracked clutter locally. Add `.bak`/`.clean`/`.tmp` to `.gitignore` if not covered.
 - **Done when:** `git ls-files | grep -E "\.(bak|clean|tmp)$|bugreport"` is empty; working tree has no stray logs.
 
-### DP-02 ⬜ Replace committed 24.7 MB `demo/db/northwind.db` with the SQL seed — Effort S
+### DP-02 ⬜ (blocked on OQ-3) Replace committed 24.7 MB `demo/db/northwind.db` with the SQL seed — Effort S
 - **Files:** `demo/db/northwind.db` (untrack), `demo/db/vittix_demo_sqlite.sql` (already present), `demo/README.md`.
 - **Action:** `git rm --cached demo/db/northwind.db`, ignore `*.db` except the small documented `vittixreportdemodb.db` (or that one too — decide), document "run the SQL seed to create northwind.db" in `demo/README.md`.
 - **Risk:** demo first-run experience needs one extra step — acceptable for −24 MB repo.
 - **Done when:** repo clone size drops; demo README explains regeneration.
 
-### DP-03 ⬜ Runtime package: declare implicit units, add `{$RUNONLY}` — Effort S
+### DP-03 ✅ Runtime package: declare implicit units, add `{$RUNONLY}` — Effort S
 - **Files:** `packages/VittixReportRuntime.dpk`, `VittixReportRuntime.dproj`.
 - **Action:**
   1. Add `{$RUNONLY}` to the .dpk and `<RuntimeOnlyPackage>true</RuntimeOnlyPackage>` to the .dproj.
   2. Add to `contains`: `Vittix.Report.LoadResult`, `Vittix.Report.Objects.Unknown`, and the 17 `Qlp*` QRCodeGenLib units (kills all 19 live `W1033` implicit-import warnings and the consumer duplicate-symbol hazard). Alternative: keep QRCodeGenLib out and add a single facade unit `Vittix.Report.QR` that uses the `Qlp*` units — pick one, don't do both.
 - **Done when:** `ci_gate.ps1 -IncludePackages` builds with zero W1033.
 
-### DP-04 ⬜ Package project hygiene — Effort S
+### DP-04 ✅ Package project hygiene — Effort S
 - **Files:** `packages/VittixReportRuntime.dproj`, `VittixReportDesign.dpk/.dproj`.
 - **Action:** add the missing `Vittix.Report.Export.VectorPDF.Subset` DCCReference (dpk has 58 units, dproj 57); drop the vestigial `adortl` require from the design package; point `DCC_BplOutput`/`DCC_DcpOutput` at a repo-relative `build\bpl` path so the F2039 machine-global-output failure seen during analysis can't happen; decide on `LibSuffix` (adding one breaks existing consumers' install paths — default: defer, record decision in `docs/`).
 - **Done when:** packages build from a fresh checkout without depending on `C:\Users\Public\Documents\Embarcadero` write access.
 
-### DP-05 ⬜ Documentation corrections `[chore]` — Effort S
+### DP-05 ✅ Documentation corrections `[chore]` — Effort S
 - **Files:** `README.md`, `source/Vittix.Report.Component.pas:582-584`, `docs/index.md`.
 - **Action:** README feature list: add crosstabs, charts, QR codes (they exist and are tested); qualify the "Win32 or Win64" requirement (packages are built Win32; designer also Win64 via `build.bat`); add Getting-Started pointers to `build.bat`, `tools/ci_gate.ps1`, `TESTING.md`, `reports/` corpus, `tests/`. Fix the stale comment in `Component.pas` (`Render` does **not** free the engine internally — verified against `Renderer.pas:186-214`; the caller's `finally Engine.Free` is correct).
 - **Done when:** README matches reality; comment no longer misleads.
 
-### DP-06 ⬜ CI additions `[chore]` — Effort S
+### DP-06 ✅ CI additions `[chore]` — Effort S
 - **Files:** `.github/workflows/build-and-test.yml`.
 - **Action:** add `concurrency:` group and `timeout-minutes:`; publish `tests/dunitx-results.xml` as a test result (NUnit format) instead of a blob artifact; add the demo `VittixReportDemo.dproj` to the `-IncludePackages` build list in `tools/ci_gate.ps1`; note Win64 designer build (`build.bat`) as a manual gate or add a second platform pass if the self-hosted runner allows.
 - **Done when:** PRs show test annotations; workflow has timeout+concurrency.
 
-### DP-07 ⬜ Make madExcept conditional in the designer `[chore]` — Effort M
+### DP-07 ✅ Make madExcept conditional in the designer `[chore]` — Effort M
 - **Files:** `vittixdesigner/VittixDesigner.dpr:8-12`, `VittixDesigner.dproj` (defines `madExcept`).
 - **Action:** wrap the madExcept units in `{$IFDEF USE_MADEXCEPT}` and move the define to an opt-in (environment variable in the dproj or a paired .dproj). Designer keeps full crash reporting for licensed builds; licensees without madExcept can still build.
 - **Done when:** `VittixDesigner.dproj` builds with and without the define.
@@ -102,7 +102,7 @@ packaging warnings stop burying real ones.*
 
 *Every item here is a user-visible correctness bug. Order within the wave: DP-08 → DP-09 → DP-10 first (worst blast radius), rest in any order.*
 
-### DP-08 ✅-criteria below — Undo/redo use-after-free (finding **C-1**) — Effort M
+### DP-08 ⬜ Undo/redo use-after-free (finding **C-1**) — Effort M
 - **Files:** `source/Vittix.Report.Undo.pas` (`TCommandManager.DoCommand` :276-281, command classes :96-155), `vittixdesigner/Frm.Main.Commands.pas:209-222` **and its twin** `vittixdesigner/Vittix.Designer.Commands.pas:190-203` (both `TReportSnapshotCommand` copies), trigger sites `Frm.Main.pas:5099/5413`.
 - **Bug:** a snapshot command replaces the whole `TReportModel`; older undo commands hold raw `TReportObject` pointers into the freed model; `TMoveObjectCommand.Rollback` (`Undo.pas:357-358`) then writes through a dangling pointer. Repro: Band Manager → OK → Undo ×2.
 - **Fix approach (minimal, no API break):**
