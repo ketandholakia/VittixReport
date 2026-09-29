@@ -113,7 +113,7 @@ packaging warnings stop burying real ones.*
 - **Also:** add a defensive `if Assigned(FObj)` guard in `TMoveObjectCommand.Execute/Rollback` (defense-in-depth; the structural fix is the clearing).
 - **Done when:** repro sequence no longer corrupts memory (verify in designer manually: Band Manager OK → Undo ×2 → Save → reopen renders identically); test green; gate green.
 
-### DP-09 — Aggregate cache-key collision (finding **H-1**) — Effort S
+### DP-09 ✅ — Aggregate cache-key collision (finding **H-1**) — Effort S — fixed in `d0eeed4` + `826bbdf`
 - **Files:** `source/Vittix.Report.Expression.Evaluator.pas:1156` (key build), `:1256` (store).
 - **Bug:** cache key is the whole expression text, so in `SUM([Amount]) + COUNT([ID])` the COUNT lookup hits SUM's cached entry — silently wrong numbers through the engine (the only path with `Hooks`).
 - **Fix:** key on the aggregate node, not the expression: `CacheKey := CModernCacheKeyPrefix + <FuncName> + '(' + <inner-node source text or node identity> + ')' + '@' + IntToStr(ANode.Position);`. Keep the mode prefix. (Snippet and rationale: report §5 H-1.)
