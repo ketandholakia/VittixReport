@@ -1438,6 +1438,13 @@ begin
     SetLength(Line.Segments, L + 1);
     Line.Segments[L].Text := S;
     Line.Segments[L].Style := Style;
+    // Store the run styling: without these, zero-initialized records drew
+    // every segment black in the base font, discarding HTML <font> runs and
+    // the memo's own font color (DP-10). Draw checks '<> clNone' / '<> ""' /
+    // '> 0' on exactly these fields.
+    Line.Segments[L].Color := Color;
+    Line.Segments[L].FontName := FontName;
+    Line.Segments[L].Size := Size;
     Line.Segments[L].Width := W;
   end;
 
