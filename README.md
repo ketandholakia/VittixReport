@@ -1,11 +1,11 @@
 <div align="center">
   <h1>VittixReport</h1>
-  <p><b>A modern, dependency-free reporting framework and standalone visual designer for Delphi VCL applications.</b></p>
+  <p><b>A modern reporting framework and standalone visual designer for Delphi VCL applications.</b></p>
 </div>
 
 VittixReport is a comprehensive reporting suite built entirely from the ground up for Delphi. It provides developers with a robust runtime engine, a band-oriented report model, and a full-featured visual designer. 
 
-Unlike legacy reporting tools, VittixReport relies entirely on standard Delphi RTL and VCL components—**zero third-party dependencies required**. Reports are serialized into a clean, source-control-friendly JSON format (`.vrt`).
+Unlike legacy reporting tools, the VittixReport runtime relies on the standard Delphi RTL and VCL plus one vendored, MIT-licensed QR-code library (`source/ThirdParty/QRCodeGenLib`). Reports are serialized into a clean, source-control-friendly JSON format (`.vrt`).
 
 <div align="center">
   <img src="images/vittix-designer.png" alt="The standalone Vittix Report Designer: report structure tree, dataset fields, design canvas with bands, and the property inspector" width="960">
@@ -16,7 +16,7 @@ Unlike legacy reporting tools, VittixReport relies entirely on standard Delphi R
 ## Features
 
 * **🎨 Standalone Visual Designer:** A powerful desktop application featuring drag-and-drop object placement, a property inspector, band management, and a live print preview.
-* **⚡ Dependency-Free Core:** The core runtime framework is built strictly with Delphi 12.2 RTL and VCL with no external component packs to install. *(Note: The standalone visual designer application does require third-party libraries such as madExcept, FireDAC, ADO, and SVG icon components.)*
+* **⚡ Self-Contained Core:** The core runtime is the standard Delphi 12.2 RTL and VCL plus the vendored, MIT-licensed QR-code generator library (`source/ThirdParty/QRCodeGenLib`) — no external component packs to install. *(Note: the standalone visual designer application additionally requires madExcept and uses the FireDAC/ADO data-access components that ship with RAD Studio; its SVG-sourced icons are compiled to PNG resources, so no external SVG component library is needed.)*
 * **🔄 Unlimited Undo/Redo:** The designer implements a deep undo/redo stack for *every* action, including complex multi-object alignments, property changes, and band management.
 * **📄 JSON Report Format (`.vrt`):** Say goodbye to binary blobs. Reports are stored in a human-readable, easily diffable JSON format.
 * **🧩 Rich Object Library:** Out-of-the-box support for text labels, data fields, rich text, images, shapes, lines, barcodes, tables, and nested sub-reports.
