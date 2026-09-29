@@ -48,6 +48,12 @@ type
     constructor Create; virtual;
     procedure Execute;  virtual; abstract;
     procedure Rollback; virtual; abstract;
+    { True when executing this command replaces (or may replace) the object
+      graph that other history entries hold raw pointers into (e.g. a
+      full-report snapshot).  The command manager discards prior undo/redo
+      history around such a command so no surviving entry can later write
+      through a dangling reference (DP-08).  Default: False. }
+    function InvalidatesObjectRefs: Boolean; virtual;
     property ActionName: string read FActionName write FActionName;
   end;
 
@@ -256,6 +262,11 @@ constructor TUndoableAction.Create;
 begin
   inherited Create;
   FActionName := '';
+end;
+
+function TUndoableAction.InvalidatesObjectRefs: Boolean;
+begin
+  Result := False;
 end;
 
 // ===========================================================================
