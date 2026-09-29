@@ -7,6 +7,12 @@ VittixReport is a comprehensive reporting suite built entirely from the ground u
 
 Unlike legacy reporting tools, VittixReport relies entirely on standard Delphi RTL and VCL components—**zero third-party dependencies required**. Reports are serialized into a clean, source-control-friendly JSON format (`.vrt`).
 
+<div align="center">
+  <img src="images/vittix-designer.png" alt="The standalone Vittix Report Designer: report structure tree, dataset fields, design canvas with bands, and the property inspector" width="960">
+  <br>
+  <sub>The standalone visual designer — structure tree, dataset fields, design canvas and property inspector, with a sample report open.</sub>
+</div>
+
 ## Features
 
 * **🎨 Standalone Visual Designer:** A powerful desktop application featuring drag-and-drop object placement, a property inspector, band management, and a live print preview.
