@@ -1,14 +1,14 @@
-# Vittix Report Engine � Full Code Review
-**40 units reviewed � May 2026**
+# Vittix Report Engine – Full Code Review
+**40 units reviewed – May 2026**
 
 ---
 
 ## Table of Contents
 
 1. [Architecture Overview](#1-architecture-overview)
-2. [Bugs � Critical](#2-bugs--critical)
-3. [Bugs � Significant](#3-bugs--significant)
-4. [Bugs � Minor / Edge Cases](#4-bugs--minor--edge-cases)
+2. [Bugs – Critical](#2-bugs-critical)
+3. [Bugs – Significant](#3-bugs-significant)
+4. [Bugs – Minor / Edge Cases](#4-bugs-minor-edge-cases)
 5. [Refactor Planning](#5-refactor-planning)
 6. [Missing Features](#6-missing-features)
 7. [Unit-by-Unit Notes](#7-unit-by-unit-notes)
@@ -20,54 +20,54 @@
 The codebase is a well-structured, 40-unit Delphi VCL report engine. The dependency graph is clean and intentional:
 
 ```
-Context / Utils / Interfaces (leaf � no circular refs)
-    ?
+Context / Utils / Interfaces (leaf – no circular refs)
+    ↓
 Objects / Bands / PageSettings / Model
-    ?
+    ↓
 Expressions / Aggregates / Serializer
-    ?
+    ↓
 LayoutCache / LayoutPagination / LayoutHelpers
-    ?
+    ↓
 Engine / Renderer / Export.PDF / Scripting / ScriptHost.Adapter
-    ?
+    ↓
 Preview / Component / Designer (top layer)
 ```
 
-The "Core.*" alias units, the thin `Engine.Engine` and `Engine.Renderer` wrappers, and the `ObjectRegistry` wrapper are all pure forwarding shims � they add no logic and exist only as import convenience aliases. This is a sound pattern but creates visual noise.
+The "Core.*" alias units, the thin `Engine.Engine` and `Engine.Renderer` wrappers, and the `ObjectRegistry` wrapper are all pure forwarding shims – they add no logic and exist only as import convenience aliases. This is a sound pattern but creates visual noise.
 
 **Positive highlights:**
-- Two-pass engine (count pages ? render with resolved `[TotalPages]`) is correct.
+- Two-pass engine (count pages → render with resolved `[TotalPages]`) is correct.
 - Bookmark management is explicit and generally safe.
 - Undo/redo command pattern is clean; ownership contract is documented.
 - `TVittixUserDataSet` abstraction mirrors FastReport's pattern well.
-- `TReportScriptHostAdapter` is thorough � covers ~35 object properties.
+- `TReportScriptHostAdapter` is thorough – covers ~35 object properties.
 - Debug diagnostics (`OutputDebugString` with deduplication) are well-designed.
 - `DataSetSupportsBookmarks` probe is correct; avoids the unreliable `CanBookmark`.
 
 ---
 
-## 2. Bugs � Critical
+## 2. Bugs – Critical
 
-### BUG-C1 � `TVittixReport.Execute` � `NamedDS` not passed to engine
+### BUG-C1 – `TVittixReport.Execute` – `NamedDS` not passed to engine
 
-**File:** `Vittix.Report.Component.pas` � `Execute` procedure
+**File:** `Vittix.Report.Component.pas` – `Execute` procedure
 
 ```pascal
-Renderer.Render(Model, Primary);   // ? NamedDS is built but never forwarded
+Renderer.Render(Model, Primary);   // → NamedDS is built but never forwarded
 ```
 
-`BuildNamedDataSets` creates `NamedDS` which is freed in the `finally` block, but `TReportRenderer.Render` only accepts `(Model, DataSet)` � it creates its own `TReportEngine` with no named datasets. Any band with a `DataSetName` set gets `nil` data at runtime.
+`BuildNamedDataSets` creates `NamedDS` which is freed in the `finally` block, but `TReportRenderer.Render` only accepts `(Model, DataSet)` – it creates its own `TReportEngine` with no named datasets. Any band with a `DataSetName` set gets `nil` data at runtime.
 
 **Fix:** `TReportRenderer.Render` needs an overload that accepts `TDictionary<string, TDataSet>`, or `Execute` should build a `TReportEngine` directly (bypassing `TReportRenderer`) as `ExportToPDF` already does.
 
 ---
 
-### BUG-C2 � `TVittixReport.Print` � `NamedDS` not passed, `InvokePreviewAction` called on wrong object
+### BUG-C2 – `TVittixReport.Print` – `NamedDS` not passed, `InvokePreviewAction` called on wrong object
 
-**File:** `Vittix.Report.Component.pas` � `Print` procedure
+**File:** `Vittix.Report.Component.pas` – `Print` procedure
 
 ```pascal
-InvokePreviewAction(Renderer, 'Print');  // ? Renderer has no 'Print' method with this signature
+InvokePreviewAction(Renderer, 'Print');  // → Renderer has no 'Print' method with this signature
 ```
 
 `TReportRenderer` does have a `Print` method, but `InvokePreviewAction` uses `APreview.MethodAddress` and passes `TObject`, making it RTTI-dependent. More critically, `NamedDS` is built and leaked (it's freed in `finally`) but never passed to the engine, same as BUG-C1.
@@ -76,25 +76,25 @@ InvokePreviewAction(Renderer, 'Print');  // ? Renderer has no 'Print' method wit
 
 ---
 
-### BUG-C3 � `TReportEngine.ExecutePass` � `FIsRenderingPass` assigned wrong value
+### BUG-C3 – `TReportEngine.ExecutePass` – `FIsRenderingPass` assigned wrong value
 
 **File:** `Vittix.Report.Engine.pas`
 
 ```pascal
-FIsRenderingPass := AReportProgress;  // ? Pass 1 has AReportProgress=False ? FIsRenderingPass=False
+FIsRenderingPass := AReportProgress;  // → Pass 1 has AReportProgress=False → FIsRenderingPass=False
                                        //   so OnBeforeBand/OnAfterBand never fire on pass 1 (OK)
-                                       //   but pass 2 has AReportProgress=True ? FIsRenderingPass=True
+                                       //   but pass 2 has AReportProgress=True → FIsRenderingPass=True
 ```
 
 Actually this is fine for the two-pass intent, **but** the naming is confusing and there is a real bug: in `Prepare`, pass 1 is called with `AReportProgress=False`, which means `FIsRenderingPass=False`. On pass 1, `SetReportObjectRenderHooks` still gets called (because `FIsRenderingPass` check is done *after* the call to `SetReportObjectRenderHooks` for pass 1 with `ClearReportObjectRenderHooks`). The real bug is:
 
-In pass 1 (`AReportProgress=False`), `ClearReportObjectRenderHooks` is called, which is correct. But `SetReportNamedDataSets` is called in **both** passes regardless, meaning named datasets are set up during the page-count pass. If a `TReportSubReportObject.Draw` is called during pass 1 (via `TReportBand.Draw` ? children), it will try to access live datasets during the counting pass. This is incorrect for any report that uses `TReportSubReportObject`.
+In pass 1 (`AReportProgress=False`), `ClearReportObjectRenderHooks` is called, which is correct. But `SetReportNamedDataSets` is called in **both** passes regardless, meaning named datasets are set up during the page-count pass. If a `TReportSubReportObject.Draw` is called during pass 1 (via `TReportBand.Draw` → children), it will try to access live datasets during the counting pass. This is incorrect for any report that uses `TReportSubReportObject`.
 
-**Fix:** In pass 1, skip rendering bands that contain subreport objects, or ensure `Draw` is not called on pass 1. The engine already skips band *drawing* (via `FIsRenderingPass` gating `OnBeforeBand`), but `ABand.Draw` is still called in `PrintBand` regardless � it just won't fire the event hooks.
+**Fix:** In pass 1, skip rendering bands that contain subreport objects, or ensure `Draw` is not called on pass 1. The engine already skips band *drawing* (via `FIsRenderingPass` gating `OnBeforeBand`), but `ABand.Draw` is still called in `PrintBand` regardless – it just won't fire the event hooks.
 
 ---
 
-### BUG-C4 � `TReportEngine.Prepare` � hard requirement for `btMasterData` band breaks reports without data
+### BUG-C4 – `TReportEngine.Prepare` – hard requirement for `btMasterData` band breaks reports without data
 
 **File:** `Vittix.Report.Engine.pas`
 
@@ -109,7 +109,7 @@ if not Assigned(FMasterBand) then
 
 ---
 
-### BUG-C5 � `TDeleteObjectsCommand.Rollback` � index calculation is wrong
+### BUG-C5 – `TDeleteObjectsCommand.Rollback` – index calculation is wrong
 
 **File:** `Vittix.Report.Undo.pas`
 
@@ -135,7 +135,7 @@ Actually the cleanest fix: during `Execute`, store `(Band, OrigIndex)` pairs in 
 
 ---
 
-### BUG-C6 � `TReportBand.Draw` � `DrawReportObjectWithHooks` called but band is not inside engine context at design-time
+### BUG-C6 – `TReportBand.Draw` – `DrawReportObjectWithHooks` called but band is not inside engine context at design-time
 
 **File:** `Vittix.Report.Bands.pas`
 
@@ -145,9 +145,9 @@ Actually the cleanest fix: during `Execute`, store `(Band, OrigIndex)` pairs in 
 
 ---
 
-## 3. Bugs � Significant
+## 3. Bugs – Significant
 
-### BUG-S1 � `EvalSimpleMath` � incorrect loop termination (off-by-one)
+### BUG-S1 – `EvalSimpleMath` – incorrect loop termination (off-by-one)
 
 **File:** `Vittix.Report.Expressions.pas`
 
@@ -166,7 +166,7 @@ The last operator+operand pair is skipped when `Length(Parts)` is even (e.g., `"
 
 ---
 
-### BUG-S2 � `TReportTextObject.Draw` � `AutoSize` mutates `FBounds` permanently
+### BUG-S2 – `TReportTextObject.Draw` – `AutoSize` mutates `FBounds` permanently
 
 **File:** `Vittix.Report.Objects.pas`
 
@@ -175,7 +175,7 @@ if FAutoSize and FWordWrap then
 begin
   TxtH := DrawText(..., DT_CALCRECT);
   if TxtH > 0 then
-    FBounds.Bottom := FBounds.Top + TxtH + ...;  // ? Permanent mutation
+    FBounds.Bottom := FBounds.Top + TxtH + ...;  // → Permanent mutation
 ```
 
 This permanently mutates the object's bounds during every Draw call. On a second render pass (or if the object is redrawn with different data), the bounds from the previous render are used as the starting point, causing cumulative drift. The engine's `PrintBand` already adjusts children's `Bounds` temporarily via `AdjustedObjs/OriginalBounds` for CanGrow bands, but `AutoSize` bypasses that mechanism.
@@ -184,7 +184,7 @@ This permanently mutates the object's bounds during every Draw call. On a second
 
 ---
 
-### BUG-S3 � `TVittixReport.ComponentEditor` � BOM detection uses wrong character codes
+### BUG-S3 – `TVittixReport.ComponentEditor` – BOM detection uses wrong character codes
 
 **File:** `Vittix.Report.ComponentEditor.pas`
 
@@ -193,7 +193,7 @@ if (Length(JsonOut) >= 3) and
    (JsonOut[1] = #$00EF) and (JsonOut[2] = #$00BB) and (JsonOut[3] = #$00BF) then
 ```
 
-In Delphi's UnicodeString (UTF-16), the UTF-8 BOM bytes `EF BB BF` when read as `TEncoding.UTF8` are already decoded before you see them as characters. The byte-sequence check `#$00EF, #$00BB, #$00BF` will never match a properly decoded Unicode string � it would only match raw bytes misread as Unicode chars. The `#$FEFF` (U+FEFF) BOM check above it is correct.
+In Delphi's UnicodeString (UTF-16), the UTF-8 BOM bytes `EF BB BF` when read as `TEncoding.UTF8` are already decoded before you see them as characters. The byte-sequence check `#$00EF, #$00BB, #$00BF` will never match a properly decoded Unicode string — it would only match raw bytes misread as Unicode chars. The `#$FEFF` (U+FEFF) BOM check above it is correct.
 
 The same incorrect BOM check appears in `TReportSerializer.LoadFromJSON`.
 
@@ -201,7 +201,7 @@ The same incorrect BOM check appears in `TReportSerializer.LoadFromJSON`.
 
 ---
 
-### BUG-S4 � `TReportImageObject.Draw` � image cache keyed on path string, not invalidated on row change
+### BUG-S4 – `TReportImageObject.Draw` – image cache keyed on path string, not invalidated on row change
 
 **File:** `Vittix.Report.Objects.pas`
 
@@ -210,13 +210,13 @@ FCachedImageAttempted: Boolean;
 FCachedImagePath: string;
 ```
 
-The cache is never reset between rows. If row 1 has `ImagePath = 'a.png'` and row 2 has `ImagePath = ''`, the empty-path branch correctly sets `FPicture.Assign(nil)`. But if row 3 has `ImagePath = 'a.png'` again, the cache is valid � correct. However if the underlying file on disk changes between report runs (same path, different content), the stale cache is used. More critically, the `FCachedImageAttempted` flag is never reset between `TReportEngine.Prepare` calls. Because `TReportObject` instances are owned by `TReportModel` which is deserialized fresh per `Execute` call, this is actually safe in practice. But if someone calls `TReportEngine.Prepare` twice on the same model (which is technically supported by the API), the stale `FCachedImagePath` can cause a miss.
+The cache is never reset between rows. If row 1 has `ImagePath = 'a.png'` and row 2 has `ImagePath = ''`, the empty-path branch correctly sets `FPicture.Assign(nil)`. But if row 3 has `ImagePath = 'a.png'` again, the cache is valid – correct. However if the underlying file on disk changes between report runs (same path, different content), the stale cache is used. More critically, the `FCachedImageAttempted` flag is never reset between `TReportEngine.Prepare` calls. Because `TReportObject` instances are owned by `TReportModel` which is deserialized fresh per `Execute` call, this is actually safe in practice. But if someone calls `TReportEngine.Prepare` twice on the same model (which is technically supported by the API), the stale `FCachedImagePath` can cause a miss.
 
 **Fix:** Reset `FCachedImageAttempted := False` in a `BeforeRender` hook, or key the cache on both path + file modification time.
 
 ---
 
-### BUG-S5 � `TReportEngine.PrintBand` � `AdjustedObjs` restore loop runs in finally but canvas is already restored
+### BUG-S5 – `TReportEngine.PrintBand` – `AdjustedObjs` restore loop runs in finally but canvas is already restored
 
 **File:** `Vittix.Report.Engine.pas`
 
@@ -228,16 +228,16 @@ try
   ...
 finally
   for var I := AdjustedCount - 1 downto 0 do
-    AdjustedObjs[I].Bounds := OriginalBounds[I];   // ? GOOD: runs before RestoreDC
+    AdjustedObjs[I].Bounds := OriginalBounds[I];   // → GOOD: runs before RestoreDC
   RestoreDC(FCanvas.Handle, -1);
 end;
 ```
 
-Actually this is correct � the bounds restore runs before `RestoreDC`. No bug here; noting for clarity.
+Actually this is correct – the bounds restore runs before `RestoreDC`. No bug here; noting for clarity.
 
 ---
 
-### BUG-S6 � `TReportPreview.Paint` � margin overlay drawn **before** the white page rectangle
+### BUG-S6 – `TReportPreview.Paint` – margin overlay drawn **before** the white page rectangle
 
 **File:** `Vittix.Report.Preview.pas`
 
@@ -245,7 +245,7 @@ Actually this is correct � the bounds restore runs before `RestoreDC`. No bug 
 if FShowMarginOverlay then
 begin
   Canvas.Brush.Color := $00FAFAF0;
-  Canvas.FillRect(ContentR);    // ? drawn first
+  Canvas.FillRect(ContentR);    // → drawn first
   ...
 end;
 
@@ -261,7 +261,7 @@ The content-area background fill and its border line are painted before the whit
 
 ---
 
-### BUG-S7 � `TReportEngine.OpenGroupsForBreak` � `ColumnHeader` printed inside group open loop without space check
+### BUG-S7 – `TReportEngine.OpenGroupsForBreak` – `ColumnHeader` printed inside group open loop without space check
 
 **File:** `Vittix.Report.Engine.pas`
 
@@ -270,13 +270,13 @@ if Assigned(FColumnHeaderBand) then
   PrintBandWithSpaceCheck(FColumnHeaderBand);
 ```
 
-`PrintBandWithSpaceCheck` calls `EnsurePageSpaceForBand` which itself calls `PrintPageHeader` on a new page. This is correct. However, it does NOT pass `True` for `PrintColumnHeader` in `EnsurePageSpaceForBand` � so if the column header forces a page break, the *new* page will not get a column header. This is a subtle missing re-print.
+`PrintBandWithSpaceCheck` calls `EnsurePageSpaceForBand` which itself calls `PrintPageHeader` on a new page. This is correct. However, it does NOT pass `True` for `PrintColumnHeader` in `EnsurePageSpaceForBand` – so if the column header forces a page break, the *new* page will not get a column header. This is a subtle missing re-print.
 
 **Fix:** After every `StartNewPage` + `PrintPageHeader`, also print the column header if one exists.
 
 ---
 
-### BUG-S8 � `TReportBarcodeObject` � duplicates the entire `DebugLogDataFieldIssue` function
+### BUG-S8 – `TReportBarcodeObject` – duplicates the entire `DebugLogDataFieldIssue` function
 
 **File:** `Vittix.Report.Objects.Barcode.pas`
 
@@ -286,7 +286,7 @@ The file copy-pastes the `DebugLogDataFieldIssue` proc, `GDataFieldDiagSeen`, `G
 
 ---
 
-### BUG-S9 � `TReportObjectRegistry` / `Vittix.Report.Objects` � registry not thread-safe for read during write
+### BUG-S9 – `TReportObjectRegistry` / `Vittix.Report.Objects` – registry not thread-safe for read during write
 
 **File:** `Vittix.Report.Objects.pas`
 
@@ -294,7 +294,7 @@ The file copy-pastes the `DebugLogDataFieldIssue` proc, `GDataFieldDiagSeen`, `G
 
 ```pascal
 if not Assigned(GRegistryCS) then
-  GRegistryCS := TCriticalSection.Create;  // ? TOCTOU race
+  GRegistryCS := TCriticalSection.Create;  // → TOCTOU race
 if not Assigned(GRegistry) then
   GRegistry := TList<TReportObjectClass>.Create;
 ```
@@ -305,17 +305,17 @@ Two threads could both pass the `not Assigned` check and both create a `TCritica
 
 ---
 
-## 4. Bugs � Minor / Edge Cases
+## 4. Bugs – Minor / Edge Cases
 
-### BUG-M1 � `TReportAggregates` � `COUNT` increments for any non-null value but does not track `Count` for `SUM` correctly
+### BUG-M1 – `TReportAggregates` – `COUNT` increments for any non-null value but does not track `Count` for `SUM` correctly
 
 In the SUM branch, `Count` is never incremented, so `AVG` (which reuses `Sum/Count`) works because `Count` is incremented only in the `AVG` branch. But if someone calls `AVG` on an all-null dataset, `Count` stays 0 and the final `Sum / Count` division guard catches it. Fine. However `SUM` leaves `Count=0` which is correct since `SUM` doesn't use it. This is not a bug but the code is misleading � `Count` means different things in different branches.
 
-### BUG-M2 � `TReportDesignerControl` � `DrawBandZones` hardcodes `+14` header offset in band rect calculation
+### BUG-M2 – `TReportDesignerControl` – `DrawBandZones` hardcodes `+14` header offset in band rect calculation
 
 `BL.Y + BL.Height + 14` � the `14` is the `BAND_HDR_H` constant but is used literally instead of as the constant, creating a maintenance risk if the constant is ever changed.
 
-### BUG-M3 � `TReportEngine.ProcessMasterDataLoop` � `DisableControls` / `EnableControls` not exception-safe for `FDataSet.First`
+### BUG-M3 – `TReportEngine.ProcessMasterDataLoop` – `DisableControls` / `EnableControls` not exception-safe for `FDataSet.First`
 
 ```pascal
 FDataSet.DisableControls;
