@@ -23,11 +23,13 @@ DEFER to v1.1:
 M3 clear/replace workflow polish and the Embedded/None status indication (load/replace
 already works via `Load Embedded Image...`); M4 embedded-image regression fixture
 (`[test]`-class — may be pulled forward during the freeze only if a characterization test
-is actually needed); M5 vector PDF export of embedded PNG/JPEG. M5 note: embedded images
-are dropped by the default (Vector) PDF export today — only file-path images are emitted.
-No known report hits this. If a real v1.0 soak report loses an embedded image in PDF
-output, that is a preview/export mismatch and is treated as a `[fix]` bug, not as plan
-work. M7 extended formats (BMP→PNG conversion, WMF/EMF vector preservation, SVG) defer
+is actually needed); M5 vector PDF export of embedded PNG/JPEG — **already
+implemented before the freeze** (`874ebbd`): at capture, embedded pictures are re-rendered
+to a temporary PNG registered with the export document and exported as image XObjects,
+exactly like file-path images (transparency is flattened onto white, per the Vector PDF
+M5.5 documented limitation). The original "carry source bytes" direction proved
+unnecessary; the former "embedded images are dropped" note was stale and has been
+removed. M7 extended formats (BMP→PNG conversion, WMF/EMF vector preservation, SVG) defer
 for the same reasons recorded in the Vector PDF plan.
 
 CUT:
@@ -46,7 +48,8 @@ Allow image objects to store image content inside the report file instead of req
 - The serializer already restores `PictureData` when a report file is opened.
 - A static embedded image can render when `DataField` is empty and `Picture` is assigned.
 - Designer controls do not currently provide a clear workflow to load, replace, or clear embedded image data.
-- Direct vector PDF export currently emits image commands only when an external file-backed source is available.
+- Direct vector PDF export handles embedded design-time pictures: they are re-captured as a
+  registered temporary PNG and embedded as image XObjects (see M5).
 
 ## Compatibility Rules
 
@@ -239,26 +242,33 @@ Safe commit condition:
 
 ## Milestone M5 - Vector PDF Export for Embedded PNG/JPEG
 
-Status: Pending
+Status: Completed (implemented via registered temp-PNG capture at the freeze
+baseline; the original "carry source bytes in the command model" direction
+proved unnecessary)
 
 Goal:
 
-Render embedded raster images in direct vector PDF output without requiring a temporary external path.
+Render embedded raster images in direct vector PDF output without requiring an external image path.
 
-Implementation direction:
+Implemented (commit `874ebbd`, pre-freeze):
 
-- Extend `TReportExportImageCommand` to carry owned embedded image content or encoded source bytes in addition to `Source`.
-- When `DataField` is empty and `Picture` contains a supported embedded graphic, emit an image export command using embedded data.
-- Extend `Vittix.Report.Export.VectorPDF.pas` to write embedded PNG/JPEG content using the same sizing and placement behavior as file-backed images.
-- Retain file-backed `Source` support without behavior change.
-- Ensure command lifetime owns any copied stream or byte array needed after report rendering.
+- Engine export capture renders the embedded design-time picture onto a temporary PNG (drawn onto a white-filled bitmap, so transparency is flattened onto white), registers the file with the export document via `FExportDocument.AddTempFile`, and emits a regular image export command. The object's own graphic is never modified and the temp file's lifetime is tied to the export document.
+- The Vector PDF writer embeds the temp PNG through the same image-XObject path as file-path images; sizing and placement behavior is unchanged (`Source` keeps its existing meaning).
+- All formats the capture can draw are supported through this one mechanism (PNG, JPEG, BMP, GIF; JPEG is re-encoded as PNG in the temp file).
 
-Initial support:
+Automated validation:
 
-- Embedded PNG
-- Embedded JPEG
+- `Test_EmbeddedPicture_ProducesImageCommand` - embedded picture produces an image command backed by a real PNG temp file; presentation flags preserved.
+- `Test_EmbeddedPicture_TempFileDeletedOnDocumentFree` / `Test_DocumentFree_DeletesTempFiles` - temp-file lifetime is tied to document free.
+- `Test_EmbeddedPicture_PictureData_VectorPDF_ContainsImageXObject` - PictureData serialize/reload round trip, then Vector PDF export contains the image XObject.
+- `Test_EmbeddedPicture_HTMLExport_ContainsImage` - the same capture reaches HTML export.
+- Existing file-path PNG/JPEG Vector PDF regressions remain green.
 
-Deferred:
+Known limitation (documented, not silent):
+
+- PNG transparency is flattened onto white at capture time; no alpha/SMask is emitted for images. This matches the file-path PNG behavior and the Vector PDF plan's M5.5 documented limitation; removing it (alpha support for images) is v1.1 work.
+
+Deferred (unchanged):
 
 - Embedded bitmap conversion policy.
 - EMF/WMF preservation as vector PDF content.
@@ -266,24 +276,24 @@ Deferred:
 
 Risks:
 
-- Image byte ownership must not reference a report graphic after its owner is freed.
-- PNG alpha/transparency handling must remain correct.
-- Memory usage increases if many large embedded images are copied into export commands.
-- Export output must match preview placement and scaling.
+- Image byte ownership must not reference a report graphic after its owner is freed. (Addressed: capture copies pixels into a temp file owned by the document.)
+- PNG alpha/transparency handling must remain correct. (Open, documented: flattened onto white.)
+- Memory usage increases if many large embedded images are copied into export commands. (Bounded: one temp file per capture, deleted with the document.)
+- Export output must match preview placement and scaling. (Maintained: same image command path as file-path images.)
 
 Validation:
 
-- Embedded PNG renders in direct vector PDF.
-- Embedded JPEG renders in direct vector PDF.
-- Existing path-based PNG/JPEG PDF export remains unchanged.
-- Multi-page reports do not duplicate, lose, or leak image data.
-- Repeated exports remain stable.
+- Embedded PNG renders in direct vector PDF. (Covered above.)
+- Embedded JPEG renders in direct vector PDF. (Same mechanism.)
+- Existing path-based PNG/JPEG PDF export remains unchanged. (Regression tests green.)
+- Multi-page reports do not duplicate, lose, or leak image data. (Temp files deleted with the document.)
+- Repeated exports remain stable. (Unique per-capture temp names.)
 
 Safe commit condition:
 
-- Runtime package and runner compile.
-- Embedded PNG/JPEG PDF regression passes.
-- Existing vector PDF regressions pass.
+- Runtime package and runner compile. (Met.)
+- Embedded PNG/JPEG PDF regression passes. (Met.)
+- Existing vector PDF regressions pass. (Met.)
 
 ## Milestone M6 - Optional Dynamic Image Fallback Policy
 
