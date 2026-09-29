@@ -1,7 +1,7 @@
 # VittixReport Events
 
 ## Table of Contents
-- [Event / Script Policy](#event--script-policy)
+- [Event / Script Policy](#event-script-policy)
 - [Runtime Lifecycle Callback Wiring](#runtime-lifecycle-callback-wiring)
 - [Quick Start Callback Template](#quick-start-callback-template)
 - [Persisted Event Text vs Runtime Callbacks](#persisted-event-text-vs-runtime-callbacks)
