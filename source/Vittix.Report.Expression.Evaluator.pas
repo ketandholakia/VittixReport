@@ -1152,9 +1152,18 @@ begin
   end;
 
   // Phase 3 execution-local aggregate cache, mode-isolated (OD-15/OD-16):
-  // identity includes expression text (mode-prefixed), dataset position,
-  // page/row state, group range, parameters and variables via Matches().
-  CacheKey := CModernCacheKeyPrefix + FExpressionText;
+  // identity includes expression text (mode-prefixed), the aggregate node's
+  // function and source span, dataset position, page/row state, group range,
+  // parameters and variables via Matches().
+  // The node span is required (DP-09): keying on the expression text alone
+  // made sibling aggregates in one expression share a key, so
+  // SUM([Amount]) + COUNT([ID]) evaluated COUNT against SUM's cached value.
+  // Spans are deterministic from the source text, so re-evaluating the same
+  // node still hits; spans cannot collide within one expression because two
+  // distinct nodes never occupy the same start+length.
+  CacheKey := CModernCacheKeyPrefix + FExpressionText +
+    '#' + IntToStr(Ord(ANode.Func)) +
+    '@' + IntToStr(ANode.Position) + ':' + IntToStr(ANode.TextLength);
   if Assigned(FContext.Hooks) and
      FContext.Hooks.TryGetAggregateCache(CacheKey, FContext, Cached) then
   begin
