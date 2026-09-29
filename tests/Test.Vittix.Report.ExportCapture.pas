@@ -77,6 +77,8 @@ type
     [Test] procedure Test_FilePathPNG_VectorPDF_Regression;
     [Test] procedure Test_FilePathJPEG_VectorPDF_Regression;
     [Test] procedure Test_FilePathInvalidRaster_GracefulSkip;
+    [Test] procedure Test_AnsiText_VectorPDF_EmitsExactCp1252Bytes;
+    [Test] procedure Test_NonAnsiText_Rupee_NotSentThroughAnsiPath;
     [Test] procedure Test_TextVAlign_Top_Captured;
     [Test] procedure Test_TextVAlign_Center_Captured;
     [Test] procedure Test_TextVAlign_Bottom_Captured;
@@ -1638,6 +1640,123 @@ begin
   Assert.Contains(Pdf, '%%EOF');
   Assert.IsFalse(ContainsText(Pdf, '/Im'),
     'missing image must not produce an image XObject');
+end;
+
+{ T5: ANSI text must reach the PDF as exact WinAnsi (cp1252) bytes, machine-
+  independent.  Every character below passes SupportsPdfAnsiText, so PdfText
+  must emit its cp1252 byte directly - not a conversion through the process
+  ANSI code page (AnsiString), which is what made the output depend on the
+  system code page. }
+procedure TExportCaptureTests.Test_AnsiText_VectorPDF_EmitsExactCp1252Bytes;
+var
+  DS: TClientDataSet;
+  Model: TReportModel;
+  Band: TReportBand;
+  Txt: TReportTextObject;
+  Engine: TReportEngine;
+  Doc: TReportExportDocument;
+  Pdf, Expected: string;
+begin
+  DS := TClientDataSet.Create(nil);
+  DS.FieldDefs.Add('Name', ftString, 20);
+  DS.CreateDataSet;
+  DS.AppendRecord(['row1']);
+  DS.First;
+
+  Model := TReportModel.Create;
+  Band := TReportBand.Create;
+  Band.BandType := btPageHeader;
+  Band.Height := 400;
+  Txt := TReportTextObject.Create;
+  Txt.Name := 'txtAnsiBytes';
+  Txt.Bounds := Rect(20, 20, 400, 50);
+  // 'A' + eacute + ldquo + rdquo + (byte-stuffed U+0093, i.e. the cp1252 0x93
+  // character carried as its C1 codepoint) + 'B'.
+  Txt.Text := 'A' + #$00E9 + #$201C + #$201D + #$0093 + 'B';
+  Band.Children.Add(Txt);
+  Model.Objects.Add(Band);
+
+  Doc := TReportExportDocument.Create;
+  Engine := TReportEngine.Create(Model, DS, nil, nil);
+  try
+    Engine.ExportDocument := Doc;
+    Engine.Prepare;
+
+    Pdf := ExportToPDF(Doc);
+    Assert.Contains(Pdf, '%%EOF', 'vector PDF must be complete');
+
+    // Expected winansi bytes: A=41 E9(eacute) 93(ldquo) 94(rdquo) 93 C1 B=42
+    // (4-digit #$00NN literals: 2-digit #$NN in the $80..$FF range would be
+    // re-interpreted through the source ANSI code page by the compiler.)
+    Expected := '(A' + #$00E9 + #$0093 + #$0094 + #$0093 + 'B) Tj';
+    Assert.IsTrue(Pos(Expected, Pdf) > 0,
+      'ANSI text must be emitted as exact cp1252 bytes regardless of the ' +
+      'system ANSI code page');
+
+    // Control: no character may have been replaced by '?' along the way.
+    Assert.IsTrue(Pos('(A' + '?' + #$0093 + #$0094 + '?' + 'B) Tj', Pdf) = 0,
+      'no character may be silently replaced by ? on the ANSI path');
+  finally
+    Engine.Free;
+    Doc.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+{ T5: the rupee sign (U+20B9) is not cp1252-representable, so the text line
+  must be routed away from the ANSI Helvetica path (to the shaped-glyph or
+  raster Unicode pipeline) instead of being degraded to a replacement
+  character. }
+procedure TExportCaptureTests.Test_NonAnsiText_Rupee_NotSentThroughAnsiPath;
+var
+  DS: TClientDataSet;
+  Model: TReportModel;
+  Band: TReportBand;
+  Txt: TReportTextObject;
+  Engine: TReportEngine;
+  Doc: TReportExportDocument;
+  Pdf: string;
+begin
+  DS := TClientDataSet.Create(nil);
+  DS.FieldDefs.Add('Name', ftString, 20);
+  DS.CreateDataSet;
+  DS.AppendRecord(['row1']);
+  DS.First;
+
+  Model := TReportModel.Create;
+  Band := TReportBand.Create;
+  Band.BandType := btPageHeader;
+  Band.Height := 400;
+  Txt := TReportTextObject.Create;
+  Txt.Name := 'txtRupee';
+  Txt.Bounds := Rect(20, 20, 400, 50);
+  Txt.Text := 'Price: ' + #$20B9 + ' 100';
+  Band.Children.Add(Txt);
+  Model.Objects.Add(Band);
+
+  Doc := TReportExportDocument.Create;
+  Engine := TReportEngine.Create(Model, DS, nil, nil);
+  try
+    Engine.ExportDocument := Doc;
+    Engine.Prepare;
+
+    Pdf := ExportToPDF(Doc);
+    Assert.Contains(Pdf, '%%EOF', 'vector PDF must be complete');
+    // The line contains a non-cp1252 character, so no ANSI Tj literal may be
+    // produced for it at all (in particular not 'Price: ?').
+    Assert.IsTrue(Pos('(Price:', Pdf) = 0,
+      'non-ANSI line must not be emitted through the ANSI Helvetica path');
+    // The shaped-glyph path (embedded Type0 font) or the raster fallback must
+    // have handled the run.
+    Assert.IsTrue(ContainsText(Pdf, '/Type0') or ContainsText(Pdf, ' Do'#10),
+      'non-ANSI text must use the shaped/raster Unicode pipeline');
+  finally
+    Engine.Free;
+    Doc.Free;
+    Model.Free;
+    DS.Free;
+  end;
 end;
 
 
