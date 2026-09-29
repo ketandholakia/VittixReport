@@ -136,7 +136,7 @@ Line.Segments[L].Width := W;
 - **Test plan:** new `tests/Test.Vittix.Report.Objects.Memo.pas`: render a `TReportMemoObject` (`AllowHTML = True`) containing `<font color="clRed">R</font>G` onto a white `TBitmap` via `Draw`; assert at least one pixel has R ≫ G,B (red text present) and at least one dark-grey/black pixel for the unstyled run. Also add an ExportCapture case pinning the memo **runs** carry per-run colors (43_memo_html variant) so the PDF path stays aligned.
 - **Done when:** red→green; 43_memo_html baseline unchanged; gate green.
 
-### DP-11 — CrossTab crash-hardening (finding **H-5**) — Effort M
+### DP-11 ✅ — CrossTab crash-hardening (finding **H-5**) — Effort M — fixed in `48c0a65` + `7e215df`
 - **Files:** `source/Vittix.Report.Objects.CrossTab.pas:235-237` (`FieldByName` ×3 in the record loop), :164-201 (unguarded Variant arithmetic), `PrepareMatrix`.
 - **Bug:** a missing RowField/ColumnField/CellField raises `EDatabaseError` and kills the render; a non-numeric cell with `caSum/caAverage/caMin/caMax` raises a Variant conversion error; both unguarded.
 - **Fix:** replace `FieldByName` with the `TryGetField` family (`Vittix.Report.Utils`) — on a missing field, emit a diagnostic (reuse the `TReportTraversalDiagnostics` or a `TRenderDiagnostic` channel — pick the lightest existing one) and render the empty-table representation instead of raising. Guard aggregate arithmetic: only numeric `TField` types (or `VarIsNumeric`-style checks) participate; non-numeric cells are skipped and counted for a one-line diagnostic.
