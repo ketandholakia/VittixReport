@@ -5,12 +5,18 @@ program VittixDesigner;
 {$ENDIF}
 
 uses
-   madExcept,
+  {$IFDEF USE_MADEXCEPT}
+  // madExcept is a commercial library (madshi). Licensees build with
+  // USE_MADEXCEPT defined (default in VittixDesigner.dproj); without the
+  // define the designer builds from stock Delphi only, minus the crash
+  // report enrichment.
+  madExcept,
   madLinkDisAsm,
   madListHardware,
   madListProcesses,
   madListModules,
- Vcl.Forms,
+  {$ENDIF}
+  Vcl.Forms,
   System.SysUtils,
   vcl.Dialogs,
   Winapi.Windows,
