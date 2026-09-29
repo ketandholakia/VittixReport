@@ -58,6 +58,7 @@ type
     [Test] procedure Test_EmbeddedPicture_TempFileDeletedOnDocumentFree;
     [Test] procedure Test_HiddenEmbeddedPicture_NoCommand;
     [Test] procedure Test_EmbeddedPicture_HTMLExport_ContainsImage;
+    [Test] procedure Test_EmbeddedPicture_PictureData_VectorPDF_ContainsImageXObject;
     [Test] procedure Test_Base64Field_DataURI_RendersAndExports;
     [Test] procedure Test_Base64Field_BareBase64_Renders;
     [Test] procedure Test_Base64Field_Invalid_NoCommandNoException;
@@ -543,6 +544,95 @@ begin
     Engine.Free;
     Model.Free;
     DS.Free;
+  end;
+end;
+
+function ExportToPDF(ADoc: TReportExportDocument): string; forward;
+
+{ T1: a report whose image object stores embedded picture bytes (no external
+  file path) must export through the default Vector PDF pipeline with the
+  image present as a real image XObject.  The serialize/reload step exercises
+  the same PictureData path the designer uses on save/open. }
+procedure TExportCaptureTests.Test_EmbeddedPicture_PictureData_VectorPDF_ContainsImageXObject;
+var
+  Model, LoadedModel: TReportModel;
+  Band: TReportBand;
+  Img: TReportImageObject;
+  LoadedImg: TReportImageObject;
+  DS: TClientDataSet;
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Commands: TArray<TReportExportImageCommand>;
+  Json, Pdf: string;
+begin
+  Model := TReportModel.Create;
+  try
+    Band := TReportBand.Create;
+    Band.BandType := btPageHeader;
+    Band.Height := 400;
+    Img := TReportImageObject.Create;
+    Img.Name := 'imgPictureData';
+    Img.Bounds := Rect(20, 150, 220, 190);
+    Img.DataField := '';
+    Img.Stretch := True;
+    var Bmp := TBitmap.Create;
+    try
+      Bmp.SetSize(24, 16);
+      Bmp.Canvas.Brush.Color := clRed;
+      Bmp.Canvas.FillRect(Rect(0, 0, 24, 16));
+      Img.Picture.Assign(Bmp);
+    finally
+      Bmp.Free;
+    end;
+    Band.Children.Add(Img);
+    Model.Objects.Add(Band);
+    Json := TReportSerializer.SaveToJSON(Model);
+  finally
+    Model.Free;
+  end;
+
+  Assert.Contains(Json, '"PictureData"',
+    'embedded picture must serialize as PictureData');
+  Assert.Contains(Json, '"PictureClass"',
+    'PictureData must carry its graphic class');
+
+  LoadedModel := TReportSerializer.LoadFromJSON(Json);
+  DS := BuildDataSet;
+  Doc := TReportExportDocument.Create;
+  try
+    LoadedImg := ((LoadedModel.Objects[0] as TReportBand).Children[0]
+      as TReportImageObject);
+    Assert.IsTrue(Assigned(LoadedImg.Picture.Graphic) and
+      not LoadedImg.Picture.Graphic.Empty,
+      'PictureData must restore the embedded picture');
+    Assert.AreEqual('TBitmap', LoadedImg.Picture.Graphic.ClassName);
+
+    Engine := TReportEngine.Create(LoadedModel, DS, nil, nil);
+    try
+      Engine.ExportDocument := Doc;
+      Engine.Prepare;
+
+      Commands := CollectBySize(Doc, 200, 40);
+      Assert.AreEqual(1, Length(Commands),
+        'embedded PictureData image must produce one image command');
+
+      Pdf := ExportToPDF(Doc);
+      Assert.Contains(Pdf, '%%EOF', 'vector PDF must be complete');
+      Assert.Contains(Pdf, '/Subtype /Image',
+        'embedded PictureData image must export as an image XObject');
+      Assert.Contains(Pdf, '/Width 24',
+        'image XObject must carry the source width');
+      Assert.Contains(Pdf, '/Height 16',
+        'image XObject must carry the source height');
+      Assert.Contains(Pdf, ' Do'#10,
+        'image XObject must be drawn on the page');
+    finally
+      Engine.Free;
+    end;
+  finally
+    Doc.Free;
+    DS.Free;
+    LoadedModel.Free;
   end;
 end;
 
