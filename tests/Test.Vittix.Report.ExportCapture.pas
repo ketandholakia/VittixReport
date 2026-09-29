@@ -59,6 +59,8 @@ type
     [Test] procedure Test_HiddenEmbeddedPicture_NoCommand;
     [Test] procedure Test_EmbeddedPicture_HTMLExport_ContainsImage;
     [Test] procedure Test_EmbeddedPicture_PictureData_VectorPDF_ContainsImageXObject;
+    [Test] procedure Test_TransparentPng_Embedded_FlattenedToWhite_Characterization;
+    [Test] procedure Test_TransparentPng_PreviewAndVectorPDF_TransparencyDiscrepancy_Characterization;
     [Test] procedure Test_Base64Field_DataURI_RendersAndExports;
     [Test] procedure Test_Base64Field_BareBase64_Renders;
     [Test] procedure Test_Base64Field_Invalid_NoCommandNoException;
@@ -122,7 +124,8 @@ uses
   System.NetEncoding,
   Vittix.Report.Serializer,
   Vittix.Report.Export.HTML,
-  Vittix.Report.Export.VectorPDF;
+  Vittix.Report.Export.VectorPDF,
+  Vittix.Report.Renderer;
 
 function TExportCaptureTests.BuildDataSet: TClientDataSet;
 begin
@@ -633,6 +636,207 @@ begin
     Doc.Free;
     DS.Free;
     LoadedModel.Free;
+  end;
+end;
+
+const
+  { 8x4 RGBA PNG fixture (color type 6, generated with .NET): left half
+    opaque red, right half fully transparent green.  Used to characterize the
+    documented PNG-transparency limitation of the Vector PDF path. }
+  TransparentPngFixtureBase64 =
+    'iVBORw0KGgoAAAANSUhEUgAAAAgAAAAECAYAAACzzX7wAAAAAXNSR0IArs4c6QAAAARnQU1B' +
+    'AACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAXSURBVBhXY/jPwPAfGTP8ZwCRKJjG' +
+    'CgDcUC/R+6OT+QAAAABJRU5ErkJggg==';
+
+{ Writes the RGBA fixture to a unique temp file; the caller deletes it. }
+function WriteTransparentPngFixture: string;
+begin
+  Result := TPath.Combine(TPath.GetTempPath,
+    'vittix_test_rgba_' + TGUID.NewGuid.ToString + '.png');
+  TFile.WriteAllBytes(Result,
+    TNetEncoding.Base64.DecodeStringToBytes(TransparentPngFixtureBase64));
+end;
+
+{ T2: embedded transparent PNG characterization.  The engine capture draws the
+  picture onto a white-filled bitmap, so transparency is baked to white before
+  the Vector PDF writer ever sees the image; the writer emits no /SMask for
+  images (SMask plumbing is only used by the non-Latin-1 text raster fallback).
+  This is the documented M5.5 limitation ("PNG transparency is flattened onto
+  white; no alpha channel support"), deferred to v1.1 - this test pins the
+  current, documented behavior and must be updated consciously when alpha
+  support ships. }
+procedure TExportCaptureTests.Test_TransparentPng_Embedded_FlattenedToWhite_Characterization;
+var
+  Model: TReportModel;
+  DS: TClientDataSet;
+  Band: TReportBand;
+  Img: TReportImageObject;
+  Chart, CrossTab: TReportObject;
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Commands: TArray<TReportExportImageCommand>;
+  PngPath, Pdf: string;
+  TempPng: TPngImage;
+begin
+  PngPath := WriteTransparentPngFixture;
+  try
+    Engine := BuildEngine(True, True, Chart, CrossTab, Doc, Model, DS);
+    try
+      Band := Model.Objects[0] as TReportBand;
+      Img := TReportImageObject.Create;
+      Img.Name := 'imgTransparent';
+      Img.Bounds := Rect(20, 150, 220, 190);
+      Img.DataField := '';
+      Img.Stretch := True;
+      Img.Picture.LoadFromFile(PngPath);
+      Assert.AreEqual('TPngImage', Img.Picture.Graphic.ClassName);
+      Assert.IsTrue(TPngImage(Img.Picture.Graphic).Header.ColorType = COLOR_RGBALPHA,
+        'fixture must load as an RGBA (color type 6) PNG');
+      Band.Children.Add(Img);
+
+      Engine.Prepare;
+
+      Commands := CollectBySize(Doc, 200, 40);
+      Assert.AreEqual(1, Length(Commands), 'embedded image command missing');
+
+      // Capture-level characterization: the registered temp PNG has no alpha
+      // and the transparent half is baked to white.
+      TempPng := TPngImage.Create;
+      try
+        TempPng.LoadFromFile(Commands[0].Source);
+        Assert.IsFalse(
+          TempPng.Header.ColorType in [COLOR_RGBALPHA, COLOR_GRAYSCALEALPHA],
+          'engine capture currently drops alpha (documented limitation)');
+        Assert.IsTrue(TempPng.Canvas.Pixels[0, 0] = clRed,
+          'opaque half must survive as red');
+        Assert.IsTrue(TempPng.Canvas.Pixels[7, 0] = clWhite,
+          'transparent half is flattened onto white (documented limitation)');
+      finally
+        TempPng.Free;
+      end;
+
+      // PDF-level characterization: image present, no alpha mask emitted.
+      Pdf := ExportToPDF(Doc);
+      Assert.Contains(Pdf, '/Subtype /Image', 'image must reach the PDF');
+      Assert.IsFalse(ContainsText(Pdf, '/SMask'),
+        'images emit no /SMask; transparency is flattened (M5.5 limitation)');
+    finally
+      Doc.Free;
+      Engine.Free;
+      Model.Free;
+      DS.Free;
+    end;
+  finally
+    TFile.Delete(PngPath);
+  end;
+end;
+
+{ T2 comparison: preview (renderer metafile -> bitmap) vs Vector PDF export for
+  a transparent PNG.  Measured behavior (characterization): the two pipelines
+  DISAGREE - the transparent region of a scaled alpha-PNG draw plays back from
+  the metafile as black (premultiplied alpha through the EMF record/playback
+  path), while the Vector PDF flattens the same pixels onto white (see
+  Test_TransparentPng_Embedded_FlattenedToWhite_Characterization above).  Both
+  are facets of the deferred v1.1 "PNG alpha" work; update this test
+  consciously when alpha support ships. }
+procedure TExportCaptureTests.Test_TransparentPng_PreviewAndVectorPDF_TransparencyDiscrepancy_Characterization;
+var
+  DS: TClientDataSet;
+  Model: TReportModel;
+  Band: TReportBand;
+  Img: TReportImageObject;
+  Engine: TReportEngine;
+  Renderer: TReportRenderer;
+  Bmp: TBitmap;
+  PngPath: string;
+  X, Y: Integer;
+  RedMinX, RedMaxX, RedMinY, RedMaxY: Integer;
+  RedHalfW: Integer;
+  HasGreen: Boolean;
+  NonBlackSamples: string;
+begin
+  PngPath := WriteTransparentPngFixture;
+  try
+    DS := TClientDataSet.Create(nil);
+    DS.FieldDefs.Add('Name', ftString, 20);
+    DS.CreateDataSet;
+    DS.AppendRecord(['row1']);
+    DS.First;
+
+    Model := TReportModel.Create;
+    Band := TReportBand.Create;
+    Band.BandType := btPageHeader;
+    Band.Height := 400;
+    Img := TReportImageObject.Create;
+    Img.Name := 'imgPreviewAlpha';
+    Img.Bounds := Rect(20, 150, 220, 190);
+    Img.DataField := '';
+    Img.Stretch := True;
+    Img.Picture.LoadFromFile(PngPath);
+    Band.Children.Add(Img);
+    Model.Objects.Add(Band);
+
+    Engine := TReportEngine.Create(Model, DS, nil, nil);
+    Renderer := TReportRenderer.Create;
+    try
+      Renderer.Render(Engine, Model.PageSettings.PageWidth,
+        Model.PageSettings.PageHeight);
+      Assert.IsTrue(Renderer.Pages.Count >= 1, 'preview must render one page');
+      Bmp := Renderer.Pages[0].Bitmap;
+      Assert.IsNotNull(Bmp, 'preview bitmap must materialise');
+
+      // With the object defaults (stretch + proportional + center) the 8x4
+      // fixture is drawn as a centered 80x40 copy: opaque red left half,
+      // transparent right half of equal width.  Locate the red half; the
+      // transparent half is the equally wide run immediately to its right.
+      RedMinX := MaxInt;
+      RedMaxX := -1;
+      RedMinY := MaxInt;
+      RedMaxY := -1;
+      HasGreen := False;
+      for Y := 0 to 450 do
+        for X := 0 to 350 do
+          if (X < Bmp.Width) and (Y < Bmp.Height) then
+          begin
+            if Bmp.Canvas.Pixels[X, Y] = clRed then
+            begin
+              if X < RedMinX then RedMinX := X;
+              if X > RedMaxX then RedMaxX := X;
+              if Y < RedMinY then RedMinY := Y;
+              if Y > RedMaxY then RedMaxY := Y;
+            end;
+            if Bmp.Canvas.Pixels[X, Y] = clGreen then HasGreen := True;
+          end;
+
+      Assert.IsTrue(RedMaxX >= 0, 'preview must show the opaque red half');
+      RedHalfW := RedMaxX - RedMinX + 1;
+      Assert.IsTrue(RedHalfW >= 20, 'red half must have a plausible size');
+      Assert.IsFalse(HasGreen,
+        'transparent region must not show the raw RGB color in the preview');
+
+      // Characterization: the transparent half renders BLACK in the
+      // metafile/preview pipeline (premultiplied alpha playback), NOT the raw
+      // green and NOT the white the Vector PDF produces.  Sampled well inside
+      // the transparent run, away from the edges.
+      NonBlackSamples := '';
+      for X := RedMaxX + 4 to RedMaxX + RedHalfW - 4 do
+        for Y := RedMinY + 5 to RedMaxY - 5 do
+          if (X >= 0) and (X < Bmp.Width) and (Y >= 0) and (Y < Bmp.Height) then
+            if Bmp.Canvas.Pixels[X, Y] <> clBlack then
+              if Length(NonBlackSamples) < 240 then
+                NonBlackSamples := NonBlackSamples + Format('(%d,%d)=%.6x ',
+                  [X, Y, Integer(Bmp.Canvas.Pixels[X, Y])]);
+      Assert.IsTrue(NonBlackSamples = '',
+        'transparent half must be black in the preview (current behavior); ' +
+        'non-black samples: ' + NonBlackSamples);
+    finally
+      Renderer.Free;
+      Engine.Free;
+      Model.Free;
+      DS.Free;
+    end;
+  finally
+    TFile.Delete(PngPath);
   end;
 end;
 
