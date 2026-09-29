@@ -113,7 +113,7 @@ const
 
 type
   // One embedded raster image, written as a PDF Image XObject (not an
-  // inline BI/ID/EI image - see VectorPDF_DevelopmentPlan.md "M5.5").
+  // inline BI/ID/EI image - see docs/archive/VectorPDF_DevelopmentPlan.md "M5.5").
   // ObjectNo is filled in during the numbering pass, after all pages'
   // content and image lists are known.
   TPdfImageXObject = record
@@ -352,7 +352,7 @@ var
     // points and alignment match the GDI-rendered preview as closely as
     // possible. The PDF itself still draws with a built-in Helvetica
     // variant (see PdfFontName) until font embedding lands - see the
-    // "Known limitations" note in VectorPDF_DevelopmentPlan.md.
+    // "Known limitations" note in docs/archive/VectorPDF_DevelopmentPlan.md.
     MeasureBmp.Canvas.Font.Name := AText.FontName;
     MeasureBmp.Canvas.Font.Size := AText.FontSize;
     MeasureBmp.Canvas.Font.Style := AText.FontStyle;
@@ -1592,7 +1592,7 @@ var
           end;
           // Unsupported/missing image sources are skipped: text, line,
           // shape, and other image output must not be affected (per
-          // VectorPDF_DevelopmentPlan.md M5 "fail gracefully" rule).
+          // docs/archive/VectorPDF_DevelopmentPlan.md M5 "fail gracefully" rule).
         end;
       end;
     end;

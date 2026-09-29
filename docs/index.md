@@ -131,17 +131,17 @@ Recorded against `96197c1` (`main`), with the modernization baseline tagged
 
 ## Documentation map
 
+- **Development plan** — the [full code analysis](development-plan.md), the single
+  source of truth for development planning (bug queue = §5, refactoring plan = §12).
 - **Project** — the repository [README](readme.md), the [user manual](user-manual.md), the [developer manual](developer-manual.md) and
   the [testing guide](testing.md).
 - **Reference** — [report events](EVENTS.md), the [designer](designer.md), its [icon map](designer-icon-map.md), the [demo
-  application](demo-app.md), the [demo templates](demo-templates.md), the [regression fixtures](regression-fixtures.md) and the [branding
-  assets](branding.md).
-- **Roadmap** — TODO, the bug queue, the designer UX roadmap and the feature
-  plans.
-- **Modernization** — the Phase 1 to Phase 6 programme documents, the expression
-  engine design and the residual audit.
-- **Analysis** — the architecture analysis, the technical evaluation, the code
-  reviews and the GAP-005 audits.
+  application](demo-app.md), the [demo templates](demo-templates.md), the [regression fixtures](regression-fixtures.md), the [branding
+  assets](branding.md) and the [Export-PDF ADR](ADR-Export-PDF.md).
+- **Archive (superseded)** — the [archive index](archive/README.md): backlogs, bug
+  queues, per-feature development plans, the Phase 1–6 programme documents, the GAP-005
+  audits, the architecture analysis, the technical evaluation and the code reviews.
+  Historical record only — do not plan work from them.
 
 ## Local preview
 

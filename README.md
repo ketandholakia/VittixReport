@@ -117,5 +117,17 @@ printer-based compatibility path is `ExportToPrinterPDF(...)`.
 See [LICENSE](LICENSE).
 
 ## Documentation
+
+### Development plan (source of truth)
+- **`VittixReport_FullCodeAnalysis.md`** — the full code-analysis report and the single
+  source of truth for development planning: §5 (Issues by Severity) is the working bug
+  queue, §12 (Refactoring Plan) is the backlog of parked work.
+- **`DEVELOPMENT_PLAN.md`** — the execution schedule derived from the report: work items
+  (DP-xx) in waves, each with fix approach, test plan and completion status.
+- Superseded planning documents are archived under `docs/archive/` (historical record only).
+
+### Manuals and guides
 - See `USER_MANUAL.md` for end-user instructions
 - See `DEVELOPER_MANUAL.md` for developer integration and extension
+- See `TESTING.md` for the test gates and manual checklists
+- The full documentation site lives in `docs/` (MkDocs; `docs/index.md` is the map)

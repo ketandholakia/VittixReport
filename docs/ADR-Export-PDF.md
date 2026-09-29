@@ -2,7 +2,7 @@
 
 Status: **Accepted — C-4a: Vector PDF is the default PDF export** (implemented 2026-09-19)
 Date: 2026-09-19
-Scope: `E0 — Export Baseline & PDF Decision` (see [Export roadmap](Export-Roadmap.md))
+Scope: `E0 — Export Baseline & PDF Decision` (see [Export roadmap](archive/Export-Roadmap.md) — archived)
 Deciders: project owner
 
 **Update 2026-09-19 (after the baseline):** the blocking defect in §3.3 has
@@ -279,7 +279,7 @@ only its preserved public surface is asserted.
   "Full Unicode/font embedding is still pending" message are **stale** and must
   be corrected once (5) is settled (see §8).
 * Silent/server PDF export becomes possible without third-party libraries,
-  satisfying the dependency policy in the [Export roadmap](Export-Roadmap.md).
+  satisfying the dependency policy in the [Export roadmap](archive/Export-Roadmap.md) (archived).
 
 ## 8. Documentation drift found (to correct)
 

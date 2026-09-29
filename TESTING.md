@@ -21,7 +21,7 @@ benchmark timings land in `build\phase5-benchmark-timings.txt`.
 
 CI (`.github/workflows/build-and-test.yml`) runs the same script on a
 self-hosted Windows runner with RAD Studio installed. See
-`docs/Phase5-Quality-Benchmark-CI.md` for the gate contract.
+`docs/archive/Phase5-Quality-Benchmark-CI.md` for the gate contract.
 
 **Known hazard — incremental builds (stale binary).** The gate builds with
 `/t:Build`. MSBuild's incremental check works off file-timestamp granularity, so

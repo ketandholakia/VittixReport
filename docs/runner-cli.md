@@ -115,4 +115,4 @@ thresholds to the output.
 
 - [Testing](testing.md) — the automated gate and the manual checklists that use these commands.
 - [Regression fixtures](regression-fixtures.md) — the 42 fixtures and the baseline file this tool checks.
-- [Phase 5 - quality, benchmarking & CI](Phase5-Quality-Benchmark-CI.md) — the gate contract this tool implements.
+- [Phase 5 - quality, benchmarking & CI](archive/Phase5-Quality-Benchmark-CI.md) — the gate contract this tool implements (archived).

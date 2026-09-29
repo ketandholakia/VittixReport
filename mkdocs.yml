@@ -67,6 +67,23 @@ theme:
 plugins:
   - search
 
+# The archived root-level source documents (backlog, bug queue, code reviews,
+# per-feature development plans, closure audit, old analysis) are embedded in
+# their archive wrapper pages via pymdownx.snippets, so they must not ALSO be
+# built as standalone site pages. Snippets read them from disk regardless.
+exclude_docs: |
+  archive/BACKLOG_v1.1.md
+  archive/VittixReport_BugQueue.md
+  archive/VittixReport_CodeReview.md
+  archive/VittixReport_CodeReview_v2.md
+  archive/VITTORIX_REPORT_TECHNICAL_EVALUATION.md
+  archive/REPORTING_COMPONENT_ARCHITECTURE_ANALYSIS.md
+  archive/VectorPDF_DevelopmentPlan.md
+  archive/EmbeddedImage_DevelopmentPlan.md
+  archive/TextExpressionEditor_DevelopmentPlan.md
+  archive/Phase4B-2B-ClosureAudit.md
+  archive/Phase4I-20-plan.md
+
 markdown_extensions:
   - admonition
   - attr_list
@@ -104,6 +121,9 @@ extra:
 
 nav:
   - Home: index.md
+  - Development plan:
+      - Full code analysis (source of truth): development-plan.md
+      - Execution schedule (waves): execution-plan.md
   - Project:
       - README: readme.md
       - User manual: user-manual.md
@@ -118,36 +138,36 @@ nav:
       - Regression fixtures: regression-fixtures.md
       - VittixRunner CLI: runner-cli.md
       - Branding assets: branding.md
-  - Roadmap:
-      - TODO: todo.md
-      - Bug queue: bug-queue.md
-      - Designer UX roadmap: Designer-UX-Roadmap.md
-      - Export roadmap: Export-Roadmap.md
       - Export PDF ADR (E0): ADR-Export-PDF.md
-      - Embedded image plan: plan-embedded-image.md
-      - Text expression editor plan: plan-text-expression-editor.md
-      - Vector PDF plan: plan-vector-pdf.md
-      - Phase 4I-20 plan: plan-phase4i20.md
-  - Modernization:
-      - Phase 1 - characterization and safety: Phase1-Characterization-and-Safety.md
-      - Phase 2 - data capability and traversal diagnostics: Phase2-Data-Capability-and-Traversal-Diagnostics.md
-      - Phase 3 - performance foundations: Phase3-Performance-Foundations.md
-      - Phase 4 - checkpoint: Phase4-Checkpoint.md
-      - Phase 4A - expression compatibility contract: Phase4A-Expression-Compatibility-Contract.md
-      - Phase 4B - compatibility evaluator: Phase4B-Compatibility-Evaluator.md
-      - Phase 4B-2A - modern expression semantics: Phase4B2A-Modern-Expression-Semantics.md
-      - Phase 4B-2B - modern expression implementation: Phase4B2B-Modern-Expression-Implementation.md
-      - Phase 4B-2B - closure audit: phase4b2b-closure-audit.md
-      - Phase 4I-20 - expression engine design: Phase4I-20-ExpressionEngineDesign.md
-      - Phase 5 - quality, benchmarking and CI: Phase5-Quality-Benchmark-CI.md
-      - Phase 6 - output coverage: Phase6-Output-Coverage.md
-      - Residual audit: Modernization-Residual-Audit.md
-  - Analysis:
-      - Architecture analysis: architecture-analysis.md
-      - Technical evaluation: technical-evaluation.md
-      - Code review: code-review.md
-      - Code review v2: code-review-v2.md
-      - GAP-005 page ownership audit: GAP-005-Page-Ownership-Audit.md
-      - GAP-005 print audit: GAP-005-P3-Print-Audit.md
-      - GAP-005 residual review: GAP-005-Residual-Review.md
+  - Archive (superseded):
+      - About the archive: archive/README.md
+      - TODO: archive/TODO.md
+      - Backlog v1.1: archive/BACKLOG_v1.1.md
+      - Bug queue: archive/bug-queue.md
+      - Designer UX roadmap: archive/Designer-UX-Roadmap.md
+      - Export roadmap: archive/Export-Roadmap.md
+      - Embedded image plan: archive/plan-embedded-image.md
+      - Text expression editor plan: archive/plan-text-expression-editor.md
+      - Vector PDF plan: archive/plan-vector-pdf.md
+      - Phase 4I-20 plan: archive/plan-phase4i20.md
+      - Architecture analysis: archive/architecture-analysis.md
+      - Technical evaluation: archive/technical-evaluation.md
+      - Code review: archive/code-review.md
+      - Code review v2: archive/code-review-v2.md
+      - Phase 1 - characterization and safety: archive/Phase1-Characterization-and-Safety.md
+      - Phase 2 - data capability and traversal diagnostics: archive/Phase2-Data-Capability-and-Traversal-Diagnostics.md
+      - Phase 3 - performance foundations: archive/Phase3-Performance-Foundations.md
+      - Phase 4 - checkpoint: archive/Phase4-Checkpoint.md
+      - Phase 4A - expression compatibility contract: archive/Phase4A-Expression-Compatibility-Contract.md
+      - Phase 4B - compatibility evaluator: archive/Phase4B-Compatibility-Evaluator.md
+      - Phase 4B-2A - modern expression semantics: archive/Phase4B2A-Modern-Expression-Semantics.md
+      - Phase 4B-2B - modern expression implementation: archive/Phase4B2B-Modern-Expression-Implementation.md
+      - Phase 4B-2B - closure audit: archive/phase4b2b-closure-audit.md
+      - Phase 4I-20 - expression engine design: archive/Phase4I-20-ExpressionEngineDesign.md
+      - Phase 5 - quality, benchmarking and CI: archive/Phase5-Quality-Benchmark-CI.md
+      - Phase 6 - output coverage: archive/Phase6-Output-Coverage.md
+      - Residual audit: archive/Modernization-Residual-Audit.md
+      - GAP-005 page ownership audit: archive/GAP-005-Page-Ownership-Audit.md
+      - GAP-005 print audit: archive/GAP-005-P3-Print-Audit.md
+      - GAP-005 residual review: archive/GAP-005-Residual-Review.md
   - License: https://github.com/ketandholakia/VittixReport/blob/main/LICENSE

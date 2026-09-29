@@ -4,7 +4,7 @@
 
 The freeze baseline is tagged `v1.0-freeze-start`. Until `v1.0.0` is tagged, ONLY these changes are allowed:
 
-- `[fix]` Bug fixes (P0/P1 from `VittixReport_BugQueue.md`, or bugs found during soak)
+- `[fix]` Bug fixes (P0/P1 from the prioritized issue list in `VittixReport_FullCodeAnalysis.md` §5, or bugs found during soak)
 - `[test]` Tests, golden files, failing-test reproductions
 - `[chore]` Documentation corrections for existing behavior only
 
@@ -22,10 +22,25 @@ Feature-vs-bug test:
 
 > Does the report render what the designer says it should?
 >
-> - YES → not a bug → add to `BACKLOG_v1.1.md` and stop.
+> - YES → not a bug → park it in the Refactoring Plan (`VittixReport_FullCodeAnalysis.md` §12) and stop.
 > - NO → bug → write a failing test → fix it.
 
-Parked ideas and deferred plan work live in `BACKLOG_v1.1.md`. Do not start them until v1.0.0 ships.
+## Development Plan — Source of Truth
+
+`VittixReport_FullCodeAnalysis.md` (repository root) is the single source of truth for
+development planning:
+
+- §5 (Issues by Severity) is the working bug queue for `[fix]` work.
+- §12 (Refactoring Plan) is where parked ideas and deferred plan work live.
+  Do not start parked work until v1.0.0 ships.
+
+`DEVELOPMENT_PLAN.md` (repository root) is the execution schedule derived from the
+report: work items (DP-xx) with fix approach, test plan, and completion status,
+organized in waves. Work items in plan order; keep its status column current.
+
+All superseded planning documents (backlogs, bug queues, per-feature development
+plans, phase/programme documents, analyses and code reviews) are archived under
+`docs/archive/` — historical record only, not current guidance.
 
 ## Project Type
 
