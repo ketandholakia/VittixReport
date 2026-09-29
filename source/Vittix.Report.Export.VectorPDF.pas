@@ -212,13 +212,60 @@ var
     Result := APage.Height - AY;
   end;
 
+  { Maps one character accepted by SupportsPdfAnsiText to its WinAnsi
+    (cp1252) byte.  The conversion is explicit so the emitted bytes never
+    depend on the machine's system ANSI code page: the previous
+    AnsiString(S) conversion went through the process default code page,
+    degrading eacute/ldquo/rdquo on non-cp1252 systems and turning the
+    accepted C1 forms $80..$9F into '?'. }
+  function WinAnsiByteForChar(C: WideChar): AnsiChar;
+  begin
+    if Ord(C) <= $FF then
+      Result := AnsiChar(Ord(C)) // ASCII + C1 passthrough + Latin-1
+    else
+      case Ord(C) of
+        $20AC: Result := AnsiChar($80);
+        $201A: Result := AnsiChar($82);
+        $0192: Result := AnsiChar($83);
+        $201E: Result := AnsiChar($84);
+        $2026: Result := AnsiChar($85);
+        $2020: Result := AnsiChar($86);
+        $2021: Result := AnsiChar($87);
+        $02C6: Result := AnsiChar($88);
+        $2030: Result := AnsiChar($89);
+        $0160: Result := AnsiChar($8A);
+        $2039: Result := AnsiChar($8B);
+        $0152: Result := AnsiChar($8C);
+        $017D: Result := AnsiChar($8E);
+        $2018: Result := AnsiChar($91);
+        $2019: Result := AnsiChar($92);
+        $201C: Result := AnsiChar($93);
+        $201D: Result := AnsiChar($94);
+        $2022: Result := AnsiChar($95);
+        $2013: Result := AnsiChar($96);
+        $2014: Result := AnsiChar($97);
+        $02DC: Result := AnsiChar($98);
+        $2122: Result := AnsiChar($99);
+        $203A: Result := AnsiChar($9B);
+        $0153: Result := AnsiChar($9C);
+        $017E: Result := AnsiChar($9E);
+        $0178: Result := AnsiChar($9F);
+      else
+        // Unreachable for callers gated by SupportsPdfAnsiText; keep a
+        // visible replacement rather than silently dropping data.
+        Result := '?';
+      end;
+  end;
+
   function PdfText(const S: string): AnsiString;
   var
+    I: Integer;
     Ch: AnsiChar;
   begin
     Result := '';
-    for Ch in AnsiString(S) do
+    for I := 1 to Length(S) do
     begin
+      Ch := WinAnsiByteForChar(S[I]);
       case Ch of
         '(', ')', '\': Result := Result + '\' + Ch;
         #13, #10: Result := Result + ' ';
