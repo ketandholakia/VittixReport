@@ -1400,6 +1400,18 @@ begin
       if Assigned(Root.GetValue('Version')) then
         Version := Trunc(Root.GetValue<Double>('Version'));
 
+      // DP-26: never silently load a NEWER format as v2 - future semantics
+      // would be dropped property-by-property. Reading v1 (no Version key)
+      // and v2 stays unchanged.
+      if Version > 2 then
+      begin
+        Result.AddError(
+          Format('Unsupported report format version %d (supported: 1, 2). ' +
+            'The file was written by a newer version of VittixReport.',
+            [Version]), '', '', 'UNSUPPORTED_VERSION');
+        Exit;
+      end;
+
       Result.Model := TReportModel.Create;
 
       // Phase 4B-2B: report-level expression language version.
