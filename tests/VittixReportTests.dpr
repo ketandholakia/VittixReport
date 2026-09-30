@@ -60,6 +60,7 @@ uses
   Test.Vittix.Report.Objects.QR in 'Test.Vittix.Report.Objects.QR.pas',
   Test.Vittix.Report.Objects.Memo in 'Test.Vittix.Report.Objects.Memo.pas',
   Test.Vittix.Report.Objects.CrossTab in 'Test.Vittix.Report.Objects.CrossTab.pas',
+  Test.Vittix.Report.Objects.Text in 'Test.Vittix.Report.Objects.Text.pas',
   Test.Vittix.Report.ExportCapture in 'Test.Vittix.Report.ExportCapture.pas',
   Test.Vittix.Report.Export.HTML in 'Test.Vittix.Report.Export.HTML.pas',
   Test.Vittix.Report.Export.XLSX in 'Test.Vittix.Report.Export.XLSX.pas',
