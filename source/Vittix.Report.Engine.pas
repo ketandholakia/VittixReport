@@ -875,7 +875,18 @@ begin
       Continue;
 
     NewValue := SourceFieldValue(FDataSet, FUserDataSet, GH.GroupField);
-    if VarIsNull(FLastGroupValues[I]) or (NewValue <> FLastGroupValues[I]) then
+    // DP-16: strict value identity. The old '<>' coerced across variant
+    // types (integer 1 and string '1' compared equal, silently merging
+    // groups) - and so does VarSameValue on its own (it delegates to
+    // VarCompareValue, which converts numeric strings), hence the explicit
+    // VarType guard first. Null handling is explicit and preserves the
+    // previous semantics exactly: a Null sentinel/previous value opens,
+    // and a value->NULL transition fires ('<>' against Null already
+    // evaluated truthy - pinned by Test_GroupBreak_NullTransitions_Fire).
+    if VarIsNull(FLastGroupValues[I]) or
+       VarIsNull(NewValue) or
+       (VarType(NewValue) <> VarType(FLastGroupValues[I])) or
+       not VarSameValue(NewValue, FLastGroupValues[I]) then
       Exit(I);
   end;
 end;
