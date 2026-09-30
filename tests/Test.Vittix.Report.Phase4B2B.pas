@@ -538,15 +538,19 @@ end;
 procedure TPhase4B2BModernExpressionTests.Test_Modern_NumberLiterals_LocaleIndependent;
 var
   SavedDecimal: Char;
+  V: Variant;
 begin
   // DP-28 / M-24: number literals were parsed with the CURRENT locale, so
   // on a comma-decimal machine '1.5' failed TryStrToFloat and silently
   // became 0 (1.5 + 0.5 evaluated as 0). The tokenizer scans '.' as the
   // decimal separator, so the conversion must be invariant.
+  // NOTE: goes through the MODERN engine directly - this fixture's Eval
+  // helper leaves Context.ExpressionMode at its legacy default.
   SavedDecimal := FormatSettings.DecimalSeparator;
   FormatSettings.DecimalSeparator := ',';
   try
-    Assert.AreEqual(2.0, Double(Eval('1.5 + 0.5')), 0.0001,
+    V := TModernExpressionEngine.Evaluate('1.5 + 0.5', FContext);
+    Assert.AreEqual(2.0, Double(V), 0.0001,
       'dot-decimal literals must parse regardless of the machine locale');
   finally
     FormatSettings.DecimalSeparator := SavedDecimal;

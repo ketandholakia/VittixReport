@@ -127,7 +127,10 @@ begin
   begin
     FDiagnostics.AddError(InvalidNumber, StartPos, FIndex - StartPos, 'Number literal cannot end with decimal point');
     NumStr := Copy(FText, StartPos, FIndex - StartPos);
-    if TryStrToFloat(NumStr, NumValue) then
+    // DP-28: the scanner treats '.' as the decimal separator, so the
+    // conversion must be invariant - the current locale would silently
+    // turn '1.5' into 0 on comma-decimal machines.
+    if TryStrToFloat(NumStr, NumValue, TFormatSettings.Invariant) then
       Result := TExpressionToken.Create(tkNumber, NumStr, StartPos, FIndex - StartPos, NumValue)
     else
       Result := TExpressionToken.Create(tkNumber, NumStr, StartPos, FIndex - StartPos, 0);
@@ -139,7 +142,7 @@ begin
   begin
     FDiagnostics.AddError(InvalidNumber, StartPos, FIndex - StartPos, 'Number literal cannot start with decimal point');
     NumStr := Copy(FText, StartPos, FIndex - StartPos);
-    if TryStrToFloat(NumStr, NumValue) then
+    if TryStrToFloat(NumStr, NumValue, TFormatSettings.Invariant) then
       Result := TExpressionToken.Create(tkNumber, NumStr, StartPos, FIndex - StartPos, NumValue)
     else
       Result := TExpressionToken.Create(tkNumber, NumStr, StartPos, FIndex - StartPos, 0);
@@ -147,10 +150,16 @@ begin
   end;
 
   NumStr := Copy(FText, StartPos, FIndex - StartPos);
-  if TryStrToFloat(NumStr, NumValue) then
+  if TryStrToFloat(NumStr, NumValue, TFormatSettings.Invariant) then
     Result := TExpressionToken.Create(tkNumber, NumStr, StartPos, FIndex - StartPos, NumValue)
   else
+  begin
+    // DP-28: a digits-and-one-dot literal can only fail invariant conversion
+    // on overflow - report it instead of the previous silent 0.
+    FDiagnostics.AddError(InvalidNumber, StartPos, FIndex - StartPos,
+      Format('Number literal "%s" is not a valid number', [NumStr]));
     Result := TExpressionToken.Create(tkNumber, NumStr, StartPos, FIndex - StartPos, 0);
+  end;
 end;
 
 function TExpressionTokenizer.ReadString: TExpressionToken;
