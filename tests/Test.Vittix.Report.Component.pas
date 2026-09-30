@@ -336,9 +336,16 @@ begin
   try
     Rpt.ExportToPDF(FileName);
     Pdf := BytesToAnsi(ReadFileBytes(FileName));
+    // DP-30 / M-14: the title renders through the embedded-font pipeline
+    // now; verify through the embedded font + its ToUnicode map, and ensure
+    // it is no longer emitted as a Helvetica literal.
     Assert.IsTrue(Pos('%%EOF', string(Pdf)) > 0, 'PDF must be terminated');
-    Assert.IsTrue(Pos('Vector PDF default export', string(Pdf)) > 0,
-      'PDF must contain the rendered title text');
+    Assert.IsTrue(Pos('/Type0', string(Pdf)) > 0,
+      'the title must render through the embedded font');
+    Assert.IsTrue(Pos('/ToUnicode', string(Pdf)) > 0,
+      'title text must remain extractable');
+    Assert.IsTrue(Pos('Vector PDF default export', string(Pdf)) = 0,
+      'the title must not be drawn as an ANSI Helvetica literal');
   finally
     Rpt.Free;
     if FileExists(FileName) then TFile.Delete(FileName);
@@ -382,8 +389,12 @@ begin
   try
     Rpt.ExportToPDF(FileName);
     Pdf := BytesToAnsi(ReadFileBytes(FileName));
-    Assert.IsTrue(Pos('Normal text', string(Pdf)) > 0,
-      'rich memo fixture must still export its text through the default path');
+    // DP-30 / M-14: rich ANSI segments now embed the report font as well;
+    // the literal-text check becomes an embedded-pipeline check.
+    Assert.IsTrue(Pos('/Type0', string(Pdf)) > 0,
+      'rich memo fixture must export its text through the embedded font pipeline');
+    Assert.IsTrue(Pos('Normal text', string(Pdf)) = 0,
+      'rich segments must not be drawn as ANSI Helvetica literals');
   finally
     Rpt.Free;
     if FileExists(FileName) then TFile.Delete(FileName);

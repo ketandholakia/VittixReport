@@ -10,7 +10,9 @@ unit Test.Vittix.Report.IndicVectorPDF;
       smaller output, graceful fallback on non-font input);
     * end-to-end writer behaviour for non-Latin text (embedded Type0 font,
       FontFile2, ToUnicode, and a subset smaller than the whole font file);
-    * that Latin text still takes the built-in Helvetica path.
+    * that Latin text is embedded through the same shaped-glyph pipeline
+      (DP-30 / M-14) so the PDF draws with the font the layout measured
+      with; the built-in Helvetica resources remain as a fallback only.
 }
 
 interface
@@ -38,7 +40,7 @@ type
     [Test] procedure Indic_EmbedsType0FontWithSubset;
     [Test] procedure Indic_SubsetIsSmallerThanWholeFontFile;
     [Test] procedure Indic_ToUnicodeMapPresent;
-    [Test] procedure LatinText_StillUsesHelvetica;
+    [Test] procedure LatinText_EmbedsReportFont;
     [Test] procedure HindiReportFixture_ExportsType0Font;
     [Test] procedure GujaratiReportFixture_ExportsType0Font;
   end;
@@ -337,10 +339,23 @@ begin
     '/ToUnicode'), 'expected a /ToUnicode CMap for text extraction');
 end;
 
-procedure TIndicVectorPdfTests.LatinText_StillUsesHelvetica;
+procedure TIndicVectorPdfTests.LatinText_EmbedsReportFont;
+var
+  Pdf: AnsiString;
 begin
-  Assert.IsTrue(PdfContains(ExportTextPdf('Plain latin invoice line 123.45', 'Tahoma', 12),
-    '/Helvetica'), 'Latin-1 text must keep the built-in Helvetica path');
+  // DP-30 / M-14: Latin text must be embedded through the same shaped-glyph
+  // pipeline as the Indic scripts so the PDF renders with (and measures
+  // identically to) the report font.  Until DP-30 Latin always drew with
+  // built-in Helvetica while the layout measured with the report font.
+  Pdf := ExportTextPdf('Plain latin invoice line 123.45', 'Tahoma', 12);
+  Assert.IsTrue(PdfContains(Pdf, '/Type0'), 'Latin text must use an embedded Type0 font');
+  Assert.IsTrue(PdfContains(Pdf, '/CIDFontType2'), 'expected CIDFontType2');
+  Assert.IsTrue(PdfContains(Pdf, '/FontFile2'), 'expected an embedded font file');
+  Assert.IsTrue(PdfContains(Pdf, '/ToUnicode'), 'expected a ToUnicode map for extraction');
+  Assert.IsTrue(PdfContains(Pdf, '/BaseFont /Tahoma'),
+    'the embedded font must be the report font (Tahoma), not Helvetica');
+  Assert.IsFalse(PdfContains(Pdf, '(Plain latin invoice line 123.45) Tj'),
+    'Latin text must not be drawn as a Helvetica literal any more');
 end;
 
 procedure TIndicVectorPdfTests.HindiReportFixture_ExportsType0Font;

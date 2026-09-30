@@ -77,7 +77,7 @@ type
     [Test] procedure Test_FilePathPNG_VectorPDF_Regression;
     [Test] procedure Test_FilePathJPEG_VectorPDF_Regression;
     [Test] procedure Test_FilePathInvalidRaster_GracefulSkip;
-    [Test] procedure Test_AnsiText_VectorPDF_EmitsExactCp1252Bytes;
+    [Test] procedure Test_AnsiText_VectorPDF_Cp1252SurvivesEmbeddedPath;
     [Test] procedure Test_NonAnsiText_Rupee_NotSentThroughAnsiPath;
     [Test] procedure Test_TextVAlign_Top_Captured;
     [Test] procedure Test_TextVAlign_Center_Captured;
@@ -1647,7 +1647,7 @@ end;
   must emit its cp1252 byte directly - not a conversion through the process
   ANSI code page (AnsiString), which is what made the output depend on the
   system code page. }
-procedure TExportCaptureTests.Test_AnsiText_VectorPDF_EmitsExactCp1252Bytes;
+procedure TExportCaptureTests.Test_AnsiText_VectorPDF_Cp1252SurvivesEmbeddedPath;
 var
   DS: TClientDataSet;
   Model: TReportModel;
@@ -1655,7 +1655,8 @@ var
   Txt: TReportTextObject;
   Engine: TReportEngine;
   Doc: TReportExportDocument;
-  Pdf, Expected: string;
+  Pdf: string;
+  OldLiteral: string;
 begin
   DS := TClientDataSet.Create(nil);
   DS.FieldDefs.Add('Name', ftString, 20);
@@ -1685,17 +1686,25 @@ begin
     Pdf := ExportToPDF(Doc);
     Assert.Contains(Pdf, '%%EOF', 'vector PDF must be complete');
 
-    // Expected winansi bytes: A=41 E9(eacute) 93(ldquo) 94(rdquo) 93 C1 B=42
-    // (4-digit #$00NN literals: 2-digit #$NN in the $80..$FF range would be
-    // re-interpreted through the source ANSI code page by the compiler.)
-    Expected := '(A' + #$00E9 + #$0093 + #$0094 + #$0093 + 'B) Tj';
-    Assert.IsTrue(Pos(Expected, Pdf) > 0,
-      'ANSI text must be emitted as exact cp1252 bytes regardless of the ' +
-      'system ANSI code page');
+    // DP-30 / M-14: cp1252-representable text (including the byte-stuffed C1
+    // forms) now flows through the embedded glyph pipeline.  The guarantee is
+    // still "no character degradation", now provable through the ToUnicode
+    // map: eacute maps as U+00E9, and BOTH quote characters - the direct
+    // U+201C/U+201D and the byte-stuffed U+0093 (normalised to U+201C) - map
+    // as U+201C/U+201D.  The raw C1 code must never leak into the map, and
+    // the old Helvetica literal must be gone.
+    Assert.Contains(Pdf, '/Type0', 'cp1252 text must use the embedded pipeline');
+    Assert.IsTrue(Pos('<00E9>', Pdf) > 0,
+      'eacute must survive to the ToUnicode map');
+    Assert.IsTrue(Pos('<201C>', Pdf) > 0,
+      'ldquo (incl. the byte-stuffed U+0093 form) must map as U+201C');
+    Assert.IsTrue(Pos('<201D>', Pdf) > 0, 'rdquo must map as U+201D');
+    Assert.IsTrue(Pos('<0093>', Pdf) = 0,
+      'no raw C1 code may leak into the ToUnicode map');
 
-    // Control: no character may have been replaced by '?' along the way.
-    Assert.IsTrue(Pos('(A' + '?' + #$0093 + #$0094 + '?' + 'B) Tj', Pdf) = 0,
-      'no character may be silently replaced by ? on the ANSI path');
+    OldLiteral := '(A' + #$00E9 + #$0093 + #$0094 + #$0093 + 'B) Tj';
+    Assert.IsTrue(Pos(OldLiteral, Pdf) = 0,
+      'ANSI text must no longer be emitted as a cp1252 Helvetica literal');
   finally
     Engine.Free;
     Doc.Free;
