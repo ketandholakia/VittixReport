@@ -69,7 +69,8 @@ uses
   Test.Vittix.Report.IndicVectorPDF in 'Test.Vittix.Report.IndicVectorPDF.pas',
   Test.Vittix.Report.ExpressionAudit in 'Test.Vittix.Report.ExpressionAudit.pas',
   Test.Vittix.Report.Serializer.Registry in 'Test.Vittix.Report.Serializer.Registry.pas',
-  Test.Vittix.Report.Component in 'Test.Vittix.Report.Component.pas';
+  Test.Vittix.Report.Component in 'Test.Vittix.Report.Component.pas',
+  Test.Vittix.Report.DrawSuppression in 'Test.Vittix.Report.DrawSuppression.pas';
 
 var
   runner : ITestRunner;
