@@ -100,7 +100,7 @@ begin
 
   var TextR := Rect(R.Left + 4, R.Top + 4, R.Right - 4, R.Bottom - 4);
   DrawText(C.Handle, PChar(S), Length(S), TextR,
-    DT_LEFT or DT_TOP or DT_WORDBREAK or DT_END_ELLIPSIS);
+    DT_LEFT or DT_TOP or DT_WORDBREAK or DT_END_ELLIPSIS or DT_NOPREFIX);
 
   C.Pen.Style := psSolid;
 

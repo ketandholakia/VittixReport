@@ -793,6 +793,9 @@ begin
   else
     Fmt := DT_LEFT;
   end;
+  // DP-17: '&' in data is a literal character, not a GDI prefix marker -
+  // matching the single-line TextOut path and every other object type.
+  Fmt := Fmt or DT_NOPREFIX;
 
   if FWordWrap then
     Fmt := Fmt or DT_WORDBREAK
@@ -895,7 +898,7 @@ begin
   else
     Fmt := DT_LEFT;
   end;
-  Fmt := Fmt or DT_WORDBREAK;
+  Fmt := Fmt or DT_WORDBREAK or DT_NOPREFIX;
 
   C.Font.Assign(FFont);
   TxtH := DrawText(C.Handle, PChar(S), Length(S), R, Fmt or DT_CALCRECT);
