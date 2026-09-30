@@ -612,8 +612,16 @@ end;
 class function TExpressionLimits.Default: TExpressionLimits;
 begin
   Result.MaxExpressionLength := 4096;
-  Result.MaxParserDepth := 32;
-  Result.MaxDefensiveDepth := 128;
+  // DP-27: each paren level charges ~8 grammar-depth increments through the
+  // descent chain (Expression > And > Not > Comparison > Additive >
+  // Multiplicative > Unary > Primary), so 32 rejected legal nesting beyond
+  // ~4 levels. 256 still bounds pathological input (about 32 paren levels)
+  // while accepting ordinary expressions.
+  Result.MaxParserDepth := 256;
+  // EvalNode recursion is at most one frame per AST node, and MaxAstNodes
+  // (512) bounds the node count, so 512 can never be exceeded - the
+  // defensive check stays the last-resort stack guard.
+  Result.MaxDefensiveDepth := 512;
   Result.MaxAstNodes := 512;
   Result.MaxFunctionArgs := 16;
   Result.MaxAggregatesPerExpr := 8;

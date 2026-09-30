@@ -516,13 +516,21 @@ end;
 procedure TPhase4B2BModernExpressionTests.Test_Modern_DeepNesting_Evaluates;
 var
   DeepExpr: string;
+  V: Variant;
 begin
   // DP-27 / M-23: MaxParserDepth (32) charged ~8 grammar levels per paren,
   // so legal nesting beyond ~4 levels was rejected as "too deep". 20 nested
   // parentheses are ordinary arithmetic and must evaluate (modern mode:
   // innermost first). Stack safety stays bounded by the still-active limit.
   DeepExpr := StringOfChar('(', 20) + '1 + 2' + StringOfChar(')', 20);
-  Assert.AreEqual(3.0, Double(Eval(DeepExpr)), 0.0001,
+  try
+    V := TModernExpressionEngine.Evaluate(DeepExpr, FContext);
+  except
+    on E: EVittixExpressionError do
+      Assert.Fail(Format('deep-but-legal nesting rejected: %s (code at %d)',
+        [E.Message, E.Position]));
+  end;
+  Assert.AreEqual(3.0, Double(V), 0.0001,
     'deep-but-legal nesting must evaluate, not report ExpressionTooDeep');
 end;
 
@@ -1285,8 +1293,11 @@ begin
   Assert.IsTrue(EvalModernCode('1' + StringOfChar(' ', 5000) + '+ 1', Code));
   Assert.AreEqual(ExpressionTooLong, Code, 'length limit code');
 
-  // 10 nested parentheses exceed MaxParserDepth (32).
-  DeepExpr := StringOfChar('(', 10) + '1' + StringOfChar(')', 10);
+  // 60 nested parentheses exceed MaxParserDepth (256: ~8 grammar levels
+  // per paren, so legal nesting runs to ~32 levels; 60 is pathological).
+  // DP-27 moved the boundary from 10 levels to here - legal deep nesting
+  // is covered by Test_Modern_DeepNesting_Evaluates.
+  DeepExpr := StringOfChar('(', 60) + '1' + StringOfChar(')', 60);
   Assert.IsTrue(EvalModernCode(DeepExpr, Code));
   Assert.AreEqual(ExpressionTooDeep, Code, 'parser depth code');
 
