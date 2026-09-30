@@ -60,13 +60,42 @@ type
     [Test] procedure Test_QR_QuietZone_IsFourModules;
   end;
 
+  { DP-31 guard (the preview-vs-PDF barcode test the DP-21 freeze rule
+    requires): the export capture must emit bar geometry that matches the
+    preview (canvas Draw) pixel-for-pixel - same columns, same quiet zones.
+    Pre-DP-31 the capture used its own floor-unit geometry and diverged from
+    the canvas' proportional layout. }
+  [TestFixture]
+  TBarcodeParityTests = class
+  private
+    class function CanvasBarColumns(ASymbology: TReportBarcodeSymbology;
+      const AValue: string; AObjW, AObjH: Integer): TArray<Integer>;
+    class function CaptureBarColumns(ASymbology: TReportBarcodeSymbology;
+      const AValue: string; AObjW, AObjH: Integer): TArray<Integer>;
+    class procedure AssertColumnsEqual(ASymbology: TReportBarcodeSymbology;
+      const AValue: string; AObjW, AObjH: Integer);
+  public
+    [Test] procedure Test_Code39_BarsMatchPreview_ColumnParity;
+    [Test] procedure Test_Code39_ShortValue_ColumnParity;
+    [Test] procedure Test_Legacy_BarsMatchPreview_ColumnParity;
+    [Test] procedure Test_EAN13_BarsMatchPreview_ColumnParity;
+    [Test] procedure Test_QR_BarsMatchPreview_ColumnParity;
+  end;
+
 implementation
 
 uses
   System.SysUtils,
+  System.Generics.Collections,
   System.UITypes,
+  Data.DB,
+  Datasnap.DBClient,
   Vittix.Report.Context,
-  Vittix.Report.Objects;
+  Vittix.Report.Objects,
+  Vittix.Report.Model,
+  Vittix.Report.Engine,
+  Vittix.Report.Bands,
+  Vittix.Report.Export.Commands;
 
 { Draws a barcode object into a fresh white bitmap using its real Draw path.
   Caller owns the returned bitmap. }
@@ -549,7 +578,207 @@ begin
   end;
 end;
 
+
+{ TBarcodeParityTests }
+
+class function TBarcodeParityTests.CanvasBarColumns(
+  ASymbology: TReportBarcodeSymbology; const AValue: string;
+  AObjW, AObjH: Integer): TArray<Integer>;
+var
+  Obj: TReportBarcodeObject;
+  Ctx: TExpressionContext;
+  Bmp: TBitmap;
+  Row: PByteArray;
+  X, Y: Integer;
+  List: TList<Integer>;
+begin
+  Bmp := TBitmap.Create;
+  try
+    Bmp.PixelFormat := pf32bit;
+    Bmp.SetSize(AObjW + 40, AObjH + 40);
+    Bmp.Canvas.Brush.Color := clWhite;
+    Bmp.Canvas.FillRect(Rect(0, 0, Bmp.Width, Bmp.Height));
+
+    Obj := TReportBarcodeObject.Create;
+    try
+      Obj.Bounds := Rect(10, 10, 10 + AObjW, 10 + AObjH);
+      Obj.Value := AValue;
+      Obj.Symbology := ASymbology;
+      Obj.ShowText := False;
+      Obj.BarColor := clBlack;
+      Ctx := Default(TExpressionContext);
+      Obj.Draw(Bmp.Canvas, Ctx);
+    finally
+      Obj.Free;
+    end;
+
+    List := TList<Integer>.Create;
+    try
+      // Union of black columns across the whole object area: the bars for the
+      // 1D symbologies and the QR modules (which sit below a top quiet zone)
+      // are both covered; compared against the capture's bar rectangles.
+      for Y := 10 + 2 to 10 + AObjH - 2 do
+      begin
+        if (Y < 0) or (Y >= Bmp.Height) then
+          Continue;
+        Row := Bmp.ScanLine[Y];
+        for X := 10 + 2 to 10 + AObjW - 2 do
+          if (X < Bmp.Width) and
+             ((PCardinal(@Row[X * 4])^ and $00FFFFFF) = $00000000) then
+            List.Add(X);
+      end;
+      List.Sort;
+      SetLength(Result, 0);
+      for X := 0 to List.Count - 1 do
+        if (Length(Result) = 0) or (Result[High(Result)] <> List[X]) then
+        begin
+          SetLength(Result, Length(Result) + 1);
+          Result[High(Result)] := List[X];
+        end;
+    finally
+      List.Free;
+    end;
+  finally
+    Bmp.Free;
+  end;
+end;
+
+class function TBarcodeParityTests.CaptureBarColumns(
+  ASymbology: TReportBarcodeSymbology; const AValue: string;
+  AObjW, AObjH: Integer): TArray<Integer>;
+var
+  DS: TClientDataSet;
+  Model: TReportModel;
+  Band: TReportBand;
+  Obj: TReportBarcodeObject;
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Cmd: TReportExportCommand;
+  Fill: TReportExportFillRectangleCommand;
+  X, Shift: Integer;
+  List: TList<Integer>;
+begin
+  DS := TClientDataSet.Create(nil);
+  try
+    DS.FieldDefs.Add('Name', ftString, 20);
+    DS.CreateDataSet;
+    DS.AppendRecord(['row1']);
+    DS.First;
+
+    Model := TReportModel.Create;
+    try
+      Obj := TReportBarcodeObject.Create;
+      Obj.Bounds := Rect(10, 10, 10 + AObjW, 10 + AObjH);
+      Obj.Value := AValue;
+      Obj.Symbology := ASymbology;
+      Obj.ShowText := False;
+      Obj.BarColor := clBlack;
+
+      Band := TReportBand.Create;
+      Band.BandType := btPageHeader;
+      Band.Height := 200;
+      Band.Children.Add(Obj);
+      Model.Objects.Add(Band);
+
+      Doc := TReportExportDocument.Create;
+      try
+        Engine := TReportEngine.Create(Model, DS, nil, nil);
+        try
+          Engine.ExportDocument := Doc;
+          Engine.Prepare;
+
+          List := TList<Integer>.Create;
+          try
+            Shift := Model.PageSettings.Margins.Left;
+            for Cmd in Doc.Pages[0].Commands do
+              if Cmd is TReportExportFillRectangleCommand then
+              begin
+                Fill := TReportExportFillRectangleCommand(Cmd);
+                if Fill.FillColor = clBlack then
+                  for X := Fill.Bounds.Left - Shift to Fill.Bounds.Right - 1 - Shift do
+                    List.Add(X);
+              end;
+            List.Sort;
+            SetLength(Result, 0);
+            for X := 0 to List.Count - 1 do
+              if (Length(Result) = 0) or (Result[High(Result)] <> List[X]) then
+              begin
+                SetLength(Result, Length(Result) + 1);
+                Result[High(Result)] := List[X];
+              end;
+          finally
+            List.Free;
+          end;
+        finally
+          Engine.Free;
+        end;
+      finally
+        Doc.Free;
+      end;
+    finally
+      Model.Free;
+    end;
+  finally
+    DS.Free;
+  end;
+end;
+
+class procedure TBarcodeParityTests.AssertColumnsEqual(
+  ASymbology: TReportBarcodeSymbology; const AValue: string;
+  AObjW, AObjH: Integer);
+var
+  Expected, Actual: TArray<Integer>;
+  I: Integer;
+  DiffMsg: string;
+begin
+  Expected := CanvasBarColumns(ASymbology, AValue, AObjW, AObjH);
+  Actual := CaptureBarColumns(ASymbology, AValue, AObjW, AObjH);
+
+  Assert.IsTrue(Length(Expected) > 0,
+    'fixture must draw bar ink on the preview side');
+
+  DiffMsg := Format('preview columns=%d, PDF capture columns=%d',
+    [Length(Expected), Length(Actual)]);
+  if Length(Expected) <> Length(Actual) then
+    Assert.AreEqual(Length(Expected), Length(Actual), DiffMsg);
+
+  for I := 0 to High(Expected) do
+    if Expected[I] <> Actual[I] then
+    begin
+      Assert.AreEqual(Expected[I], Actual[I],
+        Format('bar column %d of %d differs (%s)',
+          [I + 1, Length(Expected), DiffMsg]));
+      Break;
+    end;
+end;
+
+procedure TBarcodeParityTests.Test_Code39_BarsMatchPreview_ColumnParity;
+begin
+  AssertColumnsEqual(bsCode39, '1234567890', 240, 64);
+end;
+
+procedure TBarcodeParityTests.Test_Code39_ShortValue_ColumnParity;
+begin
+  AssertColumnsEqual(bsCode39, 'ABC-123', 200, 64);
+end;
+
+procedure TBarcodeParityTests.Test_Legacy_BarsMatchPreview_ColumnParity;
+begin
+  AssertColumnsEqual(bsLegacy, '1234567890', 240, 64);
+end;
+
+procedure TBarcodeParityTests.Test_EAN13_BarsMatchPreview_ColumnParity;
+begin
+  AssertColumnsEqual(bsEAN13, '4006381333931', 240, 64);
+end;
+
+procedure TBarcodeParityTests.Test_QR_BarsMatchPreview_ColumnParity;
+begin
+  AssertColumnsEqual(bsQR, 'HELLO', 150, 120);
+end;
+
 initialization
   TDUnitX.RegisterTestFixture(TBarcodeTests);
+  TDUnitX.RegisterTestFixture(TBarcodeParityTests);
 
 end.
