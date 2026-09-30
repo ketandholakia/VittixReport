@@ -12,6 +12,7 @@ interface
 
 uses
   DUnitX.TestFramework,
+  System.Types,
   Vcl.Graphics,
   Vittix.Report.Objects.Barcode;
 
@@ -21,6 +22,13 @@ type
   private
     function DrawBarcode(ASymbology: TReportBarcodeSymbology;
       const AValue: string): TBitmap;
+    function DrawBarcodeAtSize(ASymbology: TReportBarcodeSymbology;
+      const AValue: string; AObjectWidth, AObjectHeight: Integer): TBitmap;
+    class function FirstDarkX(ABmp: TBitmap; ARow: Integer): Integer;
+    class function LastDarkX(ABmp: TBitmap; ARow: Integer): Integer;
+    class function DarkColumnCount(ABmp: TBitmap;
+      ARowFrom, ARowTo: Integer): Integer;
+    class function DarkBounds(ABmp: TBitmap): TRect;
   public
     // Existing behavior (characterization)
     [Test] procedure Test_Code39_Characterization_DrawsBars;
@@ -45,14 +53,17 @@ type
     [Test] procedure Test_Object_Draws_Code128;
     [Test] procedure Test_Object_Draws_EAN13;
     [Test] procedure Test_Object_InvalidEAN13_DrawsNothing;
-    [Test] procedure Test_Object_Default_IsLegacy;
+    [Test] procedure Test_DesignerCreated_Default_IsCode39;
+    // Scannability minimums (DP-21)
+    [Test] procedure Test_Code39_QuietZones_Present;
+    [Test] procedure Test_Code39_EveryBarRenders_AtNarrowWidth;
+    [Test] procedure Test_QR_QuietZone_IsFourModules;
   end;
 
 implementation
 
 uses
   System.SysUtils,
-  System.Types,
   System.UITypes,
   Vittix.Report.Context,
   Vittix.Report.Objects;
@@ -98,6 +109,99 @@ begin
     for X := 10 to 219 do
       if ABmp.Canvas.Pixels[X, Y] = clBlack then
         Inc(Result);
+end;
+
+{ Draws a barcode object of the given logical size into a fresh white
+  bitmap.  The object sits at (10,10)-(10+AObjectWidth, 10+AObjectHeight).
+  Caller owns the returned bitmap. }
+function TBarcodeTests.DrawBarcodeAtSize(ASymbology: TReportBarcodeSymbology;
+  const AValue: string; AObjectWidth, AObjectHeight: Integer): TBitmap;
+var
+  Obj: TReportBarcodeObject;
+  Ctx: TExpressionContext;
+begin
+  Result := TBitmap.Create;
+  try
+    Result.SetSize(AObjectWidth + 40, AObjectHeight + 20);
+    Result.Canvas.Brush.Color := clWhite;
+    Result.Canvas.FillRect(Rect(0, 0, Result.Width, Result.Height));
+    Obj := TReportBarcodeObject.Create;
+    try
+      Obj.Bounds := Rect(10, 10, 10 + AObjectWidth, 10 + AObjectHeight);
+      Obj.Value := AValue;
+      Obj.Symbology := ASymbology;
+      Obj.ShowText := False;
+      Ctx := Default(TExpressionContext);
+      Obj.Draw(Result.Canvas, Ctx);
+    finally
+      Obj.Free;
+    end;
+  except
+    Result.Free;
+    raise;
+  end;
+end;
+
+class function TBarcodeTests.FirstDarkX(ABmp: TBitmap; ARow: Integer): Integer;
+var
+  X: Integer;
+begin
+  Result := -1;
+  for X := 0 to ABmp.Width - 1 do
+    if ABmp.Canvas.Pixels[X, ARow] = clBlack then
+      Exit(X);
+end;
+
+class function TBarcodeTests.LastDarkX(ABmp: TBitmap; ARow: Integer): Integer;
+var
+  X: Integer;
+begin
+  Result := -1;
+  for X := ABmp.Width - 1 downto 0 do
+    if ABmp.Canvas.Pixels[X, ARow] = clBlack then
+      Exit(X);
+end;
+
+class function TBarcodeTests.DarkColumnCount(ABmp: TBitmap;
+  ARowFrom, ARowTo: Integer): Integer;
+var
+  X, Y: Integer;
+  Dark: Boolean;
+begin
+  Result := 0;
+  for X := 0 to ABmp.Width - 1 do
+  begin
+    Dark := False;
+    for Y := ARowFrom to ARowTo do
+      if ABmp.Canvas.Pixels[X, Y] = clBlack then
+      begin
+        Dark := True;
+        Break;
+      end;
+    if Dark then
+      Inc(Result);
+  end;
+end;
+
+class function TBarcodeTests.DarkBounds(ABmp: TBitmap): TRect;
+var
+  X, Y: Integer;
+  Found: Boolean;
+begin
+  Result := Rect(MaxInt, MaxInt, -1, -1);
+  Found := False;
+  for Y := 0 to ABmp.Height - 1 do
+    for X := 0 to ABmp.Width - 1 do
+      if ABmp.Canvas.Pixels[X, Y] = clBlack then
+      begin
+        if X < Result.Left then Result.Left := X;
+        if Y < Result.Top then Result.Top := Y;
+        if X > Result.Right then Result.Right := X;
+        if Y > Result.Bottom then Result.Bottom := Y;
+        Found := True;
+      end;
+  if not Found then
+    Result := Rect(0, 0, 0, 0);
 end;
 
 { --- Existing behavior (characterization) --- }
@@ -341,15 +445,107 @@ begin
   end;
 end;
 
-procedure TBarcodeTests.Test_Object_Default_IsLegacy;
+procedure TBarcodeTests.Test_DesignerCreated_Default_IsCode39;
 var
-  Obj: TReportBarcodeObject;
+  Cls: TReportObjectClass;
+  Obj: TReportObject;
+  Found: Boolean;
 begin
-  Obj := TReportBarcodeObject.Create;
+  // DP-21: a newly created barcode must default to a scannable symbology.
+  // The designer toolbox instantiates the registered classes, so this is
+  // exactly the object a user gets when inserting a barcode.
+  Found := False;
+  for Cls in GetRegisteredReportObjects do
+    if Cls = TReportBarcodeObject then
+    begin
+      Found := True;
+      Obj := Cls.Create;
+      try
+        Assert.IsTrue(TReportBarcodeObject(Obj).Symbology = bsCode39,
+          'a designer-created barcode must default to bsCode39');
+      finally
+        Obj.Free;
+      end;
+    end;
+  Assert.IsTrue(Found, 'TReportBarcodeObject must be registered for the designer');
+end;
+
+{ --- Scannability minimums (DP-21) --- }
+
+procedure TBarcodeTests.Test_Code39_QuietZones_Present;
+var
+  Bmp: TBitmap;
+  DrawableLeft, DrawableRight, First, Last: Integer;
+begin
+  // The bars must not start or end flush with the drawable area: scanners
+  // need blank quiet zones on both sides to lock onto the symbol.
+  Bmp := DrawBarcode(bsCode39, 'ABC123');
   try
-    Assert.IsTrue(Obj.Symbology = bsLegacy);
+    DrawableLeft := 10 + 4;    // historic bar origin (R.Left + 4)
+    DrawableRight := 220 - 4;  // historic bar end (R.Right - 4)
+    First := FirstDarkX(Bmp, 20);
+    Last := LastDarkX(Bmp, 20);
+    Assert.IsTrue(First >= DrawableLeft + 2,
+      Format('left quiet zone missing: first bar at x=%d (drawable starts at %d)',
+        [First, DrawableLeft]));
+    Assert.IsTrue(Last <= DrawableRight - 3,
+      Format('right quiet zone missing: last bar ink ends at x=%d (drawable ends at %d)',
+        [Last, DrawableRight]));
   finally
-    Obj.Free;
+    Bmp.Free;
+  end;
+end;
+
+procedure TBarcodeTests.Test_Code39_EveryBarRenders_AtNarrowWidth;
+var
+  Bmp: TBitmap;
+  Cols: Integer;
+begin
+  // At this width several elements round to zero pixels; before the fix
+  // some of the 60 bars ('*' + 10 digits + '*': 12 chars x 5 bars) vanished
+  // entirely (48 dark columns).  With the 1px minimum every bar keeps ink.
+  Bmp := DrawBarcodeAtSize(bsCode39, '1234567890', 100, 50);
+  try
+    Cols := DarkColumnCount(Bmp, 14, 55);
+    Assert.IsTrue(Cols >= 60,
+      Format('every bar must keep at least 1px of ink: dark columns=%d, bars=60',
+        [Cols]));
+  finally
+    Bmp.Free;
+  end;
+end;
+
+procedure TBarcodeTests.Test_QR_QuietZone_IsFourModules;
+var
+  Bmp: TBitmap;
+  Matrix: TBarcodeModuleMatrix;
+  Bounds: TRect;
+  R: TRect;
+  Side, Module, DrawW, X0, Quiet: Integer;
+begin
+  // QR requires a 4-module quiet zone on every side (spec); the renderer
+  // reserved only 2.
+  Bmp := DrawBarcodeAtSize(bsQR, 'HELLO', 150, 150);
+  try
+    R := Rect(10, 10, 160, 160);
+    Matrix := EncodeQRMatrix('HELLO', qrMedium);
+    Bounds := DarkBounds(Bmp);
+    Assert.IsTrue((Bounds.Right > Bounds.Left) and (Bounds.Bottom > Bounds.Top),
+      'QR must render content');
+
+    Side := Bounds.Right - Bounds.Left + 1;
+    Assert.IsTrue((Matrix.Size > 0) and (Side mod Matrix.Size = 0),
+      Format('module grid mismatch: side=%d size=%d', [Side, Matrix.Size]));
+    Module := Side div Matrix.Size;
+
+    DrawW := (R.Right - R.Left) - 8;
+    X0 := R.Left + 4 + (DrawW - Side) div 2;
+    Quiet := Bounds.Left - X0;
+    Assert.IsTrue(Quiet >= 4 * Module,
+      Format('QR quiet zone must be >= 4 modules (%dpx): measured %dpx (module=%d)',
+        [4 * Module, Quiet, Module]));
+  finally
+    Bmp.Free;
   end;
 end;
 
