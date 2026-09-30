@@ -1791,6 +1791,13 @@ var
     FCurrentExportPage.Commands.Add(FillCmd);
   end;
 
+  { DP-21 / M-9: quiet zones (blank margins) reserved on both sides of a
+    barcode symbol, in narrow-module units; keep identical to the canvas
+    geometry in Vittix.Report.Objects.Barcode (full extraction of the
+    shared geometry is DP-31). }
+  const
+    ExportQuietUnits = 4;
+
   procedure CaptureLegacyBarcodeBars(
     const S: string;
     const ARect: TRect;
@@ -1803,12 +1810,12 @@ var
     B: Integer;
     XBar: Integer;
   begin
-    XBar := ARect.Left + 4;
+    XBar := ARect.Left + 4 + ExportQuietUnits; // DP-21: left quiet zone
     for I := 1 to Length(S) do
     begin
       for B := 0 to 6 do
       begin
-        if XBar >= ARect.Left + 4 + ADrawWidth then
+        if XBar >= ARect.Left + ADrawWidth then // DP-21: keep the right quiet zone free
           Break;
 
         if ((Ord(S[I]) shr B) and 1) = 1 then
@@ -1816,7 +1823,7 @@ var
         Inc(XBar);
       end;
       Inc(XBar);
-      if XBar >= ARect.Left + 4 + ADrawWidth then
+      if XBar >= ARect.Left + ADrawWidth then
         Break;
     end;
   end;
@@ -1853,8 +1860,10 @@ var
         Inc(TotalUnits);
     end;
 
-    UnitW := Max(1, ADrawWidth div Max(1, TotalUnits));
-    XBar := ARect.Left + 4;
+    // DP-21: reserve quiet zones on both sides; the module width shrinks
+    // so the symbol plus the margins still fit the drawable width.
+    UnitW := Max(1, ADrawWidth div Max(1, TotalUnits + 2 * ExportQuietUnits));
+    XBar := ARect.Left + 4 + ExportQuietUnits * UnitW;
     for I := 1 to Length(Encoded) do
     begin
       Pattern := ExportCode39Pattern(Encoded[I]);
@@ -1894,8 +1903,10 @@ var
     if TotalUnits <= 0 then
       Exit;
 
-    UnitW := Max(1, ADrawWidth div TotalUnits);
-    XBar := ARect.Left + 4;
+    // DP-21: reserve quiet zones on both sides; the module width shrinks
+    // so the symbol plus the margins still fit the drawable width.
+    UnitW := Max(1, ADrawWidth div (TotalUnits + 2 * ExportQuietUnits));
+    XBar := ARect.Left + 4 + ExportQuietUnits * UnitW;
     for I := 1 to Length(AElements) do
     begin
       BarWidth := UnitW * (Ord(AElements[I]) - 48);

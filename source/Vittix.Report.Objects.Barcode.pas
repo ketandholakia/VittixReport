@@ -55,7 +55,11 @@ type
   published
     property Value: string read FValue write FValue;
     property DataField: string read FDataField write FDataField;
-    property Symbology: TReportBarcodeSymbology read FSymbology write FSymbology default bsLegacy;
+    { DP-21: new objects default to the scannable Code39 symbology.  Loading
+      keeps a document's stored value; documents without an explicit
+      'Symbology' key still load as bsLegacy (loader default), so existing
+      report files render exactly as before. }
+    property Symbology: TReportBarcodeSymbology read FSymbology write FSymbology default bsCode39;
     { QR only — ignored by the 1D symbologies. }
     property ErrorCorrection: TReportQRErrorCorrection
       read FErrorCorrection write FErrorCorrection default qrMedium;
@@ -177,14 +181,16 @@ begin
   if AMatrix.Size <= 0 then
     Exit;
 
-  // Square modules fitted into the available area, with a 2-module quiet
-  // zone on every side.  Centered within the drawable area.
+  // Square modules fitted into the available area, with a 4-module quiet
+  // zone on every side (DP-21: the QR spec requires 4; the code used to
+  // reserve 2, and only on the vertical axis).  Centered within the
+  // drawable area.
   AvailableW := DrawW - 4;                       // existing 4px object inset
   AvailableH := Max(1, BarBottom - BarTop);
-  TotalModules := AMatrix.Size + 4;              // matrix + quiet zone
+  TotalModules := AMatrix.Size + 8;              // matrix + 4-module quiet zone per side
   Module := Max(1, Min(AvailableW, AvailableH) div TotalModules);
   Side := Module * AMatrix.Size;
-  Quiet := 2 * Module;
+  Quiet := 4 * Module;
   OriginX := R.Left + 4 + (DrawW - Side) div 2;
   OriginY := BarTop + (AvailableH - Side) div 2;
   MaxX := R.Left + 4 + DrawW;
@@ -206,9 +212,9 @@ begin
       RunLen := X - RunStart;
       SetLength(Result, Length(Result) + 1);
       Result[High(Result)] := Rect(
-        Min(OriginX + RunStart * Module, MaxX),
+        Min(OriginX + RunStart * Module + Quiet, MaxX),
         Min(OriginY + Y * Module + Quiet, BarBottom),
-        Min(OriginX + (RunStart + RunLen) * Module, MaxX),
+        Min(OriginX + (RunStart + RunLen) * Module + Quiet, MaxX),
         Min(OriginY + (Y + 1) * Module + Quiet, BarBottom));
     end;
   end;
@@ -311,6 +317,15 @@ begin
   Result := '*' + Result + '*';
 end;
 
+const
+  { DP-21 / M-9: quiet zones (blank margins) reserved on both sides of a
+    symbol, in narrow-module units, so a scanner can lock onto the code
+    edges.  QR uses exactly 4 modules per the spec; the 1D symbologies get
+    the same minimum.  The engine export capture keeps identical margins
+    (Vittix.Report.Engine, CaptureExportObjectCommand); full extraction of
+    the shared geometry is DP-31. }
+  BARCODE_QUIET_UNITS = 4;
+
 procedure DrawLegacyBarcode(C: TCanvas; const S: string; const R: TRect; BarTop,
   BarBottom, DrawW: Integer);
 var
@@ -320,9 +335,10 @@ begin
   TotalSlots := Length(S) * 8;
   if TotalSlots <= 0 then
     Exit;
+  Inc(TotalSlots, 2 * BARCODE_QUIET_UNITS); // DP-21: side quiet zones
 
   X0 := R.Left + 4;
-  CumSlots := 0;
+  CumSlots := BARCODE_QUIET_UNITS;
   C.Brush.Color := C.Pen.Color;
   for I := 1 to Length(S) do
   begin
@@ -333,7 +349,11 @@ begin
       Inc(CumSlots);
       XEnd := X0 + Round(CumSlots * DrawW / TotalSlots);
       if ((Ord(Ch) shr B) and 1) = 1 then
+      begin
+        if XEnd <= XStart then
+          XEnd := XStart + 1; // DP-21: bars never round to zero width
         C.FillRect(Rect(XStart, BarTop, Min(XEnd, X0 + DrawW), BarBottom));
+      end;
       if XEnd >= X0 + DrawW then
         Exit;
     end;
@@ -362,9 +382,10 @@ begin
   end;
   if TotalUnits <= 0 then
     Exit;
+  Inc(TotalUnits, 2 * BARCODE_QUIET_UNITS); // DP-21: side quiet zones
 
   X0 := R.Left + 4;
-  CumUnits := 0;
+  CumUnits := BARCODE_QUIET_UNITS;
   C.Brush.Color := C.Pen.Color;
   for I := 1 to Length(Encoded) do
   begin
@@ -379,7 +400,11 @@ begin
       Inc(CumUnits, ModuleUnits);
       XEnd := X0 + Round(CumUnits * DrawW / TotalUnits);
       if Odd(J) then
+      begin
+        if XEnd <= XStart then
+          XEnd := XStart + 1; // DP-21: bars never round to zero width
         C.FillRect(Rect(XStart, BarTop, Min(XEnd, X0 + DrawW), BarBottom));
+      end;
       if XEnd >= X0 + DrawW then
         Exit;
     end;
@@ -823,9 +848,10 @@ begin
   TotalUnits := BarcodeElementTotalUnits(AElements);
   if TotalUnits <= 0 then
     Exit;
+  Inc(TotalUnits, 2 * BARCODE_QUIET_UNITS); // DP-21: side quiet zones
 
   X0 := R.Left + 4;
-  CumUnits := 0;
+  CumUnits := BARCODE_QUIET_UNITS;
   C.Brush.Color := C.Pen.Color;
   for I := 1 to Length(AElements) do
   begin
@@ -833,7 +859,11 @@ begin
     Inc(CumUnits, Ord(AElements[I]) - 48);
     XEnd := X0 + Round(CumUnits * DrawW / TotalUnits);
     if Odd(I) then
+    begin
+      if XEnd <= XStart then
+        XEnd := XStart + 1; // DP-21: bars never round to zero width
       C.FillRect(Rect(XStart, BarTop, Min(XEnd, X0 + DrawW), BarBottom));
+    end;
     if XEnd >= X0 + DrawW then
       Exit;
   end;
@@ -858,7 +888,9 @@ begin
   inherited;
   Bounds := Rect(10, 10, 220, 60);
   FValue := '1234567890';
-  FSymbology := bsLegacy;
+  // DP-21: scannable default for new objects; legacy stays loadable and
+  // selectable for existing documents.
+  FSymbology := bsCode39;
   FErrorCorrection := qrMedium;
   FShowText := True;
   FBarColor := clBlack;

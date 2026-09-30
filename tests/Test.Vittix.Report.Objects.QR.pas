@@ -129,7 +129,9 @@ begin
   Assert.IsTrue(Ord(bsQR) = 4);
   Obj := TReportBarcodeObject.Create;
   try
-    Assert.IsTrue(Obj.Symbology = bsLegacy, 'default symbology must stay bsLegacy');
+    // DP-21: new objects default to the scannable Code39; the ordinals
+    // above stay frozen for persistence/back-compat.
+    Assert.IsTrue(Obj.Symbology = bsCode39, 'default symbology must be bsCode39');
     Assert.IsTrue(Obj.ErrorCorrection = qrMedium, 'default ECC must be qrMedium');
   finally
     Obj.Free;
@@ -378,9 +380,10 @@ begin
   Rects := QRMatrixToRects(M, Rect(10, 10, 220, 60), 14, 44, 202);
   Assert.IsTrue(Length(Rects) > 10);
   // Module size must be derived exactly as QRMatrixToRects derives it:
-  // available height 30 (BarTop..BarBottom), width 202; 21+4 total modules.
+  // available height 30 (BarTop..BarBottom), width 202; 21+8 total modules
+  // (matrix + 4-module quiet zone on each side, DP-21).
   AvailableH := 44 - 14;
-  Module := Max(1, Min(202 - 4, AvailableH) div (M.Size + 4));
+  Module := Max(1, Min(202 - 4, AvailableH) div (M.Size + 8));
   DarkCount := 0;
   for Y := 0 to M.Size - 1 do
     for X := 0 to M.Size - 1 do
@@ -395,11 +398,12 @@ begin
   Assert.IsTrue(Covered = DarkCount * Module * Module,
     Format('covered=%d expected=%d module=%d',
       [Covered, DarkCount * Module * Module, Module]));
-  // Rects are generated row-major; the first run starts at the matrix
-  // origin (row 0, col 0 is the dark finder corner).
-  Assert.IsTrue(Rects[0].Left = 10 + 4 + (202 - Module * M.Size) div 2,
+  // Rects are generated row-major; the first run sits at the matrix origin
+  // plus the 4-module quiet zone on both axes (row 0, col 0 is the dark
+  // finder corner).
+  Assert.IsTrue(Rects[0].Left = 10 + 4 + (202 - Module * M.Size) div 2 + 4 * Module,
     Format('originX=%d', [Rects[0].Left]));
-  Assert.IsTrue(Rects[0].Top = 14 + (30 - Module * M.Size) div 2 + 2 * Module,
+  Assert.IsTrue(Rects[0].Top = 14 + (30 - Module * M.Size) div 2 + 4 * Module,
     Format('originY=%d', [Rects[0].Top]));
 end;
 procedure TQrCodeTests.Test_Vector_HELLO_WORLD_1M;
