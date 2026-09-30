@@ -125,6 +125,8 @@ type
     FBackgroundOnTrue:     TColor;
     FBorderColorCondition: string;
     FBorderColorOnTrue:    TColor;
+    function GetFont: TFont;
+    procedure SetFont(const Value: TFont);
   protected
     procedure ResolveConditionalStyle(
       const Context: TExpressionContext;
@@ -147,7 +149,7 @@ type
     property Text:          string             read FText          write FText;
     property DataField:     string             read FDataField     write FDataField;
     property Expression:    string             read FExpression    write FExpression;
-    property Font:          TFont              read FFont          write FFont;
+    property Font:          TFont              read GetFont         write SetFont;
     property HAlign:        TAlignment         read FHAlign        write FHAlign         default taLeftJustify;
     property VAlign:        TVerticalAlignment read FVAlign        write FVAlign         default taVerticalCenter;
     property Background:    TColor             read FBackground    write FBackground;
@@ -695,6 +697,21 @@ destructor TReportTextObject.Destroy;
 begin
   FFont.Free;
   inherited;
+end;
+
+function TReportTextObject.GetFont: TFont;
+begin
+  Result := FFont;
+end;
+
+{ DP-33 / M-12: assignment copies into the object's own font instance, the
+  same pattern as TReportCrossTabObject.SetFont.  The previous direct field
+  write leaked the old font instance, adopted the caller's TFont (so both
+  the caller and the object would free it), and let later caller-side
+  mutations change the report's rendering. }
+procedure TReportTextObject.SetFont(const Value: TFont);
+begin
+  FFont.Assign(Value);
 end;
 
 procedure TReportTextObject.Draw(C: TCanvas; const Context: TExpressionContext);
