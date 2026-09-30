@@ -5,19 +5,18 @@ unit Vittix.Report.Preview;
   =====================
   TVittixReportPreview — a VCL control that displays rendered report pages.
 
-  Lifetime safety (this revision)
-  --------------------------------
-  The previous design stored a raw pointer to TReportRenderer.  If the caller
-  freed the renderer while the control was still alive, the Paint method
-  would dereference a dangling pointer.
+  Lifetime safety
+  ---------------
+  The control takes ownership of its own page copies in LoadFromRenderer;
+  after the call returns the renderer can be freed or reused without risk.
 
-  Fix: the control now takes ownership of its own TObjectList<TBitmap> that is
-  populated by copying bitmaps from the renderer inside LoadFromRenderer.
-  After the call returns the renderer can be freed or reused without risk.
-
-  The copy is performed with TCanvas.Draw at the same size, which is O(pixels)
-  but avoids any dependency on the renderer's lifetime.  For very large reports
-  (hundreds of pages) consider using LoadPageRange(Start, End) to copy lazily.
+  Retention (DP-32 / M-18)
+  ------------------------
+  One VECTOR page (a metafile copy) per page; nothing rasterised.  The
+  previous design materialised every page's bitmap during the load and kept
+  a second raster copy beside it - for a 75-page report that is hundreds of
+  megabytes of pure duplication.  Painting replays the metafile instead, so
+  the retained footprint is the metafile data (see EstimateRetainedBytes).
 }
 
 interface
@@ -37,8 +36,7 @@ uses
 type
   TVittixReportPreview = class(TCustomControl)
   private
-    FPages:      TObjectList<Vcl.Graphics.TBitmap>;  // owned; independent of TReportRenderer
-    FMetafilePages: TObjectList<Vcl.Graphics.TMetafile>;
+    FMetafilePages: TObjectList<Vcl.Graphics.TMetafile>; // owned vector pages
     FPageIndex:  Integer;
     FZoomPercent: Integer;
     FOnPageChanged: TNotifyEvent;
@@ -75,8 +73,9 @@ type
     destructor  Destroy; override;
 
     /// <summary>
-    ///   Copies pages from the renderer into this control's own bitmap list.
-    ///   The renderer can be freed after this call without affecting the preview.
+    ///   Copies the vector pages from the renderer into this control's own
+    ///   list (DP-32: metafiles only - no page is rasterised).  The renderer
+    ///   can be freed after this call without affecting the preview.
     /// </summary>
     procedure LoadFromRenderer(ARenderer: TReportRenderer);
 
@@ -146,8 +145,7 @@ begin
   DoubleBuffered := True;
   Color          := clGray;
   FZoomPercent   := 100;
-  FPages         := TObjectList<Vcl.Graphics.TBitmap>.Create(True); // owns bitmaps
-  FMetafilePages := TObjectList<Vcl.Graphics.TMetafile>.Create(True);
+  FMetafilePages := TObjectList<Vcl.Graphics.TMetafile>.Create(True); // owns vector pages
   FMargins       := TReportMargins.Default;
   FShowMarginOverlay := True;
 end;
@@ -155,7 +153,6 @@ end;
 destructor TVittixReportPreview.Destroy;
 begin
   FMetafilePages.Free;
-  FPages.Free;
   inherited;
 end;
 
@@ -170,11 +167,8 @@ end;
 procedure TVittixReportPreview.LoadFromRenderer(ARenderer: TReportRenderer);
 var
   i:    Integer;
-  Src:  Vcl.Graphics.TBitmap;
-  Copy: Vcl.Graphics.TBitmap;
   MetaCopy: Vcl.Graphics.TMetafile;
 begin
-  FPages.Clear;
   FMetafilePages.Clear;
   FPageIndex := 0;
 
@@ -182,18 +176,17 @@ begin
   begin
     SetScrollOffset(0, 0);
     UpdateScrollBars;
-    Invalidate;
+    if HandleAllocated then
+      Invalidate;
     Exit;
   end;
 
+  // DP-32 / M-18: keep the VECTOR pages only.  Touching the renderer's lazy
+  // bitmap here would materialise a full-page raster per page (and a second
+  // copy for the control); painting replays the metafile instead, so the
+  // raster never has to exist at all.
   for i := 0 to ARenderer.Pages.Count - 1 do
   begin
-    Src  := ARenderer.Pages[i].Bitmap;
-    Copy := Vcl.Graphics.TBitmap.Create;
-    Copy.SetSize(Src.Width, Src.Height);
-    Copy.Canvas.Draw(0, 0, Src);   // pixel-perfect copy
-    FPages.Add(Copy);
-
     MetaCopy := Vcl.Graphics.TMetafile.Create;
     MetaCopy.Assign(ARenderer.Pages[i].Metafile);
     FMetafilePages.Add(MetaCopy);
@@ -218,7 +211,6 @@ end;
 
 procedure TVittixReportPreview.Clear;
 begin
-  FPages.Clear;
   FMetafilePages.Clear;
   FPageIndex := 0;
   SetScrollOffset(0, 0);
@@ -252,7 +244,7 @@ end;
 
 function TVittixReportPreview.GetPageCount: Integer;
 begin
-  Result := FPages.Count;
+  Result := FMetafilePages.Count;
 end;
 
 function TVittixReportPreview.CurrentPageWidth: Integer;
@@ -261,11 +253,8 @@ begin
   if (FPageIndex < 0) or (FPageIndex >= PageCount) then
     Exit;
 
-  if (FPageIndex < FMetafilePages.Count) and
-     (FMetafilePages[FPageIndex].Width > 0) then
-    Result := FMetafilePages[FPageIndex].Width
-  else
-    Result := FPages[FPageIndex].Width;
+  if FMetafilePages[FPageIndex].Width > 0 then
+    Result := FMetafilePages[FPageIndex].Width;
 end;
 
 function TVittixReportPreview.CurrentPageHeight: Integer;
@@ -274,11 +263,8 @@ begin
   if (FPageIndex < 0) or (FPageIndex >= PageCount) then
     Exit;
 
-  if (FPageIndex < FMetafilePages.Count) and
-     (FMetafilePages[FPageIndex].Height > 0) then
-    Result := FMetafilePages[FPageIndex].Height
-  else
-    Result := FPages[FPageIndex].Height;
+  if FMetafilePages[FPageIndex].Height > 0 then
+    Result := FMetafilePages[FPageIndex].Height;
 end;
 
 { ================= Navigation ================= }
@@ -479,7 +465,6 @@ end;
 
 procedure TVittixReportPreview.Paint;
 var
-  PageBmp: Vcl.Graphics.TBitmap;
   PageMeta: Vcl.Graphics.TMetafile;
   Scale:   Double;
   W, H:   Integer;
@@ -493,10 +478,8 @@ begin
   if PageCount = 0 then Exit;
   if (FPageIndex < 0) or (FPageIndex >= PageCount) then Exit;
 
-  PageBmp := FPages[FPageIndex];
-  PageMeta := nil;
-  if FPageIndex < FMetafilePages.Count then
-    PageMeta := FMetafilePages[FPageIndex];
+  // DP-32: the vector page is the only retained representation.
+  PageMeta := FMetafilePages[FPageIndex];
 
   Scale := FZoomPercent / 100;
   W     := Round(CurrentPageWidth  * Scale);
@@ -514,9 +497,7 @@ begin
   Canvas.Brush.Color := clWhite;
   Canvas.Rectangle(R);
   if Assigned(PageMeta) and (PageMeta.Width > 0) and (PageMeta.Height > 0) then
-    Canvas.StretchDraw(R, PageMeta)
-  else
-    Canvas.StretchDraw(R, PageBmp);
+    Canvas.StretchDraw(R, PageMeta);
 
   if FShowMarginOverlay then
   begin
@@ -587,19 +568,15 @@ end;
 procedure TVittixReportPreview.Print;
 var
   i:    Integer;
-  Bmp:  Vcl.Graphics.TBitmap;
   Meta: Vcl.Graphics.TMetafile;
   R:    TRect;
 begin
   if PageCount = 0 then Exit;
   Printer.BeginDoc;
   try
-    for i := 0 to FPages.Count - 1 do
+    for i := 0 to FMetafilePages.Count - 1 do
     begin
-      Bmp  := FPages[i];
-      Meta := nil;
-      if i < FMetafilePages.Count then
-        Meta := FMetafilePages[i];
+      Meta := FMetafilePages[i];
       // Shared mapping (GAP-005/P3). Full stretch keeps the previous geometry
       // exactly; the page dimensions are used only if the mode ever changes.
       if Assigned(Meta) and (Meta.Width > 0) and (Meta.Height > 0) then
@@ -607,14 +584,8 @@ begin
         R := CalculatePrintDestRect(Meta.Width, Meta.Height,
           Printer.PageWidth, Printer.PageHeight, prsFullStretch);
         Printer.Canvas.StretchDraw(R, Meta);
-      end
-      else
-      begin
-        R := CalculatePrintDestRect(Bmp.Width, Bmp.Height,
-          Printer.PageWidth, Printer.PageHeight, prsFullStretch);
-        Printer.Canvas.StretchDraw(R, Bmp);
       end;
-      if i < FPages.Count - 1 then
+      if i < FMetafilePages.Count - 1 then
         Printer.NewPage;
     end;
     Printer.EndDoc;

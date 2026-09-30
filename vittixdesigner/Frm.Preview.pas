@@ -485,8 +485,6 @@ var
     PreviewWarnThresholdMB = 300;
   var
     PageCount: Integer;
-    PageW: Integer;
-    PageH: Integer;
     EstimatedBytes: Int64;
     EstimatedMB: Int64;
   StartMs: UInt64;
@@ -519,16 +517,16 @@ begin
       Preview.Margins := AReport.PageSettings.Margins;
       if PageCount > 0 then
       begin
-        PageW := Rend.Pages[0].Bitmap.Width;
-        PageH := Rend.Pages[0].Bitmap.Height;
-        if (PageW > 0) and (PageH > 0) then
+        // DP-32 / M-18: count what the preview actually retains - the vector
+        // (metafile) footprint - instead of assuming a raster per page.
+        EstimatedBytes := TVittixReportPreview.EstimateRetainedBytes(Rend);
+        if EstimatedBytes > 0 then
         begin
-          EstimatedBytes := Int64(PageCount) * Int64(PageW) * Int64(PageH) * 4;
           EstimatedMB := EstimatedBytes div (1024 * 1024);
           if EstimatedMB > PreviewWarnThresholdMB then
           begin
             if MessageDlg(
-              Format('Preview may use approximately %d MB for %d pages.' + sLineBreak +
+              Format('Preview may retain approximately %d MB of page data for %d pages.' + sLineBreak +
                      'Continue loading preview?', [EstimatedMB, PageCount]),
               mtWarning, [mbYes, mbNo], 0) <> mrYes then
             begin

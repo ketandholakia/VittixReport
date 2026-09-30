@@ -19,13 +19,11 @@ unit Test.Vittix.Report.Phase6.OutputCoverage;
     2. The renderer page shape in dimensions (bitmap size equals the page size,
        metafile non-empty), not just object presence.
 
-  Coverage NOT achievable here (documented limitation): `TVittixReportPreview`
-  is a windowed `TCustomControl`. Instantiating it in a console DUnitX run
-  raises "Control ... has no parent window", so preview page-ownership
-  independence cannot be asserted without a windowed (VCL Forms) harness. That
-  path therefore remains outside the automated gate and must be covered
-  manually (see TESTING.md, preview/print checklist) until a form-based
-  harness is introduced deliberately.
+  Preview drive/retention: since DP-32 the preview control is handle-gated
+  and can be created, loaded and navigated in a console DUnitX run (see
+  Test.Vittix.Report.PreviewRetention); the previous "Control ... has no
+  parent window" limitation is fixed. Windowed paint/print remain manual
+  (TESTING.md preview/print checklist).
 
   No production file is modified by this unit.
 }
