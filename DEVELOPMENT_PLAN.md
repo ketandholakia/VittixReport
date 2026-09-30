@@ -165,7 +165,7 @@ Line.Segments[L].Width := W;
 - **Test plan:** golden test rendering a wrapped memo with a known font at forced-DPI reference canvas and asserting identical `MeasuredBottom` regardless of the machine's `Screen.PixelsPerInch` (mock via the helper's parameter). All 41 baselines must reconcile unchanged on the 96-dpi CI machine.
 - **Done when:** helper lands; measurement independent of screen DPI (test proves); spike machine shows matching preview/PDF.
 
-### DP-15 — Legacy qualified-field diagnostics (finding **H-2**) — Effort S — behavior-preserving
+### DP-15 ✅ — Legacy qualified-field diagnostics (finding **H-2**) — Effort S — behavior-preserving — fixed in `7c9c9d9` + `a1c605f`
 - **Files:** `source/Vittix.Report.Expressions.Compat.pas:206-224` (`FieldNameFromToken` discards the `[DS.Field]` qualifier).
 - **Bug:** `[Orders.Company]` silently reads the *current* dataset's `Company` — wrong-dataset values in legacy reports.
 - **Fix (compat-safe):** do **not** change resolution semantics (the compat evaluator is frozen by contract and differentially tested). Instead: when the qualifier names a dataset that differs from the active one (resolvable via `Context.Hooks.GetNamedDataSet`), emit a diagnostic through the same channel the designer Problems panel already consumes (`OutputDebugString` + a `TReportTraversalDiagnostics` counter), so the new full-analysis-driven workflow can turn hits into report migrations.
