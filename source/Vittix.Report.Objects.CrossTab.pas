@@ -459,6 +459,11 @@ var
   CellRect: TRect;
   TextX, TextY: Integer;
 begin
+  // DP-19 / M-10: honour Visible/PrintWhen like every other object class.
+  // The engine path already guards via DrawReportObjectWithHooks; direct
+  // draws (the designer content layer) rely on this self-guard.
+  if not ShouldPrintObject(Self, Context) then Exit;
+
   if not Context.IsCountingPass then
     PrepareMatrix(Context);
     

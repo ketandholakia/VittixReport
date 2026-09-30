@@ -167,6 +167,11 @@ var
   DP: TChartDataPoint;
   TitleH, TitleW: Integer;
 begin
+  // DP-19 / M-10: honour Visible/PrintWhen like every other object class.
+  // The engine path already guards via DrawReportObjectWithHooks; direct
+  // draws (the designer content layer) rely on this self-guard.
+  if not ShouldPrintObject(Self, Context) then Exit;
+
   R := Bounds;
   if R.IsEmpty then Exit;
 

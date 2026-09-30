@@ -1951,7 +1951,12 @@ var
       GetViewportOrgEx(Bmp.Canvas.Handle, SavedOrg);
       SetViewportOrgEx(Bmp.Canvas.Handle, -AObj.Bounds.Left, -AObj.Bounds.Top, nil);
       try
-        AObj.Draw(Bmp.Canvas, Context);
+        // DP-19: the shared guard already approved this object for the
+        // current print; the re-draw for capture must not re-evaluate
+        // PrintWhen (the object's own Draw now checks ShouldPrintObject).
+        var DrawCtx := Context;
+        DrawCtx.PrecheckedObjectForPrintWhen := AObj;
+        AObj.Draw(Bmp.Canvas, DrawCtx);
       finally
         SetViewportOrgEx(Bmp.Canvas.Handle, SavedOrg.X, SavedOrg.Y, nil);
       end;
