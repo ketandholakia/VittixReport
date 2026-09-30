@@ -16,12 +16,33 @@ uses
   Vcl.Imaging.jpeg,
   Vcl.Imaging.pngimage,
   Data.DB,
+  System.IOUtils,
   Vittix.Report.Context,
+  Vittix.Report.Export.Commands,
   Vittix.Report.MemoExport;
 
 { ================= Base Object ================= }
 
 type
+  TReportObject = class;
+
+  { DP-31 / M-13: the seam capture-capable objects use to emit export
+    commands during an export-capturing rendering pass.  Implemented by
+    TReportEngine; the per-object capture logic lives with each object class
+    so it can share geometry/encoding with the canvas draw path. }
+  IReportExportCaptureSink = interface
+    ['{7B4C1E8A-2F3D-4A56-9C1B-6E5D2A9B3F10}']
+    { Adds one command to the current export page. }
+    procedure AddCommand(const ACommand: TReportExportCommand);
+    { Page-space origin (band viewport offset) of the object being captured. }
+    function GetCaptureOrigin: TPoint;
+    { Registers a temp file the export document deletes on free. }
+    procedure RegisterTempFile(const AFileName: string);
+    { Rasterises AObject through its Draw and adds an image command. }
+    procedure CaptureObjectAsImage(AObject: TReportObject;
+      const AContext: TExpressionContext);
+  end;
+
   TReportObject = class(TPersistent)
   private
     FBounds:      TRect;
@@ -42,6 +63,11 @@ type
     constructor Create; virtual;
 
     procedure Draw(C: TCanvas; const Context: TExpressionContext); virtual;
+    { DP-31 / M-13: emits this object's export-capture commands.  Called by
+      the engine while capturing a rendering pass; the default emits nothing
+      (objects without a per-primitive capture). }
+    procedure CaptureExportCommands(const Context: TExpressionContext;
+      const ASink: IReportExportCaptureSink); virtual;
     function  MeasuredBottom(C: TCanvas; const Context: TExpressionContext): Integer; virtual;
     function Hit(X,Y: Integer): Boolean; virtual;
 
@@ -137,6 +163,14 @@ type
     constructor Create; override;
     destructor Destroy; override;
     procedure Draw(C: TCanvas; const Context: TExpressionContext); override;
+    procedure CaptureExportCommands(const Context: TExpressionContext;
+      const ASink: IReportExportCaptureSink); override;
+  protected
+    { DP-31: hook for rich-text runs - the memo override fills the text
+      command's Runs before it is emitted. }
+    procedure ExtendExportTextCommand(const Context: TExpressionContext;
+      const ATextCmd: TReportExportTextCommand); virtual;
+  public
     function ResolveDisplayText(const Context: TExpressionContext): string;
     procedure ResolveTextStyle(
       const Context: TExpressionContext;
@@ -210,6 +244,8 @@ type
   public
     constructor Create; override;
     procedure Draw(C: TCanvas; const Context: TExpressionContext); override;
+    procedure CaptureExportCommands(const Context: TExpressionContext;
+      const ASink: IReportExportCaptureSink); override;
     class function DisplayName: string; override;
   published
     property ShapeType:    TReportShapeType read FShapeType    write FShapeType    default stRectangle;
@@ -241,6 +277,8 @@ type
     constructor Create; override;
     destructor Destroy; override;
     procedure Draw(C: TCanvas; const Context: TExpressionContext); override;
+    procedure CaptureExportCommands(const Context: TExpressionContext;
+      const ASink: IReportExportCaptureSink); override;
     function ResolveImageSource(const Context: TExpressionContext): string;
     procedure ResetImageCache;
     class function DisplayName: string; override;
@@ -266,6 +304,8 @@ type
     constructor Create; override;
     class function DisplayName: string; override;
     procedure Draw(C: TCanvas; const Context: TExpressionContext); override;
+    procedure ExtendExportTextCommand(const Context: TExpressionContext;
+      const ATextCmd: TReportExportTextCommand); override;
     function MeasuredBottom(C: TCanvas; const Context: TExpressionContext): Integer; override;
   published
     property AutoHeight: Boolean read FAutoHeight write FAutoHeight default True;
@@ -318,6 +358,8 @@ type
   public
     constructor Create; override;
     procedure Draw(C: TCanvas; const Context: TExpressionContext); override;
+    procedure CaptureExportCommands(const Context: TExpressionContext;
+      const ASink: IReportExportCaptureSink); override;
     class function DisplayName: string; override;
   published
     property Orientation: TLineOrientation read FOrientation write FOrientation default loHorizontal;
@@ -389,6 +431,359 @@ begin
 
   if Assigned(Context.Hooks) then
     Context.Hooks.InvokeAfterObjectPrint(AObject, Context);
+end;
+
+{ ================= DP-31 / M-13: export capture ================= }
+
+procedure TReportObject.CaptureExportCommands(const Context: TExpressionContext;
+  const ASink: IReportExportCaptureSink);
+begin
+  // Default: no export-capture representation.
+end;
+
+procedure TReportTextObject.CaptureExportCommands(const Context: TExpressionContext;
+  const ASink: IReportExportCaptureSink);
+var
+  R, TextR: TRect;
+  Origin: TPoint;
+  TextCmd: TReportExportTextCommand;
+  FillCmd: TReportExportFillRectangleCommand;
+  RectCmd: TReportExportRectangleCommand;
+  DrawFontColor, DrawBackground, DrawBorderColor: TColor;
+begin
+  if not Assigned(ASink) then
+    Exit;
+
+  Origin := ASink.GetCaptureOrigin;
+  R := Bounds;
+  OffsetRect(R, Origin.X, Origin.Y);
+  ResolveTextStyle(Context, DrawFontColor, DrawBackground, DrawBorderColor);
+
+  if not Transparent then
+  begin
+    FillCmd := TReportExportFillRectangleCommand.Create;
+    FillCmd.Bounds := R;
+    FillCmd.FillColor := DrawBackground;
+    ASink.AddCommand(FillCmd);
+  end;
+
+  if BorderVisible then
+  begin
+    RectCmd := TReportExportRectangleCommand.Create;
+    RectCmd.Bounds := R;
+    RectCmd.BorderColor := DrawBorderColor;
+    RectCmd.BorderWidth := BorderWidth;
+    ASink.AddCommand(RectCmd);
+  end;
+
+  TextR := Rect(
+    R.Left + PaddingLeft,
+    R.Top + PaddingTop,
+    R.Right - PaddingRight,
+    R.Bottom - PaddingBottom);
+
+  TextCmd := TReportExportTextCommand.Create;
+  TextCmd.Bounds := TextR;
+  TextCmd.Text := ResolveDisplayText(Context);
+  TextCmd.FontName := Font.Name;
+  TextCmd.FontSize := Font.Size;
+  TextCmd.FontStyle := Font.Style;
+  TextCmd.FontColor := DrawFontColor;
+  TextCmd.HAlign := HAlign;
+  TextCmd.VAlign := VAlign;
+  TextCmd.WordWrap := WordWrap;
+
+  ExtendExportTextCommand(Context, TextCmd);
+
+  ASink.AddCommand(TextCmd);
+end;
+
+procedure TReportTextObject.ExtendExportTextCommand(
+  const Context: TExpressionContext; const ATextCmd: TReportExportTextCommand);
+begin
+  // Default: plain text - no rich runs.
+end;
+
+procedure TReportMemoObject.ExtendExportTextCommand(
+  const Context: TExpressionContext; const ATextCmd: TReportExportTextCommand);
+begin
+  if not AllowHTML then
+    Exit;
+
+  var Runs: TArray<Vittix.Report.MemoExport.TMemoRun>;
+  Vittix.Report.MemoExport.ParseMemoRuns(ATextCmd.Text, ATextCmd.FontStyle,
+    ATextCmd.FontColor, ATextCmd.FontName, ATextCmd.FontSize, True, Runs);
+  SetLength(ATextCmd.Runs, Length(Runs));
+  for var I := 0 to High(Runs) do
+  begin
+    ATextCmd.Runs[I].Text := Runs[I].Text;
+    ATextCmd.Runs[I].FontName := Runs[I].FontName;
+    ATextCmd.Runs[I].FontSize := Runs[I].Size;
+    ATextCmd.Runs[I].FontStyle := Runs[I].Style;
+    ATextCmd.Runs[I].FontColor := Runs[I].Color;
+    ATextCmd.Runs[I].IsBreak := Runs[I].IsBreak;
+  end;
+end;
+
+procedure TReportShapeObject.CaptureExportCommands(const Context: TExpressionContext;
+  const ASink: IReportExportCaptureSink);
+var
+  R: TRect;
+  Origin: TPoint;
+  FillCmd: TReportExportFillRectangleCommand;
+  RectCmd: TReportExportRectangleCommand;
+  LineCmd: TReportExportLineCommand;
+  EllipseCmd: TReportExportEllipseCommand;
+begin
+  if not Assigned(ASink) then
+    Exit;
+
+  Origin := ASink.GetCaptureOrigin;
+  R := Bounds;
+  OffsetRect(R, Origin.X, Origin.Y);
+
+  case ShapeType of
+    stRectangle, stRoundRect:
+    { stRoundRect reuses the rectangle representation: fill/border are
+      preserved via the existing fill-rectangle/rectangle commands so the
+      shape does not disappear from graphical exports. Corner rounding
+      itself is not representable in the current command model. }
+    begin
+      if BrushStyle = bsSolid then
+      begin
+        FillCmd := TReportExportFillRectangleCommand.Create;
+        FillCmd.Bounds := R;
+        FillCmd.FillColor := BrushColor;
+        ASink.AddCommand(FillCmd);
+      end;
+
+      if PenStyle <> psClear then
+      begin
+        RectCmd := TReportExportRectangleCommand.Create;
+        RectCmd.Bounds := R;
+        RectCmd.BorderColor := PenColor;
+        RectCmd.BorderWidth := PenWidth;
+        ASink.AddCommand(RectCmd);
+      end;
+    end;
+
+    stLine, stDiagLine:
+    begin
+      if PenStyle <> psClear then
+      begin
+        LineCmd := TReportExportLineCommand.Create;
+        LineCmd.Color := PenColor;
+        LineCmd.Width := PenWidth;
+        if ShapeType = stLine then
+        begin
+          LineCmd.X1 := R.Left;
+          LineCmd.Y1 := (R.Top + R.Bottom) div 2;
+          LineCmd.X2 := R.Right;
+          LineCmd.Y2 := LineCmd.Y1;
+        end
+        else
+        begin
+          LineCmd.X1 := R.Left;
+          LineCmd.Y1 := R.Top;
+          LineCmd.X2 := R.Right;
+          LineCmd.Y2 := R.Bottom;
+        end;
+        ASink.AddCommand(LineCmd);
+      end;
+    end;
+
+    stEllipse:
+    { Mirror the GDI Ellipse semantics: fill only when the brush is a solid
+      fill, border only when the pen is visible. If neither is visible the
+      shape renders nothing in preview either, so no command is emitted. }
+    begin
+      if (BrushStyle = bsSolid) or (PenStyle <> psClear) then
+      begin
+        EllipseCmd := TReportExportEllipseCommand.Create;
+        EllipseCmd.Bounds := R;
+        EllipseCmd.FillColor := BrushColor;
+        EllipseCmd.HasFill := BrushStyle = bsSolid;
+        EllipseCmd.BorderColor := PenColor;
+        EllipseCmd.BorderWidth := PenWidth;
+        EllipseCmd.HasBorder := PenStyle <> psClear;
+        ASink.AddCommand(EllipseCmd);
+      end;
+    end;
+  end;
+end;
+
+procedure TReportLineObject.CaptureExportCommands(const Context: TExpressionContext;
+  const ASink: IReportExportCaptureSink);
+var
+  R: TRect;
+  Origin: TPoint;
+  CX, CY: Integer;
+  LineCmd: TReportExportLineCommand;
+begin
+  if not Assigned(ASink) then
+    Exit;
+
+  R := Bounds;
+  if ExtendToPageBottom and (Orientation = loVertical) and
+     (Context.PageBottom > R.Top) then
+    R.Bottom := Context.PageBottom;
+  Origin := ASink.GetCaptureOrigin;
+  OffsetRect(R, Origin.X, Origin.Y);
+  CX := (R.Left + R.Right) div 2;
+  CY := (R.Top + R.Bottom) div 2;
+
+  LineCmd := TReportExportLineCommand.Create;
+  LineCmd.Color := LineColor;
+  LineCmd.Width := LineWidth;
+  if Orientation = loHorizontal then
+  begin
+    LineCmd.X1 := R.Left;
+    LineCmd.Y1 := CY;
+    LineCmd.X2 := R.Right;
+    LineCmd.Y2 := CY;
+  end
+  else
+  begin
+    LineCmd.X1 := CX;
+    LineCmd.Y1 := R.Top;
+    LineCmd.X2 := CX;
+    LineCmd.Y2 := R.Bottom;
+  end;
+  ASink.AddCommand(LineCmd);
+end;
+
+procedure TReportImageObject.CaptureExportCommands(const Context: TExpressionContext;
+  const ASink: IReportExportCaptureSink);
+var
+  R: TRect;
+  Origin: TPoint;
+  RectCmd: TReportExportRectangleCommand;
+  ImageCmd: TReportExportImageCommand;
+  ImageSource: string;
+  TempFile: string;
+  Png: TPngImage;
+  Bmp: Vcl.Graphics.TBitmap;
+  PW: Integer;
+  PH: Integer;
+  BW: Integer;
+  BH: Integer;
+  ScaleX: Double;
+  ScaleY: Double;
+  Scale: Double;
+begin
+  if not Assigned(ASink) then
+    Exit;
+
+  Origin := ASink.GetCaptureOrigin;
+  R := Bounds;
+  OffsetRect(R, Origin.X, Origin.Y);
+
+  if BorderVisible then
+  begin
+    RectCmd := TReportExportRectangleCommand.Create;
+    RectCmd.Bounds := R;
+    RectCmd.BorderColor := BorderColor;
+    RectCmd.BorderWidth := BorderWidth;
+    ASink.AddCommand(RectCmd);
+  end;
+
+  ImageSource := ResolveImageSource(Context);
+  if (ImageSource <> '') and FileExists(ImageSource) then
+  begin
+    var Ext := LowerCase(ExtractFileExt(ImageSource));
+    var IsVectorFormat := (Ext = '.svg') or (Ext = '.emf') or (Ext = '.wmf');
+    if IsVectorFormat or (Assigned(Picture.Graphic) and not Picture.Graphic.Empty) then
+    begin
+      if Stretch then
+      begin
+        if Proportional then
+        begin
+          if IsVectorFormat then
+          begin
+            PW := 100;
+            PH := 100;
+          end
+          else
+          begin
+            PW := Picture.Width;
+            PH := Picture.Height;
+          end;
+
+          BW := R.Width;
+          BH := R.Height;
+          if (PW > 0) and (PH > 0) and (BW > 0) and (BH > 0) then
+          begin
+            ScaleX := BW / PW;
+            ScaleY := BH / PH;
+            if ScaleX < ScaleY then Scale := ScaleX else Scale := ScaleY;
+            R := Rect(R.Left, R.Top,
+                      R.Left + Round(PW * Scale),
+                      R.Top + Round(PH * Scale));
+            if Center then
+              OffsetRect(R, (BW - R.Width) div 2, (BH - R.Height) div 2);
+          end;
+        end;
+      end
+      else if Center then
+      begin
+        PW := Picture.Width;
+        PH := Picture.Height;
+        BW := R.Width;
+        BH := R.Height;
+        R := Rect(R.Left + (BW - PW) div 2,
+                  R.Top + (BH - PH) div 2,
+                  R.Left + (BW - PW) div 2 + PW,
+                  R.Top + (BH - PH) div 2 + PH);
+      end
+      else
+        R := Rect(R.Left, R.Top,
+                  R.Left + Picture.Width,
+                  R.Top + Picture.Height);
+
+      ImageCmd := TReportExportImageCommand.Create;
+      ImageCmd.Bounds := R;
+      ImageCmd.Source := ImageSource;
+      ImageCmd.Stretch := Stretch;
+      ImageCmd.Center := Center;
+      ImageCmd.Proportional := Proportional;
+      ASink.AddCommand(ImageCmd);
+    end;
+  end
+  else if Assigned(Picture.Graphic) and not Picture.Graphic.Empty then
+  begin
+    // Embedded design-time picture (no usable data-bound source): capture
+    // the existing graphic as a temporary PNG registered with the export
+    // document, so it exports like file-path images and is deleted with
+    // the document.  The object's own graphic is not modified.
+    if (Picture.Width > 0) and (Picture.Height > 0) then
+    begin
+      Bmp := Vcl.Graphics.TBitmap.Create;
+      Png := TPngImage.Create;
+      try
+        Bmp.SetSize(Picture.Width, Picture.Height);
+        Bmp.Canvas.Brush.Color := clWhite;
+        Bmp.Canvas.FillRect(Rect(0, 0, Bmp.Width, Bmp.Height));
+        Bmp.Canvas.Draw(0, 0, Picture.Graphic);
+        Png.Assign(Bmp);
+
+        TempFile := TPath.Combine(TPath.GetTempPath,
+          'vittix_export_' + TGUID.NewGuid.ToString + '.png');
+        Png.SaveToFile(TempFile);
+
+        ImageCmd := TReportExportImageCommand.Create;
+        ImageCmd.Bounds := R;
+        ImageCmd.Source := TempFile;
+        ImageCmd.Stretch := Stretch;
+        ImageCmd.Center := Center;
+        ImageCmd.Proportional := Proportional;
+        ASink.AddCommand(ImageCmd);
+        ASink.RegisterTempFile(TempFile);
+      finally
+        Png.Free;
+        Bmp.Free;
+      end;
+    end;
+  end;
 end;
 
 procedure EnsureRegistryInitialized;

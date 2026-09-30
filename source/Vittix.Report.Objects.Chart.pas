@@ -43,6 +43,10 @@ type
     destructor Destroy; override;
 
     procedure Draw(C: TCanvas; const Context: TExpressionContext); override;
+    { DP-31 / M-13: captured as an image - the chart has no per-primitive
+      export representation. }
+    procedure CaptureExportCommands(const Context: TExpressionContext;
+      const ASink: IReportExportCaptureSink); override;
     { Drops the prepared-data latch so the next Draw re-reads the dataset.
       Called by the engine per pass (DP-12): without it a second Prepare
       against changed data kept drawing the first pass's points. }
@@ -414,6 +418,15 @@ begin
   C.MoveTo(R.Left, R.Top);
   C.LineTo(R.Left, R.Bottom - 5);
   C.LineTo(R.Right, R.Bottom - 5);
+end;
+
+procedure TReportChartObject.CaptureExportCommands(const Context: TExpressionContext;
+  const ASink: IReportExportCaptureSink);
+begin
+  // DP-31 / M-13: charts have no per-primitive capture; the sink rasterises
+  // the object through its own Draw into a registered temp image.
+  if Assigned(ASink) then
+    ASink.CaptureObjectAsImage(Self, Context);
 end;
 
 class function TReportChartObject.DisplayName: string;

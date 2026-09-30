@@ -19,6 +19,8 @@ type
   public
     constructor Create; override;
     procedure Draw(C: TCanvas; const Context: TExpressionContext); override;
+    procedure CaptureExportCommands(const Context: TExpressionContext;
+      const ASink: IReportExportCaptureSink); override;
     class function DisplayName: string; override;
   published
     property Rows: Integer read FRows write FRows default 4;
@@ -35,7 +37,8 @@ uses
   System.SysUtils,
   System.Variants,
   Vittix.Report.Expressions,
-  Vittix.Report.Utils;
+  Vittix.Report.Utils,
+  Vittix.Report.Export.Commands;
 
 function ShouldPrintTableObject(AObj: TReportObject;
   const Context: TExpressionContext): Boolean;
@@ -122,6 +125,80 @@ begin
     XPos := R.Left + (ColWidth * ColIndex);
     C.MoveTo(XPos, R.Top);
     C.LineTo(XPos, R.Bottom);
+  end;
+end;
+
+procedure TReportTableObject.CaptureExportCommands(const Context: TExpressionContext;
+  const ASink: IReportExportCaptureSink);
+var
+  R: TRect;
+  Origin: TPoint;
+  RowHeight: Integer;
+  ColWidth: Integer;
+  RowIndex: Integer;
+  ColIndex: Integer;
+  YPos: Integer;
+  XPos: Integer;
+  FillCmd: TReportExportFillRectangleCommand;
+  RectCmd: TReportExportRectangleCommand;
+  LineCmd: TReportExportLineCommand;
+begin
+  if not Assigned(ASink) then
+    Exit;
+
+  Origin := ASink.GetCaptureOrigin;
+  R := Bounds;
+  OffsetRect(R, Origin.X, Origin.Y);
+  if (Rows <= 0) or (Cols <= 0) then
+    Exit;
+
+  RowHeight := Max(1, R.Height div Rows);
+  ColWidth := Max(1, R.Width div Cols);
+
+  FillCmd := TReportExportFillRectangleCommand.Create;
+  FillCmd.Bounds := R;
+  FillCmd.FillColor := clWhite;
+  ASink.AddCommand(FillCmd);
+
+  if HeaderRows > 0 then
+  begin
+    FillCmd := TReportExportFillRectangleCommand.Create;
+    FillCmd.Bounds := Rect(R.Left + 1, R.Top + 1, R.Right - 1,
+      Min(R.Bottom - 1, R.Top + (RowHeight * HeaderRows)));
+    FillCmd.FillColor := HeaderColor;
+    ASink.AddCommand(FillCmd);
+  end;
+
+  RectCmd := TReportExportRectangleCommand.Create;
+  RectCmd.Bounds := R;
+  RectCmd.BorderColor := GridColor;
+  RectCmd.BorderWidth := 1;
+  ASink.AddCommand(RectCmd);
+
+  for RowIndex := 1 to Rows - 1 do
+  begin
+    YPos := R.Top + (RowHeight * RowIndex);
+    LineCmd := TReportExportLineCommand.Create;
+    LineCmd.Color := GridColor;
+    LineCmd.Width := 1;
+    LineCmd.X1 := R.Left;
+    LineCmd.Y1 := YPos;
+    LineCmd.X2 := R.Right;
+    LineCmd.Y2 := YPos;
+    ASink.AddCommand(LineCmd);
+  end;
+
+  for ColIndex := 1 to Cols - 1 do
+  begin
+    XPos := R.Left + (ColWidth * ColIndex);
+    LineCmd := TReportExportLineCommand.Create;
+    LineCmd.Color := GridColor;
+    LineCmd.Width := 1;
+    LineCmd.X1 := XPos;
+    LineCmd.Y1 := R.Top;
+    LineCmd.X2 := XPos;
+    LineCmd.Y2 := R.Bottom;
+    ASink.AddCommand(LineCmd);
   end;
 end;
 

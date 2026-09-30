@@ -29,6 +29,7 @@ interface
 uses
   System.UITypes, System.Classes,
   System.SysUtils,
+  System.Types,
   System.Generics.Collections,
   Vcl.Graphics,
   System.Variants,
@@ -129,7 +130,8 @@ type
     destructor Destroy; override;
   end;
 
-  TReportEngine = class(TObject, IInterface, IReportRenderHooks)
+  TReportEngine = class(TObject, IInterface, IReportRenderHooks,
+    IReportExportCaptureSink)
   private
     FReport:   TReportModel;
     FDataSet:  TDataSet;
@@ -254,6 +256,13 @@ procedure CaptureExportObjectCommand(
     procedure StoreAggregateCache(const AExpression: string;
       const AContext: TExpressionContext; const AValue: Variant);
     function GetSubReportModel(AObject: TObject; const AJSON: string): TObject;
+
+    // IReportExportCaptureSink implementation (DP-31 / M-13)
+    procedure AddCommand(const ACommand: TReportExportCommand);
+    function GetCaptureOrigin: TPoint;
+    procedure RegisterTempFile(const AFileName: string);
+    procedure CaptureObjectAsImage(AObject: TReportObject;
+      const AContext: TExpressionContext);
     /// <summary>
     ///   Creates an engine over a BORROWED report model and dataset.  The
     ///   engine owns neither: both must outlive the engine - or the dataset
@@ -336,7 +345,6 @@ uses
   Vittix.Report.Objects.Table,
   Vittix.Report.Objects.Chart,
   Vittix.Report.Objects.CrossTab,
-  System.Types,
   System.Generics.Defaults;
 
 function BookmarksEqual(const ALeft, ARight: TBookmark): Boolean;
@@ -1711,757 +1719,107 @@ begin
     FOnAfterObject(Self, Self, AObject, Context);
 end;
 
+{ ================= DP-31 / M-13: export capture ================= }
+
+{ The engine is the capture sink: objects emit their commands through this
+  interface while a rendering-pass capture is active.  All per-object logic
+  lives on the object classes; CaptureExportObjectCommand is a dispatcher. }
+
+procedure TReportEngine.AddCommand(const ACommand: TReportExportCommand);
+begin
+  if (ACommand <> nil) and Assigned(FCurrentExportPage) then
+    FCurrentExportPage.Commands.Add(ACommand);
+end;
+
+function TReportEngine.GetCaptureOrigin: TPoint;
+begin
+  Result := Point(0, 0);
+  if Assigned(FCanvas) then
+    GetViewportOrgEx(FCanvas.Handle, Result);
+end;
+
+procedure TReportEngine.RegisterTempFile(const AFileName: string);
+begin
+  if Assigned(FExportDocument) then
+    FExportDocument.AddTempFile(AFileName);
+end;
+
+{ Chart/CrossTab objects have no per-primitive capture; render the object
+  through its existing Draw onto a temporary bitmap and capture it as an
+  image command (1:1 logical resolution, white page background).  The PNG
+  file is registered with the export document, which deletes it when the
+  document is freed - after all exporters have consumed the command. }
+procedure TReportEngine.CaptureObjectAsImage(AObject: TReportObject;
+  const AContext: TExpressionContext);
+var
+  R: TRect;
+  Bmp: Vcl.Graphics.TBitmap;
+  Png: TPngImage;
+  ImgCmd: TReportExportImageCommand;
+  TempFile: string;
+  SavedOrg: TPoint;
+  Origin: TPoint;
+begin
+  if (AObject = nil) or not Assigned(FCurrentExportPage) then
+    Exit;
+
+  Origin := GetCaptureOrigin;
+  R := AObject.Bounds;
+  OffsetRect(R, Origin.X, Origin.Y);
+  if (R.Width <= 0) or (R.Height <= 0) then
+    Exit;
+
+  Bmp := Vcl.Graphics.TBitmap.Create;
+  try
+    Bmp.SetSize(R.Width, R.Height);
+    Bmp.Canvas.Brush.Color := clWhite;
+    Bmp.Canvas.FillRect(Rect(0, 0, Bmp.Width, Bmp.Height));
+    GetViewportOrgEx(Bmp.Canvas.Handle, SavedOrg);
+    SetViewportOrgEx(Bmp.Canvas.Handle, -AObject.Bounds.Left, -AObject.Bounds.Top, nil);
+    try
+      // DP-19: the shared guard already approved this object for the
+      // current print; the re-draw for capture must not re-evaluate
+      // PrintWhen (the object's own Draw now checks ShouldPrintObject).
+      var DrawCtx := AContext;
+      DrawCtx.PrecheckedObjectForPrintWhen := AObject;
+      AObject.Draw(Bmp.Canvas, DrawCtx);
+    finally
+      SetViewportOrgEx(Bmp.Canvas.Handle, SavedOrg.X, SavedOrg.Y, nil);
+    end;
+
+    TempFile := TPath.Combine(TPath.GetTempPath,
+      'vittix_export_' + TGUID.NewGuid.ToString + '.png');
+    Png := TPngImage.Create;
+    try
+      Png.Assign(Bmp);
+      Png.SaveToFile(TempFile);
+    finally
+      Png.Free;
+    end;
+
+    ImgCmd := TReportExportImageCommand.Create;
+    ImgCmd.Bounds := R;
+    ImgCmd.Source := TempFile;
+    ImgCmd.Stretch := True;
+    FCurrentExportPage.Commands.Add(ImgCmd);
+    if Assigned(FExportDocument) then
+      FExportDocument.AddTempFile(TempFile);
+  finally
+    Bmp.Free;
+  end;
+end;
+
 procedure TReportEngine.CaptureExportObjectCommand(
   AObject: TReportObject;
   const Context: TExpressionContext);
-var
-  TextObj: TReportTextObject;
-  ImageObj: TReportImageObject;
-  LineObj: TReportLineObject;
-  ShapeObj: TReportShapeObject;
-  BarcodeObj: TReportBarcodeObject;
-  TableObj: TReportTableObject;
-  TextCmd: TReportExportTextCommand;
-  ImageCmd: TReportExportImageCommand;
-  LineCmd: TReportExportLineCommand;
-  RectCmd: TReportExportRectangleCommand;
-  FillCmd: TReportExportFillRectangleCommand;
-  EllipseCmd: TReportExportEllipseCommand;
-  R: TRect;
-  TextR: TRect;
-  RowHeight: Integer;
-  ColWidth: Integer;
-  RowIndex: Integer;
-  ColIndex: Integer;
-  YPos: Integer;
-  XPos: Integer;
-  BarTop: Integer;
-  BarBottom: Integer;
-  DrawW: Integer;
-  ImageSource: string;
-  TempFile: string;
-  Png: TPngImage;
-  Bmp: Vcl.Graphics.TBitmap;
-  BarcodeText: string;
-  Fld: TField;
-  PW: Integer;
-  PH: Integer;
-  BW: Integer;
-  BH: Integer;
-  ScaleX: Double;
-  ScaleY: Double;
-  Scale: Double;
-  CX: Integer;
-  CY: Integer;
-  DrawFontColor: TColor;
-  DrawBackground: TColor;
-  DrawBorderColor: TColor;
-  ViewportOrg: TPoint;
-
-  function ExportCode39Pattern(Ch: Char): string;
-  begin
-    case Ch of
-      '0': Result := 'nnnwwnwnn';
-      '1': Result := 'wnnwnnnnw';
-      '2': Result := 'nnwwnnnnw';
-      '3': Result := 'wnwwnnnnn';
-      '4': Result := 'nnnwwnnnw';
-      '5': Result := 'wnnwwnnnn';
-      '6': Result := 'nnwwwnnnn';
-      '7': Result := 'nnnwnnwnw';
-      '8': Result := 'wnnwnnwnn';
-      '9': Result := 'nnwwnnwnn';
-      'A': Result := 'wnnnnwnnw';
-      'B': Result := 'nnwnnwnnw';
-      'C': Result := 'wnwnnwnnn';
-      'D': Result := 'nnnnwwnnw';
-      'E': Result := 'wnnnwwnnn';
-      'F': Result := 'nnwnwwnnn';
-      'G': Result := 'nnnnnwwnw';
-      'H': Result := 'wnnnnwwnn';
-      'I': Result := 'nnwnnwwnn';
-      'J': Result := 'nnnnwwwnn';
-      'K': Result := 'wnnnnnnww';
-      'L': Result := 'nnwnnnnww';
-      'M': Result := 'wnwnnnnwn';
-      'N': Result := 'nnnnwnnww';
-      'O': Result := 'wnnnwnnwn';
-      'P': Result := 'nnwnwnnwn';
-      'Q': Result := 'nnnnnnwww';
-      'R': Result := 'wnnnnnwwn';
-      'S': Result := 'nnwnnnwwn';
-      'T': Result := 'nnnnwnwwn';
-      'U': Result := 'wwnnnnnnw';
-      'V': Result := 'nwwnnnnnw';
-      'W': Result := 'wwwnnnnnn';
-      'X': Result := 'nwnnwnnnw';
-      'Y': Result := 'wwnnwnnnn';
-      'Z': Result := 'nwwnwnnnn';
-      '-': Result := 'nwnnnnwnw';
-      '.': Result := 'wwnnnnwnn';
-      ' ': Result := 'nwwnnnwnn';
-      '$': Result := 'nwnwnwnnn';
-      '/': Result := 'nwnwnnnwn';
-      '+': Result := 'nwnnnwnwn';
-      '%': Result := 'nnnwnwnwn';
-      '*': Result := 'nwnnwnwnn';
-    else
-      Result := '';
-    end;
-  end;
-
-  function ExportNormalizeCode39Text(const S: string): string;
-  var
-    I: Integer;
-    Ch: Char;
-  begin
-    Result := '';
-    for I := 1 to Length(S) do
-    begin
-      Ch := UpCase(S[I]);
-      if (Ch <> '*') and (ExportCode39Pattern(Ch) <> '') then
-        Result := Result + Ch;
-    end;
-    Result := '*' + Result + '*';
-  end;
-
-  procedure AddBarcodeBar(const ARect: TRect; AColor: TColor);
-  begin
-    if (ARect.Right <= ARect.Left) or (ARect.Bottom <= ARect.Top) then
-      Exit;
-
-    FillCmd := TReportExportFillRectangleCommand.Create;
-    FillCmd.Bounds := ARect;
-    FillCmd.FillColor := AColor;
-    FCurrentExportPage.Commands.Add(FillCmd);
-  end;
-
-  { DP-21 / M-9: quiet zones (blank margins) reserved on both sides of a
-    barcode symbol, in narrow-module units; keep identical to the canvas
-    geometry in Vittix.Report.Objects.Barcode (full extraction of the
-    shared geometry is DP-31). }
-  const
-    ExportQuietUnits = 4;
-
-  procedure CaptureLegacyBarcodeBars(
-    const S: string;
-    const ARect: TRect;
-    ABarTop: Integer;
-    ABarBottom: Integer;
-    ADrawWidth: Integer;
-    ABarColor: TColor);
-  var
-    I: Integer;
-    B: Integer;
-    XBar: Integer;
-  begin
-    XBar := ARect.Left + 4 + ExportQuietUnits; // DP-21: left quiet zone
-    for I := 1 to Length(S) do
-    begin
-      for B := 0 to 6 do
-      begin
-        if XBar >= ARect.Left + ADrawWidth then // DP-21: keep the right quiet zone free
-          Break;
-
-        if ((Ord(S[I]) shr B) and 1) = 1 then
-          AddBarcodeBar(Rect(XBar, ABarTop, XBar + 1, ABarBottom), ABarColor);
-        Inc(XBar);
-      end;
-      Inc(XBar);
-      if XBar >= ARect.Left + ADrawWidth then
-        Break;
-    end;
-  end;
-
-  procedure CaptureCode39BarcodeBars(
-    const S: string;
-    const ARect: TRect;
-    ABarTop: Integer;
-    ABarBottom: Integer;
-    ADrawWidth: Integer;
-    ABarColor: TColor);
-  var
-    Encoded: string;
-    Pattern: string;
-    I: Integer;
-    J: Integer;
-    UnitW: Integer;
-    ModuleUnits: Integer;
-    TotalUnits: Integer;
-    XBar: Integer;
-    BarWidth: Integer;
-  begin
-    Encoded := ExportNormalizeCode39Text(S);
-    TotalUnits := 0;
-    for I := 1 to Length(Encoded) do
-    begin
-      Pattern := ExportCode39Pattern(Encoded[I]);
-      for J := 1 to Length(Pattern) do
-        if Pattern[J] = 'w' then
-          Inc(TotalUnits, 3)
-        else
-          Inc(TotalUnits);
-      if I < Length(Encoded) then
-        Inc(TotalUnits);
-    end;
-
-    // DP-21: reserve quiet zones on both sides; the module width shrinks
-    // so the symbol plus the margins still fit the drawable width.
-    UnitW := Max(1, ADrawWidth div Max(1, TotalUnits + 2 * ExportQuietUnits));
-    XBar := ARect.Left + 4 + ExportQuietUnits * UnitW;
-    for I := 1 to Length(Encoded) do
-    begin
-      Pattern := ExportCode39Pattern(Encoded[I]);
-      for J := 1 to Length(Pattern) do
-      begin
-        if Pattern[J] = 'w' then
-          ModuleUnits := 3
-        else
-          ModuleUnits := 1;
-        BarWidth := UnitW * ModuleUnits;
-        if Odd(J) then
-          AddBarcodeBar(Rect(XBar, ABarTop,
-            Min(XBar + BarWidth, ARect.Left + 4 + ADrawWidth), ABarBottom), ABarColor);
-        Inc(XBar, BarWidth);
-        if XBar >= ARect.Left + 4 + ADrawWidth then
-          Exit;
-      end;
-      Inc(XBar, UnitW);
-    end;
-  end;
-
-  procedure CaptureElementsBarcodeBars(
-    const AElements: string;
-    const ARect: TRect;
-    ABarTop: Integer;
-    ABarBottom: Integer;
-    ADrawWidth: Integer;
-    ABarColor: TColor);
-  var
-    I: Integer;
-    UnitW: Integer;
-    TotalUnits: Integer;
-    XBar: Integer;
-    BarWidth: Integer;
-  begin
-    TotalUnits := BarcodeElementTotalUnits(AElements);
-    if TotalUnits <= 0 then
-      Exit;
-
-    // DP-21: reserve quiet zones on both sides; the module width shrinks
-    // so the symbol plus the margins still fit the drawable width.
-    UnitW := Max(1, ADrawWidth div (TotalUnits + 2 * ExportQuietUnits));
-    XBar := ARect.Left + 4 + ExportQuietUnits * UnitW;
-    for I := 1 to Length(AElements) do
-    begin
-      BarWidth := UnitW * (Ord(AElements[I]) - 48);
-      if Odd(I) then
-        AddBarcodeBar(Rect(XBar, ABarTop,
-          Min(XBar + BarWidth, ARect.Left + 4 + ADrawWidth), ABarBottom), ABarColor);
-      Inc(XBar, BarWidth);
-      if XBar >= ARect.Left + 4 + ADrawWidth then
-        Exit;
-    end;
-  end;
-
-  procedure CaptureQRMatrixRects(
-    const AMatrix: TBarcodeModuleMatrix;
-    const ARect: TRect;
-    ABarTop: Integer;
-    ABarBottom: Integer;
-    ADrawWidth: Integer;
-    ABarColor: TColor);
-  var
-    Rects: TArray<TRect>;
-    I: Integer;
-  begin
-    Rects := QRMatrixToRects(AMatrix, ARect, ABarTop, ABarBottom, ADrawWidth);
-    for I := 0 to High(Rects) do
-      AddBarcodeBar(Rects[I], ABarColor);
-  end;
-
-  { Chart/CrossTab objects have no per-primitive capture; render the object
-    through its existing Draw onto a temporary bitmap and capture it as an
-    image command (1:1 logical resolution, white page background).  The PNG
-    file is registered with the export document, which deletes it when the
-    document is freed — after all exporters have consumed the command. }
-  procedure CaptureRenderableObjectAsImage(AObj: TReportObject);
-  var
-    R: TRect;
-    Bmp: Vcl.Graphics.TBitmap;
-    Png: TPngImage;
-    ImgCmd: TReportExportImageCommand;
-    TempFile: string;
-    SavedOrg: TPoint;
-  begin
-    R := AObj.Bounds;
-    OffsetRect(R, ViewportOrg.X, ViewportOrg.Y);
-    if (R.Width <= 0) or (R.Height <= 0) then
-      Exit;
-
-    Bmp := Vcl.Graphics.TBitmap.Create;
-    try
-      Bmp.SetSize(R.Width, R.Height);
-      Bmp.Canvas.Brush.Color := clWhite;
-      Bmp.Canvas.FillRect(Rect(0, 0, Bmp.Width, Bmp.Height));
-      GetViewportOrgEx(Bmp.Canvas.Handle, SavedOrg);
-      SetViewportOrgEx(Bmp.Canvas.Handle, -AObj.Bounds.Left, -AObj.Bounds.Top, nil);
-      try
-        // DP-19: the shared guard already approved this object for the
-        // current print; the re-draw for capture must not re-evaluate
-        // PrintWhen (the object's own Draw now checks ShouldPrintObject).
-        var DrawCtx := Context;
-        DrawCtx.PrecheckedObjectForPrintWhen := AObj;
-        AObj.Draw(Bmp.Canvas, DrawCtx);
-      finally
-        SetViewportOrgEx(Bmp.Canvas.Handle, SavedOrg.X, SavedOrg.Y, nil);
-      end;
-
-      TempFile := TPath.Combine(TPath.GetTempPath,
-        'vittix_export_' + TGUID.NewGuid.ToString + '.png');
-      Png := TPngImage.Create;
-      try
-        Png.Assign(Bmp);
-        Png.SaveToFile(TempFile);
-      finally
-        Png.Free;
-      end;
-
-      ImgCmd := TReportExportImageCommand.Create;
-      ImgCmd.Bounds := R;
-      ImgCmd.Source := TempFile;
-      ImgCmd.Stretch := True;
-      FCurrentExportPage.Commands.Add(ImgCmd);
-      FExportDocument.AddTempFile(TempFile);
-    finally
-      Bmp.Free;
-    end;
-  end;
 begin
   if not IsCapturingExportCommands or not Assigned(FCurrentExportPage) or
      not Assigned(AObject) then
     Exit;
 
-  ViewportOrg := Point(0, 0);
-  if Assigned(FCanvas) then
-    GetViewportOrgEx(FCanvas.Handle, ViewportOrg);
-
-  if AObject is TReportTextObject then
-  begin
-    TextObj := TReportTextObject(AObject);
-    R := TextObj.Bounds;
-    OffsetRect(R, ViewportOrg.X, ViewportOrg.Y);
-    TextObj.ResolveTextStyle(Context, DrawFontColor, DrawBackground, DrawBorderColor);
-
-    if not TextObj.Transparent then
-    begin
-      FillCmd := TReportExportFillRectangleCommand.Create;
-      FillCmd.Bounds := R;
-      FillCmd.FillColor := DrawBackground;
-      FCurrentExportPage.Commands.Add(FillCmd);
-    end;
-
-    if TextObj.BorderVisible then
-    begin
-      RectCmd := TReportExportRectangleCommand.Create;
-      RectCmd.Bounds := R;
-      RectCmd.BorderColor := DrawBorderColor;
-      RectCmd.BorderWidth := TextObj.BorderWidth;
-      FCurrentExportPage.Commands.Add(RectCmd);
-    end;
-
-    TextR := Rect(
-      R.Left + TextObj.PaddingLeft,
-      R.Top + TextObj.PaddingTop,
-      R.Right - TextObj.PaddingRight,
-      R.Bottom - TextObj.PaddingBottom);
-
-    TextCmd := TReportExportTextCommand.Create;
-    TextCmd.Bounds := TextR;
-    TextCmd.Text := TextObj.ResolveDisplayText(Context);
-    TextCmd.FontName := TextObj.Font.Name;
-    TextCmd.FontSize := TextObj.Font.Size;
-    TextCmd.FontStyle := TextObj.Font.Style;
-    TextCmd.FontColor := DrawFontColor;
-    TextCmd.HAlign := TextObj.HAlign;
-    TextCmd.VAlign := TextObj.VAlign;
-    TextCmd.WordWrap := TextObj.WordWrap;
-
-    if AObject is TReportMemoObject then
-    begin
-      var Memo := TReportMemoObject(AObject);
-      if Memo.AllowHTML then
-      begin
-        var Runs: TArray<Vittix.Report.MemoExport.TMemoRun>;
-        Vittix.Report.MemoExport.ParseMemoRuns(TextCmd.Text, TextCmd.FontStyle, TextCmd.FontColor,
-          TextCmd.FontName, TextCmd.FontSize, True, Runs);
-        SetLength(TextCmd.Runs, Length(Runs));
-        for var I := 0 to High(Runs) do
-        begin
-          TextCmd.Runs[I].Text := Runs[I].Text;
-          TextCmd.Runs[I].FontName := Runs[I].FontName;
-          TextCmd.Runs[I].FontSize := Runs[I].Size;
-          TextCmd.Runs[I].FontStyle := Runs[I].Style;
-          TextCmd.Runs[I].FontColor := Runs[I].Color;
-          TextCmd.Runs[I].IsBreak := Runs[I].IsBreak;
-        end;
-      end;
-    end;
-
-    FCurrentExportPage.Commands.Add(TextCmd);
-  end
-  else if AObject is TReportImageObject then
-  begin
-    ImageObj := TReportImageObject(AObject);
-    R := ImageObj.Bounds;
-    OffsetRect(R, ViewportOrg.X, ViewportOrg.Y);
-
-    if ImageObj.BorderVisible then
-    begin
-      RectCmd := TReportExportRectangleCommand.Create;
-      RectCmd.Bounds := R;
-      RectCmd.BorderColor := ImageObj.BorderColor;
-      RectCmd.BorderWidth := ImageObj.BorderWidth;
-      FCurrentExportPage.Commands.Add(RectCmd);
-    end;
-
-    ImageSource := ImageObj.ResolveImageSource(Context);
-    if (ImageSource <> '') and FileExists(ImageSource) then
-    begin
-      var Ext := LowerCase(ExtractFileExt(ImageSource));
-      var IsVectorFormat := (Ext = '.svg') or (Ext = '.emf') or (Ext = '.wmf');
-      if IsVectorFormat or (Assigned(ImageObj.Picture.Graphic) and not ImageObj.Picture.Graphic.Empty) then
-      begin
-        if ImageObj.Stretch then
-        begin
-          if ImageObj.Proportional then
-          begin
-            if IsVectorFormat then
-            begin
-              PW := 100;
-              PH := 100;
-            end
-            else
-            begin
-              PW := ImageObj.Picture.Width;
-              PH := ImageObj.Picture.Height;
-            end;
-            
-            BW := R.Width;
-            BH := R.Height;
-            if (PW > 0) and (PH > 0) and (BW > 0) and (BH > 0) then
-            begin
-              ScaleX := BW / PW;
-              ScaleY := BH / PH;
-            if ScaleX < ScaleY then Scale := ScaleX else Scale := ScaleY;
-            R := Rect(R.Left, R.Top,
-                      R.Left + Round(PW * Scale),
-                      R.Top + Round(PH * Scale));
-            if ImageObj.Center then
-              OffsetRect(R, (BW - R.Width) div 2, (BH - R.Height) div 2);
-          end;
-        end;
-      end
-      else if ImageObj.Center then
-      begin
-        PW := ImageObj.Picture.Width;
-        PH := ImageObj.Picture.Height;
-        BW := R.Width;
-        BH := R.Height;
-        R := Rect(R.Left + (BW - PW) div 2,
-                  R.Top + (BH - PH) div 2,
-                  R.Left + (BW - PW) div 2 + PW,
-                  R.Top + (BH - PH) div 2 + PH);
-      end
-      else
-        R := Rect(R.Left, R.Top,
-                  R.Left + ImageObj.Picture.Width,
-                  R.Top + ImageObj.Picture.Height);
-      end;
-
-      ImageCmd := TReportExportImageCommand.Create;
-      ImageCmd.Bounds := R;
-      ImageCmd.Source := ImageSource;
-      ImageCmd.Stretch := ImageObj.Stretch;
-      ImageCmd.Center := ImageObj.Center;
-      ImageCmd.Proportional := ImageObj.Proportional;
-      FCurrentExportPage.Commands.Add(ImageCmd);
-    end
-    else if Assigned(ImageObj.Picture.Graphic) and
-            not ImageObj.Picture.Graphic.Empty then
-    begin
-      // Embedded design-time picture (no usable data-bound source): capture
-      // the existing graphic as a temporary PNG registered with the export
-      // document, so it exports like file-path images and is deleted with
-      // the document.  The object's own graphic is not modified.
-      if (ImageObj.Picture.Width > 0) and (ImageObj.Picture.Height > 0) then
-      begin
-        Bmp := Vcl.Graphics.TBitmap.Create;
-        Png := TPngImage.Create;
-        try
-          Bmp.SetSize(ImageObj.Picture.Width, ImageObj.Picture.Height);
-          Bmp.Canvas.Brush.Color := clWhite;
-          Bmp.Canvas.FillRect(Rect(0, 0, Bmp.Width, Bmp.Height));
-          Bmp.Canvas.Draw(0, 0, ImageObj.Picture.Graphic);
-          Png.Assign(Bmp);
-
-          TempFile := TPath.Combine(TPath.GetTempPath,
-            'vittix_export_' + TGUID.NewGuid.ToString + '.png');
-          Png.SaveToFile(TempFile);
-
-          ImageCmd := TReportExportImageCommand.Create;
-          ImageCmd.Bounds := R;
-          ImageCmd.Source := TempFile;
-          ImageCmd.Stretch := ImageObj.Stretch;
-          ImageCmd.Center := ImageObj.Center;
-          ImageCmd.Proportional := ImageObj.Proportional;
-          FCurrentExportPage.Commands.Add(ImageCmd);
-          FExportDocument.AddTempFile(TempFile);
-        finally
-          Png.Free;
-          Bmp.Free;
-        end;
-      end;
-    end;
-  end
-  else if AObject is TReportLineObject then
-  begin
-    LineObj := TReportLineObject(AObject);
-    R := LineObj.Bounds;
-    if LineObj.ExtendToPageBottom and (LineObj.Orientation = loVertical) and
-       (Context.PageBottom > R.Top) then
-      R.Bottom := Context.PageBottom;
-    OffsetRect(R, ViewportOrg.X, ViewportOrg.Y);
-    CX := (R.Left + R.Right) div 2;
-    CY := (R.Top + R.Bottom) div 2;
-
-    LineCmd := TReportExportLineCommand.Create;
-    LineCmd.Color := LineObj.LineColor;
-    LineCmd.Width := LineObj.LineWidth;
-    if LineObj.Orientation = loHorizontal then
-    begin
-      LineCmd.X1 := R.Left;
-      LineCmd.Y1 := CY;
-      LineCmd.X2 := R.Right;
-      LineCmd.Y2 := CY;
-    end
-    else
-    begin
-      LineCmd.X1 := CX;
-      LineCmd.Y1 := R.Top;
-      LineCmd.X2 := CX;
-      LineCmd.Y2 := R.Bottom;
-    end;
-    FCurrentExportPage.Commands.Add(LineCmd);
-  end
-  else if AObject is TReportShapeObject then
-  begin
-    ShapeObj := TReportShapeObject(AObject);
-    R := ShapeObj.Bounds;
-    OffsetRect(R, ViewportOrg.X, ViewportOrg.Y);
-
-    case ShapeObj.ShapeType of
-      stRectangle, stRoundRect:
-      { stRoundRect reuses the rectangle representation: fill/border are
-        preserved via the existing fill-rectangle/rectangle commands so the
-        shape no longer disappears from graphical exports. Corner rounding
-        itself is not representable in the current command model. }
-      begin
-        if ShapeObj.BrushStyle = bsSolid then
-        begin
-          FillCmd := TReportExportFillRectangleCommand.Create;
-          FillCmd.Bounds := R;
-          FillCmd.FillColor := ShapeObj.BrushColor;
-          FCurrentExportPage.Commands.Add(FillCmd);
-        end;
-
-        if ShapeObj.PenStyle <> psClear then
-        begin
-          RectCmd := TReportExportRectangleCommand.Create;
-          RectCmd.Bounds := R;
-          RectCmd.BorderColor := ShapeObj.PenColor;
-          RectCmd.BorderWidth := ShapeObj.PenWidth;
-          FCurrentExportPage.Commands.Add(RectCmd);
-        end;
-      end;
-
-      stLine, stDiagLine:
-      begin
-        if ShapeObj.PenStyle <> psClear then
-        begin
-          LineCmd := TReportExportLineCommand.Create;
-          LineCmd.Color := ShapeObj.PenColor;
-          LineCmd.Width := ShapeObj.PenWidth;
-          if ShapeObj.ShapeType = stLine then
-          begin
-            LineCmd.X1 := R.Left;
-            LineCmd.Y1 := (R.Top + R.Bottom) div 2;
-            LineCmd.X2 := R.Right;
-            LineCmd.Y2 := LineCmd.Y1;
-          end
-          else
-          begin
-            LineCmd.X1 := R.Left;
-            LineCmd.Y1 := R.Top;
-            LineCmd.X2 := R.Right;
-            LineCmd.Y2 := R.Bottom;
-          end;
-          FCurrentExportPage.Commands.Add(LineCmd);
-        end;
-      end;
-
-      stEllipse:
-      { Mirror the GDI Ellipse semantics: fill only when the brush is a solid
-        fill, border only when the pen is visible. If neither is visible the
-        shape renders nothing in preview either, so no command is emitted. }
-      begin
-        if (ShapeObj.BrushStyle = bsSolid) or (ShapeObj.PenStyle <> psClear) then
-        begin
-          EllipseCmd := TReportExportEllipseCommand.Create;
-          EllipseCmd.Bounds := R;
-          EllipseCmd.FillColor := ShapeObj.BrushColor;
-          EllipseCmd.HasFill := ShapeObj.BrushStyle = bsSolid;
-          EllipseCmd.BorderColor := ShapeObj.PenColor;
-          EllipseCmd.BorderWidth := ShapeObj.PenWidth;
-          EllipseCmd.HasBorder := ShapeObj.PenStyle <> psClear;
-          FCurrentExportPage.Commands.Add(EllipseCmd);
-        end;
-      end;
-    end;
-  end
-  else if AObject is TReportBarcodeObject then
-  begin
-    BarcodeObj := TReportBarcodeObject(AObject);
-    R := BarcodeObj.Bounds;
-    OffsetRect(R, ViewportOrg.X, ViewportOrg.Y);
-
-    BarcodeText := BarcodeObj.Value;
-    if Trim(BarcodeObj.DataField) <> '' then
-    begin
-      Fld := nil;
-      if Assigned(Context.UserDataSet) then
-        BarcodeText := SafeSourceFieldAsString(Context.DataSet, Context.UserDataSet, BarcodeObj.DataField)
-      else if TryGetField(Context.DataSet, BarcodeObj.DataField, Fld) then
-      begin
-        try
-          BarcodeText := Fld.AsString;
-        except
-          // Keep fallback static value if provider raises.
-        end;
-      end;
-    end;
-
-    FillCmd := TReportExportFillRectangleCommand.Create;
-    FillCmd.Bounds := R;
-    FillCmd.FillColor := BarcodeObj.BackgroundColor;
-    FCurrentExportPage.Commands.Add(FillCmd);
-
-    RectCmd := TReportExportRectangleCommand.Create;
-    RectCmd.Bounds := R;
-    RectCmd.BorderColor := clSilver;
-    RectCmd.BorderWidth := 1;
-    FCurrentExportPage.Commands.Add(RectCmd);
-
-    BarTop := R.Top + 4;
-    if BarcodeObj.ShowText then
-      BarBottom := R.Bottom - 16
-    else
-      BarBottom := R.Bottom - 4;
-
-    if BarBottom <= BarTop then
-      BarBottom := R.Bottom - 4;
-
-    DrawW := Max(1, R.Right - R.Left - 8);
-    case BarcodeObj.Symbology of
-      bsCode39:
-        CaptureCode39BarcodeBars(BarcodeText, R, BarTop, BarBottom, DrawW, BarcodeObj.BarColor);
-      bsCode128, bsEAN13:
-        CaptureElementsBarcodeBars(
-          EncodeBarcodeElements(BarcodeObj.Symbology, BarcodeText),
-          R, BarTop, BarBottom, DrawW, BarcodeObj.BarColor);
-      bsQR:
-        CaptureQRMatrixRects(
-          EncodeQRMatrix(BarcodeText, BarcodeObj.ErrorCorrection),
-          R, BarTop, BarBottom, DrawW, BarcodeObj.BarColor);
-    else
-      CaptureLegacyBarcodeBars(BarcodeText, R, BarTop, BarBottom, DrawW, BarcodeObj.BarColor);
-    end;
-
-    if BarcodeObj.ShowText then
-    begin
-      TextCmd := TReportExportTextCommand.Create;
-      TextCmd.Bounds := Rect(R.Left + 2, R.Bottom - 14, R.Right - 2, R.Bottom - 2);
-      TextCmd.Text := BarcodeText;
-      TextCmd.FontName := 'Arial';
-      TextCmd.FontSize := 8;
-      TextCmd.FontStyle := [];
-      TextCmd.FontColor := clBlack;
-      TextCmd.HAlign := taCenter;
-      TextCmd.WordWrap := False;
-      FCurrentExportPage.Commands.Add(TextCmd);
-    end;
-  end
-  else if AObject is TReportTableObject then
-  begin
-    TableObj := TReportTableObject(AObject);
-    R := TableObj.Bounds;
-    OffsetRect(R, ViewportOrg.X, ViewportOrg.Y);
-    if (TableObj.Rows <= 0) or (TableObj.Cols <= 0) then
-      Exit;
-
-    RowHeight := Max(1, R.Height div TableObj.Rows);
-    ColWidth := Max(1, R.Width div TableObj.Cols);
-
-    FillCmd := TReportExportFillRectangleCommand.Create;
-    FillCmd.Bounds := R;
-    FillCmd.FillColor := clWhite;
-    FCurrentExportPage.Commands.Add(FillCmd);
-
-    if TableObj.HeaderRows > 0 then
-    begin
-      FillCmd := TReportExportFillRectangleCommand.Create;
-      FillCmd.Bounds := Rect(R.Left + 1, R.Top + 1, R.Right - 1,
-        Min(R.Bottom - 1, R.Top + (RowHeight * TableObj.HeaderRows)));
-      FillCmd.FillColor := TableObj.HeaderColor;
-      FCurrentExportPage.Commands.Add(FillCmd);
-    end;
-
-    RectCmd := TReportExportRectangleCommand.Create;
-    RectCmd.Bounds := R;
-    RectCmd.BorderColor := TableObj.GridColor;
-    RectCmd.BorderWidth := 1;
-    FCurrentExportPage.Commands.Add(RectCmd);
-
-    for RowIndex := 1 to TableObj.Rows - 1 do
-    begin
-      YPos := R.Top + (RowHeight * RowIndex);
-      LineCmd := TReportExportLineCommand.Create;
-      LineCmd.Color := TableObj.GridColor;
-      LineCmd.Width := 1;
-      LineCmd.X1 := R.Left;
-      LineCmd.Y1 := YPos;
-      LineCmd.X2 := R.Right;
-      LineCmd.Y2 := YPos;
-      FCurrentExportPage.Commands.Add(LineCmd);
-    end;
-
-    for ColIndex := 1 to TableObj.Cols - 1 do
-    begin
-      XPos := R.Left + (ColWidth * ColIndex);
-      LineCmd := TReportExportLineCommand.Create;
-      LineCmd.Color := TableObj.GridColor;
-      LineCmd.Width := 1;
-      LineCmd.X1 := XPos;
-      LineCmd.Y1 := R.Top;
-      LineCmd.X2 := XPos;
-      LineCmd.Y2 := R.Bottom;
-      FCurrentExportPage.Commands.Add(LineCmd);
-    end;
-  end
-  else if (AObject is TReportChartObject) or (AObject is TReportCrossTabObject) then
-    CaptureRenderableObjectAsImage(AObject);
+  // DP-31 / M-13: dispatch to the object's own capture implementation.
+  AObject.CaptureExportCommands(Context, Self);
 end;
-
 
 function TReportEngine.QueryInterface(const IID: TGUID; out Obj): HResult;
 begin

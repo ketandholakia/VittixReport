@@ -51,6 +51,8 @@ type
   public
     constructor Create; override;
     procedure Draw(C: TCanvas; const Context: TExpressionContext); override;
+    procedure CaptureExportCommands(const Context: TExpressionContext;
+      const ASink: IReportExportCaptureSink); override;
     class function DisplayName: string; override;
   published
     property Value: string read FValue write FValue;
@@ -113,6 +115,9 @@ function QRMatrixToRects(const AMatrix: TBarcodeModuleMatrix;
   const R: TRect; BarTop, BarBottom, DrawW: Integer): TArray<TRect>;
 
 implementation
+
+uses
+  Vittix.Report.Export.Commands;
 
 {$IFDEF DEBUG}
 procedure DebugLogDataFieldIssue(AObj: TReportObject; const ADataField, AReason: string;
@@ -321,17 +326,23 @@ const
   { DP-21 / M-9: quiet zones (blank margins) reserved on both sides of a
     symbol, in narrow-module units, so a scanner can lock onto the code
     edges.  QR uses exactly 4 modules per the spec; the 1D symbologies get
-    the same minimum.  The engine export capture keeps identical margins
-    (Vittix.Report.Engine, CaptureExportObjectCommand); full extraction of
-    the shared geometry is DP-31. }
+    the same minimum.  Both the canvas drawers and the export capture
+    (TReportBarcodeObject.CaptureExportCommands) lay the bars out with this
+    shared geometry since DP-31. }
   BARCODE_QUIET_UNITS = 4;
 
-procedure DrawLegacyBarcode(C: TCanvas; const S: string; const R: TRect; BarTop,
-  BarBottom, DrawW: Integer);
+{ DP-31 / M-13: the shared bar layouts used by BOTH the canvas drawers and
+  the export capture - one geometry, so the preview and the Vector PDF agree
+  column for column.  (The capture used to run its own floor-unit layout
+  that diverged visibly from the canvas; see the DP-21 finding.) }
+
+function LayoutLegacyBarRects(const S: string; const R: TRect;
+  BarTop, BarBottom, DrawW: Integer): TArray<TRect>;
 var
   I, B, TotalSlots, CumSlots, X0, XStart, XEnd: Integer;
   Ch: Char;
 begin
+  SetLength(Result, 0);
   TotalSlots := Length(S) * 8;
   if TotalSlots <= 0 then
     Exit;
@@ -339,7 +350,6 @@ begin
 
   X0 := R.Left + 4;
   CumSlots := BARCODE_QUIET_UNITS;
-  C.Brush.Color := C.Pen.Color;
   for I := 1 to Length(S) do
   begin
     Ch := S[I];
@@ -352,7 +362,9 @@ begin
       begin
         if XEnd <= XStart then
           XEnd := XStart + 1; // DP-21: bars never round to zero width
-        C.FillRect(Rect(XStart, BarTop, Min(XEnd, X0 + DrawW), BarBottom));
+        SetLength(Result, Length(Result) + 1);
+        Result[High(Result)] :=
+          Rect(XStart, BarTop, Min(XEnd, X0 + DrawW), BarBottom);
       end;
       if XEnd >= X0 + DrawW then
         Exit;
@@ -361,12 +373,25 @@ begin
   end;
 end;
 
-procedure DrawCode39Barcode(C: TCanvas; const S: string; const R: TRect; BarTop,
+procedure DrawLegacyBarcode(C: TCanvas; const S: string; const R: TRect; BarTop,
   BarBottom, DrawW: Integer);
+var
+  Rects: TArray<TRect>;
+  I: Integer;
+begin
+  C.Brush.Color := C.Pen.Color;
+  Rects := LayoutLegacyBarRects(S, R, BarTop, BarBottom, DrawW);
+  for I := 0 to High(Rects) do
+    C.FillRect(Rects[I]);
+end;
+
+function LayoutCode39BarRects(const S: string; const R: TRect;
+  BarTop, BarBottom, DrawW: Integer): TArray<TRect>;
 var
   Encoded, Pattern: string;
   I, J, ModuleUnits, TotalUnits, CumUnits, X0, XStart, XEnd: Integer;
 begin
+  SetLength(Result, 0);
   Encoded := NormalizeCode39Text(S);
   TotalUnits := 0;
   for I := 1 to Length(Encoded) do
@@ -386,7 +411,6 @@ begin
 
   X0 := R.Left + 4;
   CumUnits := BARCODE_QUIET_UNITS;
-  C.Brush.Color := C.Pen.Color;
   for I := 1 to Length(Encoded) do
   begin
     Pattern := Code39Pattern(Encoded[I]);
@@ -403,7 +427,9 @@ begin
       begin
         if XEnd <= XStart then
           XEnd := XStart + 1; // DP-21: bars never round to zero width
-        C.FillRect(Rect(XStart, BarTop, Min(XEnd, X0 + DrawW), BarBottom));
+        SetLength(Result, Length(Result) + 1);
+        Result[High(Result)] :=
+          Rect(XStart, BarTop, Min(XEnd, X0 + DrawW), BarBottom);
       end;
       if XEnd >= X0 + DrawW then
         Exit;
@@ -411,6 +437,18 @@ begin
     if I < Length(Encoded) then
       Inc(CumUnits); // inter-character gap
   end;
+end;
+
+procedure DrawCode39Barcode(C: TCanvas; const S: string; const R: TRect; BarTop,
+  BarBottom, DrawW: Integer);
+var
+  Rects: TArray<TRect>;
+  I: Integer;
+begin
+  C.Brush.Color := C.Pen.Color;
+  Rects := LayoutCode39BarRects(S, R, BarTop, BarBottom, DrawW);
+  for I := 0 to High(Rects) do
+    C.FillRect(Rects[I]);
 end;
 
 { ================= Code 128 ================= }
@@ -840,11 +878,12 @@ begin
   end;
 end;
 
-procedure DrawBarcodeElements(C: TCanvas; const AElements: string;
-  const R: TRect; BarTop, BarBottom, DrawW: Integer);
+function LayoutElementBarRects(const AElements: string; const R: TRect;
+  BarTop, BarBottom, DrawW: Integer): TArray<TRect>;
 var
   I, TotalUnits, CumUnits, X0, XStart, XEnd: Integer;
 begin
+  SetLength(Result, 0);
   TotalUnits := BarcodeElementTotalUnits(AElements);
   if TotalUnits <= 0 then
     Exit;
@@ -852,7 +891,6 @@ begin
 
   X0 := R.Left + 4;
   CumUnits := BARCODE_QUIET_UNITS;
-  C.Brush.Color := C.Pen.Color;
   for I := 1 to Length(AElements) do
   begin
     XStart := X0 + Round(CumUnits * DrawW / TotalUnits);
@@ -862,11 +900,25 @@ begin
     begin
       if XEnd <= XStart then
         XEnd := XStart + 1; // DP-21: bars never round to zero width
-      C.FillRect(Rect(XStart, BarTop, Min(XEnd, X0 + DrawW), BarBottom));
+      SetLength(Result, Length(Result) + 1);
+      Result[High(Result)] :=
+        Rect(XStart, BarTop, Min(XEnd, X0 + DrawW), BarBottom);
     end;
     if XEnd >= X0 + DrawW then
       Exit;
   end;
+end;
+
+procedure DrawBarcodeElements(C: TCanvas; const AElements: string;
+  const R: TRect; BarTop, BarBottom, DrawW: Integer);
+var
+  Rects: TArray<TRect>;
+  I: Integer;
+begin
+  C.Brush.Color := C.Pen.Color;
+  Rects := LayoutElementBarRects(AElements, R, BarTop, BarBottom, DrawW);
+  for I := 0 to High(Rects) do
+    C.FillRect(Rects[I]);
 end;
 
 procedure DrawQRMatrix(C: TCanvas; const AMatrix: TBarcodeModuleMatrix;
@@ -981,6 +1033,108 @@ begin
     TextRect := Rect(R.Left + 2, R.Bottom - 14, R.Right - 2, R.Bottom - 2);
     C.TextRect(TextRect,
       S, [tfSingleLine, tfCenter, tfVerticalCenter, tfEndEllipsis]);
+  end;
+end;
+
+procedure TReportBarcodeObject.CaptureExportCommands(const Context: TExpressionContext;
+  const ASink: IReportExportCaptureSink);
+var
+  R, BarRect: TRect;
+  Origin: TPoint;
+  BarTop, BarBottom, DrawW: Integer;
+  S: string;
+  Fld: TField;
+  Rects: TArray<TRect>;
+  I: Integer;
+  FillCmd: TReportExportFillRectangleCommand;
+  RectCmd: TReportExportRectangleCommand;
+  TextCmd: TReportExportTextCommand;
+begin
+  if not Assigned(ASink) then
+    Exit;
+
+  Origin := ASink.GetCaptureOrigin;
+  R := Bounds;
+  OffsetRect(R, Origin.X, Origin.Y);
+
+  // Value resolution mirrors the canvas Draw path (static fallback value
+  // plus optional data-field binding).
+  S := FValue;
+  if Trim(FDataField) <> '' then
+  begin
+    Fld := nil;
+    if Assigned(Context.UserDataSet) then
+      S := SafeSourceFieldAsString(Context.DataSet, Context.UserDataSet, FDataField)
+    else if TryGetField(Context.DataSet, FDataField, Fld) then
+    begin
+      try
+        S := Fld.AsString; // preserve empty-string field values
+      except
+        // Keep fallback static value if provider raises.
+      end;
+    end;
+  end;
+
+  FillCmd := TReportExportFillRectangleCommand.Create;
+  FillCmd.Bounds := R;
+  FillCmd.FillColor := FBackgroundColor;
+  ASink.AddCommand(FillCmd);
+
+  RectCmd := TReportExportRectangleCommand.Create;
+  RectCmd.Bounds := R;
+  RectCmd.BorderColor := clSilver;
+  RectCmd.BorderWidth := 1;
+  ASink.AddCommand(RectCmd);
+
+  BarTop := R.Top + 4;
+  if FShowText then
+    BarBottom := R.Bottom - 16
+  else
+    BarBottom := R.Bottom - 4;
+
+  if BarBottom <= BarTop then
+    BarBottom := R.Bottom - 4;
+
+  DrawW := Max(1, R.Right - R.Left - 8);
+
+  // DP-31 / M-13: one shared layout per symbology (the same functions the
+  // canvas drawers use), so the captured bars match the preview exactly.
+  case FSymbology of
+    bsCode39:
+      Rects := LayoutCode39BarRects(S, R, BarTop, BarBottom, DrawW);
+    bsCode128, bsEAN13:
+      Rects := LayoutElementBarRects(EncodeBarcodeElements(FSymbology, S),
+        R, BarTop, BarBottom, DrawW);
+    bsQR:
+      Rects := QRMatrixToRects(EncodeQRMatrix(S, FErrorCorrection),
+        R, BarTop, BarBottom, DrawW);
+  else
+    Rects := LayoutLegacyBarRects(S, R, BarTop, BarBottom, DrawW);
+  end;
+
+  for I := 0 to High(Rects) do
+  begin
+    BarRect := Rects[I];
+    if (BarRect.Right <= BarRect.Left) or (BarRect.Bottom <= BarRect.Top) then
+      Continue;
+    FillCmd := TReportExportFillRectangleCommand.Create;
+    FillCmd.Bounds := BarRect;
+    FillCmd.FillColor := FBarColor;
+    ASink.AddCommand(FillCmd);
+  end;
+
+  if FShowText then
+  begin
+    TextCmd := TReportExportTextCommand.Create;
+    TextCmd.Bounds := Rect(R.Left + 2, R.Bottom - 14, R.Right - 2, R.Bottom - 2);
+    TextCmd.Text := S;
+    TextCmd.FontName := 'Arial';
+    TextCmd.FontSize := 8;
+    TextCmd.FontStyle := [];
+    TextCmd.FontColor := clBlack;
+    TextCmd.HAlign := taCenter;
+    TextCmd.WordWrap := False;
+    ASink.AddCommand(TextCmd);
   end;
 end;
 
