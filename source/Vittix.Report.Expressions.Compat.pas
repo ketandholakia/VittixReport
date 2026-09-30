@@ -67,6 +67,7 @@ uses
   System.StrUtils,
   Data.DB,
   Vittix.Report.Aggregates,
+  Vittix.Report.TraversalDiagnostics,
   Vittix.Report.Utils
   {$IFDEF DEBUG}
   , Winapi.Windows
@@ -223,6 +224,43 @@ begin
     Result := Copy(Result, 2, Length(Result) - 2);
 end;
 
+{ DP-15: The legacy evaluator resolves a qualified token like
+  [Orders.Company] from the CURRENT dataset - the qualifier is discarded.
+  That contract is frozen, but when the qualifier names a KNOWN dataset
+  other than the active one, the read is very likely unintended. Count the
+  token (and log it in DEBUG) so the silent wrong-dataset reads become
+  visible without changing any resolution behavior. }
+procedure NoteQualifiedFieldToken(const TokenName: string;
+  const Context: TExpressionContext);
+var
+  DotPos: Integer;
+  Qualifier: string;
+  NamedDS: TDataSet;
+begin
+  DotPos := Pos('.', TokenName);
+  if DotPos <= 1 then
+    Exit;
+  Qualifier := Trim(Copy(TokenName, 1, DotPos - 1));
+  if Qualifier = '' then
+    Exit;
+  if not Assigned(Context.Hooks) then
+    Exit;
+
+  NamedDS := Context.Hooks.GetNamedDataSet(Qualifier);
+  if not Assigned(NamedDS) then
+    Exit;                      // not a registered dataset name: nothing to flag
+  if NamedDS = Context.DataSet then
+    Exit;                      // names the active dataset: correct usage
+
+  TReportTraversalDiagnostics.LegacyQualifiedFieldToken;
+{$IFDEF DEBUG}
+  OutputDebugString(PChar(Format(
+    'VittixReport legacy expression: token [%s] names dataset "%s", which is ' +
+    'not the active dataset; legacy resolution stays on the active dataset ' +
+    '(contract, not an error)', [TokenName, Qualifier])));
+{$ENDIF}
+end;
+
 { Expands one bracket token to text.  Never raises: every failure path yields
   the legacy '0' text fallback. }
 function ResolveTokenText(const SourceExpr, TokenName: string;
@@ -238,6 +276,10 @@ begin
 
   if Trim(TokenName) = '' then
     Exit(ZeroFallback(SourceExpr, TokenName, 'unknown token / unsupported token'));
+
+  // After the context namespaces (Param./variables carry dots too), before
+  // field resolution: flag qualified tokens naming a non-active dataset.
+  NoteQualifiedFieldToken(TokenName, Context);
 
   if not Assigned(Context.DataSet) and not Assigned(Context.UserDataSet) then
     Exit(ZeroFallback(SourceExpr, TokenName, 'dataset nil'));
