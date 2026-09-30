@@ -7,6 +7,7 @@ uses
   System.Classes,
   System.SysUtils,
   System.Types,
+  System.Variants,
   Vcl.Graphics,
   Vcl.Imaging.PNGImage,
   Data.DB,
@@ -17,6 +18,7 @@ uses
   Vittix.Report.Objects,
   Vittix.Report.Objects.Chart,
   Vittix.Report.Objects.CrossTab,
+  Vittix.Report.UserDataSet,
   Vittix.Report.Export.Commands;
 
 type
@@ -43,6 +45,23 @@ type
     procedure Test_CrossTabCache_ResetBetweenPrepares;
     [Test]
     procedure Test_ChartCache_ResetBetweenPrepares;
+    [Test]
+    procedure Test_GroupBreak_NullTransitions_Fire;
+    [Test]
+    procedure Test_GroupBreak_TypeFlap_Fires;
+  end;
+
+  { Event harness for a purely event-driven TVittixUserDataSet whose group
+    column returns deliberately type-flapped Variants. }
+  TUDSFlapHarness = class
+  public
+    Row: Integer;
+    GValues: TArray<Variant>;
+    procedure DoFirst(Sender: TObject);
+    procedure DoNext(Sender: TObject);
+    procedure DoEof(Sender: TObject; var AEof: Boolean);
+    procedure DoGetValue(Sender: TObject; const AFieldName: string;
+      var AValue: Variant);
   end;
 
 implementation
@@ -317,6 +336,198 @@ begin
     end;
   finally
     DS.Free;
+  end;
+end;
+
+procedure TTestReportEngine.Test_GroupBreak_NullTransitions_Fire;
+var
+  DS: TClientDataSet;
+  Model: TReportModel;
+  GH, GF: TReportBand;
+  Txt: TReportTextObject;
+  Engine: TReportEngine;
+  Doc: TReportExportDocument;
+  Cmd: TReportExportCommand;
+  HeaderCount: Integer;
+begin
+  // DP-16 / M-6: DetectGroupBreak compared 'NewValue <> FLastGroupValues'.
+  // With a non-Null stored value and a NULL field the '<>' yields Null
+  // (falsy), so value->NULL transitions NEVER fired a group break, and
+  // type-flapped values could be coerced-equal. Trace for [NULL,'A',NULL,'B']:
+  // pre-fix only the initial open fires (1 header); post-fix all four
+  // transitions fire (4 headers, footer between each).
+  DS := TClientDataSet.Create(nil);
+  try
+    DS.FieldDefs.Add('G', ftString, 10);
+    DS.CreateDataSet;
+    DS.AppendRecord([Null]);
+    DS.AppendRecord(['A']);
+    DS.AppendRecord([Null]);
+    DS.AppendRecord(['B']);
+    DS.First;
+    // The test is only meaningful if the rows really carry NULL variants.
+    Assert.IsTrue(VarIsNull(DS.FieldByName('G').Value), 'fixture row1 must be NULL');
+    DS.Next;
+    Assert.IsFalse(VarIsNull(DS.FieldByName('G').Value), 'fixture row2 must be ''A''');
+    DS.Next;
+    Assert.IsTrue(VarIsNull(DS.FieldByName('G').Value), 'fixture row3 must be NULL');
+    DS.Next;
+    Assert.IsFalse(VarIsNull(DS.FieldByName('G').Value), 'fixture row4 must be ''B''');
+    DS.First;
+
+    Model := TReportModel.Create;
+    try
+      GH := TReportBand.Create;
+      GH.BandType := btGroupHeader;
+      GH.GroupField := 'G';
+      GH.GroupLevel := 0;
+      GH.Height := 20;
+      Txt := TReportTextObject.Create;
+      Txt.Text := 'GRP';
+      Txt.Bounds := Rect(10, 2, 100, 18);
+      GH.Children.Add(Txt);
+      Model.Objects.Add(GH);
+
+      GF := TReportBand.Create;
+      GF.BandType := btGroupFooter;
+      GF.GroupField := 'G';
+      GF.GroupLevel := 0;
+      GF.Height := 20;
+      Model.Objects.Add(GF);
+
+      Engine := TReportEngine.Create(Model, DS);
+      try
+        Doc := TReportExportDocument.Create;
+        try
+          Engine.ExportDocument := Doc;
+          Engine.Prepare;
+
+          HeaderCount := 0;
+          for Cmd in Doc.Pages[0].Commands do
+            if (Cmd is TReportExportTextCommand) and
+               (TReportExportTextCommand(Cmd).Text = 'GRP') then
+              Inc(HeaderCount);
+
+          Assert.AreEqual(4, HeaderCount,
+            'each NULL<->value group transition must fire a header ' +
+            '(pre-fix: 1 - value->NULL transitions never broke)');
+        finally
+          Doc.Free;
+        end;
+      finally
+        Engine.Free;
+      end;
+    finally
+      Model.Free;
+    end;
+  finally
+    DS.Free;
+  end;
+end;
+
+{ TUDSFlapHarness }
+
+procedure TUDSFlapHarness.DoFirst(Sender: TObject);
+begin
+  Row := 0;
+end;
+
+procedure TUDSFlapHarness.DoNext(Sender: TObject);
+begin
+  Inc(Row);
+end;
+
+procedure TUDSFlapHarness.DoEof(Sender: TObject; var AEof: Boolean);
+begin
+  AEof := Row > High(GValues);
+end;
+
+procedure TUDSFlapHarness.DoGetValue(Sender: TObject; const AFieldName: string;
+  var AValue: Variant);
+begin
+  if AFieldName = 'G' then
+    AValue := GValues[Row];
+end;
+
+procedure TTestReportEngine.Test_GroupBreak_TypeFlap_Fires;
+var
+  UDS: TVittixUserDataSet;
+  Harness: TUDSFlapHarness;
+  Model: TReportModel;
+  GH, GF: TReportBand;
+  Txt: TReportTextObject;
+  Engine: TReportEngine;
+  Doc: TReportExportDocument;
+  Cmd: TReportExportCommand;
+  HeaderCount: Integer;
+begin
+  // DP-16 / M-6 (the coercion face): DetectGroupBreak compared with
+  // '<>', which coerces across variant types - integer 1 and string '1'
+  // compared equal, so adjacent rows with type-flapped values silently
+  // merged into one group. UDS rows are raw Variants, so this is a
+  // realistic host-data shape. VarSameValue compares without coercion.
+  Harness := TUDSFlapHarness.Create;
+  try
+    Harness.Row := 0;
+    Harness.GValues := TArray<Variant>.Create(1, '1');  // integer vs string
+
+    UDS := TVittixUserDataSet.Create(nil);
+    try
+      UDS.OnFirst := Harness.DoFirst;
+      UDS.OnNext := Harness.DoNext;
+      UDS.OnEof := Harness.DoEof;
+      UDS.OnGetValue := Harness.DoGetValue;
+
+      Model := TReportModel.Create;
+      try
+        GH := TReportBand.Create;
+        GH.BandType := btGroupHeader;
+        GH.GroupField := 'G';
+        GH.GroupLevel := 0;
+        GH.Height := 20;
+        Txt := TReportTextObject.Create;
+        Txt.Text := 'GRP';
+        Txt.Bounds := Rect(10, 2, 100, 18);
+        GH.Children.Add(Txt);
+        Model.Objects.Add(GH);
+
+        GF := TReportBand.Create;
+        GF.BandType := btGroupFooter;
+        GF.GroupField := 'G';
+        GF.GroupLevel := 0;
+        GF.Height := 20;
+        Model.Objects.Add(GF);
+
+        Engine := TReportEngine.Create(Model, UDS, nil, nil);
+        try
+          Doc := TReportExportDocument.Create;
+          try
+            Engine.ExportDocument := Doc;
+            Engine.Prepare;
+
+            HeaderCount := 0;
+            for Cmd in Doc.Pages[0].Commands do
+              if (Cmd is TReportExportTextCommand) and
+                 (TReportExportTextCommand(Cmd).Text = 'GRP') then
+                Inc(HeaderCount);
+
+            Assert.AreEqual(2, HeaderCount,
+              'integer 1 and string ''1'' are distinct group values; ' +
+              'pre-fix they coerced equal and merged into one group');
+          finally
+            Doc.Free;
+          end;
+        finally
+          Engine.Free;
+        end;
+      finally
+        Model.Free;
+      end;
+    finally
+      UDS.Free;
+    end;
+  finally
+    Harness.Free;
   end;
 end;
 
