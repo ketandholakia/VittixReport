@@ -60,6 +60,9 @@ type
 
 implementation
 
+uses
+  Vittix.Report.LayoutBookmarks;
+
 { TReportChartObject }
 
 constructor TReportChartObject.Create;
@@ -109,19 +112,23 @@ var
   LblField, ValField: TField;
   ColorIdx: Integer;
   Bmk: TBookmark;
+  HasBmk: Boolean;
 begin
   if FDataPrepared then Exit;
-  
+
   FDataPoints.Clear;
   DS := ResolveDataSet(Context);
   if Assigned(DS) and DS.Active and (FDataFieldLabel <> '') and (FDataFieldValue <> '') then
   begin
     LblField := DS.FindField(FDataFieldLabel);
     ValField := DS.FindField(FDataFieldValue);
-    
+
     if Assigned(LblField) and Assigned(ValField) then
     begin
-      Bmk := DS.Bookmark;
+      // DP-20: capture/restore/free through the shared helpers - the
+      // previous code took DS.Bookmark and only GotoBookmark in the
+      // finally, never FreeBookmark, leaking a bookmark per PrepareData.
+      HasBmk := Vittix.Report.LayoutBookmarks.CaptureDataSetBookmark(DS, Bmk);
       DS.DisableControls;
       try
         ColorIdx := 0;
@@ -132,18 +139,17 @@ begin
           DP.Value := ValField.AsFloat;
           DP.Color := FDefaultColors[ColorIdx mod Length(FDefaultColors)];
           Inc(ColorIdx);
-          
+
           FDataPoints.Add(DP);
           DS.Next;
         end;
       finally
-        if DS.BookmarkValid(Bmk) then
-          DS.GotoBookmark(Bmk);
+        Vittix.Report.LayoutBookmarks.RestoreDataSetBookmark(DS, Bmk, HasBmk);
         DS.EnableControls;
       end;
     end;
   end;
-  
+
   FDataPrepared := True;
 end;
 
