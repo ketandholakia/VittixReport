@@ -6,8 +6,10 @@ uses
   DUnitX.TestFramework,
   System.Classes,
   System.SysUtils,
+  System.JSON,
   Vittix.Report.Model,
   Vittix.Report.Serializer,
+  Vittix.Report.LoadResult,
   Vittix.Report.Objects,
   Vittix.Report.Bands;
 
@@ -25,6 +27,8 @@ type
     procedure Test_CloneObject;
     [Test]
     procedure Test_Clipboard_SerializeDeserialize;
+    [Test]
+    procedure Test_FutureVersion_Rejected;
   end;
 
 implementation
@@ -177,6 +181,39 @@ begin
   finally
     O1.Free;
     O2.Free;
+  end;
+end;
+
+procedure TTestReportSerializer.Test_FutureVersion_Rejected;
+var
+  Root: TJSONObject;
+  LR: TReportLoadResult;
+  I: Integer;
+  FoundCode: Boolean;
+begin
+  // DP-26 / M-21: a report written by a NEWER format version must be
+  // rejected with a precise diagnostic, never silently loaded as v2
+  // (future semantics would be dropped property-by-property).
+  Root := TJSONObject.Create;
+  try
+    Root.AddPair('Version', TJSONNumber.Create(3));
+    Root.AddPair('Title', 'From The Future');
+
+    LR := TReportSerializer.LoadFromJSONEx(Root.ToJSON, False);
+    try
+      Assert.IsFalse(LR.Success,
+        'a v3 document must not load as if it were v2');
+      FoundCode := False;
+      for I := 0 to LR.Diagnostics.Count - 1 do
+        if LR.Diagnostics[I].Code = 'UNSUPPORTED_VERSION' then
+          FoundCode := True;
+      Assert.IsTrue(FoundCode,
+        'expected a UNSUPPORTED_VERSION diagnostic');
+    finally
+      LR.Free;
+    end;
+  finally
+    Root.Free;
   end;
 end;
 
