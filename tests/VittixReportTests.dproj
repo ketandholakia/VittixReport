@@ -55,6 +55,9 @@
         <DelphiCompile Include="Test.Vittix.Report.DrawSuppression.pas">
             <DCCReference>MainSource</DCCReference>
         </DelphiCompile>
+        <DelphiCompile Include="Test.Vittix.Report.PreviewRetention.pas">
+            <DCCReference>MainSource</DCCReference>
+        </DelphiCompile>
         <DelphiCompile Include="Test.Vittix.Report.Objects.Barcode.pas">
             <DCCReference>MainSource</DCCReference>
         </DelphiCompile>

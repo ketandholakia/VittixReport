@@ -52,6 +52,10 @@ type
     procedure SetZoomPercent(const Value: Integer);
     function  GetPageCount: Integer;
     procedure GetContentSize(out AWidth, AHeight: Integer);
+    { DP-32: client metrics without forcing window creation - a control driven
+      before it is parented (console hosts, tests) reports an empty viewport. }
+    function  ViewClientWidth: Integer;
+    function  ViewClientHeight: Integer;
     procedure SetScrollOffset(AX, AY: Integer);
     procedure UpdateScrollBars;
     function CurrentPageWidth: Integer;
@@ -78,6 +82,14 @@ type
 
     /// <summary>Discards all copied pages and repaints blank.</summary>
     procedure Clear;
+
+    /// <summary>
+    ///   DP-32: the bytes the preview will retain for a loaded renderer - the
+    ///   sum of the pages' metafile sizes.  LoadFromRenderer keeps the vector
+    ///   form, so this is the accurate footprint for the large-report warning
+    ///   (the old estimate assumed a full-page raster per page).
+    /// </summary>
+    class function EstimateRetainedBytes(ARenderer: TReportRenderer): Int64; static;
 
     procedure NextPage;
     procedure PrevPage;
@@ -189,13 +201,17 @@ begin
 
   SetScrollOffset(0, 0);
   UpdateScrollBars;
-  Invalidate;
+  // DP-32: only repaint once the control owns a window - console hosts may
+  // load pages before the control is parented (no handle yet).
+  if HandleAllocated then
+    Invalidate;
 end;
 
 procedure TVittixReportPreview.SetMargins(const Value: TReportMargins);
 begin
   FMargins := Value;
-  Invalidate;
+  if HandleAllocated then
+    Invalidate;
 end;
 
 { ================= Clear ================= }
@@ -207,7 +223,29 @@ begin
   FPageIndex := 0;
   SetScrollOffset(0, 0);
   UpdateScrollBars;
-  Invalidate;
+  if HandleAllocated then
+    Invalidate;
+end;
+
+{ DP-32 / M-18: accurate retained-footprint estimate for the load warning.
+  The preview keeps one vector page per page (metafile copies); raster copies
+  no longer exist, so the metafile byte size - via ENHMETAHEADER.nBytes - is
+  what actually stays in memory. }
+class function TVittixReportPreview.EstimateRetainedBytes(
+  ARenderer: TReportRenderer): Int64;
+var
+  I: Integer;
+  Hdr: ENHMETAHEADER;
+begin
+  Result := 0;
+  if not Assigned(ARenderer) then
+    Exit;
+  for I := 0 to ARenderer.Pages.Count - 1 do
+    if Assigned(ARenderer.Pages[I].Metafile) and
+       (ARenderer.Pages[I].Metafile.Handle <> 0) and
+       (GetEnhMetaFileHeader(HENHMETAFILE(ARenderer.Pages[I].Metafile.Handle),
+          SizeOf(Hdr), @Hdr) > 0) then
+      Inc(Result, Hdr.nBytes);
 end;
 
 { ================= PageCount ================= }
@@ -273,7 +311,8 @@ begin
   FPageIndex := EnsureRange(Value, 0, PageCount - 1);
   SetScrollOffset(0, 0);
   UpdateScrollBars;
-  Invalidate;
+  if HandleAllocated then
+    Invalidate;
   if Assigned(FOnPageChanged) then FOnPageChanged(Self);
 end;
 
@@ -286,7 +325,8 @@ begin
     Exit;
   FZoomPercent := NewZoom;
   UpdateScrollBars;
-  Invalidate;
+  if HandleAllocated then
+    Invalidate;
   if Assigned(FOnZoomChanged) then FOnZoomChanged(Self);
 end;
 
@@ -294,14 +334,30 @@ procedure TVittixReportPreview.GetContentSize(out AWidth, AHeight: Integer);
 var
   Scale: Double;
 begin
-  AWidth := ClientWidth;
-  AHeight := ClientHeight;
+  AWidth := ViewClientWidth;
+  AHeight := ViewClientHeight;
   if (PageCount = 0) or (FPageIndex < 0) or (FPageIndex >= PageCount) then
     Exit;
 
   Scale := FZoomPercent / 100;
-  AWidth := Max(ClientWidth, Round(CurrentPageWidth * Scale) + 20);
-  AHeight := Max(ClientHeight, Round(CurrentPageHeight * Scale) + 20);
+  AWidth := Max(ViewClientWidth, Round(CurrentPageWidth * Scale) + 20);
+  AHeight := Max(ViewClientHeight, Round(CurrentPageHeight * Scale) + 20);
+end;
+
+function TVittixReportPreview.ViewClientWidth: Integer;
+begin
+  if HandleAllocated then
+    Result := ClientWidth
+  else
+    Result := 0;
+end;
+
+function TVittixReportPreview.ViewClientHeight: Integer;
+begin
+  if HandleAllocated then
+    Result := ClientHeight
+  else
+    Result := 0;
 end;
 
 procedure TVittixReportPreview.SetScrollOffset(AX, AY: Integer);
@@ -309,15 +365,16 @@ var
   ContentW, ContentH: Integer;
 begin
   GetContentSize(ContentW, ContentH);
-  AX := EnsureRange(AX, 0, Max(0, ContentW - ClientWidth));
-  AY := EnsureRange(AY, 0, Max(0, ContentH - ClientHeight));
+  AX := EnsureRange(AX, 0, Max(0, ContentW - ViewClientWidth));
+  AY := EnsureRange(AY, 0, Max(0, ContentH - ViewClientHeight));
   if (FScrollX = AX) and (FScrollY = AY) then
     Exit;
 
   FScrollX := AX;
   FScrollY := AY;
   UpdateScrollBars;
-  Invalidate;
+  if HandleAllocated then
+    Invalidate;
 end;
 
 procedure TVittixReportPreview.UpdateScrollBars;
@@ -503,21 +560,21 @@ end;
 
 procedure TVittixReportPreview.FitWidth;
 begin
-  if (PageCount = 0) or (ClientWidth <= 0) then Exit;
+  if (PageCount = 0) or (ViewClientWidth <= 0) then Exit;
   if CurrentPageWidth <= 0 then Exit;
-  SetZoomPercent(((ClientWidth - 20) * 100) div CurrentPageWidth);
+  SetZoomPercent(((ViewClientWidth - 20) * 100) div CurrentPageWidth);
 end;
 
 procedure TVittixReportPreview.FitPage;
 var
   ScaleW, ScaleH: Integer;
 begin
-  if (PageCount = 0) or (ClientWidth <= 0) or (ClientHeight <= 0) then Exit;
+  if (PageCount = 0) or (ViewClientWidth <= 0) or (ViewClientHeight <= 0) then Exit;
 
   if (CurrentPageWidth <= 0) or (CurrentPageHeight <= 0) then Exit;
 
-  ScaleW := ((ClientWidth - 20) * 100) div CurrentPageWidth;
-  ScaleH := ((ClientHeight - 20) * 100) div CurrentPageHeight;
+  ScaleW := ((ViewClientWidth - 20) * 100) div CurrentPageWidth;
+  ScaleH := ((ViewClientHeight - 20) * 100) div CurrentPageHeight;
 
   if ScaleW < ScaleH then
     SetZoomPercent(ScaleW)
