@@ -67,6 +67,16 @@ type
     procedure Test_DrawReportObjectWithHooks_SetsAndClearsContextField;
   end;
 
+  { DP-33 / M-12: TReportTextObject.Font write semantics.  Assignment must
+    copy into the object's own font instance (the CrossTab pattern), never
+    adopt or alias the caller's TFont object. }
+  [TestFixture]
+  TTextObjectFontTests = class
+  public
+    [Test]
+    procedure Test_FontAssignment_CopiesIntoOwnedInstance_NoAliasing;
+  end;
+
   { Minimal TReportObject derivative whose Draw records the
     pre-checked-object value observed during the call. Only used to
     test the reentrancy guard and the DrawReportObjectWithHooks
@@ -217,7 +227,69 @@ begin
   end;
 end;
 
+{ TTextObjectFontTests }
+
+procedure TTextObjectFontTests.Test_FontAssignment_CopiesIntoOwnedInstance_NoAliasing;
+var
+  Obj: TReportTextObject;
+  Src: TFont;
+  OwnedFont: TFont;
+  Replacement: TFont;
+  Aliased: Boolean;
+begin
+  Obj := TReportTextObject.Create;
+  Src := TFont.Create;
+  Replacement := nil;
+  try
+    OwnedFont := Obj.Font; // the object's live, owned instance
+
+    Src.Name := 'Courier New';
+    Src.Size := 17;
+    Src.Style := [fsBold];
+
+    Obj.Font := Src;
+
+    Aliased := (Obj.Font = Src);
+    if Aliased then
+    begin
+      // Legacy behavior: the write adopted (aliased) the caller's object.
+      // Detach it so the teardown below cannot double-free in either
+      // generation of the setter; the assertion below then reports the old
+      // behavior instead of corrupting the heap.
+      Replacement := TFont.Create;
+      Obj.Font := Replacement;
+    end;
+
+    // The core contract: the assignment copies into the owned instance
+    // (CrossTab pattern) instead of adopting the caller's object.
+    Assert.IsTrue(not Aliased,
+      'Font assignment must copy into the owned TFont (CrossTab pattern), ' +
+      'not adopt (alias) the caller''s object (M-12)');
+
+    // Values are copied...
+    Assert.AreEqual('Courier New', Obj.Font.Name, 'font name must be copied');
+    Assert.AreEqual(17, Obj.Font.Size, 'font size must be copied');
+    Assert.IsTrue(fsBold in Obj.Font.Style, 'font style must be copied');
+
+    // ...onto the object's OWN instance, not by replacing the reference.
+    Assert.IsTrue(Obj.Font = OwnedFont,
+      'Font assignment must keep the object''s own TFont instance');
+
+    // Mutating the caller's object afterwards must not leak into the report.
+    Src.Size := 42;
+    Assert.AreEqual(17, Obj.Font.Size,
+      'changes to the caller''s TFont after assignment must not affect ' +
+      'the object');
+  finally
+    if (Replacement <> nil) and (Obj.Font <> Replacement) then
+      Replacement.Free; // post-fix: the object never adopted it
+    Obj.Free;
+    Src.Free;
+  end;
+end;
+
 initialization
   TDUnitX.RegisterTestFixture(TRenderObjectInternalsTests);
+  TDUnitX.RegisterTestFixture(TTextObjectFontTests);
 
 end.
