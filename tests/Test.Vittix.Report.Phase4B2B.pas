@@ -97,6 +97,7 @@ type
     [Test] procedure Test_ASTShape_FlatEvaluationPath;
 
     { C. Precedence }
+    [Test] procedure Test_Modern_DeepNesting_Evaluates;
     [Test] procedure Test_Precedence_LegacyFlatLeftToRight;
 
     { D. Boolean / NULL / Kleene }
@@ -511,6 +512,19 @@ begin
 end;
 
 { === C. Precedence === }
+
+procedure TPhase4B2BModernExpressionTests.Test_Modern_DeepNesting_Evaluates;
+var
+  DeepExpr: string;
+begin
+  // DP-27 / M-23: MaxParserDepth (32) charged ~8 grammar levels per paren,
+  // so legal nesting beyond ~4 levels was rejected as "too deep". 20 nested
+  // parentheses are ordinary arithmetic and must evaluate (modern mode:
+  // innermost first). Stack safety stays bounded by the still-active limit.
+  DeepExpr := StringOfChar('(', 20) + '1 + 2' + StringOfChar(')', 20);
+  Assert.AreEqual(3.0, Double(Eval(DeepExpr)), 0.0001,
+    'deep-but-legal nesting must evaluate, not report ExpressionTooDeep');
+end;
 
 procedure TPhase4B2BModernExpressionTests.Test_Precedence_LegacyFlatLeftToRight;
 begin
