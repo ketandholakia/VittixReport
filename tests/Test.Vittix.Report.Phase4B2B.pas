@@ -98,6 +98,7 @@ type
 
     { C. Precedence }
     [Test] procedure Test_Modern_DeepNesting_Evaluates;
+    [Test] procedure Test_Modern_NumberLiterals_LocaleIndependent;
     [Test] procedure Test_Precedence_LegacyFlatLeftToRight;
 
     { D. Boolean / NULL / Kleene }
@@ -532,6 +533,24 @@ begin
   end;
   Assert.AreEqual(3.0, Double(V), 0.0001,
     'deep-but-legal nesting must evaluate, not report ExpressionTooDeep');
+end;
+
+procedure TPhase4B2BModernExpressionTests.Test_Modern_NumberLiterals_LocaleIndependent;
+var
+  SavedDecimal: Char;
+begin
+  // DP-28 / M-24: number literals were parsed with the CURRENT locale, so
+  // on a comma-decimal machine '1.5' failed TryStrToFloat and silently
+  // became 0 (1.5 + 0.5 evaluated as 0). The tokenizer scans '.' as the
+  // decimal separator, so the conversion must be invariant.
+  SavedDecimal := FormatSettings.DecimalSeparator;
+  FormatSettings.DecimalSeparator := ',';
+  try
+    Assert.AreEqual(2.0, Double(Eval('1.5 + 0.5')), 0.0001,
+      'dot-decimal literals must parse regardless of the machine locale');
+  finally
+    FormatSettings.DecimalSeparator := SavedDecimal;
+  end;
 end;
 
 procedure TPhase4B2BModernExpressionTests.Test_Precedence_LegacyFlatLeftToRight;
