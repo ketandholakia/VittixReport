@@ -150,7 +150,7 @@ Line.Segments[L].Width := W;
 - **Test plan:** extend `tests/Test.Vittix.Report.Engine.pas`: render twice against a UserDataSet whose rows change between renders; assert the second render's export-capture commands reflect the new values (chart/crosstab go through `CaptureRenderableObjectAsImage` — assert via the captured image bounds/content hash or expose the prepared data via a test hook).
 - **Done when:** red→green; 44_chart_object + 42_crosstab_object baselines unchanged; gate green.
 
-### DP-13 — Command-line output-write gate (finding **H-7**) — Effort S
+### DP-13 ✅ — Command-line output-write gate (finding **H-7**) — Effort S — fixed in `29a3f8e` (incl. the TReportLoadResult leak on the fallback path); manual steps in TESTING.md §2.1 pending execution
 - **Files:** `vittixdesigner/Frm.Main.pas:1215-1217` (silent blank fallback), `:1340-1356` (`FormCloseQuery` writes `FCmdLineOutputFile` unconditionally).
 - **Bug:** if the input `.vrt` fails to load in component-editor mode, closing overwrites the source file with a blank report.
 - **Fix:** add `FCmdLineInputLoaded: Boolean`; set it on successful load (both the normal and the tolerant fallback path at :1195-1213 — while there, fix the `TReportLoadResult` leak on that path: free `LR` before the fallback re-load); in `FormCloseQuery`, write the output only when `FCmdLineInputLoaded`. Surface the load failure with a non-fatal message (reuse the Problems panel load-diagnostics channel `FLoadDiagnostics`).
