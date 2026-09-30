@@ -195,7 +195,7 @@ Line.Segments[L].Width := W;
 | DP-28 ✅ (`756d819`+`27eeb60`) | M-24 | Locale-dependent number literals | `Tokenizer.pas:149-153`: invariant `TryStrToFloat` (`TFormatSettings.Invariant`); on failure emit `InvalidNumber` diagnostic instead of silent 0 | Tokenizer test with `DecimalSeparator=','` format settings: `1.5` and `1,5` both parse per spec, malformed emits diagnostic | S |
 | DP-29 ✅ (`01a7377`+`f6bbde9`) | M-3 | Aggregate cache unbounded growth / O(n²) scan (fixed: row-scoped duplicates collapse into the most recent matching entry; everything else capped at 4096 FIFO; linear scan kept per plan) | `Engine.pas`: collapse in `StoreAggregateCache` via `MatchesExceptRowNumber`; cap `FAggregateCache` at 4096 entries; cache size sampled into `TReportTraversalDiagnostics.AggregateCacheEntries` | Engine tests: 10000 row-scoped evaluations leave 1 entry (was 10000) with same value and a same-row cache hit; 5000 distinct evaluations end at exactly 4096; Phase3/Phase5 cache semantics unchanged | S |
 
-**Wave 2 exit:** full gate + one complete manual pass of `TESTING.md` (preview, print, exports, empty/large dataset, long text, images).
+**Wave 2 exit:** ✅ DONE 2026-09-30 — full gate green (729/729 incl. 14 new tests, 41 baselines reconciled, packaging smoke) + one complete manual pass of `TESTING.md` (preview, print, exports, empty/large dataset, long text, images, incl. the DP-21 scan check and the DP-24 save/close + DP-25 startup flows) — all passed, owner-confirmed. The OQ-1 DPI probe was executed alongside this pass (drift visible at 125%; see DP-14).
 
 ---
 
