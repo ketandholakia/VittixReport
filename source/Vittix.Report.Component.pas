@@ -590,6 +590,7 @@ begin
       try
         Renderer.Render(Engine, Model.PageSettings.PageWidth, Model.PageSettings.PageHeight);
       finally
+        Engine.DetachDataSet;
         Engine.Free;
       end;
 
@@ -709,6 +710,7 @@ begin
       try
         Renderer.Render(Engine, Model.PageSettings.PageWidth, Model.PageSettings.PageHeight);
       finally
+        Engine.DetachDataSet;
         Engine.Free;
       end;
       Renderer.Print;
@@ -753,6 +755,7 @@ begin
       Engine.Prepare;
       TReportPDFExporter.ExportToFile(Engine.Pages, AFileName);
     finally
+      Engine.DetachDataSet;
       Engine.Free;
     end;
   finally
@@ -778,6 +781,7 @@ begin
       Engine.Prepare;
       TReportVectorPDFExporter.ExportDocument(ExportDoc, AFileName);
     finally
+      Engine.DetachDataSet;
       Engine.Free;
     end;
   finally
@@ -806,6 +810,7 @@ begin
       Engine.Prepare;
       TReportVectorPDFExporter.ExportDocument(ExportDoc, AStream);
     finally
+      Engine.DetachDataSet;
       Engine.Free;
     end;
   finally
@@ -832,6 +837,7 @@ begin
       Engine.Prepare;
       TReportHTMLExporter.ExportDocument(ExportDoc, AFileName);
     finally
+      Engine.DetachDataSet;
       Engine.Free;
     end;
   finally
@@ -860,6 +866,7 @@ begin
       Engine.Prepare;
       TReportHTMLExporter.ExportDocument(ExportDoc, AStream);
     finally
+      Engine.DetachDataSet;
       Engine.Free;
     end;
   finally
@@ -886,6 +893,7 @@ begin
       Engine.Prepare;
       TReportXLSXExporter.ExportToFile(ExportDoc.Pages, AFileName);
     finally
+      Engine.DetachDataSet;
       Engine.Free;
     end;
   finally
@@ -914,6 +922,7 @@ begin
       Engine.Prepare;
       TReportXLSXExporter.ExportToStream(ExportDoc.Pages, AStream);
     finally
+      Engine.DetachDataSet;
       Engine.Free;
     end;
   finally
@@ -960,6 +969,7 @@ begin
       Engine.Prepare;
       AExporter.ExportPages(Engine.Pages, AFileName);
     finally
+      Engine.DetachDataSet;
       Engine.Free;
     end;
   finally

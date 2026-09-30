@@ -101,6 +101,8 @@ type
     procedure Test_DetachDataSet_ReleasesHeldBookmarksWhileValid;
     [Test]
     procedure Test_Destroy_NoHeldBookmarks_DoesNotTouchDataSet;
+    [Test]
+    procedure Test_PostDetach_DatasetMayDieFirst;
   end;
 
 implementation
@@ -941,6 +943,31 @@ begin
 
   Model.Free;
   DS.Free;
+end;
+
+{ C - after DetachDataSet the dataset may be destroyed BEFORE the engine.
+  This test cannot be staged red: the legacy destructor dereferences the
+  freed dataset (use-after-free), which is the very defect DP-34 fixes. }
+procedure TEngineDataSetLifetimeTests.Test_PostDetach_DatasetMayDieFirst;
+var
+  DS: TBookmarkCountingDataSet;
+  Model: TReportModel;
+  Engine: TReportEngine;
+begin
+  DS := BuildGroupedDataSet;
+  Model := BuildGroupedReport;
+  Engine := TReportEngine.Create(Model, DS, nil);
+  try
+    Engine.Prepare;
+    Engine.DetachDataSet;
+
+    FreeAndNil(DS);   // the dataset dies first - legal after detach
+    FreeAndNil(Engine); // must not touch the released dataset
+  finally
+    Engine.Free;
+    DS.Free;
+    Model.Free;
+  end;
 end;
 
 initialization

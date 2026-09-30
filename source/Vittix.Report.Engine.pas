@@ -254,6 +254,14 @@ procedure CaptureExportObjectCommand(
     procedure StoreAggregateCache(const AExpression: string;
       const AContext: TExpressionContext; const AValue: Variant);
     function GetSubReportModel(AObject: TObject; const AJSON: string): TObject;
+    /// <summary>
+    ///   Creates an engine over a BORROWED report model and dataset.  The
+    ///   engine owns neither: both must outlive the engine - or the dataset
+    ///   must be released via <see cref="DetachDataSet"/> before it is freed
+    ///   (while prepared the engine may hold dataset-owned bookmarks for
+    ///   group ranges; DetachDataSet releases them and forgets the dataset).
+    ///   The same lifetime contract applies to the UserDataSet overloads.
+    /// </summary>
     /// <param name="AProgress">
     ///   Optional progress/cancellation callback.  Pass nil to skip.
     /// </param>
@@ -261,11 +269,13 @@ procedure CaptureExportObjectCommand(
       AReport:   TReportModel;
       ADataSet:  TDataSet;
       AProgress: IReportProgress = nil); overload;
+    /// <summary>Dataset lifetime contract: see the (AReport, ADataSet, AProgress) overload.</summary>
     constructor Create(
       AReport:        TReportModel;
       ADataSet:       TDataSet;
       ANamedDataSets: TDictionary<string, TDataSet>;
       AProgress:      IReportProgress); overload;
+    /// <summary>Dataset lifetime contract: see the (AReport, ADataSet, AProgress) overload.</summary>
     constructor Create(
       AReport:        TReportModel;
       AUserDataSet:   TVittixUserDataSet;
@@ -493,14 +503,11 @@ begin
   FCurrentPage.Free;
   FCurrentPage := nil;
 
-  // Free any bookmarks we may have allocated
-  if DataSetSupportsBookmarks(FDataSet) then
-  begin
-    if FHasGroupStartBookmark then
-      FDataSet.FreeBookmark(FGroupStartBookmark);
-    if FHasGroupEndBookmark then
-      FDataSet.FreeBookmark(FGroupEndBookmark);
-  end;
+  // Release any bookmarks we still hold, then forget the borrowed dataset
+  // (DP-34 / M-22).  Only our own bookmarks-held state makes us reach into
+  // the dataset at all; a dataset that must die before the engine has to be
+  // released via DetachDataSet beforehand (documented on Create).
+  DetachDataSet;
 
   FPages.Free;
   FNamedDataSets.Free;
@@ -515,11 +522,27 @@ begin
   inherited;
 end;
 
-{ DP-34 / M-22: observation stub for the dataset-lifetime tests; the real
-  release is implemented in the DP-34 fix commit. }
+{ DP-34 / M-22: releases the borrowed dataset.  Frees the bookmarks the
+  engine still holds while the dataset is still valid, then forgets the
+  dataset entirely so no later path (including Destroy) touches it.  Safe
+  to call repeatedly and when the engine was never prepared. }
 procedure TReportEngine.DetachDataSet;
 begin
-  // stub
+  if (FDataSet <> nil) and
+     (FHasGroupStartBookmark or FHasGroupEndBookmark) and
+     DataSetSupportsBookmarks(FDataSet) then
+  begin
+    if FHasGroupStartBookmark then
+      FDataSet.FreeBookmark(FGroupStartBookmark);
+    if FHasGroupEndBookmark then
+      FDataSet.FreeBookmark(FGroupEndBookmark);
+  end;
+
+  FGroupStartBookmark := nil;
+  FGroupEndBookmark := nil;
+  FHasGroupStartBookmark := False;
+  FHasGroupEndBookmark := False;
+  FDataSet := nil;
 end;
 
 { ================= Band Cache ================= }
