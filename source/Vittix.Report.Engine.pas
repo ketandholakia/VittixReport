@@ -275,6 +275,10 @@ procedure CaptureExportObjectCommand(
 
     procedure Prepare;
     procedure RegisterDataSet(const AName: string; ADataSet: TDataSet);
+    { DP-34 / M-22: releases the borrowed dataset - frees any bookmarks the
+      engine still holds (while the dataset is valid) and forgets it, so the
+      dataset may be destroyed before the engine.  Safe to call repeatedly. }
+    procedure DetachDataSet;
 
     property Pages:      TObjectList<TMetafile> read FPages;
     property PageCount:  Integer                read FPageNumber;
@@ -509,6 +513,13 @@ begin
   FGroupFooters.Free;
   FDetailBands.Free;
   inherited;
+end;
+
+{ DP-34 / M-22: observation stub for the dataset-lifetime tests; the real
+  release is implemented in the DP-34 fix commit. }
+procedure TReportEngine.DetachDataSet;
+begin
+  // stub
 end;
 
 { ================= Band Cache ================= }

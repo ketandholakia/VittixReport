@@ -74,6 +74,35 @@ type
       var AValue: Variant);
   end;
 
+  { DP-34 / M-22: counts the bookmark calls the engine makes into its
+    borrowed dataset, so the lifecycle contract is observable without
+    provoking a use-after-free. }
+  TBookmarkCountingDataSet = class(TClientDataSet)
+  public
+    GetBookmarkCalls: Integer;
+    FreeBookmarkCalls: Integer;
+    function GetBookmark: TBookmark; override;
+    procedure FreeBookmark(Bookmark: TBookmark); override;
+  end;
+
+  { DP-34 / M-22: the engine borrows its dataset; while prepared it may hold
+    dataset-owned bookmarks.  The contract:
+      - DetachDataSet releases those bookmarks while the dataset is valid
+        and forgets the dataset (safe to call repeatedly);
+      - after detach (or when no bookmarks are held) the destroy path must
+        not touch the borrowed dataset at all. }
+  [TestFixture]
+  TEngineDataSetLifetimeTests = class
+  private
+    function BuildGroupedDataSet: TBookmarkCountingDataSet;
+    function BuildGroupedReport: TReportModel;
+  public
+    [Test]
+    procedure Test_DetachDataSet_ReleasesHeldBookmarksWhileValid;
+    [Test]
+    procedure Test_Destroy_NoHeldBookmarks_DoesNotTouchDataSet;
+  end;
+
 implementation
 
 { TTestReportEngine }
@@ -798,7 +827,124 @@ begin
   end;
 end;
 
+{ TBookmarkCountingDataSet }
+
+function TBookmarkCountingDataSet.GetBookmark: TBookmark;
+begin
+  Inc(GetBookmarkCalls);
+  Result := inherited GetBookmark;
+end;
+
+procedure TBookmarkCountingDataSet.FreeBookmark(Bookmark: TBookmark);
+begin
+  Inc(FreeBookmarkCalls);
+  inherited FreeBookmark(Bookmark);
+end;
+
+{ TEngineDataSetLifetimeTests }
+
+function TEngineDataSetLifetimeTests.BuildGroupedDataSet: TBookmarkCountingDataSet;
+begin
+  Result := TBookmarkCountingDataSet.Create(nil);
+  Result.FieldDefs.Add('G', ftString, 10);
+  Result.CreateDataSet;
+  Result.AppendRecord(['A']);
+  Result.AppendRecord(['A']);
+  Result.AppendRecord(['B']);
+  Result.AppendRecord(['B']);
+  Result.First;
+end;
+
+function TEngineDataSetLifetimeTests.BuildGroupedReport: TReportModel;
+var
+  Master, GH, GF: TReportBand;
+begin
+  Result := TReportModel.Create;
+
+  Master := TReportBand.Create;
+  Master.BandType := btMasterData;
+  Master.Height := 20;
+  Result.Objects.Add(Master);
+
+  GH := TReportBand.Create;
+  GH.BandType := btGroupHeader;
+  GH.GroupField := 'G';
+  GH.GroupLevel := 0;
+  GH.Height := 20;
+  Result.Objects.Add(GH);
+
+  GF := TReportBand.Create;
+  GF.BandType := btGroupFooter;
+  GF.GroupField := 'G';
+  GF.GroupLevel := 0;
+  GF.Height := 20;
+  Result.Objects.Add(GF);
+end;
+
+procedure TEngineDataSetLifetimeTests.Test_DetachDataSet_ReleasesHeldBookmarksWhileValid;
+var
+  DS: TBookmarkCountingDataSet;
+  Model: TReportModel;
+  Engine: TReportEngine;
+  FreesBefore, FreesAfterDetach, FreesAfterSecondDetach: Integer;
+begin
+  DS := BuildGroupedDataSet;
+  Model := BuildGroupedReport;
+  Engine := TReportEngine.Create(Model, DS, nil);
+  try
+    Engine.Prepare;
+    Assert.IsTrue(DS.GetBookmarkCalls > 0,
+      'Precondition: the grouped pass must have captured bookmarks.');
+
+    FreesBefore := DS.FreeBookmarkCalls;
+    Engine.DetachDataSet;
+    FreesAfterDetach := DS.FreeBookmarkCalls;
+    Assert.IsTrue(FreesAfterDetach > FreesBefore,
+      'DetachDataSet must release the held bookmarks while the dataset is ' +
+      'still valid (DP-34)');
+
+    Engine.DetachDataSet; // nothing left to release
+    FreesAfterSecondDetach := DS.FreeBookmarkCalls;
+    Assert.AreEqual(FreesAfterDetach, FreesAfterSecondDetach,
+      'DetachDataSet must be safe to call repeatedly');
+  finally
+    Engine.Free; // detached: destroy must not touch the dataset
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TEngineDataSetLifetimeTests.Test_Destroy_NoHeldBookmarks_DoesNotTouchDataSet;
+var
+  DS: TBookmarkCountingDataSet;
+  Model: TReportModel;
+  Engine: TReportEngine;
+  GetsBefore, FreesBefore: Integer;
+begin
+  DS := BuildGroupedDataSet;
+  Model := BuildGroupedReport;
+  Engine := TReportEngine.Create(Model, DS, nil);
+
+  // Deliberately NOT prepared: the engine holds no bookmarks, so its
+  // destroy must leave the borrowed dataset completely alone.
+  GetsBefore := DS.GetBookmarkCalls;
+  FreesBefore := DS.FreeBookmarkCalls;
+
+  Engine.Free;
+
+  Assert.AreEqual(GetsBefore, DS.GetBookmarkCalls,
+    'Destroy must not probe the borrowed dataset when no bookmarks are ' +
+    'held (DP-34)');
+  Assert.AreEqual(FreesBefore, DS.FreeBookmarkCalls,
+    'Destroy must not free anything on the borrowed dataset when no ' +
+    'bookmarks are held (DP-34)');
+
+  Model.Free;
+  DS.Free;
+end;
+
 initialization
   TDUnitX.RegisterTestFixture(TTestReportEngine);
+  TDUnitX.RegisterTestFixture(TEngineDataSetLifetimeTests);
 
 end.
