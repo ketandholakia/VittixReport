@@ -84,6 +84,7 @@ type
 implementation
 
 uses
+  Winapi.Windows,
   System.Math,
   System.Generics.Defaults,
   Vittix.Report.Expressions
@@ -475,84 +476,98 @@ begin
   ColWidth := Max(30, (DrawRect.Right - DrawRect.Left) div TotalCols);
   DrawRect.Right := DrawRect.Left + (TotalCols * ColWidth);
   
-  C.Brush.Style := bsSolid;
-  C.Brush.Color := clWhite;
-  C.FillRect(DrawRect);
-  
-  C.Pen.Color := FGridColor;
-  C.Pen.Style := psSolid;
-  C.Pen.Width := 1;
-  
-  Y := DrawRect.Top;
-  for R := 0 to TotalRows - 1 do
-  begin
-    X := DrawRect.Left;
-    for C_Idx := 0 to TotalCols - 1 do
+  // DP-18 / M-8: the matrix is only prepared for the rendering pass, so the
+  // drawn grid can outgrow both the designer-sized bounds and the band that
+  // hosts the object.  Clip the whole grid paint to the object bounds,
+  // mirroring the memo draw path (Objects.pas): without it the overflow
+  // bled over the following band's content.  When the band grows (CanGrow)
+  // the engine extends Bounds to the measured bottom before Draw, so
+  // nothing is lost in the legitimate case.
+  SaveDC(C.Handle);
+  try
+    IntersectClipRect(C.Handle, Bounds.Left, Bounds.Top, Bounds.Right, Bounds.Bottom);
+
+    C.Brush.Style := bsSolid;
+    C.Brush.Color := clWhite;
+    C.FillRect(DrawRect);
+    
+    C.Pen.Color := FGridColor;
+    C.Pen.Style := psSolid;
+    C.Pen.Width := 1;
+    
+    Y := DrawRect.Top;
+    for R := 0 to TotalRows - 1 do
     begin
-      CellRect := Rect(X, Y, X + ColWidth, Y + RowHeight);
-      
-      if (R = 0) or (C_Idx = 0) or (R = TotalRows - 1) and FShowColGrandTotals or (C_Idx = TotalCols - 1) and FShowRowGrandTotals then
+      X := DrawRect.Left;
+      for C_Idx := 0 to TotalCols - 1 do
       begin
-        C.Brush.Color := FHeaderColor;
-        C.FillRect(CellRect);
-        C.Font.Assign(FHeaderFont);
-      end
-      else
-      begin
-        C.Brush.Color := clWhite;
-        C.Font.Assign(FFont);
-      end;
-      
-      C.Brush.Style := bsClear;
-      C.Rectangle(CellRect);
-      
-      ValStr := '';
-      if (R = 0) and (C_Idx = 0) then
-        ValStr := ''
-      else if (R = 0) and (C_Idx < TotalCols - 1 - Ord(FShowRowGrandTotals) + 1) then
-      begin
-        if C_Idx - 1 < FColValues.Count then
-          ValStr := VarToStrDef(FColValues[C_Idx - 1], '')
+        CellRect := Rect(X, Y, X + ColWidth, Y + RowHeight);
+        
+        if (R = 0) or (C_Idx = 0) or (R = TotalRows - 1) and FShowColGrandTotals or (C_Idx = TotalCols - 1) and FShowRowGrandTotals then
+        begin
+          C.Brush.Color := FHeaderColor;
+          C.FillRect(CellRect);
+          C.Font.Assign(FHeaderFont);
+        end
         else
-          ValStr := '';
-      end
-      else if (C_Idx = 0) and (R < TotalRows - 1 - Ord(FShowColGrandTotals) + 1) then
-      begin
-        if R - 1 < FRowValues.Count then
-          ValStr := VarToStrDef(FRowValues[R - 1], '')
+        begin
+          C.Brush.Color := clWhite;
+          C.Font.Assign(FFont);
+        end;
+        
+        C.Brush.Style := bsClear;
+        C.Rectangle(CellRect);
+        
+        ValStr := '';
+        if (R = 0) and (C_Idx = 0) then
+          ValStr := ''
+        else if (R = 0) and (C_Idx < TotalCols - 1 - Ord(FShowRowGrandTotals) + 1) then
+        begin
+          if C_Idx - 1 < FColValues.Count then
+            ValStr := VarToStrDef(FColValues[C_Idx - 1], '')
+          else
+            ValStr := '';
+        end
+        else if (C_Idx = 0) and (R < TotalRows - 1 - Ord(FShowColGrandTotals) + 1) then
+        begin
+          if R - 1 < FRowValues.Count then
+            ValStr := VarToStrDef(FRowValues[R - 1], '')
+          else
+            ValStr := '';
+        end
+        else if (R = 0) and FShowRowGrandTotals and (C_Idx = TotalCols - 1) then
+          ValStr := 'Grand Total'
+        else if (C_Idx = 0) and FShowColGrandTotals and (R = TotalRows - 1) then
+          ValStr := 'Grand Total'
+        else if FShowRowGrandTotals and FShowColGrandTotals and (R = TotalRows - 1) and (C_Idx = TotalCols - 1) then
+          ValStr := FormatCell(FGrandTotal)
+        else if FShowRowGrandTotals and (C_Idx = TotalCols - 1) then
+        begin
+          if FRowTotals.TryGetValue(R - 1, V) then ValStr := FormatCell(V);
+        end
+        else if FShowColGrandTotals and (R = TotalRows - 1) then
+        begin
+          if FColTotals.TryGetValue(C_Idx - 1, V) then ValStr := FormatCell(V);
+        end
         else
-          ValStr := '';
-      end
-      else if (R = 0) and FShowRowGrandTotals and (C_Idx = TotalCols - 1) then
-        ValStr := 'Grand Total'
-      else if (C_Idx = 0) and FShowColGrandTotals and (R = TotalRows - 1) then
-        ValStr := 'Grand Total'
-      else if FShowRowGrandTotals and FShowColGrandTotals and (R = TotalRows - 1) and (C_Idx = TotalCols - 1) then
-        ValStr := FormatCell(FGrandTotal)
-      else if FShowRowGrandTotals and (C_Idx = TotalCols - 1) then
-      begin
-        if FRowTotals.TryGetValue(R - 1, V) then ValStr := FormatCell(V);
-      end
-      else if FShowColGrandTotals and (R = TotalRows - 1) then
-      begin
-        if FColTotals.TryGetValue(C_Idx - 1, V) then ValStr := FormatCell(V);
-      end
-      else
-      begin
-        if FMatrixData.TryGetValue(IntToStr(R - 1) + '_' + IntToStr(C_Idx - 1), V) then
-          ValStr := FormatCell(V);
+        begin
+          if FMatrixData.TryGetValue(IntToStr(R - 1) + '_' + IntToStr(C_Idx - 1), V) then
+            ValStr := FormatCell(V);
+        end;
+        
+        if ValStr <> '' then
+        begin
+          TextX := CellRect.Left + 4;
+          TextY := CellRect.Top + 4;
+          C.TextOut(TextX, TextY, ValStr);
+        end;
+        
+        Inc(X, ColWidth);
       end;
-      
-      if ValStr <> '' then
-      begin
-        TextX := CellRect.Left + 4;
-        TextY := CellRect.Top + 4;
-        C.TextOut(TextX, TextY, ValStr);
-      end;
-      
-      Inc(X, ColWidth);
+      Inc(Y, RowHeight);
     end;
-    Inc(Y, RowHeight);
+  finally
+    RestoreDC(C.Handle, -1);
   end;
   
   if Selected then
