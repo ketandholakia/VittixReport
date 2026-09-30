@@ -534,7 +534,13 @@ begin
   case FMode of
     dmMove:
     begin
-      if FSurface.GetSelected().Count > 0 then
+      // DP-23 / M-2: MouseMove never engages a move below the drag
+      // threshold, so releasing within the threshold is a plain click and
+      // must not push a no-op move command (Old = New bounds) into the
+      // undo history.
+      if ((Abs(X - FMouseStart.X) >= MOVE_DRAG_THRESHOLD) or
+          (Abs(Y - FMouseStart.Y) >= MOVE_DRAG_THRESHOLD)) and
+         (FSurface.GetSelected().Count > 0) then
       begin
         SetLength(Objects,   FSurface.GetSelected().Count);
         SetLength(OldBounds, FSurface.GetSelected().Count);

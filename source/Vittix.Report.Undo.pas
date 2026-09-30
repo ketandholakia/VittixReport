@@ -273,6 +273,13 @@ end;
 // TCommandManager
 // ===========================================================================
 
+const
+  { DP-23 / M-1: hard bound on the undo history.  Entries beyond the cap
+    drop the oldest first (FIFO); a long editing session cannot grow the
+    stacks without limit, and the redo stack is implicitly bounded because
+    it can only ever receive entries that left the undo stack. }
+  MAX_UNDO_HISTORY = 100;
+
 constructor TCommandManager.Create;
 begin
   FUndo := TObjectList<TUndoableAction>.Create(True);
@@ -305,6 +312,9 @@ begin
   end;
   FUndo.Add(C);
   FRedo.Clear;
+  // DP-23 / M-1: bound the history, oldest entries first.
+  while FUndo.Count > MAX_UNDO_HISTORY do
+    FUndo.Delete(0);
 end;
 
 procedure TCommandManager.UndoLast;
