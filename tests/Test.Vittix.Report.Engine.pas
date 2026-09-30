@@ -16,10 +16,13 @@ uses
   Vittix.Report.Engine,
   Vittix.Report.Bands,
   Vittix.Report.Objects,
+  Vittix.Report.Context,
   Vittix.Report.Objects.Chart,
   Vittix.Report.Objects.CrossTab,
   Vittix.Report.UserDataSet,
   Vittix.Report.Renderer,
+  Vittix.Report.Expressions,
+  Vittix.Report.TraversalDiagnostics,
   Vittix.Report.Export.Commands;
 
 type
@@ -52,6 +55,10 @@ type
     procedure Test_GroupBreak_TypeFlap_Fires;
     [Test]
     procedure Test_DP18_CrossTabTallerThanBand_NoBleedIntoNextBand;
+    [Test]
+    procedure Test_DP29_RowScopedAggregates_DoNotGrowCache;
+    [Test]
+    procedure Test_DP29_AggregateCache_CapEnforced_FIFO;
   end;
 
   { Event harness for a purely event-driven TVittixUserDataSet whose group
@@ -650,6 +657,135 @@ begin
           end;
         finally
           Renderer.Free;
+        end;
+      finally
+        Engine.Free;
+      end;
+    finally
+      Model.Free;
+    end;
+  finally
+    DS.Free;
+  end;
+end;
+
+procedure TTestReportEngine.Test_DP29_RowScopedAggregates_DoNotGrowCache;
+var
+  DS: TClientDataSet;
+  Model: TReportModel;
+  Engine: TReportEngine;
+  Context: TExpressionContext;
+  I: Integer;
+  V: Variant;
+  Snapshot: TReportTraversalSnapshot;
+begin
+  // DP-29 / M-3: a per-row aggregate evaluation used to append one cache
+  // entry per row (each with a distinct RowNumber - never reusable by the
+  // next row), so a 10k-row pass left 10k entries and quadratic match
+  // scans behind it.  Row-scoped duplicates must collapse to a single
+  // entry instead.
+  DS := TClientDataSet.Create(nil);
+  try
+    DS.FieldDefs.Add('Amount', ftFloat);
+    DS.CreateDataSet;
+    for I := 1 to 24 do
+      DS.AppendRecord([I * 10.0]);
+    DS.First;
+
+    Model := TReportModel.Create;
+    try
+      Engine := TReportEngine.Create(Model, DS, nil, nil);
+      try
+        Context := Default(TExpressionContext);
+        Context.DataSet := DS;
+        Context.Hooks := Engine;
+        Context.Parameters := Engine.Parameters;
+        Context.Variables := Model.Variables;
+
+        TReportTraversalDiagnostics.Reset;
+        V := Null;
+        for I := 1 to 10000 do
+        begin
+          Context.RowNumber := I;
+          V := TReportExpression.Evaluate('SUM([Amount])', Context);
+        end;
+        Snapshot := TReportTraversalDiagnostics.Snapshot;
+
+        Assert.AreEqual(3000.0, Double(V), 0.0001, 'sum of 10..240');
+        Assert.AreEqual(10000, Snapshot.AggregateEvaluations,
+          'all row-scoped evaluations must run');
+        Assert.IsTrue(Snapshot.AggregateCacheEntries <= 64,
+          Format('row-scoped re-evaluations must not accumulate cache ' +
+            'entries (%d after 10000 rows)',
+            [Snapshot.AggregateCacheEntries]));
+
+        // The collapsed entry still serves its row: re-evaluating in the
+        // newest row context must be a cache hit.
+        TReportTraversalDiagnostics.Reset;
+        V := TReportExpression.Evaluate('SUM([Amount])', Context);
+        Snapshot := TReportTraversalDiagnostics.Snapshot;
+        Assert.AreEqual(1, Snapshot.AggregateCacheHits,
+          'the same-row re-evaluation must be served from the cache');
+      finally
+        Engine.Free;
+      end;
+    finally
+      Model.Free;
+    end;
+  finally
+    DS.Free;
+  end;
+end;
+
+procedure TTestReportEngine.Test_DP29_AggregateCache_CapEnforced_FIFO;
+var
+  DS: TClientDataSet;
+  Model: TReportModel;
+  Engine: TReportEngine;
+  Context: TExpressionContext;
+  Variables: TStringList;
+  I: Integer;
+  V: Variant;
+  Snapshot: TReportTraversalSnapshot;
+begin
+  // DP-29 / M-3: entries that legitimately differ (here: a distinct
+  // variable text per evaluation) must still be bounded - the oldest
+  // entries fall off first once the cache cap is reached.
+  DS := TClientDataSet.Create(nil);
+  try
+    DS.FieldDefs.Add('Amount', ftFloat);
+    DS.CreateDataSet;
+    DS.AppendRecord([10.0]);
+    DS.First;
+
+    Model := TReportModel.Create;
+    try
+      Engine := TReportEngine.Create(Model, DS, nil, nil);
+      try
+        Variables := TStringList.Create;
+        try
+          Context := Default(TExpressionContext);
+          Context.DataSet := DS;
+          Context.Hooks := Engine;
+          Context.Parameters := Engine.Parameters;
+          Context.Variables := Variables;
+
+          TReportTraversalDiagnostics.Reset;
+          V := Null;
+          for I := 1 to 5000 do
+          begin
+            Variables.Values['Iter'] := IntToStr(I);
+            V := TReportExpression.Evaluate('SUM([Amount])', Context);
+          end;
+          Snapshot := TReportTraversalDiagnostics.Snapshot;
+
+          Assert.AreEqual(10.0, Double(V), 0.0001);
+          Assert.AreEqual(4096, Snapshot.AggregateCacheEntries,
+            Format('the aggregate cache must be capped at 4096 entries ' +
+              '(got %d after 5000 distinct evaluations)',
+              [Snapshot.AggregateCacheEntries]));
+        finally
+          Variables.Free;
         end;
       finally
         Engine.Free;

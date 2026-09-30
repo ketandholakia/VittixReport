@@ -31,6 +31,10 @@ type
       such tokens from the CURRENT dataset by frozen contract; the counter
       surfaces where that silent behavior may be reading unintended data. }
     LegacyQualifiedFieldTokens: Integer;
+    { DP-29: current entry count of the engine's aggregate cache, sampled by
+      the engine after every store/eviction so tests can assert that
+      row-scoped re-evaluations stay bounded. }
+    AggregateCacheEntries: Integer;
   end;
 
   TReportTraversalDiagnostics = class
@@ -52,6 +56,7 @@ type
     class procedure AggregateTraversalStarted; static;
     class procedure AggregateRowVisited; static;
     class procedure LegacyQualifiedFieldToken; static;
+    class procedure AggregateCacheSize(AValue: Integer); static;
   end;
 
 implementation
@@ -129,6 +134,11 @@ end;
 class procedure TReportTraversalDiagnostics.LegacyQualifiedFieldToken;
 begin
   Inc(FSnapshot.LegacyQualifiedFieldTokens);
+end;
+
+class procedure TReportTraversalDiagnostics.AggregateCacheSize(AValue: Integer);
+begin
+  FSnapshot.AggregateCacheEntries := AValue;
 end;
 
 end.

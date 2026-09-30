@@ -2469,6 +2469,8 @@ begin
     Entry.Free;
     raise;
   end;
+  // DP-29: observe the cache size after every mutation (test diagnostics).
+  TReportTraversalDiagnostics.AggregateCacheSize(FAggregateCache.Count);
 end;
 
 function TReportEngine.GetSubReportModel(AObject: TObject;
