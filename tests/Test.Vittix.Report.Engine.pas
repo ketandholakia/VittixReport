@@ -19,6 +19,7 @@ uses
   Vittix.Report.Objects.Chart,
   Vittix.Report.Objects.CrossTab,
   Vittix.Report.UserDataSet,
+  Vittix.Report.Renderer,
   Vittix.Report.Export.Commands;
 
 type
@@ -49,6 +50,8 @@ type
     procedure Test_GroupBreak_NullTransitions_Fire;
     [Test]
     procedure Test_GroupBreak_TypeFlap_Fires;
+    [Test]
+    procedure Test_DP18_CrossTabTallerThanBand_NoBleedIntoNextBand;
   end;
 
   { Event harness for a purely event-driven TVittixUserDataSet whose group
@@ -528,6 +531,134 @@ begin
     end;
   finally
     Harness.Free;
+  end;
+end;
+
+procedure TTestReportEngine.Test_DP18_CrossTabTallerThanBand_NoBleedIntoNextBand;
+var
+  DS: TClientDataSet;
+  Model: TReportModel;
+  TitleBand, SummaryBand: TReportBand;
+  CT: TReportCrossTabObject;
+  Engine: TReportEngine;
+  Renderer: TReportRenderer;
+  Probe: TBitmap;
+  Pw, Ph: Integer;
+  PmLeft, PmTop: Integer;
+  X, Y: Integer;
+  Row: PByteArray;
+  Pixel: Cardinal;
+  InsideCount, BelowCount: Integer;
+begin
+  // DP-18 / M-8: the crosstab's prepared matrix is only available during
+  // the rendering pass, so the grid can be far taller than the band that
+  // hosts it.  Without a clip the grid painted straight over the following
+  // band; the fix clips Draw to the object's bounds.
+  DS := TClientDataSet.Create(nil);
+  try
+    DS.FieldDefs.Add('Region', ftString, 20);
+    DS.FieldDefs.Add('Product', ftString, 20);
+    DS.FieldDefs.Add('Amount', ftFloat);
+    DS.CreateDataSet;
+    // 8 regions x 2 products -> a 10-row grid, far taller than the 40px
+    // band the object sits in and taller than the object's own bounds.
+    for var I := 1 to 8 do
+    begin
+      DS.AppendRecord([Format('R%.2d', [I]), 'A', I * 10.0]);
+      DS.AppendRecord([Format('R%.2d', [I]), 'B', I * 20.0]);
+    end;
+    DS.First;
+
+    Model := TReportModel.Create;
+    try
+      // Band A: a small title band hosting the over-tall crosstab.
+      TitleBand := TReportBand.Create;
+      TitleBand.BandType := btReportTitle;
+      TitleBand.Height := 40;
+
+      CT := TReportCrossTabObject.Create;
+      CT.Name := 'bleedingCrosstab';
+      CT.RowField := 'Region';
+      CT.ColumnField := 'Product';
+      CT.CellField := 'Amount';
+      CT.Bounds := Rect(10, 10, 300, 30);
+      TitleBand.Children.Add(CT);
+      Model.Objects.Add(TitleBand);
+
+      // Band B: an empty summary band directly below band A.  It draws
+      // nothing itself, so any non-white pixel in its page area can only be
+      // crosstab content that bled out of band A.
+      SummaryBand := TReportBand.Create;
+      SummaryBand.BandType := btReportSummary;
+      SummaryBand.Height := 60;
+      Model.Objects.Add(SummaryBand);
+
+      Pw := Model.PageSettings.PageWidth;
+      Ph := Model.PageSettings.PageHeight;
+      PmLeft := Model.PageSettings.Margins.Left;
+      PmTop := Model.PageSettings.Margins.Top;
+
+      Engine := TReportEngine.Create(Model, DS, nil, nil);
+      try
+        Renderer := TReportRenderer.Create;
+        try
+          Renderer.Render(Engine, Pw, Ph);
+          Assert.IsTrue(Renderer.Pages.Count >= 1, 'report must produce a page');
+
+          Probe := TBitmap.Create;
+          try
+            Probe.PixelFormat := pf32bit;
+            Probe.SetSize(Pw, Ph);
+            Probe.Canvas.Brush.Color := clWhite;
+            Probe.Canvas.FillRect(Rect(0, 0, Pw, Ph));
+            Probe.Canvas.StretchDraw(Rect(0, 0, Pw, Ph),
+              Renderer.Pages[0].Metafile);
+
+            // Sanity: the clipped grid must still draw inside the bounds
+            // (the fix must clip, not suppress).
+            InsideCount := 0;
+            for Y := PmTop + 12 to PmTop + 28 do
+            begin
+              Row := Probe.ScanLine[Y];
+              for X := PmLeft + 12 to PmLeft + 288 do
+              begin
+                Pixel := PCardinal(@Row[X * 4])^ and $00FFFFFF;
+                if Pixel <> $00FFFFFF then
+                  Inc(InsideCount);
+              end;
+            end;
+            Assert.IsTrue(InsideCount > 0,
+              'crosstab grid must still be drawn inside its own bounds');
+
+            // The guard: nothing may appear below band A's bottom edge.
+            BelowCount := 0;
+            for Y := PmTop + TitleBand.Height + 2 to Ph - 1 do
+            begin
+              Row := Probe.ScanLine[Y];
+              for X := 0 to Pw - 1 do
+              begin
+                Pixel := PCardinal(@Row[X * 4])^ and $00FFFFFF;
+                if Pixel <> $00FFFFFF then
+                  Inc(BelowCount);
+              end;
+            end;
+            Assert.AreEqual(0, BelowCount,
+              Format('crosstab content must not bleed below its band ' +
+                '(%d non-white pixel(s) found below band A)', [BelowCount]));
+          finally
+            Probe.Free;
+          end;
+        finally
+          Renderer.Free;
+        end;
+      finally
+        Engine.Free;
+      end;
+    finally
+      Model.Free;
+    end;
+  finally
+    DS.Free;
   end;
 end;
 
