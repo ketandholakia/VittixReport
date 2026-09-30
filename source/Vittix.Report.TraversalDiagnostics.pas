@@ -25,6 +25,12 @@ type
     AggregateCacheMisses: Integer;
     AggregateTraversals: Integer;
     AggregateRowsVisited: Integer;
+    { DP-15: legacy bracket tokens carrying a dataset qualifier that names a
+      KNOWN dataset other than the active one, e.g. [Orders.Company] read
+      while the active dataset is Customers. The legacy evaluator resolves
+      such tokens from the CURRENT dataset by frozen contract; the counter
+      surfaces where that silent behavior may be reading unintended data. }
+    LegacyQualifiedFieldTokens: Integer;
   end;
 
   TReportTraversalDiagnostics = class
@@ -45,6 +51,7 @@ type
     class procedure AggregateCacheMiss; static;
     class procedure AggregateTraversalStarted; static;
     class procedure AggregateRowVisited; static;
+    class procedure LegacyQualifiedFieldToken; static;
   end;
 
 implementation
@@ -117,6 +124,11 @@ end;
 class procedure TReportTraversalDiagnostics.AggregateRowVisited;
 begin
   Inc(FSnapshot.AggregateRowsVisited);
+end;
+
+class procedure TReportTraversalDiagnostics.LegacyQualifiedFieldToken;
+begin
+  Inc(FSnapshot.LegacyQualifiedFieldTokens);
 end;
 
 end.

@@ -43,6 +43,13 @@ uses
 
 type
   [TestFixture]
+  TPhase4BLegacyQualifiedFieldTests = class
+  public
+    [Test]
+    procedure Test_QualifiedToken_NamesOtherDataset_BehaviorKept_DiagnosticCounted;
+  end;
+
+  [TestFixture]
   TPhase4BCompatibilityEvaluatorTests = class
   private
     FDataSet: TClientDataSet;
@@ -1231,7 +1238,101 @@ begin
   end;
 end;
 
+{ TPhase4BLegacyQualifiedFieldTests }
+
+procedure TPhase4BLegacyQualifiedFieldTests.Test_QualifiedToken_NamesOtherDataset_BehaviorKept_DiagnosticCounted;
+var
+  PrimaryDS, OrdersDS: TClientDataSet;
+  Model: TReportModel;
+  Band: TReportBand;
+  Txt: TReportTextObject;
+  Engine: TReportEngine;
+  Doc: TReportExportDocument;
+  ResolvedText: string;
+  Cmd: TReportExportCommand;
+  SnapshotBefore, SnapshotAfter: TReportTraversalSnapshot;
+begin
+  // DP-15 / H-2: the legacy evaluator discards the dataset qualifier of
+  // [Orders.Company] and reads the CURRENT dataset - frozen contract, kept
+  // unchanged here ('PRIMARY' must still render). What is new is the
+  // observable: when the qualifier names a KNOWN dataset other than the
+  // active one, TReportTraversalDiagnostics must count the token so the
+  // silent wrong-dataset reads become visible.
+  PrimaryDS := TClientDataSet.Create(nil);
+  try
+    PrimaryDS.FieldDefs.Add('Company', ftString, 30);
+    PrimaryDS.CreateDataSet;
+    PrimaryDS.AppendRecord(['PRIMARY']);
+    PrimaryDS.First;
+
+    OrdersDS := TClientDataSet.Create(nil);
+    try
+      OrdersDS.FieldDefs.Add('Company', ftString, 30);
+      OrdersDS.CreateDataSet;
+      OrdersDS.AppendRecord(['ORDERS']);
+      OrdersDS.First;
+
+      Model := TReportModel.Create;
+      try
+        Band := TReportBand.Create;
+        Band.BandType := btReportSummary;
+        Band.Height := 30;
+        Txt := TReportTextObject.Create;
+        Txt.Expression := '[Orders.Company]';
+        Txt.Bounds := Rect(10, 4, 200, 24);
+        Band.Children.Add(Txt);
+        Model.Objects.Add(Band);
+
+        Engine := TReportEngine.Create(Model, PrimaryDS);
+        try
+          Engine.RegisterDataSet('Orders', OrdersDS);
+
+          TReportTraversalDiagnostics.Reset;
+          SnapshotBefore := TReportTraversalDiagnostics.Snapshot;
+
+          Doc := TReportExportDocument.Create;
+          try
+            Engine.ExportDocument := Doc;
+            Engine.Prepare;
+
+            // 1) Frozen legacy behavior: the token still resolves from the
+            //    ACTIVE dataset ('PRIMARY'), never from the named one.
+            ResolvedText := '';
+            for Cmd in Doc.Pages[0].Commands do
+              if (Cmd is TReportExportTextCommand) and
+                 (TReportExportTextCommand(Cmd).Text = 'PRIMARY') then
+                ResolvedText := 'PRIMARY';
+            Assert.AreEqual('PRIMARY', ResolvedText,
+              'legacy qualified-token resolution must stay on the active dataset');
+
+            // 2) New observable: the mismatched qualifier is counted.
+            SnapshotAfter := TReportTraversalDiagnostics.Snapshot;
+            Assert.IsTrue(
+              SnapshotAfter.LegacyQualifiedFieldTokens >
+                SnapshotBefore.LegacyQualifiedFieldTokens,
+              Format('a qualifier naming a known non-active dataset must be ' +
+                'counted (before=%d after=%d)',
+                [SnapshotBefore.LegacyQualifiedFieldTokens,
+                 SnapshotAfter.LegacyQualifiedFieldTokens]));
+          finally
+            Doc.Free;
+          end;
+        finally
+          Engine.Free;
+        end;
+      finally
+        Model.Free;
+      end;
+    finally
+      OrdersDS.Free;
+    end;
+  finally
+    PrimaryDS.Free;
+  end;
+end;
+
 initialization
   TDUnitX.RegisterTestFixture(TPhase4BCompatibilityEvaluatorTests);
+  TDUnitX.RegisterTestFixture(TPhase4BLegacyQualifiedFieldTests);
 
 end.
