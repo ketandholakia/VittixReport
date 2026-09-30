@@ -257,6 +257,53 @@ var
       end;
   end;
 
+  { DP-30 / M-14: maps the byte-stuffed C1 forms ($80..$9F positions that
+    WinAnsi defines) to their canonical Unicode characters before shaping.
+    Text produced from raw cp1252 bytes carries e.g. U+0093 for the ldquo
+    byte; without this the character has no glyph (.notdef), shaping fails
+    and the whole line falls back to Helvetica.  The mapping is 1:1 (each
+    C1 codepoint maps to one BMP character), so character indices and
+    clusters stay valid.  Undefined C1 positions are left untouched. }
+  function NormalizeWinAnsiC1(const S: string): string;
+  var
+    I: Integer;
+    C: WideChar;
+  begin
+    Result := S;
+    for I := 1 to Length(Result) do
+    begin
+      C := Result[I];
+      case Ord(C) of
+        $80: Result[I] := WideChar($20AC);
+        $82: Result[I] := WideChar($201A);
+        $83: Result[I] := WideChar($0192);
+        $84: Result[I] := WideChar($201E);
+        $85: Result[I] := WideChar($2026);
+        $86: Result[I] := WideChar($2020);
+        $87: Result[I] := WideChar($2021);
+        $88: Result[I] := WideChar($02C6);
+        $89: Result[I] := WideChar($2030);
+        $8A: Result[I] := WideChar($0160);
+        $8B: Result[I] := WideChar($2039);
+        $8C: Result[I] := WideChar($0152);
+        $8E: Result[I] := WideChar($017D);
+        $91: Result[I] := WideChar($2018);
+        $92: Result[I] := WideChar($2019);
+        $93: Result[I] := WideChar($201C);
+        $94: Result[I] := WideChar($201D);
+        $95: Result[I] := WideChar($2022);
+        $96: Result[I] := WideChar($2013);
+        $97: Result[I] := WideChar($2014);
+        $98: Result[I] := WideChar($02DC);
+        $99: Result[I] := WideChar($2122);
+        $9B: Result[I] := WideChar($203A);
+        $9C: Result[I] := WideChar($0153);
+        $9E: Result[I] := WideChar($017E);
+        $9F: Result[I] := WideChar($0178);
+      end;
+    end;
+  end;
+
   function PdfText(const S: string): AnsiString;
   var
     I: Integer;
@@ -348,11 +395,11 @@ var
 
   procedure SetMeasureFont(AText: TReportExportTextCommand);
   begin
-    // NOTE: measurement uses the report's requested FontName so wrap
-    // points and alignment match the GDI-rendered preview as closely as
-    // possible. The PDF itself still draws with a built-in Helvetica
-    // variant (see PdfFontName) until font embedding lands - see the
-    // "Known limitations" note in docs/archive/VectorPDF_DevelopmentPlan.md.
+    // Measurement uses the report's requested FontName so wrap points and
+    // alignment match the GDI-rendered preview as closely as possible.
+    // Since DP-30 the PDF draws through the embedded-font pipeline with the
+    // same font; the built-in Helvetica variants (/F1../F4, PdfFontName)
+    // remain only as the ANSI fallback when shaping/embedding fails.
     MeasureBmp.Canvas.Font.Name := AText.FontName;
     MeasureBmp.Canvas.Font.Size := AText.FontSize;
     MeasureBmp.Canvas.Font.Style := AText.FontStyle;
@@ -544,6 +591,7 @@ var
     ABC: TABC;
     HR: HRESULT;
     Width1000: Integer;
+    NormText: string;
   begin
     Result := False;
     AFontResourceName := '';
@@ -551,15 +599,20 @@ var
     ALineWidthPx := 0;
     if ALineText = '' then
       Exit;
+
+    // DP-30 / M-14: normalise byte-stuffed cp1252 C1 forms so they find real
+    // glyphs; see NormalizeWinAnsiC1.
+    NormText := NormalizeWinAnsiC1(ALineText);
+
     if not EnsureUnicodeFontResource(AText, AFonts, FontIndex) then
       Exit;
 
     SetMeasureFont(AText);
     SelectObject(MeasureBmp.Canvas.Handle, MeasureBmp.Canvas.Font.Handle);
 
-    SetLength(Items, Length(ALineText) + 1);
+    SetLength(Items, Length(NormText) + 1);
     ItemCount := 0;
-    HR := ScriptItemize(PWideChar(ALineText), Length(ALineText), Length(Items),
+    HR := ScriptItemize(PWideChar(NormText), Length(NormText), Length(Items),
       nil, nil, @Items[0], @ItemCount);
     if HR <> S_OK then
       Exit;
@@ -585,7 +638,7 @@ var
           HR := ScriptShape(
             MeasureBmp.Canvas.Handle,
             ScriptCache,
-            PWideChar(ALineText) + RunStart,
+            PWideChar(NormText) + RunStart,
             RunLength,
             GlyphCapacity,
             @Items[ItemIndex].a,
@@ -654,7 +707,7 @@ var
               AFonts[FontIndex],
               GlyphIds[ClusterStartGlyph],
               MulDiv(Advances[ClusterStartGlyph], 1000, Max(AText.FontSize, 1)),
-              UnicodeTextHex(Copy(ALineText, RunStart + CharIndex + 1, 1)));
+              UnicodeTextHex(Copy(NormText, RunStart + CharIndex + 1, 1)));
 
           Inc(CharIndex, ClusterCharCount);
         end;
@@ -1244,21 +1297,11 @@ var
                   RichSegmentWidth := MeasureBmp.Canvas.TextWidth(RichWrappedLines[RichLineIndex][RichSegIndex].Text);
                   RichIsAnsi := SupportsPdfAnsiText(RichWrappedLines[RichLineIndex][RichSegIndex].Text);
 
-                  if RichIsAnsi then
-                  begin
-                    Result := Result +
-                      'BT' + #10 +
-                      PdfNumber(RichCursorX) + ' ' + PdfNumber(PdfY(APage, Integer(Round(LineY)))) + ' Td' + #10 +
-                      PdfColor(RichWrappedLines[RichLineIndex][RichSegIndex].FontColor) + ' rg' + #10 +
-                      PdfFontNameForStyle(RichWrappedLines[RichLineIndex][RichSegIndex].FontStyle) + ' ' +
-                      PdfNumber(RichWrappedLines[RichLineIndex][RichSegIndex].FontSize) + ' Tf' + #10 +
-                      '(' + PdfText(RichWrappedLines[RichLineIndex][RichSegIndex].Text) + ') Tj' + #10 +
-                      'ET' + #10;
-                    RichCursorX := RichCursorX + RichSegmentWidth;
-                  end
-                  else
-                  begin
-                    RichTempCmd := TReportExportTextCommand.Create;
+                  // DP-30 / M-14: try the embedded-font pipeline first - ANSI
+                  // segments included - so rich text renders with the report
+                  // font; Helvetica stays the ANSI fallback below.
+                  RichTempCmd := TReportExportTextCommand.Create;
+                  try
                     RichTempCmd.FontName := RichWrappedLines[RichLineIndex][RichSegIndex].FontName;
                     RichTempCmd.FontSize := RichWrappedLines[RichLineIndex][RichSegIndex].FontSize;
                     RichTempCmd.FontStyle := RichWrappedLines[RichLineIndex][RichSegIndex].FontStyle;
@@ -1286,40 +1329,56 @@ var
                           'ET' + #10;
                         RichCursorX := RichCursorX + RichGlyph.AdvancePx;
                       end;
+                      // Keep the underline extent consistent with the shaped
+                      // advances the cursor was moved by.
+                      RichSegmentWidth := RichShapedLineWidthPx;
                       Result := Result + 'Q' + #10;
-                     end
-                     else
-                     begin
-                       ImageName := AnsiString('Im' + IntToStr(Length(AImages) + 1));
-                       if TryBuildRasterTextXObject(
-                            RichTempCmd,
-                            RichWrappedLines[RichLineIndex][RichSegIndex].Text,
-                            ImageName,
-                            XObject,
-                            RasterWidthPx,
-                            RasterHeightPx) then
-                       begin
-                         SetLength(AImages, Length(AImages) + 1);
-                         AImages[High(AImages)] := XObject;
+                    end
+                    else if RichIsAnsi then
+                    begin
+                      Result := Result +
+                        'BT' + #10 +
+                        PdfNumber(RichCursorX) + ' ' + PdfNumber(PdfY(APage, Integer(Round(LineY)))) + ' Td' + #10 +
+                        PdfColor(RichWrappedLines[RichLineIndex][RichSegIndex].FontColor) + ' rg' + #10 +
+                        PdfFontNameForStyle(RichWrappedLines[RichLineIndex][RichSegIndex].FontStyle) + ' ' +
+                        PdfNumber(RichWrappedLines[RichLineIndex][RichSegIndex].FontSize) + ' Tf' + #10 +
+                        '(' + PdfText(RichWrappedLines[RichLineIndex][RichSegIndex].Text) + ') Tj' + #10 +
+                        'ET' + #10;
+                      RichCursorX := RichCursorX + RichSegmentWidth;
+                    end
+                    else
+                    begin
+                      ImageName := AnsiString('Im' + IntToStr(Length(AImages) + 1));
+                      if TryBuildRasterTextXObject(
+                           RichTempCmd,
+                           RichWrappedLines[RichLineIndex][RichSegIndex].Text,
+                           ImageName,
+                           XObject,
+                           RasterWidthPx,
+                           RasterHeightPx) then
+                      begin
+                        SetLength(AImages, Length(AImages) + 1);
+                        AImages[High(AImages)] := XObject;
 
-                         LineX := RichCursorX;
-                         LineY := TextCmd.Bounds.Top + TextCmd.FontSize + VOffsetY + (RichLineIndex * LineHeightPx);
-                         Result := Result +
-                           'q' + #10 +
-                           PdfNumber(RasterWidthPx) + ' 0 0 ' +
-                           PdfNumber(RasterHeightPx) + ' ' +
-                           PdfNumber(LineX) + ' ' +
-                           PdfNumber(PdfY(APage, LineY + RasterHeightPx)) + ' cm' + #10 +
-                           '/' + ImageName + ' Do' + #10 +
-                           'Q' + #10;
-                         RichCursorX := RichCursorX + RasterWidthPx;
-                       end
-                       else
-                       begin
-                         LogSkippedTextCommand(RichTempCmd, 'failed to rasterize non-Latin-1 text');
-                       end;
-                     end;
-                     RichTempCmd.Free;
+                        LineX := RichCursorX;
+                        LineY := TextCmd.Bounds.Top + TextCmd.FontSize + VOffsetY + (RichLineIndex * LineHeightPx);
+                        Result := Result +
+                          'q' + #10 +
+                          PdfNumber(RasterWidthPx) + ' 0 0 ' +
+                          PdfNumber(RasterHeightPx) + ' ' +
+                          PdfNumber(LineX) + ' ' +
+                          PdfNumber(PdfY(APage, LineY + RasterHeightPx)) + ' cm' + #10 +
+                          '/' + ImageName + ' Do' + #10 +
+                          'Q' + #10;
+                        RichCursorX := RichCursorX + RasterWidthPx;
+                      end
+                      else
+                      begin
+                        LogSkippedTextCommand(RichTempCmd, 'failed to rasterize non-Latin-1 text');
+                      end;
+                    end;
+                  finally
+                    RichTempCmd.Free;
                   end;
 
                   if fsUnderline in RichWrappedLines[RichLineIndex][RichSegIndex].FontStyle then
@@ -1366,109 +1425,107 @@ var
                end;
              end;
 
-             if SupportsPdfAnsiText(TextCmd.Text) then
+            for LineIndex := 0 to High(Lines) do
             begin
-              Result := Result +
-                'q' + #10 +
-                PdfColor(TextCmd.FontColor) + ' rg' + #10 +
-                PdfFontName(TextCmd) + ' ' + PdfNumber(TextCmd.FontSize) + ' Tf' + #10;
+              if Lines[LineIndex] = '' then
+                Continue;
 
-              for LineIndex := 0 to High(Lines) do
+              // DP-30 / M-14: draw through the embedded-font pipeline first -
+              // Latin included - so the PDF renders with the same font the
+              // layout measured and wrapped with.  The built-in Helvetica
+              // variants remain the ANSI fallback when shaping/embedding
+              // fails; rasterization stays the last resort for non-ANSI.
+              if TryShapeUnicodeTextLine(
+                   TextCmd,
+                   Lines[LineIndex],
+                   AUnicodeFonts,
+                   UnicodeFontName,
+                   ShapedGlyphs,
+                   ShapedLineWidthPx) then
               begin
+                Result := Result +
+                  'q' + #10 +
+                  PdfColor(TextCmd.FontColor) + ' rg' + #10;
+
+                LineX := TextCmd.Bounds.Left;
+                if TextCmd.HAlign <> taLeftJustify then
+                begin
+                  case TextCmd.HAlign of
+                    taRightJustify:
+                      LineX := TextCmd.Bounds.Right - ShapedLineWidthPx;
+                    taCenter:
+                      LineX := TextCmd.Bounds.Left +
+                        ((TextCmd.Bounds.Width - ShapedLineWidthPx) / 2);
+                  end;
+                  if LineX < TextCmd.Bounds.Left then
+                    LineX := TextCmd.Bounds.Left;
+                end;
+
+                LineY := TextCmd.Bounds.Top + TextCmd.FontSize + VOffsetY + (LineIndex * LineHeightPx);
+                CursorXPx := 0;
+                for Glyph in ShapedGlyphs do
+                begin
+                  GlyphX := LineX + CursorXPx + Glyph.OffsetXPx;
+                  GlyphY := LineY + Glyph.OffsetYPx;
+                  GlyphHex := AnsiString(IntToHex(Glyph.GlyphId, 4));
+                  Result := Result +
+                    'BT' + #10 +
+                    '/' + UnicodeFontName + ' ' + PdfNumber(TextCmd.FontSize) + ' Tf' + #10 +
+                    '1 0 0 1 ' + PdfNumber(GlyphX) + ' ' +
+                    PdfNumber(PdfY(APage, GlyphY)) + ' Tm' + #10 +
+                    '<' + GlyphHex + '> Tj' + #10 +
+                    'ET' + #10;
+                  Inc(CursorXPx, Glyph.AdvancePx);
+                end;
+                Result := Result + 'Q' + #10;
+              end
+              else if SupportsPdfAnsiText(Lines[LineIndex]) then
+              begin
+                // ANSI fallback: the built-in Helvetica variant (this was the
+                // path for every Latin line before DP-30).
                 LineY := TextCmd.Bounds.Top + TextCmd.FontSize + VOffsetY + (LineIndex * LineHeightPx);
                 Result := Result +
+                  'q' + #10 +
+                  PdfColor(TextCmd.FontColor) + ' rg' + #10 +
+                  PdfFontName(TextCmd) + ' ' + PdfNumber(TextCmd.FontSize) + ' Tf' + #10 +
                   'BT' + #10 +
                   PdfNumber(PdfTextX(TextCmd, Lines[LineIndex])) + ' ' +
                   PdfNumber(PdfY(APage, LineY)) + ' Td' + #10 +
                   '(' + PdfText(Lines[LineIndex]) + ') Tj' + #10 +
-                  'ET' + #10;
-              end;
-
-              Result := Result + 'Q' + #10;
-            end
-            else
-            begin
-              for LineIndex := 0 to High(Lines) do
+                  'ET' + #10 +
+                  'Q' + #10;
+              end
+              else
               begin
-                if Lines[LineIndex] = '' then
-                  Continue;
-
-                if TryShapeUnicodeTextLine(
+                // Fallback path for fonts/scripts that cannot be shaped or
+                // embedded safely on the current machine.
+                LogRasterizedTextCommand(TextCmd, 'non-Latin-1 fallback');
+                ImageName := AnsiString('Im' + IntToStr(Length(AImages) + 1));
+                if TryBuildRasterTextXObject(
                      TextCmd,
                      Lines[LineIndex],
-                     AUnicodeFonts,
-                     UnicodeFontName,
-                     ShapedGlyphs,
-                     ShapedLineWidthPx) then
+                     ImageName,
+                     XObject,
+                     RasterWidthPx,
+                     RasterHeightPx) then
                 begin
+                  SetLength(AImages, Length(AImages) + 1);
+                  AImages[High(AImages)] := XObject;
+
+                  LineX := PdfTextX(TextCmd, Lines[LineIndex]);
+                  LineY := TextCmd.Bounds.Top + VOffsetY + (LineIndex * LineHeightPx);
                   Result := Result +
                     'q' + #10 +
-                    PdfColor(TextCmd.FontColor) + ' rg' + #10;
-
-                  LineX := TextCmd.Bounds.Left;
-                  if TextCmd.HAlign <> taLeftJustify then
-                  begin
-                    case TextCmd.HAlign of
-                      taRightJustify:
-                        LineX := TextCmd.Bounds.Right - ShapedLineWidthPx;
-                      taCenter:
-                        LineX := TextCmd.Bounds.Left +
-                          ((TextCmd.Bounds.Width - ShapedLineWidthPx) / 2);
-                    end;
-                    if LineX < TextCmd.Bounds.Left then
-                      LineX := TextCmd.Bounds.Left;
-                  end;
-
-                  LineY := TextCmd.Bounds.Top + TextCmd.FontSize + VOffsetY + (LineIndex * LineHeightPx);
-                  CursorXPx := 0;
-                  for Glyph in ShapedGlyphs do
-                  begin
-                    GlyphX := LineX + CursorXPx + Glyph.OffsetXPx;
-                    GlyphY := LineY + Glyph.OffsetYPx;
-                    GlyphHex := AnsiString(IntToHex(Glyph.GlyphId, 4));
-                    Result := Result +
-                      'BT' + #10 +
-                      '/' + UnicodeFontName + ' ' + PdfNumber(TextCmd.FontSize) + ' Tf' + #10 +
-                      '1 0 0 1 ' + PdfNumber(GlyphX) + ' ' +
-                      PdfNumber(PdfY(APage, GlyphY)) + ' Tm' + #10 +
-                      '<' + GlyphHex + '> Tj' + #10 +
-                      'ET' + #10;
-                    Inc(CursorXPx, Glyph.AdvancePx);
-                  end;
-                  Result := Result + 'Q' + #10;
+                    PdfNumber(RasterWidthPx) + ' 0 0 ' +
+                    PdfNumber(RasterHeightPx) + ' ' +
+                    PdfNumber(LineX) + ' ' +
+                    PdfNumber(PdfY(APage, LineY + RasterHeightPx)) + ' cm' + #10 +
+                    '/' + ImageName + ' Do' + #10 +
+                    'Q' + #10;
                 end
                 else
                 begin
-                  // Fallback path for fonts/scripts that cannot be shaped or
-                  // embedded safely on the current machine.
-                  LogRasterizedTextCommand(TextCmd, 'non-Latin-1 fallback');
-                  ImageName := AnsiString('Im' + IntToStr(Length(AImages) + 1));
-                  if TryBuildRasterTextXObject(
-                       TextCmd,
-                       Lines[LineIndex],
-                       ImageName,
-                       XObject,
-                       RasterWidthPx,
-                       RasterHeightPx) then
-                  begin
-                    SetLength(AImages, Length(AImages) + 1);
-                    AImages[High(AImages)] := XObject;
-
-                    LineX := PdfTextX(TextCmd, Lines[LineIndex]);
-                    LineY := TextCmd.Bounds.Top + VOffsetY + (LineIndex * LineHeightPx);
-                    Result := Result +
-                      'q' + #10 +
-                      PdfNumber(RasterWidthPx) + ' 0 0 ' +
-                      PdfNumber(RasterHeightPx) + ' ' +
-                      PdfNumber(LineX) + ' ' +
-                      PdfNumber(PdfY(APage, LineY + RasterHeightPx)) + ' cm' + #10 +
-                      '/' + ImageName + ' Do' + #10 +
-                      'Q' + #10;
-                  end
-                  else
-                  begin
-                    LogSkippedTextCommand(TextCmd, 'failed to rasterize non-Latin-1 text');
-                  end;
+                  LogSkippedTextCommand(TextCmd, 'failed to rasterize non-Latin-1 text');
                 end;
               end;
             end;

@@ -1787,7 +1787,8 @@ begin
 end;
 
 { Extracts the Y component of the first "x y Td" text-position operator,
-  which is the baseline Y in PDF coordinates (page flipped). }
+  which is the baseline Y in PDF coordinates (page flipped).  Kept for the
+  Helvetica fallback path; DP-30 shaped text uses Tm instead (TmBaselineY). }
 function TdBaselineY(const APdf: string): Double;
 var
   P: Integer;
@@ -1796,6 +1797,24 @@ var
 begin
   Result := -1;
   P := Pos(' Td', APdf);
+  if P <= 0 then Exit;
+  Tail := Trim(Copy(APdf, 1, P - 1));
+  Tokens := Tail.Split([' ']);
+  if Length(Tokens) >= 2 then
+    Result := StrToFloat(StringReplace(Tokens[High(Tokens)], ',', '.', [rfReplaceAll]), FormatSettings);
+end;
+
+{ DP-30 / M-14: extracts the Y component of the first "1 0 0 1 x y Tm"
+  glyph placement emitted by the embedded-font pipeline - the baseline Y in
+  PDF coordinates (page flipped). }
+function TmBaselineY(const APdf: string): Double;
+var
+  P: Integer;
+  Tail: string;
+  Tokens: TArray<string>;
+begin
+  Result := -1;
+  P := Pos(' Tm', APdf);
   if P <= 0 then Exit;
   Tail := Trim(Copy(APdf, 1, P - 1));
   Tokens := Tail.Split([' ']);
@@ -1908,13 +1927,13 @@ begin
   PdfCenter := DoExport(taVerticalCenter);
   PdfBottom := DoExport(taAlignBottom);
 
-  Assert.Contains(PdfTop, ' Td', 'top PDF missing Td');
-  Assert.Contains(PdfCenter, ' Td', 'center PDF missing Td');
-  Assert.Contains(PdfBottom, ' Td', 'bottom PDF missing Td');
+  Assert.Contains(PdfTop, ' Tm', 'top PDF missing Tm');
+  Assert.Contains(PdfCenter, ' Tm', 'center PDF missing Tm');
+  Assert.Contains(PdfBottom, ' Tm', 'bottom PDF missing Tm');
 
-  YTop    := TdBaselineY(PdfTop);
-  YCenter := TdBaselineY(PdfCenter);
-  YBottom := TdBaselineY(PdfBottom);
+  YTop    := TmBaselineY(PdfTop);
+  YCenter := TmBaselineY(PdfCenter);
+  YBottom := TmBaselineY(PdfBottom);
 
   // PDF Y is flipped (page height - logical).  top (smallest logical) is
   // the largest PDF Y; bottom (largest logical) is the smallest.
@@ -2352,9 +2371,14 @@ begin
     Engine.Prepare;
     Pdf := ExportToPDF(Doc);
     Assert.Contains(Pdf, 'BT');
-    Assert.Contains(Pdf, '/F2 ');
     Assert.Contains(Pdf, 'Tf');
-    Assert.Contains(Pdf, 'Bold text');
+    Assert.Contains(Pdf, 'Tm');
+    // DP-30 / M-14: rich ANSI runs embed the report font now; bold maps to
+    // a "-Bold" embedded face and the literal text no longer appears.
+    Assert.Contains(Pdf, '-Bold');
+    Assert.Contains(Pdf, '/ToUnicode');
+    Assert.IsFalse(ContainsText(Pdf, 'Bold text'),
+      'bold run must be drawn as glyphs, not as an ANSI literal');
   finally
     Doc.Free;
     Engine.Free;
@@ -2376,9 +2400,13 @@ begin
     Engine.Prepare;
     Pdf := ExportToPDF(Doc);
     Assert.Contains(Pdf, 'BT');
-    Assert.Contains(Pdf, '/F3 ');
     Assert.Contains(Pdf, 'Tf');
-    Assert.Contains(Pdf, 'Italic text');
+    Assert.Contains(Pdf, 'Tm');
+    // DP-30 / M-14: italic maps to a "-Italic" embedded face; no literal.
+    Assert.Contains(Pdf, '-Italic');
+    Assert.Contains(Pdf, '/ToUnicode');
+    Assert.IsFalse(ContainsText(Pdf, 'Italic text'),
+      'italic run must be drawn as glyphs, not as an ANSI literal');
   finally
     Doc.Free;
     Engine.Free;
@@ -2400,7 +2428,10 @@ begin
     Engine.Prepare;
     Pdf := ExportToPDF(Doc);
     Assert.Contains(Pdf, 'BT');
-    Assert.Contains(Pdf, 'Underlined');
+    Assert.Contains(Pdf, 'Tm');
+    Assert.Contains(Pdf, '/ToUnicode');
+    Assert.IsFalse(ContainsText(Pdf, 'Underlined'),
+      'underlined run must be drawn as glyphs, not as an ANSI literal');
     Assert.Contains(Pdf, ' RG');
     Assert.Contains(Pdf, ' w');
   finally
@@ -2425,10 +2456,14 @@ begin
   try
     Engine.Prepare;
     Pdf := ExportToPDF(Doc);
-    Assert.Contains(Pdf, 'Normal');
-    Assert.Contains(Pdf, 'Bold');
-    Assert.Contains(Pdf, 'Italic');
-    Assert.Contains(Pdf, 'Under');
+    // DP-30 / M-14: every ANSI run embeds the report font; bold/italic runs
+    // produce their own embedded faces; no literals remain.
+    Assert.Contains(Pdf, '/UF');
+    Assert.Contains(Pdf, 'Tm');
+    Assert.Contains(Pdf, '-Bold');
+    Assert.Contains(Pdf, '-Italic');
+    Assert.IsFalse(ContainsText(Pdf, 'Normal'),
+      'plain run must be drawn as glyphs, not as an ANSI literal');
   finally
     Doc.Free;
     Engine.Free;
@@ -2534,7 +2569,11 @@ begin
   try
     Engine.Prepare;
     Pdf := ExportToPDF(Doc);
-    Assert.Contains(Pdf, 'Plain text');
+    // DP-30 / M-14: plain ANSI memo text embeds the report font now.
+    Assert.Contains(Pdf, '/UF');
+    Assert.Contains(Pdf, 'Tm');
+    Assert.IsFalse(ContainsText(Pdf, '(Plain text)'),
+      'the memo text must not be drawn as an ANSI literal any more');
     Assert.IsFalse(ContainsText(Pdf, '/Im'), 'AllowHTML=False must not activate rich-run fallback');
   finally
     Doc.Free;
@@ -2592,8 +2631,10 @@ begin
         Ms.Free;
       end;
 
-      Assert.IsTrue(Pos('Normal text', string(Pdf)) > 0,
-        'Vector PDF must contain the rendered memo text');
+      Assert.IsTrue(Pos('Normal text', string(Pdf)) = 0,
+        'DP-30 / M-14: memo text is embedded as glyphs, not ANSI literals');
+      Assert.IsTrue(Pos('/ToUnicode', string(Pdf)) > 0,
+        'Vector PDF must keep the memo text extractable via the ToUnicode map');
     finally
       Engine.Free;
       Doc.Free;
