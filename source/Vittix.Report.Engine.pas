@@ -111,6 +111,11 @@ type
   public
     function Matches(const AExpression: string;
       const AContext: TExpressionContext): Boolean;
+    { DP-29: identity match ignoring RowNumber, used by StoreAggregateCache
+      to collapse row-scoped duplicates - the stored row can never be
+      revisited by a later row, so one entry per non-row identity suffices. }
+    function MatchesExceptRowNumber(const AExpression: string;
+      const AContext: TExpressionContext): Boolean;
     procedure Capture(const AExpression: string;
       const AContext: TExpressionContext; const AValue: Variant);
     property Value: Variant read FValue;
@@ -342,6 +347,13 @@ end;
 
 function TAggregateCacheEntry.Matches(const AExpression: string;
   const AContext: TExpressionContext): Boolean;
+begin
+  Result := (FRowNumber = AContext.RowNumber) and
+    MatchesExceptRowNumber(AExpression, AContext);
+end;
+
+function TAggregateCacheEntry.MatchesExceptRowNumber(
+  const AExpression: string; const AContext: TExpressionContext): Boolean;
 var
   DataSetFilter: string;
   DataSetFiltered: Boolean;
@@ -359,7 +371,6 @@ begin
     BookmarksEqual(FGroupEnd, AContext.GroupEnd) and
     (FPageNumber = AContext.PageNumber) and
     (FTotalPages = AContext.TotalPages) and
-    (FRowNumber = AContext.RowNumber) and
     (FIsCountingPass = AContext.IsCountingPass) and
     (FParameters = StringsText(AContext.Parameters)) and
     (FVariables = StringsText(AContext.Variables)) and
@@ -2442,6 +2453,13 @@ begin
     Result := nil;
 end;
 
+const
+  { DP-29 / M-3: hard cap on the aggregate cache.  Row-scoped duplicates
+    collapse on store (see StoreAggregateCache); anything else falls off
+    oldest-first past the cap so a render can never accumulate entries
+    without limit. }
+  MAX_AGGREGATE_CACHE_ENTRIES = 4096;
+
 function TReportEngine.TryGetAggregateCache(const AExpression: string;
   const AContext: TExpressionContext; out AValue: Variant): Boolean;
 var
@@ -2460,7 +2478,21 @@ procedure TReportEngine.StoreAggregateCache(const AExpression: string;
   const AContext: TExpressionContext; const AValue: Variant);
 var
   Entry: TAggregateCacheEntry;
+  I: Integer;
 begin
+  // DP-29 / M-3: row-scoped re-evaluations (identical apart from RowNumber,
+  // one per master row) can never be hit by a later row.  Collapse them
+  // into the most recent matching entry instead of appending one per row;
+  // the value is refreshed, so a re-evaluation within the newest row still
+  // hits the cache.
+  for I := FAggregateCache.Count - 1 downto 0 do
+    if FAggregateCache[I].MatchesExceptRowNumber(AExpression, AContext) then
+    begin
+      FAggregateCache[I].Capture(AExpression, AContext, AValue);
+      TReportTraversalDiagnostics.AggregateCacheSize(FAggregateCache.Count);
+      Exit;
+    end;
+
   Entry := TAggregateCacheEntry.Create;
   try
     Entry.Capture(AExpression, AContext, AValue);
@@ -2469,6 +2501,11 @@ begin
     Entry.Free;
     raise;
   end;
+
+  // Hard bound: the oldest entries fall off first (FIFO).
+  while FAggregateCache.Count > MAX_AGGREGATE_CACHE_ENTRIES do
+    FAggregateCache.Delete(0);
+
   // DP-29: observe the cache size after every mutation (test diagnostics).
   TReportTraversalDiagnostics.AggregateCacheSize(FAggregateCache.Count);
 end;
