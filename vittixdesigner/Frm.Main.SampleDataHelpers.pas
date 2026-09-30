@@ -27,6 +27,18 @@ uses
   System.IOUtils,
   System.DateUtils;
 
+{ M-20 / DP-25: writable per-user location for the generated sample data. }
+function SampleDataCachePath: string;
+var
+  Base: string;
+begin
+  Base := GetEnvironmentVariable('LOCALAPPDATA');
+  if Base = '' then
+    Base := TPath.GetHomePath;
+  Result := TPath.Combine(TPath.Combine(Base, 'VittixDesigner'),
+    'sample_data.json');
+end;
+
 procedure CreateSampleDataSet(AOwner: TComponent; var ASampleDataSet: TFDMemTable);
 begin
   if not Assigned(ASampleDataSet) then
@@ -101,11 +113,21 @@ begin
     Exit;
 
   JsonFile := AGetRegressionReportPath('sample_data.json');
+  if not TFile.Exists(JsonFile) then
+    // M-20 / DP-25: never write into the install directory; fall back to
+    // the per-user cache written below.
+    JsonFile := SampleDataCachePath;
 
   if TFile.Exists(JsonFile) then
   begin
-    ASampleDataSet.LoadFromFile(JsonFile, sfJSON);
-    Exit;
+    try
+      ASampleDataSet.LoadFromFile(JsonFile, sfJSON);
+      Exit;
+    except
+      // Corrupt cache file: fall through and regenerate.
+      if ASampleDataSet.Active then
+        ASampleDataSet.EmptyDataSet;
+    end;
   end;
 
   ASampleDataSet.DisableControls;
@@ -169,7 +191,15 @@ begin
     ASampleDataSet.EnableControls;
   end;
 
-  ASampleDataSet.SaveToFile(JsonFile, sfJSON);
+  // M-20 / DP-25: cache under %LOCALAPPDATA%\VittixDesigner; a read-only
+  // install directory or a full disk must not abort startup.
+  try
+    JsonFile := SampleDataCachePath;
+    ForceDirectories(ExtractFileDir(JsonFile));
+    ASampleDataSet.SaveToFile(JsonFile, sfJSON);
+  except
+    // Non-fatal: the in-memory sample data stays usable for this session.
+  end;
   ASampleDataSet.First;
 end;
 

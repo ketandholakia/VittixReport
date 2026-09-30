@@ -67,6 +67,36 @@ only when `<input>` actually loaded. Verify both branches:
   load failure and the output file is UNCHANGED (pre-fix it was overwritten
   with a blank report).
 
+### 2.2) Atomic save + Save-As/close flow (DP-24)
+No automated designer harness exists; verify manually:
+
+- Atomic save: open a report, save it, then make the target file
+  read-only (or fill the volume) and save again → an error is reported, the
+  ORIGINAL file is unchanged, and no `.tmp` file is left behind.
+- Save-As adopts the path only on success: Save-As into a read-only folder
+  → the error is reported and a subsequent Ctrl+S still targets the OLD
+  path (title bar keeps the old file name).
+- Close with a cancelled Save-As: edit the report, close the window → save
+  prompt → choose "Yes" → cancel the Save-As dialog → the app STAYS OPEN
+  (pre-fix it closed without saving).
+- Close with "Yes" and a successful Save-As → a new file is written and the
+  app closes.
+- Close with "No" → the app closes and the file is NOT modified.
+- New / Open / template / recent-file actions with a cancelled save prompt
+  → the action is aborted (nothing is replaced).
+
+### 2.3) Sample data set location (DP-25)
+- Delete `%LOCALAPPDATA%\VittixDesigner\sample_data.json` if present; launch
+  the designer where no `reports\sample_data.json` is available → the app
+  starts, generates the sample data, and writes a fresh
+  `sample_data.json` under `%LOCALAPPDATA%\VittixDesigner\` — nothing is
+  written next to the executable.
+- Launch the designer from a read-only location (e.g. a copy under
+  `C:\Program Files\...`) with no cached sample data → the app still starts
+  (pre-fix: startup failed and the process exited).
+- Corrupt `%LOCALAPPDATA%\VittixDesigner\sample_data.json` (write garbage)
+  → the app starts and silently regenerates the data.
+
 ## 3) Regression runner
 - Run: `Report -> Regression Tests -> Run Regression Test Reports`.
 - Confirm all automatic reports pass.

@@ -7,7 +7,7 @@ uses
 
 function GetRegressionReportPath(const AFileName: string): string;
 procedure OpenRegressionReport(const AFileName: string;
-  const AConfirmSaveIfModified: TProc;
+  const AConfirmSaveIfModified: TFunc<Boolean>;
   const ALoadDesignerReportFromFile: TProc<string>;
   const AShowMessage: TProc<string>;
   const AGetRegressionReportPath: TFunc<string, string>);
@@ -38,15 +38,17 @@ begin
 end;
 
 procedure OpenRegressionReport(const AFileName: string;
-  const AConfirmSaveIfModified: TProc;
+  const AConfirmSaveIfModified: TFunc<Boolean>;
   const ALoadDesignerReportFromFile: TProc<string>;
   const AShowMessage: TProc<string>;
   const AGetRegressionReportPath: TFunc<string, string>);
 var
   FN: string;
 begin
+  // DP-24: a cancelled save prompt must abort opening the report.
   if Assigned(AConfirmSaveIfModified) then
-    AConfirmSaveIfModified();
+    if not AConfirmSaveIfModified() then
+      Exit;
   if not Assigned(AGetRegressionReportPath) or not Assigned(ALoadDesignerReportFromFile) or not Assigned(AShowMessage) then
     Exit;
   FN := AGetRegressionReportPath(AFileName);

@@ -582,11 +582,16 @@ type
     procedure BuildBarcodeTestReport;
     procedure BuildImagePathTestReport;
     function  GetRegressionReportPath(const AFileName: string): string;
+    function  GetSampleDataCachePath: string;
     procedure OpenRegressionReport(const AFileName: string);
     procedure LoadDesignerReportFromFile(const AFileName: string;
       AUseSampleDataSet: Boolean = False);
     procedure RunRuntimeEventCallbackDemo;
-    procedure ConfirmSaveIfModified;
+    function  ConfirmSaveIfModified: Boolean;
+    function  SaveReportTo(const APath: string): Boolean;
+    function  SaveReportAsInteractive: Boolean;
+    function  SaveReportInteractive: Boolean;
+    procedure MarkReportSaved;
     procedure DynInsertMenuClick(Sender: TObject);
     procedure DynAddBandMenuClick(Sender: TObject);
 
@@ -1401,7 +1406,15 @@ begin
   end;
 
   if FModified or FReportMetadataDirty then
-    ConfirmSaveIfModified;
+  begin
+    // DP-24 / M-19: explicit close decision - a cancelled save prompt, a
+    // cancelled Save-As dialog, or a failed write keeps the designer open.
+    if not ConfirmSaveIfModified then
+    begin
+      CanClose := False;
+      Exit;
+    end;
+  end;
 
   SaveDesignerPreferences;
   SaveRecentFiles;
@@ -1487,7 +1500,8 @@ end;
 
 procedure TfrmMain.mnuNewClick(Sender: TObject);
 begin
-  ConfirmSaveIfModified;
+  if not ConfirmSaveIfModified then
+    Exit;
   FDesigner.NewReport;
   FCurrentFile := '';
   FModified    := False;
@@ -1544,7 +1558,8 @@ end;
 
 procedure TfrmMain.mnuOpenClick(Sender: TObject);
 begin
-  ConfirmSaveIfModified;
+  if not ConfirmSaveIfModified then
+    Exit;
   if not dlgOpen.Execute then Exit;
   try
     LoadDesignerReportFromFile(dlgOpen.FileName, False);
@@ -1576,30 +1591,12 @@ begin
   if FCurrentFile = '' then
     mnuSaveAsClick(Sender)
   else
-  begin
-    // Commit pending report-info edits as a single undoable metadata change.
-    CommitReportMetadataChanges(True);
-    try
-      TReportSerializer.SaveToFile(FDesigner.Report, FCurrentFile);
-      FModified := False;
-      FReportMetadataDirty := False;
-      UpdateTitleBar;
-      StatusBar1.Panels[1].Text := 'Saved: ' + ExtractFileName(FCurrentFile);
-      AddRecentFile(FCurrentFile);
-    except
-      on E: Exception do
-        ShowMessage('Error saving report: ' + E.Message);
-    end;
-  end;
+    SaveReportInteractive;
 end;
 
 procedure TfrmMain.mnuSaveAsClick(Sender: TObject);
 begin
-  if FCurrentFile <> '' then
-    dlgSave.FileName := FCurrentFile;
-  if not dlgSave.Execute then Exit;
-  FCurrentFile := dlgSave.FileName;
-  mnuSaveClick(Sender);
+  SaveReportAsInteractive;
 end;
 
 procedure TfrmMain.mnuExportPDFClick(Sender: TObject);
@@ -1876,10 +1873,13 @@ function TfrmMain.PrepareForSampleTemplate(const APrompt: string): Integer;
 var
   I: Integer;
 begin
-  ConfirmSaveIfModified;
+  // DP-24: explicit cancellation instead of the Abort trick; callers bail
+  // out when 0 is returned.
+  if not ConfirmSaveIfModified then
+    Exit(0);
   if (FDesigner.Report.Objects.Count > 0) or FModified then
     if MessageDlg(APrompt, mtConfirmation, [mbYes, mbNo], 0) <> mrYes then
-      Abort;
+      Exit(0);
 
   UseSampleDataSet;
   FDesigner.NewReport;
@@ -1912,6 +1912,8 @@ var
   BandRight: Integer;
 begin
   BandRight := PrepareForSampleTemplate('This will replace the current report with a simple sample layout. Continue?');
+  if BandRight <= 0 then
+    Exit;
   TitleBand := TReportBand.Create;
   TitleBand.BandType := btReportTitle;
   TitleBand.Bounds := Rect(0, 0, BandRight, 46);
@@ -1940,6 +1942,8 @@ var
   BandRight: Integer;
 begin
   BandRight := PrepareForSampleTemplate('This will replace the current report with a grouped sample layout. Continue?');
+  if BandRight <= 0 then
+    Exit;
   TitleBand := TReportBand.Create;
   TitleBand.BandType := btReportTitle;
   TitleBand.Bounds := Rect(0, 0, BandRight, 50);
@@ -1977,6 +1981,8 @@ var
   BandRight: Integer;
 begin
   BandRight := PrepareForSampleTemplate('This will replace the current report with a CanGrow remarks test layout. Continue?');
+  if BandRight <= 0 then
+    Exit;
   TitleBand := TReportBand.Create;
   TitleBand.BandType := btReportTitle;
   TitleBand.Bounds := Rect(0, 0, BandRight, 46);
@@ -2006,6 +2012,8 @@ var
   BandRight: Integer;
 begin
   BandRight := PrepareForSampleTemplate('This will replace the current report with a barcode test layout. Continue?');
+  if BandRight <= 0 then
+    Exit;
   TitleBand := TReportBand.Create;
   TitleBand.BandType := btReportTitle;
   TitleBand.Bounds := Rect(0, 0, BandRight, 46);
@@ -2035,6 +2043,8 @@ var
   BandRight: Integer;
 begin
   BandRight := PrepareForSampleTemplate('This will replace the current report with an image path test layout. Continue?');
+  if BandRight <= 0 then
+    Exit;
   TitleBand := TReportBand.Create;
   TitleBand.BandType := btReportTitle;
   TitleBand.Bounds := Rect(0, 0, BandRight, 46);
@@ -2061,13 +2071,25 @@ begin
   Result := Frm.Main.SampleHelpers.GetRegressionReportPath(AFileName);
 end;
 
+{ M-20 / DP-25: writable per-user location for the generated sample data. }
+function TfrmMain.GetSampleDataCachePath: string;
+var
+  Base: string;
+begin
+  Base := GetEnvironmentVariable('LOCALAPPDATA');
+  if Base = '' then
+    Base := TPath.GetHomePath;
+  Result := TPath.Combine(TPath.Combine(Base, 'VittixDesigner'),
+    'sample_data.json');
+end;
+
 procedure TfrmMain.OpenRegressionReport(const AFileName: string);
 begin
   Frm.Main.SampleHelpers.OpenRegressionReport(
     AFileName,
-    procedure
+    function: Boolean
     begin
-      ConfirmSaveIfModified;
+      Result := ConfirmSaveIfModified;
     end,
     procedure(AFileNameToLoad: string)
     begin
@@ -6636,7 +6658,8 @@ begin
   if (Path = '') or not TFile.Exists(Path) then
     Exit;
 
-  ConfirmSaveIfModified;
+  if not ConfirmSaveIfModified then
+    Exit;
   // Templates open against the sample dataset so the field list and the DataField
   // checks in the Problems panel have something to bind to.
   LoadDesignerReportFromFile(Path, True);
@@ -6672,7 +6695,8 @@ begin
   if FN = '' then
     Exit;
 
-  ConfirmSaveIfModified;
+  if not ConfirmSaveIfModified then
+    Exit;
   try
     LoadDesignerReportFromFile(FN, False);
     AddRecentFile(FN);
@@ -6733,15 +6757,88 @@ begin
     end);
 end;
 
-procedure TfrmMain.ConfirmSaveIfModified;
+function TfrmMain.ConfirmSaveIfModified: Boolean;
 begin
-  Frm.Main.DialogHelpers.ConfirmSaveIfModified(
+  Result := Frm.Main.DialogHelpers.ConfirmSaveIfModified(
     FModified,
     FReportMetadataDirty,
-    procedure
+    function: Boolean
     begin
-      mnuSaveClick(nil);
+      Result := SaveReportInteractive;
     end);
+end;
+
+{ DP-24 / M-19: atomic write - serialize to a temp file next to the target
+  and only then swap it into place, so a failing write (disk full,
+  permissions) can never destroy the previous copy.  Returns True only when
+  the target file now holds the report. }
+function TfrmMain.SaveReportTo(const APath: string): Boolean;
+var
+  TempPath: string;
+begin
+  Result := False;
+  TempPath := APath + '.tmp';
+  try
+    TReportSerializer.SaveToFile(FDesigner.Report, TempPath);
+    if TFile.Exists(APath) then
+      TFile.Replace(TempPath, APath, '')
+    else
+      TFile.Move(TempPath, APath);
+    Result := True;
+  except
+    on E: Exception do
+    begin
+      if TFile.Exists(TempPath) then
+        try
+          TFile.Delete(TempPath);
+        except
+          // best-effort cleanup; the original failure is reported below
+        end;
+      ShowMessage('Error saving report: ' + E.Message);
+    end;
+  end;
+end;
+
+procedure TfrmMain.MarkReportSaved;
+begin
+  FModified := False;
+  FReportMetadataDirty := False;
+  UpdateTitleBar;
+  StatusBar1.Panels[1].Text := 'Saved: ' + ExtractFileName(FCurrentFile);
+  AddRecentFile(FCurrentFile);
+end;
+
+{ Save-As with an explicit result (DP-24): the report is written first and
+  the new path is adopted only after the write succeeds.  False = dialog
+  cancelled or write failed. }
+function TfrmMain.SaveReportAsInteractive: Boolean;
+begin
+  Result := False;
+  if FCurrentFile <> '' then
+    dlgSave.FileName := FCurrentFile;
+  if not dlgSave.Execute then
+    Exit;
+  CommitReportMetadataChanges(True);
+  if not SaveReportTo(dlgSave.FileName) then
+    Exit;
+  FCurrentFile := dlgSave.FileName;
+  MarkReportSaved;
+  Result := True;
+end;
+
+{ The save path used by the unsaved-changes prompt: Save when a path exists,
+  Save-As otherwise.  True only when the document was written. }
+function TfrmMain.SaveReportInteractive: Boolean;
+begin
+  if FCurrentFile = '' then
+    Result := SaveReportAsInteractive
+  else
+  begin
+    CommitReportMetadataChanges(True);
+    Result := SaveReportTo(FCurrentFile);
+    if Result then
+      MarkReportSaved;
+  end;
 end;
 
 function TfrmMain.StructureBandCaption(ABand: TReportBand): string;
@@ -7465,15 +7562,25 @@ var
   JsonFile: string;
 begin
   JsonFile := GetRegressionReportPath('sample_data.json');
-  if ExtractFileDir(JsonFile) <> '' then
-    ForceDirectories(ExtractFileDir(JsonFile));
+  if not TFile.Exists(JsonFile) then
+    // M-20 / DP-25: the generated sample data must not be written into the
+    // install directory (read-only under Program Files).  Fall back to the
+    // per-user cache written below.
+    JsonFile := GetSampleDataCachePath;
 
   CreateSampleDataSet;
 
   if TFile.Exists(JsonFile) then
   begin
-    FSampleDataSet.LoadFromFile(JsonFile, sfJSON);
-    Exit;
+    try
+      FSampleDataSet.LoadFromFile(JsonFile, sfJSON);
+      Exit;
+    except
+      // Corrupt cache file: fall through and regenerate (M-20: a bad data
+      // file must never abort startup).
+      if FSampleDataSet.Active then
+        FSampleDataSet.EmptyDataSet;
+    end;
   end;
 
   FSampleDataSet.DisableControls;
@@ -7537,7 +7644,15 @@ begin
     FSampleDataSet.EnableControls;
   end;
 
-  FSampleDataSet.SaveToFile(JsonFile, sfJSON);
+  // M-20 / DP-25: cache under %LOCALAPPDATA%\VittixDesigner; a read-only
+  // install directory or a full disk must not abort startup.
+  try
+    JsonFile := GetSampleDataCachePath;
+    ForceDirectories(ExtractFileDir(JsonFile));
+    FSampleDataSet.SaveToFile(JsonFile, sfJSON);
+  except
+    // Non-fatal: the in-memory sample data stays usable for this session.
+  end;
   FSampleDataSet.First;
 end;
 
