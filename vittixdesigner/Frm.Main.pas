@@ -518,6 +518,10 @@ type
     // Command-line mode: set when launched by the component editor
     FCmdLineInputFile : string;   // file to load on startup
     FCmdLineOutputFile: string;   // file to write on save & close
+    // DP-13: True only after the command-line input actually loaded. The
+    // output file is written on close ONLY then - a failed/missing input
+    // must never overwrite the component editor's file with a blank report.
+    FCmdLineInputLoaded: Boolean;
 
     procedure BuildObjectToolStrip;
     procedure BuildInsertMenu;
@@ -1179,8 +1183,9 @@ begin
   // Command-line mode: VittixDesigner.exe "<input>" "<output>"
   // When launched by the component editor, load the input file and
   // remember the output path for Save & Close.
-  FCmdLineInputFile  := '';
-  FCmdLineOutputFile := '';
+  FCmdLineInputFile   := '';
+  FCmdLineOutputFile  := '';
+  FCmdLineInputLoaded := False;
   if ParamCount >= 1 then
   begin
     FCmdLineInputFile  := ParamStr(1);
@@ -1194,26 +1199,35 @@ begin
       begin
         var LR: TReportLoadResult := nil;
         try
-          LR := TReportSerializer.LoadFromJSONEx(JSON, False);
-          // Surface loader warnings (unknown object classes etc.) in the
-          // Problems panel instead of dropping them on this code path.
-          CaptureLoadDiagnostics(FCmdLineInputFile, LR);
-          if LR.Success then
-          begin
-            FDesigner.LoadReport(LR.ExtractModel, True);
-            edtReportTitle.Text  := FDesigner.Report.Title;
-            edtReportAuthor.Text := FDesigner.Report.Author;
+          try
+            LR := TReportSerializer.LoadFromJSONEx(JSON, False);
+            // Surface loader warnings (unknown object classes etc.) in the
+            // Problems panel instead of dropping them on this code path.
+            CaptureLoadDiagnostics(FCmdLineInputFile, LR);
+            if LR.Success then
+            begin
+              FDesigner.LoadReport(LR.ExtractModel, True);
+              edtReportTitle.Text  := FDesigner.Report.Title;
+              edtReportAuthor.Text := FDesigner.Report.Author;
+              FCmdLineInputLoaded := True;
+            end;
+          except
+            // Backward-compatible fallback if input was passed as a file
+            // format expected by LoadFromFile. Release the failed attempt
+            // first so a raising fallback cannot leak it (DP-13).
+            FreeAndNil(LR);
+            FDesigner.LoadReport(TReportSerializer.LoadFromFile(FCmdLineInputFile),
+              True);
+            FCmdLineInputLoaded := True;
           end;
-        except
-          // Backward-compatible fallback if input was passed as a file format
-          // expected by LoadFromFile.
-          FDesigner.LoadReport(TReportSerializer.LoadFromFile(FCmdLineInputFile),
-            True);
+        finally
+          LR.Free;
         end;
-        LR.Free;
       end;
     except
-      // ignore — start with blank report
+      // DP-13: swallowed here, but FCmdLineInputLoaded stays False, so
+      // FormCloseQuery will NOT overwrite the output file with a blank
+      // report - it reports the failure instead.
     end;
   end;
 
@@ -1339,6 +1353,17 @@ begin
 
   if FCmdLineOutputFile <> '' then
   begin
+    // DP-13: only write the output when the command-line input actually
+    // loaded. Overwriting the component editor's report with a blank or
+    // partial design because the input failed to parse would destroy it.
+    if not FCmdLineInputLoaded then
+    begin
+      ShowMessage('The report could not be loaded from "' + FCmdLineInputFile +
+        '".' + sLineBreak + 'The output file was NOT written.');
+      SaveDesignerPreferences;
+      SaveRecentFiles;
+      Exit; // skip the normal "save changes?" prompt
+    end;
     try
       CommitReportMetadataChanges(False);
       // Write JSON (not .vrt format) so the component editor can read it

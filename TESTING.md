@@ -55,6 +55,18 @@ change — `Rebuild` costs materially more time.
 - Use Sample Dataset.
 - Reload Sample Dataset.
 
+### 2.1) Component-editor command-line mode (DP-13)
+`VittixDesigner.exe "<input>.vrt" "<output>.vrt"` writes `<output>` on close
+only when `<input>` actually loaded. Verify both branches:
+
+- Valid input: launch with an existing `.vrt` as input and a temp output
+  path → edit the title → close → the output file exists and contains the
+  edited title.
+- Corrupt input: write garbage into `broken.vrt`, launch with it as input
+  and a **copy of a good report** as output → close → a message reports the
+  load failure and the output file is UNCHANGED (pre-fix it was overwritten
+  with a blank report).
+
 ## 3) Regression runner
 - Run: `Report -> Regression Tests -> Run Regression Test Reports`.
 - Confirm all automatic reports pass.
