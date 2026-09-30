@@ -184,7 +184,14 @@
           "Visible": true,
           "PrintWhen": "",
           "AnchorRight": false,
-          "AnchorBottom": false
+          "AnchorBottom": false,
+          "Value": "1234567890",
+          "DataField": "BarcodeValue",
+          "Symbology": 1,
+          "ErrorCorrection": 1,
+          "ShowText": true,
+          "BarColor": 0,
+          "BackgroundColor": 16777215
         },
         {
           "Class": "TReportBarcodeObject",
@@ -198,7 +205,14 @@
           "Visible": true,
           "PrintWhen": "",
           "AnchorRight": false,
-          "AnchorBottom": false
+          "AnchorBottom": false,
+          "Value": "FALL-01",
+          "DataField": "NoSuchField",
+          "Symbology": 1,
+          "ErrorCorrection": 1,
+          "ShowText": true,
+          "BarColor": 0,
+          "BackgroundColor": 16777215
         }
       ]
     }
