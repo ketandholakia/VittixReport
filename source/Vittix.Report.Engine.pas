@@ -188,6 +188,7 @@ type
       ANamedUserDataSets: TDictionary<string, TVittixUserDataSet>;
       AProgress:      IReportProgress);
     procedure CacheBands;
+    procedure ResetObjectCaches(AObjects: TObjectList<TReportObject>);
     function IsCapturingExportCommands: Boolean;
 
     procedure StartNewPage;
@@ -517,6 +518,29 @@ begin
     FDetailBands);
 end;
 
+{ Per-pass object cache reset (DP-12 / H-6). Recurses into band children:
+  report objects normally live inside a band's Children list, and the
+  previous flat walk over FReport.Objects never reached them. Data caches
+  (chart points, crosstab matrix) MUST drop per pass or a second Prepare
+  against changed data redraws the first pass's values; the image cache
+  reset is carried along unchanged. }
+procedure TReportEngine.ResetObjectCaches(AObjects: TObjectList<TReportObject>);
+var
+  Obj: TReportObject;
+begin
+  for Obj in AObjects do
+  begin
+    if Obj is TReportImageObject then
+      TReportImageObject(Obj).ResetImageCache;
+    if Obj is TReportChartObject then
+      TReportChartObject(Obj).ResetDataCache;
+    if Obj is TReportCrossTabObject then
+      TReportCrossTabObject(Obj).ResetDataCache;
+    if Obj is TReportBand then
+      ResetObjectCaches(TReportBand(Obj).Children);
+  end;
+end;
+
 procedure TReportEngine.ClearExecutionCaches;
 begin
   FAggregateCache.Clear;
@@ -780,10 +804,7 @@ begin
   FPageHeight := FReport.PageSettings.PageHeight;
 
   CacheBands;
-
-  for var Obj in FReport.Objects do
-    if Obj is TReportImageObject then
-      TReportImageObject(Obj).ResetImageCache;
+  ResetObjectCaches(FReport.Objects);
 
   ATotalRows := 0;
   if AReportProgress and Assigned(FProgress) then

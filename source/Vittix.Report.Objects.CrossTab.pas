@@ -60,7 +60,11 @@ type
     
     procedure Draw(C: TCanvas; const Context: TExpressionContext); override;
     function MeasuredBottom(C: TCanvas; const Context: TExpressionContext): Integer; override;
-    
+    { Drops the prepared-matrix latch so the next Draw re-reads the dataset.
+      Called by the engine per pass (DP-12): without it a second Prepare
+      against changed data kept drawing the first pass's matrix. }
+    procedure ResetDataCache;
+
     class function DisplayName: string; override;
   published
     property DataSetName: string read FDataSetName write FDataSetName;
@@ -137,6 +141,12 @@ begin
   FColTotals.Free;
   FCounts.Free;
   inherited;
+end;
+
+procedure TReportCrossTabObject.ResetDataCache;
+begin
+  // ClearMatrix resets every prepared structure and the latch itself.
+  ClearMatrix;
 end;
 
 procedure TReportCrossTabObject.SetFont(const Value: TFont);

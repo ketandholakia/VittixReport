@@ -43,6 +43,10 @@ type
     destructor Destroy; override;
 
     procedure Draw(C: TCanvas; const Context: TExpressionContext); override;
+    { Drops the prepared-data latch so the next Draw re-reads the dataset.
+      Called by the engine per pass (DP-12): without it a second Prepare
+      against changed data kept drawing the first pass's points. }
+    procedure ResetDataCache;
     class function DisplayName: string; override;
 
   published
@@ -141,6 +145,12 @@ begin
   end;
   
   FDataPrepared := True;
+end;
+
+procedure TReportChartObject.ResetDataCache;
+begin
+  FDataPrepared := False;
+  FDataPoints.Clear;
 end;
 
 procedure TReportChartObject.Draw(C: TCanvas; const Context: TExpressionContext);

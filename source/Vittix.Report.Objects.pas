@@ -1017,11 +1017,15 @@ end;
 
 procedure TReportImageObject.ResetImageCache;
 begin
+  // Drops only the per-row data-bound resolution cache. FPicture holds the
+  // persistent design-time (PictureData) graphic - object state, not cache -
+  // and must survive the per-pass reset (DP-12): the engine now reaches
+  // band children too, and wiping FPicture there erased every embedded
+  // picture before the render pass captured it.
   FCachedImagePath := '';
   FCachedImageValid := False;
   FCachedImageAttempted := False;
   FCachedPicture.Assign(nil);
-  FPicture.Assign(nil);
 end;
 
 function TReportImageObject.ResolveImageSource(
