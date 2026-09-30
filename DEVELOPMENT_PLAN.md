@@ -157,10 +157,10 @@ Line.Segments[L].Width := W;
 - **Test plan:** designer has no automated harness — verify manually per TESTING.md (open designer with a corrupt `.vrt` as cmdline input → close → file untouched; open with a valid file → file updated). Add the steps to TESTING.md §manual.
 - **Done when:** manual repro shows the file is preserved; gate green.
 
-### DP-14 — 96-DPI measurement correctness (finding **H-4**) — Effort L — ⛔ gated on OQ-1
+### DP-14 — 96-DPI measurement correctness (finding **H-4**) — Effort L — 🔓 OQ-1 resolved: drift **visible** at 125% — unblocked, schedule with Wave 3/4
 - **Files:** `source/Vittix.Report.Engine.pas:566` (metafile canvas ref DC), `source/Vittix.Report.Export.VectorPDF.pas:1690` (`MeasureBmp`), `PageSettings.pas:10` (contract), all font-realization paths.
 - **Bug:** the geometry model assumes 96-dpi pixels while fonts realize at the *screen's* DPI — wrapping, CanGrow, and PDF measurement drift on any scaled display.
-- **Pre-step (spike, `[test]`/`[chore]`):** on a 125%/150% machine (or with `SetProcessDpiAwareness` forced in the demo), capture before/after renders of reports 05, 41, 43 — record the drift. If drift is invisible (app manifests are DPI-unaware), downgrade this item to post-v1.0 documentation and unblock the wave.
+- **Pre-step (spike, `[test]`/`[chore]`):** ✅ DONE 2026-09-30 — designer (PerMonitorV2, `SetProcessDPIAware`) is the drift surface; the console runner is DPI-unaware and stable. Probe: PDF exports of 05/41/43 at 100% vs 125% → **drift visible**: the 05 CanGrow memo wraps at different points at 125% and takes 3 lines where 100% takes 2 (same words, moved break; page counts coincidentally still 6/75/1). Any scaled display therefore renders reports differently from a 100% machine — cross-machine wrapping/CanGrow inconsistency confirmed. 150% run optional (severity scaling only).
 - **Fix direction (report §5 H-4):** create the engine metafile canvas and the VectorPDF measure bitmap against a forced 96-dpi reference (dedicated `CreateDC` with overridden `LOGPIXELS*`, or set `Font.PixelsPerInch := 96` on every measurement font). Keep it contained: one helper in `Vittix.Report.Utils` used by both sites.
 - **Test plan:** golden test rendering a wrapped memo with a known font at forced-DPI reference canvas and asserting identical `MeasuredBottom` regardless of the machine's `Screen.PixelsPerInch` (mock via the helper's parameter). All 41 baselines must reconcile unchanged on the 96-dpi CI machine.
 - **Done when:** helper lands; measurement independent of screen DPI (test proves); spike machine shows matching preview/PDF.
@@ -246,7 +246,7 @@ From report §12 long-term + unscheduled Lows (each needs its own analysis-first
 
 | OQ | Question | Gates | Resolution path |
 |---|---|---|---|
-| OQ-1 | How visible is the 96-DPI drift on scaled displays (125%/150%), and which app manifests make it visible? | DP-14 | Spike on a scaled machine before DP-14; if negligible, park DP-14 with the evidence |
+| OQ-1 | How visible is the 96-DPI drift on scaled displays (125%/150%), and which app manifests make it visible? | DP-14 | **Resolved 2026-09-30: visible.** Designer/demo are PerMonitorV2 (runner/tests DPI-unaware, stable). 100% vs 125% probe: 05 memo wraps differently (2 → 3 lines), 41/43 unchanged, page counts stable on the probe set. DP-14 unblocked — fix direction per report §5 H-4 |
 | OQ-2 | Do any real-world reports depend on legacy qualified-field discard / empty-range zeros? | DP-15, DP-36 | Search installed/user `.vrt` corpora; compat oracle keeps behavior frozen meanwhile |
 | OQ-3 | `northwind.db` provenance — generated test data or real data? | DP-02 | Owner confirms; if real, remove immediately regardless of wave |
 | OQ-4 | `LibSuffix` on packages — support multi-version side-by-side installs? | DP-04 | Owner decision; default defer |
