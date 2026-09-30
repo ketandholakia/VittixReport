@@ -143,7 +143,7 @@ Line.Segments[L].Width := W;
 - **Test plan:** new `tests/Test.Vittix.Report.Objects.CrossTab.pas`: (a) crosstab whose CellField doesn't exist → render completes, no exception; (b) string cell values with `caSum` → render completes; (c) happy path unchanged vs. current golden output.
 - **Done when:** red→green; 42_crosstab_object baseline unchanged; gate green.
 
-### DP-12 — Chart/CrossTab stale data caches (finding **H-6**) — Effort S
+### DP-12 ✅ — Chart/CrossTab stale data caches (finding **H-6**) — Effort S — fixed in `8369008` + `c53ed87` (incl. ResetImageCache FPicture latent-bug fix the wider walk exposed)
 - **Files:** `source/Vittix.Report.Objects.Chart.pas:109` (`FDataPrepared`), `CrossTab.pas:213` (`FMatrixPrepared`), engine reset loop `Engine.pas:784-786`.
 - **Bug:** data caches latch for the object's lifetime; re-running a report against refreshed data draws stale charts/crosstabs.
 - **Fix:** add `procedure ResetDataCache; virtual;` (name it consistently with `ResetImageCache`) on `TReportChartObject`/`TReportCrossTabObject`; call it in the same `BeginPass` loop in `Engine.BeginPass` that resets image caches.
