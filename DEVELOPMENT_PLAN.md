@@ -157,13 +157,14 @@ Line.Segments[L].Width := W;
 - **Test plan:** designer has no automated harness — verify manually per TESTING.md (open designer with a corrupt `.vrt` as cmdline input → close → file untouched; open with a valid file → file updated). Add the steps to TESTING.md §manual.
 - **Done when:** manual repro shows the file is preserved; gate green.
 
-### DP-14 — 96-DPI measurement correctness (finding **H-4**) — Effort L — 🔓 OQ-1 resolved: drift **visible** at 125% — unblocked, schedule with Wave 3/4
+### DP-14 ✅ — 96-DPI measurement correctness (finding **H-4**) — Effort L — fixed in `f76882e` + `8c0bfa9`
 - **Files:** `source/Vittix.Report.Engine.pas:566` (metafile canvas ref DC), `source/Vittix.Report.Export.VectorPDF.pas:1690` (`MeasureBmp`), `PageSettings.pas:10` (contract), all font-realization paths.
 - **Bug:** the geometry model assumes 96-dpi pixels while fonts realize at the *screen's* DPI — wrapping, CanGrow, and PDF measurement drift on any scaled display.
 - **Pre-step (spike, `[test]`/`[chore]`):** ✅ DONE 2026-09-30 — designer (PerMonitorV2, `SetProcessDPIAware`) is the drift surface; the console runner is DPI-unaware and stable. Probe: PDF exports of 05/41/43 at 100% vs 125% → **drift visible**: the 05 CanGrow memo wraps at different points at 125% and takes 3 lines where 100% takes 2 (same words, moved break; page counts coincidentally still 6/75/1). Any scaled display therefore renders reports differently from a 100% machine — cross-machine wrapping/CanGrow inconsistency confirmed. 150% follow-up (05): the same memo takes **4** lines; doc-wide text runs scale 308 → 328 → 372 at 100/125/150% — severity grows with the display scale.
 - **Fix direction (report §5 H-4):** create the engine metafile canvas and the VectorPDF measure bitmap against a forced 96-dpi reference (dedicated `CreateDC` with overridden `LOGPIXELS*`, or set `Font.PixelsPerInch := 96` on every measurement font). Keep it contained: one helper in `Vittix.Report.Utils` used by both sites.
 - **Test plan:** golden test rendering a wrapped memo with a known font at forced-DPI reference canvas and asserting identical `MeasuredBottom` regardless of the machine's `Screen.PixelsPerInch` (mock via the helper's parameter). All 41 baselines must reconcile unchanged on the 96-dpi CI machine.
 - **Done when:** helper lands; measurement independent of screen DPI (test proves); spike machine shows matching preview/PDF.
+- **Done (2026-10-02):** `NormalizeFontToReferenceDPI` in `Vittix.Report.Utils` (const `VITTIX_REFERENCE_DPI = 96`; reads the point size under the current realization, pins the PPI, re-derives `Height` — no-op at the reference) wired at every measure/draw canvas apply: memo/text styled measure + draws, memo segment loop, CrossTab row-height/cells, Chart title/legend, Barcode + Unknown labels, engine recording canvas, VectorPDF `MeasureBmp` + glyph raster. RED guards (`f76882e`) green: 120-ppi canvas memo 62→62, text 46→46. Full suite 745/745; 41/41 baselines byte-identical (no-op at 96); GDI delta 8 / USER 0. Remaining manual: re-run the OQ-1 probe at 125%/150% to confirm preview/PDF match the 100% baseline.
 
 ### DP-15 ✅ — Legacy qualified-field diagnostics (finding **H-2**) — Effort S — behavior-preserving — fixed in `7c9c9d9` + `a1c605f`
 - **Files:** `source/Vittix.Report.Expressions.Compat.pas:206-224` (`FieldNameFromToken` discards the `[DS.Field]` qualifier).
@@ -246,7 +247,7 @@ From report §12 long-term + unscheduled Lows (each needs its own analysis-first
 
 | OQ | Question | Gates | Resolution path |
 |---|---|---|---|
-| OQ-1 | How visible is the 96-DPI drift on scaled displays (125%/150%), and which app manifests make it visible? | DP-14 | **Resolved 2026-09-30: visible.** Designer/demo are PerMonitorV2 (runner/tests DPI-unaware, stable). 05 CanGrow memo: 2 → 3 → 4 lines at 100/125/150% (doc runs 308 → 328 → 372); 41/43 unchanged; page counts stable on the probe set. DP-14 unblocked — fix direction per report §5 H-4 |
+| OQ-1 | How visible is the 96-DPI drift on scaled displays (125%/150%), and which app manifests make it visible? | DP-14 | **Resolved 2026-09-30: visible.** Designer/demo are PerMonitorV2 (runner/tests DPI-unaware, stable). 05 CanGrow memo: 2 → 3 → 4 lines at 100/125/150% (doc runs 308 → 328 → 372); 41/43 unchanged; page counts stable on the probe set. DP-14 unblocked — fix direction per report §5 H-4. **DP-14 fixed in `8c0bfa9` (2026-10-02);** scaled-machine re-probe (125%/150%) pending owner |
 | OQ-2 | Do any real-world reports depend on legacy qualified-field discard / empty-range zeros? | DP-15, DP-36 | Search installed/user `.vrt` corpora; compat oracle keeps behavior frozen meanwhile |
 | OQ-3 | `northwind.db` provenance — generated test data or real data? | DP-02 | Owner confirms; if real, remove immediately regardless of wave |
 | OQ-4 | `LibSuffix` on packages — support multi-version side-by-side installs? | DP-04 | Owner decision; default defer |
@@ -261,7 +262,7 @@ From report §12 long-term + unscheduled Lows (each needs its own analysis-first
 | H-1 | DP-09 | 1 |
 | H-2 | DP-15 | 1 |
 | H-3 | DP-10 | 1 |
-| H-4 | DP-14 (⛔ OQ-1) | 1 |
+| H-4 | DP-14 | 1 |
 | H-5 | DP-11 | 1 |
 | H-6 | DP-12 | 1 |
 | H-7 | DP-13 | 1 |
