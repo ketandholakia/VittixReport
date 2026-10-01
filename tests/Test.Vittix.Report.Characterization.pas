@@ -46,6 +46,7 @@ uses
   Vittix.Report.Engine,
   Vittix.Report.Serializer,
   Vittix.Report.UserDataSet,
+  Vittix.Report.TraversalDiagnostics,
   Vittix.Report.PageSettings,
   Vittix.Report.Renderer,
   Vittix.Report.Export.Commands;
@@ -89,6 +90,10 @@ type
     procedure Test_Aggregate_SUM_UserDataSet_SilentlyFails_CurrentBehavior;
     [Test]
     procedure Test_Aggregate_UDSDrivenBand_RendersFallbackText_CurrentBehavior;
+    [Test]
+    procedure Test_Aggregate_UserDataSetFallback_Counted_DP36;
+    [Test]
+    procedure Test_Aggregate_UserDataSetDiagnostic_NotCountedOtherwise;
 
     // --- 7. Expression operator precedence ---
     [Test]
@@ -635,6 +640,99 @@ begin
     finally
       UserDataSet.Free;
     end;
+  finally
+    DataSet.Free;
+  end;
+end;
+
+procedure TTestCharacterization.Test_Aggregate_UserDataSetFallback_Counted_DP36;
+var
+  DataSet: TClientDataSet;
+  UserDataSet: TVittixUserDataSet;
+  Ctx: TExpressionContext;
+  Evaluated: Variant;
+  Snapshot: TReportTraversalSnapshot;
+begin
+  // DP-36: BUG-005's silently-degrading fallback (aggregates cannot read a
+  // TVittixUserDataSet) must be observable through TReportTraversalDiagnostics
+  // without changing the rendered result.
+  DataSet := TClientDataSet.Create(nil);
+  try
+    DataSet.FieldDefs.Add('Amount', ftFloat, 0, False);
+    DataSet.CreateDataSet;
+    DataSet.AppendRecord([10.0]);
+    DataSet.First;
+
+    UserDataSet := TVittixUserDataSet.Create(nil);
+    try
+      UserDataSet.DataSet := DataSet;
+
+      Ctx := Default(TExpressionContext);
+      Ctx.DataSet := nil;             // user-dataset-backed context
+      Ctx.UserDataSet := UserDataSet;
+
+      TReportTraversalDiagnostics.Reset;
+
+      Evaluated := TReportExpression.Evaluate('SUM([Amount])', Ctx);
+      Assert.AreEqual('SUM(10)', VarToStr(Evaluated),
+        'rendered result must stay the frozen fallback text (BUG-005 parked)');
+      Snapshot := TReportTraversalDiagnostics.Snapshot;
+      Assert.AreEqual(1, Snapshot.LegacyAggregatesOverUserDataSet,
+        'DP-36: the silent UDS-aggregate fallback must be counted');
+
+      // The failed path is not cached, so every attempt is counted.
+      Evaluated := TReportExpression.Evaluate('SUM([Amount])', Ctx);
+      Snapshot := TReportTraversalDiagnostics.Snapshot;
+      Assert.AreEqual(2, Snapshot.LegacyAggregatesOverUserDataSet,
+        'each uncached attempt must be counted');
+    finally
+      UserDataSet.Free;
+    end;
+  finally
+    DataSet.Free;
+  end;
+end;
+
+procedure TTestCharacterization.Test_Aggregate_UserDataSetDiagnostic_NotCountedOtherwise;
+var
+  DataSet: TClientDataSet;
+  Ctx: TExpressionContext;
+  Evaluated: Variant;
+  Snapshot: TReportTraversalSnapshot;
+begin
+  // Noise guard: the diagnostic fires only when a user-dataset-backed
+  // context actually forces the aggregate fallback.
+
+  // (a) No datasets at all: the legacy fallback still happens, but there is
+  // no user dataset involved, so nothing may be flagged.
+  Ctx := Default(TExpressionContext);
+  TReportTraversalDiagnostics.Reset;
+  Evaluated := TReportExpression.Evaluate('SUM([Amount])', Ctx);
+  Assert.IsTrue(VarToStr(Evaluated) <> '',
+    'sanity: the legacy fallback text is still produced');
+  Snapshot := TReportTraversalDiagnostics.Snapshot;
+  Assert.AreEqual(0, Snapshot.LegacyAggregatesOverUserDataSet,
+    'a dataset-less context must not be flagged (no user dataset involved)');
+
+  // (b) A healthy TDataSet: the aggregate evaluates and is never flagged.
+  DataSet := TClientDataSet.Create(nil);
+  try
+    DataSet.FieldDefs.Add('Amount', ftFloat, 0, False);
+    DataSet.CreateDataSet;
+    DataSet.AppendRecord([10.0]);
+    DataSet.AppendRecord([20.0]);
+    DataSet.First;
+
+    Ctx := Default(TExpressionContext);
+    Ctx.DataSet := DataSet;
+
+    TReportTraversalDiagnostics.Reset;
+    Evaluated := TReportExpression.Evaluate('SUM([Amount])', Ctx);
+    Assert.IsTrue(VarAsType(Evaluated, varDouble) = 30.0,
+      'sanity: the aggregate over the active dataset evaluates to 30');
+    Snapshot := TReportTraversalDiagnostics.Snapshot;
+    Assert.AreEqual(0, Snapshot.LegacyAggregatesOverUserDataSet,
+      'a successful TDataSet aggregate must not be flagged');
   finally
     DataSet.Free;
   end;
