@@ -111,6 +111,11 @@ TDesignerGridUnit = (guCentimeters, guInches, guPixels, guPoints);
       separately in screen space.  Rebuilt by UpdateContentMetafile. }
     FContentMeta: Vcl.Graphics.TMetafile;
 
+    { Observation channel for tests and soak instrumentation (DP-35 / M-17):
+      incremented on every successful content-layer build; a cached repaint
+      leaves it unchanged. }
+    FContentBuildCount: Integer;
+
     { Layout (recomputed when report changes) }
     FBandLayouts  : TDesignerBandLayouts;
     FObjectBandMap: TDictionary<TReportObject, TReportBand>;
@@ -209,7 +214,7 @@ TDesignerGridUnit = (guCentimeters, guInches, guPixels, guPoints);
     procedure DrawMarginGuides;
     procedure DrawGrid;
     procedure DrawBandZones;
-    procedure DrawBandContentLive(const BL: TBandLayout);
+    procedure DrawBandContentLive(ACanvas: TCanvas; const APageRect: TRect; const BL: TBandLayout);
     procedure DrawBandObjectOutlines;
     procedure DrawBandSelectionRects;
     procedure DrawBandHeaders;
@@ -241,6 +246,7 @@ TDesignerGridUnit = (guCentimeters, guInches, guPixels, guPoints);
     { IDesignerSurface }
     function GetCursor: TCursor;
     procedure SetCursor(Value: TCursor);
+    procedure InvalidateContent;
     function GetSelected: TList<TReportObject>;
     function GetBandLayouts: TDesignerBandLayouts;
     procedure SetActiveBand(ABand: TReportBand);
@@ -276,6 +282,16 @@ TDesignerGridUnit = (guCentimeters, guInches, guPixels, guPoints);
       uniform-zoom rendering without a window handle. }
     function  RenderContentTo(ACanvas: TCanvas; const APageRect: TRect): Boolean;
     property  ContentMetafile: Vcl.Graphics.TMetafile read FContentMeta;
+
+    { Number of successful content-layer builds so far; unchanged across
+      cached repaints (DP-35 / M-17 observation channel). }
+    property  ContentBuildCount: Integer read FContentBuildCount;
+
+    { Fallback for the uniform content layer: draws every band's children
+      directly onto ACanvas at the current zoom.  Exposed so hosted surfaces
+      (and regression tests) can reproduce the designer's live path without
+      a window handle (DP-35 / M-17). }
+    function  RenderContentLiveTo(ACanvas: TCanvas; const APageRect: TRect): Boolean;
 
     { Report management }
     procedure LoadReport(AReport: TReportModel; TakeOwnership: Boolean = False;
@@ -480,6 +496,7 @@ begin
   FPageColor   := clWhite;
   FCanvasColor := $00808080;
   FBandGap     := 4;
+  FContentBuildCount := 0;
   ComputeBandLayouts;
 end;
 
@@ -1850,6 +1867,8 @@ begin
 
   Result := Assigned(FContentMeta) and (FContentMeta.Width > 0) and
     (FContentMeta.Height > 0);
+  if Result then
+    Inc(FContentBuildCount);
 end;
 
 function TVittixReportDesigner.RenderContentTo(ACanvas: TCanvas;
@@ -1868,7 +1887,27 @@ begin
   Result := True;
 end;
 
-procedure TVittixReportDesigner.DrawBandContentLive(const BL: TBandLayout);
+function TVittixReportDesigner.RenderContentLiveTo(ACanvas: TCanvas;
+  const APageRect: TRect): Boolean;
+var
+  I: Integer;
+begin
+  Result := False;
+  if not Assigned(ACanvas) then
+    Exit;
+  if (APageRect.Right <= APageRect.Left) or (APageRect.Bottom <= APageRect.Top) then
+    Exit;
+
+  { DP-35 / M-17: whole-page fallback - draw every band's children live.
+    Used by Paint (and tests) when the uniform content layer cannot be
+    produced. }
+  for I := 0 to High(FBandLayouts) do
+    DrawBandContentLive(ACanvas, APageRect, FBandLayouts[I]);
+  Result := True;
+end;
+
+procedure TVittixReportDesigner.DrawBandContentLive(ACanvas: TCanvas;
+  const APageRect: TRect; const BL: TBandLayout);
 var
   Obj : TReportObject;
   Ctx : TExpressionContext;
@@ -1880,17 +1919,17 @@ begin
   { Fallback path, used only when the uniform content layer cannot be
     produced: draw object content live in zoomed screen space.  Object
     geometry scales via ObjScreenRect; content metrics do not. }
-  SaveDC := Winapi.Windows.SaveDC(Canvas.Handle);
+  SaveDC := Winapi.Windows.SaveDC(ACanvas.Handle);
   try
-    Canvas.Brush.Style := bsClear;
-    Canvas.Pen.Style   := psSolid;
-    Canvas.Pen.Width   := 1;
+    ACanvas.Brush.Style := bsClear;
+    ACanvas.Pen.Style   := psSolid;
+    ACanvas.Pen.Width   := 1;
     IntersectClipRect(
-      Canvas.Handle,
-      PageLeft + Scale(FReport.PageSettings.Margins.Left),
-      PageTop + Scale(BL.Y + BAND_HDR_H),
-      PageLeft + Scale(FReport.PageSettings.PageWidth - FReport.PageSettings.Margins.Right),
-      PageTop + Scale(BL.Y + BL.Height + BAND_HDR_H));
+      ACanvas.Handle,
+      APageRect.Left + Scale(FReport.PageSettings.Margins.Left),
+      APageRect.Top + Scale(BL.Y + BAND_HDR_H),
+      APageRect.Left + Scale(FReport.PageSettings.PageWidth - FReport.PageSettings.Margins.Right),
+      APageRect.Top + Scale(BL.Y + BL.Height + BAND_HDR_H));
 
     Ctx := Default(TExpressionContext);
     Ctx.DataSet := FDataSet;
@@ -1898,20 +1937,26 @@ begin
     Ctx.TotalPages := 1;
     Ctx.ReportTitle := FReport.Title;
     Ctx.ReportDate := Now;
-    Ctx.PageBottom := PageTop + Scale(BL.Y + BL.Height + BAND_HDR_H);
+    Ctx.PageBottom := APageRect.Top + Scale(BL.Y + BL.Height + BAND_HDR_H);
 
     for Obj in BL.Band.Children do
     begin
       OldBounds := Obj.Bounds;
       try
-        Obj.Bounds := ObjScreenRect(Obj);
-        Obj.Draw(Canvas, Ctx);
+        // Explicit parameters (APageRect) instead of the control metrics:
+        // identical values when called from Paint, but headless-safe for
+        // hosted surfaces and tests (DP-35).
+        Obj.Bounds := DesignerObjScreenRect(
+          Obj, FBandLayouts, APageRect.Left, APageRect.Top,
+          FReport.PageSettings.Margins.Left, FZoom,
+          FReport.PageSettings, BandOwnerOf, BandLayoutIndex);
+        Obj.Draw(ACanvas, Ctx);
       finally
         Obj.Bounds := OldBounds;
       end;
     end;
   finally
-    Winapi.Windows.RestoreDC(Canvas.Handle, SaveDC);
+    Winapi.Windows.RestoreDC(ACanvas.Handle, SaveDC);
   end;
 end;
 
@@ -2431,7 +2476,6 @@ end;
 { -- Paint ------------------------------------------------------------------ }
 
 procedure TVittixReportDesigner.Paint;
-var I: Integer;
 begin
   PrepareDisplayDataSet;
 
@@ -2451,9 +2495,9 @@ begin
   { Report content: rendered 1:1 in logical report coordinates, then scaled
     uniformly by zoom so geometry AND content metrics scale together.  Falls
     back to live screen-space drawing if the layer cannot be produced. }
-  if not RenderContentTo(Canvas, Bounds(PageLeft, PageTop, PageWidth, PageHeight)) then
-    for I := 0 to High(FBandLayouts) do
-      DrawBandContentLive(FBandLayouts[I]);
+  var PageRect := Bounds(PageLeft, PageTop, PageWidth, PageHeight);
+  if not RenderContentTo(Canvas, PageRect) then
+    RenderContentLiveTo(Canvas, PageRect);
 
   { Selection rectangles sit on top of the report content. }
   DrawBandSelectionRects;
@@ -2648,6 +2692,13 @@ end;
 procedure TVittixReportDesigner.SetCursor(Value: TCursor);
 begin
   Cursor := Value;
+end;
+
+procedure TVittixReportDesigner.InvalidateContent;
+begin
+  { DP-35 scaffold: marks the content layer stale.  The fix commit bumps the
+    content generation here so the cached layer rebuilds on the next paint. }
+  Invalidate;
 end;
 
 function TVittixReportDesigner.GetSelected: TList<TReportObject>;

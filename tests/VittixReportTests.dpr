@@ -72,6 +72,7 @@ uses
   Test.Vittix.Report.Component in 'Test.Vittix.Report.Component.pas',
   Test.Vittix.Report.DrawSuppression in 'Test.Vittix.Report.DrawSuppression.pas',
   Test.Vittix.Report.DpiReference in 'Test.Vittix.Report.DpiReference.pas',
+  Test.Vittix.Report.DesignerContentCache in 'Test.Vittix.Report.DesignerContentCache.pas',
   Test.Vittix.Report.PreviewRetention in 'Test.Vittix.Report.PreviewRetention.pas';
 
 var

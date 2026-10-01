@@ -22,6 +22,7 @@ type
     ['{69A4C075-8134-4C51-B2C1-30D8E8B626C4}']
     procedure SetFocus;
     procedure Invalidate;
+    procedure InvalidateContent;
     procedure DoModified;
     procedure DoSelectionChanged;
     function GetCursor: TCursor;

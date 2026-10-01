@@ -121,6 +121,7 @@ type
     // IDesignerSurface - only the members the click/drag path touches do work.
     procedure SetFocus;
     procedure Invalidate;
+    procedure InvalidateContent;
     procedure DoModified;
     procedure DoSelectionChanged;
     function GetCursor: TCursor;
@@ -516,6 +517,7 @@ end;
 
 procedure TControllerSurfaceFake.SetFocus; begin end;
 procedure TControllerSurfaceFake.Invalidate; begin end;
+procedure TControllerSurfaceFake.InvalidateContent; begin end;
 procedure TControllerSurfaceFake.DoModified; begin end;
 procedure TControllerSurfaceFake.DoSelectionChanged; begin end;
 

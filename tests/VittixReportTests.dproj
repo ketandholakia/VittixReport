@@ -61,6 +61,9 @@
         <DelphiCompile Include="Test.Vittix.Report.DpiReference.pas">
             <DCCReference>MainSource</DCCReference>
         </DelphiCompile>
+        <DelphiCompile Include="Test.Vittix.Report.DesignerContentCache.pas">
+            <DCCReference>MainSource</DCCReference>
+        </DelphiCompile>
         <DelphiCompile Include="Test.Vittix.Report.Objects.Barcode.pas">
             <DCCReference>MainSource</DCCReference>
         </DelphiCompile>
