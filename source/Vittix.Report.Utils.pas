@@ -16,7 +16,8 @@ interface
 uses
   Data.DB,
   System.SysUtils,
-  System.Variants;
+  System.Variants,
+  Vcl.Graphics;
 
 // ---------------------------------------------------------------------------
 // Dataset helpers
@@ -105,6 +106,31 @@ function ConditionVariantToBool(const V: Variant): Boolean;
 ///   collapsed to a single space.
 /// </summary>
 function CollapseWhitespace(const S: string): string;
+
+// ---------------------------------------------------------------------------
+// DPI / font realization (DP-14)
+// ---------------------------------------------------------------------------
+
+/// <summary>
+///   Reference resolution of the report geometry model: every page, band and
+///   object coordinate is a pixel at this DPI (see Vittix.Report.PageSettings).
+///   Report text must realize at the same DPI so that measurement - wrapping,
+///   CanGrow heights, VectorPDF export - does not follow the display scale of
+///   whichever process happens to render the report.
+/// </summary>
+const
+  VITTIX_REFERENCE_DPI = 96;
+
+/// <summary>
+///   Makes AFont realize at the 96-dpi reference regardless of the DPI the
+///   target canvas/display reports.  DP-14 / H-4: in a DPI-aware process the
+///   canvas font falls back to the screen DPI (120/144 at 125%/150% scaling)
+///   and realizes 10pt text at -17px per em instead of the -13px the 96-dpi
+///   geometry model assumes - wrapping and CanGrow then drift with the
+///   monitor.  Call right after assigning a report font to the canvas that
+///   will measure or draw it; point size and style are preserved.
+/// </summary>
+procedure NormalizeFontToReferenceDPI(AFont: TFont);
 
 implementation
 
@@ -383,6 +409,14 @@ begin
   end;
 
   Result := Trim(Result);
+end;
+
+procedure NormalizeFontToReferenceDPI(AFont: TFont);
+begin
+  { TODO(DP-14): stub added with the RED guard tests (the fix commit
+    re-realizes the font at VITTIX_REFERENCE_DPI). }
+  if not Assigned(AFont) then
+    Exit;
 end;
 
 {$IFDEF DEBUG}

@@ -71,6 +71,7 @@ uses
   Test.Vittix.Report.Serializer.Registry in 'Test.Vittix.Report.Serializer.Registry.pas',
   Test.Vittix.Report.Component in 'Test.Vittix.Report.Component.pas',
   Test.Vittix.Report.DrawSuppression in 'Test.Vittix.Report.DrawSuppression.pas',
+  Test.Vittix.Report.DpiReference in 'Test.Vittix.Report.DpiReference.pas',
   Test.Vittix.Report.PreviewRetention in 'Test.Vittix.Report.PreviewRetention.pas';
 
 var
