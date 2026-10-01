@@ -65,7 +65,8 @@ type
 implementation
 
 uses
-  Vittix.Report.LayoutBookmarks;
+  Vittix.Report.LayoutBookmarks,
+  Vittix.Report.Utils;
 
 { TReportChartObject }
 
@@ -210,6 +211,7 @@ begin
     ChartRect := R;
     if FTitle <> '' then
     begin
+      NormalizeFontToReferenceDPI(C.Font);
       C.Font.Name := 'Arial';
       C.Font.Size := 10;
       C.Font.Style := [fsBold];
@@ -249,6 +251,7 @@ var
   TopY, LeftX: Integer;
 begin
   ChartRect := R;
+  NormalizeFontToReferenceDPI(C.Font);
   C.Font.Name := 'Arial';
   C.Font.Size := 8;
   C.Font.Style := [];

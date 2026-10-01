@@ -641,6 +641,10 @@ begin
     FCurrentPage.Width  := FPageWidth;
     FCurrentPage.Height := FPageHeight;
     FCanvas := TMetafileCanvas.Create(FCurrentPage, 0);
+    // DP-14 / H-4: pin the recording canvas font to the 96-dpi geometry
+    // reference so any draw that uses the canvas font measures at model
+    // scale, not at the host display scale.
+    NormalizeFontToReferenceDPI(FCanvas.Font);
   except
     FCurrentPage.Free;
     FCurrentPage := nil;

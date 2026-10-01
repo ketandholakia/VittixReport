@@ -1225,6 +1225,7 @@ begin
   end;
 
   C.Font.Assign(FFont);
+  NormalizeFontToReferenceDPI(C.Font);
   C.Font.Color := DrawFontColor;
   C.Brush.Style := bsClear;
 
@@ -1313,6 +1314,7 @@ begin
   Fmt := Fmt or DT_WORDBREAK or DT_NOPREFIX;
 
   C.Font.Assign(FFont);
+  NormalizeFontToReferenceDPI(C.Font);
   TxtH := DrawText(C.Handle, PChar(S), Length(S), R, Fmt or DT_CALCRECT);
   if TxtH > 0 then
     Result := FBounds.Top + TxtH + FPaddingTop + FPaddingBottom;
@@ -1818,6 +1820,7 @@ begin
 begin
   if S = '' then Exit(0);
   C.Font.Assign(BaseFont);
+  NormalizeFontToReferenceDPI(C.Font);
   C.Font.Style := Style;
   if FontName <> '' then C.Font.Name := FontName;
   if Size > 0 then C.Font.Size := Size;
@@ -1828,6 +1831,7 @@ function StyledTextHeight(C: TCanvas; BaseFont: TFont;
   const Style: TFontStyles; const FontName: string; Size: Integer): Integer;
 begin
   C.Font.Assign(BaseFont);
+  NormalizeFontToReferenceDPI(C.Font);
   C.Font.Style := Style;
   if FontName <> '' then C.Font.Name := FontName;
   if Size > 0 then C.Font.Size := Size;
@@ -2070,6 +2074,7 @@ begin
       for J := 0 to High(Lines[I].Segments) do
       begin
         C.Font.Assign(FFont);
+        NormalizeFontToReferenceDPI(C.Font);
         C.Font.Style := Lines[I].Segments[J].Style;
         if Lines[I].Segments[J].Color <> clNone then
           C.Font.Color := Lines[I].Segments[J].Color

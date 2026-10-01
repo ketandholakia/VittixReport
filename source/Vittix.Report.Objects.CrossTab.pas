@@ -91,11 +91,8 @@ uses
   Winapi.Windows,
   System.Math,
   System.Generics.Defaults,
-  Vittix.Report.Expressions
-  {$IFDEF DEBUG}
-  , Vittix.Report.Utils   // DebugLogDataFieldIssue - the established render-path diagnostic
-  {$ENDIF}
-  ;
+  Vittix.Report.Expressions,
+  Vittix.Report.Utils;   // DP-14 reference-DPI + DebugLogDataFieldIssue (DEBUG)
 
 { True for the variant types the cell arithmetic accepts. Mirrors the set
   FormatCell already treats as numeric. }
@@ -455,6 +452,7 @@ begin
     Inc(TotalRows);
     
   C.Font.Assign(FFont);
+  NormalizeFontToReferenceDPI(C.Font);
   RowHeight := C.TextHeight('Wg') + 8;
   
   Result := Bounds.Top + (TotalRows * RowHeight);
@@ -481,6 +479,7 @@ begin
     PrepareMatrix(Context);
     
   C.Font.Assign(FFont);
+  NormalizeFontToReferenceDPI(C.Font);
   RowHeight := C.TextHeight('Wg') + 8;
   
   TotalRows := 1 + Max(1, FRowValues.Count);
@@ -526,11 +525,13 @@ begin
           C.Brush.Color := FHeaderColor;
           C.FillRect(CellRect);
           C.Font.Assign(FHeaderFont);
+          NormalizeFontToReferenceDPI(C.Font);
         end
         else
         begin
           C.Brush.Color := clWhite;
           C.Font.Assign(FFont);
+          NormalizeFontToReferenceDPI(C.Font);
         end;
         
         C.Brush.Style := bsClear;

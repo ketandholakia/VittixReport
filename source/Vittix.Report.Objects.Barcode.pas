@@ -1027,6 +1027,7 @@ begin
   if FShowText then
   begin
     C.Brush.Style := bsClear;
+    NormalizeFontToReferenceDPI(C.Font);
     C.Font.Size := 8;
     C.Font.Style := [];
     C.Font.Color := clBlack;

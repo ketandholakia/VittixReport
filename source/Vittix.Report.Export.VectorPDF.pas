@@ -93,6 +93,9 @@ type
 
 implementation
 
+uses
+  Vittix.Report.Utils;
+
 function ScriptItemize(pwcInChars: PWideChar; cInChars: Integer; cMaxItems: Integer;
   const psControl: Pointer; const psState: Pointer; pItems: PScriptItem;
   pcItems: PInteger): HRESULT; stdcall; external 'usp10.dll' name 'ScriptItemize';
@@ -1055,6 +1058,7 @@ var
       Bitmap.Canvas.Brush.Color := clBlack;
       Bitmap.Canvas.FillRect(Rect(0, 0, AWidthPx, AHeightPx));
       Bitmap.Canvas.Font.Assign(MeasureBmp.Canvas.Font);
+      NormalizeFontToReferenceDPI(Bitmap.Canvas.Font);
       Bitmap.Canvas.Font.Color := clWhite;
       Bitmap.Canvas.TextOut(0, 0, ALineText);
 
@@ -1745,6 +1749,9 @@ begin
     raise EArgumentNilException.Create('AStream');
 
   MeasureBmp := TBitmap.Create;
+  // DP-14 / H-4: measurement runs at the 96-dpi geometry reference so wrap
+  // points do not follow the display scale.
+  NormalizeFontToReferenceDPI(MeasureBmp.Canvas.Font);
   try
     SetLength(PageContents, ADocument.Pages.Count);
     SetLength(PageImages, ADocument.Pages.Count);

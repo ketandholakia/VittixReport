@@ -412,11 +412,21 @@ begin
 end;
 
 procedure NormalizeFontToReferenceDPI(AFont: TFont);
+var
+  PointSize: Integer;
 begin
-  { TODO(DP-14): stub added with the RED guard tests (the fix commit
-    re-realizes the font at VITTIX_REFERENCE_DPI). }
   if not Assigned(AFont) then
     Exit;
+  if AFont.PixelsPerInch = VITTIX_REFERENCE_DPI then
+    Exit;
+
+  // PixelsPerInch is a realization choice, not document data: read the point
+  // size under the current realization, pin the reference DPI, then re-derive
+  // Height at the reference.  (Setting PixelsPerInch alone keeps the old
+  // pixel Height and merely back-computes the Size.)
+  PointSize := AFont.Size;
+  AFont.PixelsPerInch := VITTIX_REFERENCE_DPI;
+  AFont.Size := PointSize;
 end;
 
 {$IFDEF DEBUG}

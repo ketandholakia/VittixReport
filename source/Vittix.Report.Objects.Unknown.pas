@@ -53,7 +53,8 @@ implementation
 
 uses
   System.JSON,
-  Vittix.Report.Serializer;
+  Vittix.Report.Serializer,
+  Vittix.Report.Utils;
 
 { TReportUnknownObject }
 
@@ -96,6 +97,7 @@ begin
 
   // Draw label
   C.Font.Color := $00808080;
+  NormalizeFontToReferenceDPI(C.Font);
   C.Font.Size := 8;
   C.Brush.Style := bsClear;
   if FClassName <> '' then
