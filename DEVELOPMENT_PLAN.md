@@ -210,7 +210,7 @@ Line.Segments[L].Width := W;
 | DP-33 ✅ (`b1f5628`+`b79a5d9`) | M-12 | `TReportTextObject.Font` direct-reference write (fixed: setter copies via `Assign`, CrossTab pattern; the old write leaked the previous font and adopted the caller's object — double-free on teardown, caller mutations leaked into reports; API-behavior change justified in the commit: read path unchanged, no in-repo caller wrote the property wholesale, serializer/sub-property editing unaffected) | `Objects.pas`: `read GetFont write SetFont`; setter assigns into the owned instance. Verified: identity/no-alias/mutation-isolation test; font sub-property paths (serializer, designer font dialog/commands) unchanged | S |
 | DP-34 ✅ (`25b522a`+`e7df3e3`) | M-22 | Engine destructor freed bookmarks on an externally-owned dataset (fixed: destroy only reaches the dataset when the engine's own bookmarks-held state says so; new public `DetachDataSet` releases held bookmarks while valid and forgets the dataset — idempotent; all 10 component engine paths detach before free; lifetime contract in the `Create` XML docs) | `Engine.pas` destructor → `DetachDataSet`; `Vittix.Report.Component.pas`: 10 sites. Verified: detach releases while valid + idempotent; destroy with no bookmarks touches nothing (was 1+1 probe calls); post-detach the dataset may die first (test not stageable red — legacy UAF) | S |
 | DP-35 ✅ (`dc88584`+`1e0928e`) | M-17 | Content layer cached by a generation counter (fixed: `TouchContent` bumps on band-layout/edit/dataset/drag-frame changes; cached repaints skip the rebuild; zoom stays zoom-independent — the layer is logical). Live fallback now renders through an anisotropic DC transform instead of swapping `Obj.Bounds` — no model mutation during paint, content metrics scale with zoom | Conditional waived by owner; lag quantified by benchmark (soak proxy): rebuild 7/46/98 ms per paint at 36/240/480 objects (vs 1–10 ms cached StretchDraw), paid on every repaint before. Guards: `Test.Vittix.Report.DesignerContentCache` (6 tests: no-change 0×, zoom 0×, edit exactly 1×, InvalidateContent 1×, live ink ×0.51/×1.51, bounds untouched). Full gate 751/751, 41 baselines | M |
-| DP-36 | M-4 / M-5 | BUG-005 (UDS aggregates → fallback text) and legacy empty-range zeros | Both are frozen legacy semantics characterized by tests. **Decision needed from owner** (report §14.5): keep fully parked (current state) or add designer-Problem-panel diagnostics like DP-15. No code until decided. OQ-2 scan 2026-10-02: no corpus dependence found — neither option is compelled by evidence | S |
+| DP-36 ✅ (`c20a2a6`+`a910718`) | M-4 / M-5 | M-4/BUG-005: kept parked but made observable — legacy UDS-aggregate fallbacks counted (`TReportTraversalDiagnostics.LegacyAggregatesOverUserDataSet` + DEBUG log; `TReportAggregates` untouched per the archive's no-partial-patch note; guard fires only for user-dataset-backed contexts). M-5: stays fully parked per the archive ("changing legacy would alter output of existing reports"); zero corpus usage (OQ-2) | Decision executed 2026-10-02 (owner accepted the recommendation: diagnostics for M-4 only; no Problems-panel UI before v1.0). Verified: counter red→green + noise guards; full gate 753/753, 41 baselines | S |
 
 ---
 
@@ -232,7 +232,7 @@ From report §12 long-term + unscheduled Lows (each needs its own analysis-first
 - **Undo identity refactor:** replace pointer-holding commands with model-path identity (band index + object path) — structural fix beyond DP-08's clearing.
 - **`Frm.Main.pas` decomposition:** finish the helpers migration; delete the duplicated command classes (`Frm.Main.Commands.pas` vs `Vittix.Designer.Commands.pas` — uses-order shadowing at `Frm.Main.pas:67/102`), the verbatim sample-dataset copy (:7377-7525), the 4× `BandTypeName`; move the 2,608-line `RunRuntimeEventCallbackDemo` (:2061-4669) out of the production form (a dead twin already exists in `Vittix.Designer.RuntimeDemo.pas`); delete the non-compilable orphan `Frm.Main.PropertyEditHelpers.pas`.
 - **Background/progressive rendering** behind `IReportProgress` with cancellation; preview thumbnails; print page-range/collate.
-- **BUG-005 proper fix** (aggregates over `TVittixUserDataSet`) per DP-36's decision.
+- **BUG-005 proper fix** (aggregates over `TVittixUserDataSet`) — DP-36 decided 2026-10-02: semantics stay parked, the silent fallback is now counted (`LegacyAggregatesOverUserDataSet`); the real repair remains this Phase4I-20-aligned evaluator work.
 - **RTL PDF text** (M-15): proper bidi placement instead of rasterization fallback.
 - **Aggregate performance:** keyed (dictionary) cache, cached `TField` resolution, optional detail-dataset index to kill the O(master × detail) rescan (`Engine.pas:1320-1399`).
 - **Schema evolution:** real version migration hooks once v3 semantics exist (DP-26 is the guard rail).
@@ -269,7 +269,7 @@ From report §12 long-term + unscheduled Lows (each needs its own analysis-first
 | M-1 | DP-22, DP-23 | 2 |
 | M-2 | DP-23 | 2 |
 | M-3 | DP-29 | 2 |
-| M-4 / M-5 | DP-36 (decision) | 3 |
+| M-4 / M-5 | DP-36 ✅ | 3 |
 | M-6 | DP-16 | 2 |
 | M-7 | DP-17 | 2 |
 | M-8 | DP-18 | 2 |
