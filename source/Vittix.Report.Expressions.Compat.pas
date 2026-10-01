@@ -261,6 +261,29 @@ begin
 {$ENDIF}
 end;
 
+{ DP-36 / BUG-005: aggregates read a TDataSet only (TReportAggregates
+  requires an active Context.DataSet); UDS-driven bands render with DataSet
+  = nil, so the aggregate prefix matches but evaluation fails and the caller
+  falls back to printing the expression text.  The semantics stay parked
+  (the real fix is evaluator work deferred with Phase4I-20), but count the
+  occurrence (and log it in DEBUG) so the silent fallback becomes visible. }
+procedure NoteAggregateOverUserDataSet(const Expr: string;
+  const Context: TExpressionContext);
+begin
+  if not Assigned(Context.UserDataSet) then
+    Exit;                     // not a user-dataset context: nothing to flag
+  if Assigned(Context.DataSet) and Context.DataSet.Active then
+    Exit;                     // TDataSet-backed: the failure has another cause
+
+  TReportTraversalDiagnostics.LegacyAggregateOverUserDataSet;
+{$IFDEF DEBUG}
+  OutputDebugString(PChar(Format(
+    'VittixReport legacy expression: aggregate "%s" cannot read a user ' +
+    'dataset (aggregates require an active TDataSet); the result falls back ' +
+    'to the expression text as before (BUG-005, not an error)', [Expr])));
+{$ENDIF}
+end;
+
 { Expands one bracket token to text.  Never raises: every failure path yields
   the legacy '0' text fallback. }
 function ResolveTokenText(const SourceExpr, TokenName: string;
@@ -594,6 +617,8 @@ begin
     Exit;
 
   Result := TReportAggregates.TryEvaluate(Expr, Context, AValue);
+  if not Result then
+    NoteAggregateOverUserDataSet(Expr, Context);
 end;
 
 // ---------------------------------------------------------------------------
