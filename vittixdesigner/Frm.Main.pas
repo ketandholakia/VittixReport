@@ -1469,6 +1469,11 @@ begin
     FDesigner.Report.Description := ANewDescription;
   end;
 
+  // DP-35: report metadata can surface in the content layer ({ReportTitle}/
+  // {ReportAuthor} expressions); treat the commit as a model change.
+  if Assigned(FDesigner) then
+    FDesigner.RebuildLayout;
+
   FReportMetadataDirty := False;
   UpdateTitleBar;
   UpdateMenuState;

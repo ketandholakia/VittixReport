@@ -154,6 +154,9 @@ var
   SW, SH: Integer;
   Bmp: TBitmap;
 begin
+  // The live path renders at the control's current zoom (Paint passes the
+  // on-screen page rect); drive both from AZoom.
+  FDesigner.Zoom := AZoom;
   SW := MulDiv(FDesigner.Report.PageSettings.PageWidth, AZoom, 100);
   SH := MulDiv(FDesigner.Report.PageSettings.PageHeight, AZoom, 100);
   Bmp := TBitmap.Create;

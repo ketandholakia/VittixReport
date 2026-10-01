@@ -116,6 +116,13 @@ TDesignerGridUnit = (guCentimeters, guInches, guPixels, guPoints);
       leaves it unchanged. }
     FContentBuildCount: Integer;
 
+    { Content-layer cache generation (DP-35 / M-17).  TouchContent bumps
+      FContentGeneration on every change that can alter what the layer bakes
+      (band layout, edits, dataset, drag frames); the cached layer is valid
+      while FContentBuiltGeneration equals it. }
+    FContentGeneration: Integer;
+    FContentBuiltGeneration: Integer;
+
     { Layout (recomputed when report changes) }
     FBandLayouts  : TDesignerBandLayouts;
     FObjectBandMap: TDictionary<TReportObject, TReportBand>;
@@ -185,6 +192,7 @@ TDesignerGridUnit = (guCentimeters, guInches, guPixels, guPoints);
 
     { Property setters }
     procedure PrepareDisplayDataSet;
+    procedure TouchContent;
     procedure SetDataSet(const V: TDataSet);
     procedure SetDataSource(const V: TDataSource);
     function  GetReportJSON: string;
@@ -497,6 +505,8 @@ begin
   FCanvasColor := $00808080;
   FBandGap     := 4;
   FContentBuildCount := 0;
+  FContentGeneration  := 0;
+  FContentBuiltGeneration := -1;
   ComputeBandLayouts;
 end;
 
@@ -582,6 +592,7 @@ end;
 
 procedure TVittixReportDesigner.ComputeBandLayouts;
 begin
+  TouchContent;
   FBandLayouts := BuildBandLayouts(
     FReport,
     nil,
@@ -804,6 +815,7 @@ end;
 
 procedure TVittixReportDesigner.DoModified;
 begin
+  TouchContent;
   if FUpdateCount = 0 then
     Invalidate;
   if Assigned(FOnModified) then
@@ -1168,6 +1180,14 @@ begin
   Result := FCommands;
 end;
 
+procedure TVittixReportDesigner.TouchContent;
+begin
+  { DP-35 / M-17: mark the cached content layer stale.  Called from every
+    path that can change what the layer bakes (band layout, edits, dataset,
+    drag frames). }
+  Inc(FContentGeneration);
+end;
+
 procedure TVittixReportDesigner.PrepareDisplayDataSet;
 begin
   if not Assigned(FDataSet) or not FDataSet.Active then
@@ -1184,6 +1204,7 @@ end;
 
 procedure TVittixReportDesigner.SetDataSet(const V: TDataSet);
 begin
+  TouchContent;
   FDataSet := V;
   PrepareDisplayDataSet;
   if Assigned(FOnDataSetChanged) then
@@ -1813,6 +1834,12 @@ var
 begin
   Result := False;
 
+  { DP-35 / M-17: the layer only changes when the model does.  Repaints that
+    are pure view changes (selection, hover, scroll, zoom, rubber band) reuse
+    the cached metafile instead of re-recording every object. }
+  if Assigned(FContentMeta) and (FContentBuiltGeneration = FContentGeneration) then
+    Exit(True);
+
   { Rebuild the logical content layer from scratch.  Its size is the logical
     page, so it is zoom-independent and can be scaled by any zoom factor. }
   FreeAndNil(FContentMeta);
@@ -1868,7 +1895,10 @@ begin
   Result := Assigned(FContentMeta) and (FContentMeta.Width > 0) and
     (FContentMeta.Height > 0);
   if Result then
+  begin
     Inc(FContentBuildCount);
+    FContentBuiltGeneration := FContentGeneration;
+  end;
 end;
 
 function TVittixReportDesigner.RenderContentTo(ACanvas: TCanvas;
@@ -1912,24 +1942,37 @@ var
   Obj : TReportObject;
   Ctx : TExpressionContext;
   SaveDC: Integer;
-  OldBounds: TRect;
 begin
   if BL.Band.Children.Count = 0 then Exit;
 
   { Fallback path, used only when the uniform content layer cannot be
-    produced: draw object content live in zoomed screen space.  Object
-    geometry scales via ObjScreenRect; content metrics do not. }
+    produced: draw object content live in zoomed screen space.  The
+    logical->screen transform lives on the DC (anisotropic mapping), so
+    object geometry AND content metrics scale together, matching the primary
+    metafile layer, and no model state is mutated during paint (DP-35). }
   SaveDC := Winapi.Windows.SaveDC(ACanvas.Handle);
   try
     ACanvas.Brush.Style := bsClear;
     ACanvas.Pen.Style   := psSolid;
     ACanvas.Pen.Width   := 1;
+
+    // Device-space clip to the band body (set under the caller's mapping).
     IntersectClipRect(
       ACanvas.Handle,
       APageRect.Left + Scale(FReport.PageSettings.Margins.Left),
       APageRect.Top + Scale(BL.Y + BAND_HDR_H),
       APageRect.Left + Scale(FReport.PageSettings.PageWidth - FReport.PageSettings.Margins.Right),
       APageRect.Top + Scale(BL.Y + BL.Height + BAND_HDR_H));
+
+    // Logical report coordinates -> canvas: 100 logical units = FZoom device
+    // pixels, with the band-body origin at (margin left, band top + header)
+    // inside APageRect.
+    SetMapMode(ACanvas.Handle, MM_ANISOTROPIC);
+    SetWindowExtEx(ACanvas.Handle, 100, 100, nil);
+    SetViewportExtEx(ACanvas.Handle, FZoom, FZoom, nil);
+    SetViewportOrgEx(ACanvas.Handle,
+      APageRect.Left + Scale(FReport.PageSettings.Margins.Left),
+      APageRect.Top + Scale(BL.Y + BAND_HDR_H), nil);
 
     Ctx := Default(TExpressionContext);
     Ctx.DataSet := FDataSet;
@@ -1940,21 +1983,7 @@ begin
     Ctx.PageBottom := APageRect.Top + Scale(BL.Y + BL.Height + BAND_HDR_H);
 
     for Obj in BL.Band.Children do
-    begin
-      OldBounds := Obj.Bounds;
-      try
-        // Explicit parameters (APageRect) instead of the control metrics:
-        // identical values when called from Paint, but headless-safe for
-        // hosted surfaces and tests (DP-35).
-        Obj.Bounds := DesignerObjScreenRect(
-          Obj, FBandLayouts, APageRect.Left, APageRect.Top,
-          FReport.PageSettings.Margins.Left, FZoom,
-          FReport.PageSettings, BandOwnerOf, BandLayoutIndex);
-        Obj.Draw(ACanvas, Ctx);
-      finally
-        Obj.Bounds := OldBounds;
-      end;
-    end;
+      Obj.Draw(ACanvas, Ctx);
   finally
     Winapi.Windows.RestoreDC(ACanvas.Handle, SaveDC);
   end;
@@ -2696,8 +2725,9 @@ end;
 
 procedure TVittixReportDesigner.InvalidateContent;
 begin
-  { DP-35 scaffold: marks the content layer stale.  The fix commit bumps the
-    content generation here so the cached layer rebuilds on the next paint. }
+  { DP-35 / M-17: a drag frame that mutates object geometry marks the cached
+    content layer stale, then repaints. }
+  TouchContent;
   Invalidate;
 end;
 

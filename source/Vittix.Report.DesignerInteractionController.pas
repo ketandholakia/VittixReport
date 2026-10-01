@@ -361,7 +361,7 @@ begin
           end;
         end;
       end;
-      FSurface.Invalidate;
+      FSurface.InvalidateContent;
     end;
 
     dmResize:
@@ -455,7 +455,7 @@ begin
               R.Bottom := R.Top + MIN_OBJ_SZ;
             Obj.Bounds := R;
           end;
-        FSurface.Invalidate;
+        FSurface.InvalidateContent;
       end
       else
       begin
@@ -493,7 +493,7 @@ begin
             end;
           end;
           Obj.Bounds := R;
-          FSurface.Invalidate;
+          FSurface.InvalidateContent;
         end;
       end;
     end;
