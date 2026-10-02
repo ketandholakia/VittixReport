@@ -61,12 +61,13 @@ packaging warnings stop burying real ones.*
 - **Action:** `git rm` the tracked ones; delete untracked clutter locally. Add `.bak`/`.clean`/`.tmp` to `.gitignore` if not covered.
 - **Done when:** `git ls-files | grep -E "\.(bak|clean|tmp)$|bugreport"` is empty; working tree has no stray logs.
 
-### DP-02 ⬜ (unblocked 2026-10-02 — OQ-3 = sample) Replace committed 24.7 MB `demo/db/northwind.db` with the SQL seed — Effort S
+### DP-02 ✅ (`5c7b8ad`) Replace committed 24.7 MB `demo/db/northwind.db` with the SQL seed — Effort S
 - **OQ-3 resolved (owner, 2026-10-02): sample provenance** — the committed DB is generated/sample data, not real data; no immediate removal. Proceed with the seed swap below as repo-size hygiene.
 - **Files:** `demo/db/northwind.db` (untrack), `demo/db/vittix_demo_sqlite.sql` (already present), `demo/README.md`.
 - **Action:** `git rm --cached demo/db/northwind.db`, ignore `*.db` except the small documented `vittixreportdemodb.db` (or that one too — decide), document "run the SQL seed to create northwind.db" in `demo/README.md`.
 - **Risk:** demo first-run experience needs one extra step — acceptable for −24 MB repo.
 - **Done when:** repo clone size drops; demo README explains regeneration.
+- **Done (2026-10-02, `5c7b8ad`):** untracked (`git rm --cached`; file stays on disk locally) + `*.db` ignore with the `vittixreportdemodb.db` exception + README Data section. **Correction (verified):** the seed does NOT create `northwind.db` — a fresh run of `vittix_demo_sqlite.sql` regenerates `vittixreportdemodb.db` exactly (identical tables and row counts); `northwind.db` is the external jpwhite3/northwind-SQLite3 sample and is now documented as a download (matching the app's own missing-file message). No runner/tool/test references either DB. Effect: checkout shrinks ~24.7 MB; the historical blob remains (no history rewrite — existing clones unchanged). Gate: 753/753, 41/41 + 1 policy skip, packaging green, GDI Δ8 / USER Δ0.
 
 ### DP-03 ✅ Runtime package: declare implicit units, add `{$RUNONLY}` — Effort S
 - **Files:** `packages/VittixReportRuntime.dpk`, `VittixReportRuntime.dproj`.
@@ -222,7 +223,7 @@ Line.Segments[L].Width := W;
 
 **Wave 4 baseline (2026-10-02):** HEAD `1db0354`, working tree clean; gate 753/753 tests (0 leaked); strict baselines 41/41 matched + 1 pre-existing skip; packaging smoke green; GDI Δ8 / USER Δ0.
 
-1. All Wave 0–3 items ✅ (or explicitly re-parked with a note here and in the report). — **Progress 2026-10-02: Waves 1–3 fully ✅; one Wave-0 item remains open: DP-02 (unblocked — OQ-3 = sample; repo-size hygiene; executes as Wave-4 [chore]).**
+1. All Wave 0–3 items ✅ (or explicitly re-parked with a note here and in the report). — **Progress 2026-10-02: all Wave 0–3 items complete — DP-02 executed (`5c7b8ad`).**
 2. Freeze compliance audit: `git log --grep="^\[feature\]"` empty since `v1.0-freeze-start`. — **First automated pass 2026-10-02: PASS.** Zero `[feature]` commits (all `[fix]`/`[test]`/`[chore]`); 0 TODO/FIXME/XXX/HACK in internals; all 9 `OutputDebugString` sites deliberate (DEBUG-gated or documented warning channels); no tracked artifacts (`.dcu/.exe/.bak/.tmp/.log`); compat oracle untouched; packaging parity verified (Runtime 76 units, Design 2 units vs dpk); version metadata 1.0.0.0 on designer + both packages; strict-runner '1 Skipped' = the documented `16_large_preview_warning.vrt` policy skip. Minor items (owner-decidable): demo `VerInfo_Keys` blank (recommend 1.0.0.0 before tag); ~22 local-only gitignored strays at repo root (`.dcu`, stray `VittixRunner.exe`, test XMLs, one-off scripts — working-tree hygiene only, no repo impact).
 3. Full manual pass of `TESTING.md` on a clean machine (not just the dev box).
 4. Soak: run the 41-report strict suite + the designer interactively for 1–2 weeks of normal use; watch for new P0/P1 → they enter Wave 1 as new findings. — Not started (owner schedules; existing tooling only).
