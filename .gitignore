@@ -85,6 +85,11 @@ modules/
 *.db-shm
 *.db-wal
 
+# DP-02: the large demo sample database (northwind.db, ~25 MB) is not tracked.
+# Download it per demo/README.md. The small sample DB stays tracked.
+*.db
+!demo/db/vittixreportdemodb.db
+
 # OS and Editor noise
 .DS_Store
 Thumbs.db

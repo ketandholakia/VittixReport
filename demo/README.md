@@ -8,8 +8,12 @@ This folder contains a VCL demo application similar to the FastReport sample bro
 - `Frm.DemoMain.pas/.dfm`
 
 ## Data
-- SQLite DB: `demo/db/vittixreportdemodb.db`
-- SQL seed script: `demo/db/vittix_demo_sqlite.sql`
+- Demo database: `demo/db/northwind.db` — **not tracked** (large sample DB).
+  Download `northwind.db` from https://github.com/jpwhite3/northwind-SQLite3
+  and place it here; the app shows this path when the file is missing.
+- Extra sample DB (small, tracked): `demo/db/vittixreportdemodb.db`
+- SQL seed script: `demo/db/vittix_demo_sqlite.sql` — regenerates
+  `vittixreportdemodb.db`: `sqlite3 demo/db/vittixreportdemodb.db < demo/db/vittix_demo_sqlite.sql`
 
 ## Report Files
 - Put report files in `demo/vrt/`
