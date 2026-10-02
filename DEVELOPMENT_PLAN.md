@@ -61,7 +61,8 @@ packaging warnings stop burying real ones.*
 - **Action:** `git rm` the tracked ones; delete untracked clutter locally. Add `.bak`/`.clean`/`.tmp` to `.gitignore` if not covered.
 - **Done when:** `git ls-files | grep -E "\.(bak|clean|tmp)$|bugreport"` is empty; working tree has no stray logs.
 
-### DP-02 ⬜ (blocked on OQ-3) Replace committed 24.7 MB `demo/db/northwind.db` with the SQL seed — Effort S
+### DP-02 ⬜ (unblocked 2026-10-02 — OQ-3 = sample) Replace committed 24.7 MB `demo/db/northwind.db` with the SQL seed — Effort S
+- **OQ-3 resolved (owner, 2026-10-02): sample provenance** — the committed DB is generated/sample data, not real data; no immediate removal. Proceed with the seed swap below as repo-size hygiene.
 - **Files:** `demo/db/northwind.db` (untrack), `demo/db/vittix_demo_sqlite.sql` (already present), `demo/README.md`.
 - **Action:** `git rm --cached demo/db/northwind.db`, ignore `*.db` except the small documented `vittixreportdemodb.db` (or that one too — decide), document "run the SQL seed to create northwind.db" in `demo/README.md`.
 - **Risk:** demo first-run experience needs one extra step — acceptable for −24 MB repo.
@@ -78,6 +79,7 @@ packaging warnings stop burying real ones.*
 - **Files:** `packages/VittixReportRuntime.dproj`, `VittixReportDesign.dpk/.dproj`.
 - **Action:** add the missing `Vittix.Report.Export.VectorPDF.Subset` DCCReference (dpk has 58 units, dproj 57); drop the vestigial `adortl` require from the design package; point `DCC_BplOutput`/`DCC_DcpOutput` at a repo-relative `build\bpl` path so the F2039 machine-global-output failure seen during analysis can't happen; decide on `LibSuffix` (adding one breaks existing consumers' install paths — default: defer, record decision in `docs/`).
 - **Done when:** packages build from a fresh checkout without depending on `C:\Users\Public\Documents\Embarcadero` write access.
+- **OQ-4 resolved (owner, 2026-10-02): LibSuffix deferred** — no suffix change before v1.0; revisit post-release only if side-by-side demand appears.
 
 ### DP-05 ✅ Documentation corrections `[chore]` — Effort S
 - **Files:** `README.md`, `source/Vittix.Report.Component.pas:582-584`, `docs/index.md`.
@@ -212,11 +214,15 @@ Line.Segments[L].Width := W;
 | DP-35 ✅ (`dc88584`+`1e0928e`) | M-17 | Content layer cached by a generation counter (fixed: `TouchContent` bumps on band-layout/edit/dataset/drag-frame changes; cached repaints skip the rebuild; zoom stays zoom-independent — the layer is logical). Live fallback now renders through an anisotropic DC transform instead of swapping `Obj.Bounds` — no model mutation during paint, content metrics scale with zoom | Conditional waived by owner; lag quantified by benchmark (soak proxy): rebuild 7/46/98 ms per paint at 36/240/480 objects (vs 1–10 ms cached StretchDraw), paid on every repaint before. Guards: `Test.Vittix.Report.DesignerContentCache` (6 tests: no-change 0×, zoom 0×, edit exactly 1×, InvalidateContent 1×, live ink ×0.51/×1.51, bounds untouched). Full gate 751/751, 41 baselines | M |
 | DP-36 ✅ (`c20a2a6`+`a910718`) | M-4 / M-5 | M-4/BUG-005: kept parked but made observable — legacy UDS-aggregate fallbacks counted (`TReportTraversalDiagnostics.LegacyAggregatesOverUserDataSet` + DEBUG log; `TReportAggregates` untouched per the archive's no-partial-patch note; guard fires only for user-dataset-backed contexts). M-5: stays fully parked per the archive ("changing legacy would alter output of existing reports"); zero corpus usage (OQ-2) | Decision executed 2026-10-02 (owner accepted the recommendation: diagnostics for M-4 only; no Problems-panel UI before v1.0). Verified: counter red→green + noise guards; full gate 753/753, 41 baselines | S |
 
+**Wave 3 exit:** ✅ DONE 2026-10-02 — all scheduled items complete: DP-14, DP-30, DP-31, DP-32, DP-33, DP-34, DP-35 (soak condition waived by owner; benchmark evidence recorded), DP-36 (decision executed: M-4 diagnostic shipped, M-5 parked). No scheduled Wave 3 item remains open. Full gate green at exit: **753/753 tests, 0 leaked; 41/41 strict baselines matched (strict PASS); packaging smoke green; GDI Δ8 / USER Δ0.** Exit decisions recorded: **OQ-3 = sample** (northwind.db is sample/demo data — no removal; DP-02 unblocked) and **OQ-4 = defer** (no LibSuffix before v1.0). Owner manual follow-up carried over (not a scheduled item): the OQ-1 scaled-display re-probe (125%/150%) to confirm DP-14 on the scaled machine.
+
 ---
 
 ## 6. Wave 4 — Soak & v1.0.0 release checklist
 
-1. All Wave 0–3 items ✅ (or explicitly re-parked with a note here and in the report).
+**Wave 4 baseline (2026-10-02):** HEAD `1db0354`, working tree clean; gate 753/753 tests (0 leaked); strict baselines 41/41 matched + 1 pre-existing skip; packaging smoke green; GDI Δ8 / USER Δ0.
+
+1. All Wave 0–3 items ✅ (or explicitly re-parked with a note here and in the report). — **Progress 2026-10-02: Waves 1–3 fully ✅; one Wave-0 item remains open: DP-02 (unblocked — OQ-3 = sample; repo-size hygiene; executes as Wave-4 [chore]).**
 2. Freeze compliance audit: `git log --grep="^\[feature\]"` empty since `v1.0-freeze-start`.
 3. Full manual pass of `TESTING.md` on a clean machine (not just the dev box).
 4. Soak: run the 41-report strict suite + the designer interactively for 1–2 weeks of normal use; watch for new P0/P1 → they enter Wave 1 as new findings.
@@ -249,8 +255,8 @@ From report §12 long-term + unscheduled Lows (each needs its own analysis-first
 |---|---|---|---|
 | OQ-1 | How visible is the 96-DPI drift on scaled displays (125%/150%), and which app manifests make it visible? | DP-14 | **Resolved 2026-09-30: visible.** Designer/demo are PerMonitorV2 (runner/tests DPI-unaware, stable). 05 CanGrow memo: 2 → 3 → 4 lines at 100/125/150% (doc runs 308 → 328 → 372); 41/43 unchanged; page counts stable on the probe set. DP-14 unblocked — fix direction per report §5 H-4. **DP-14 fixed in `8c0bfa9` (2026-10-02);** scaled-machine re-probe (125%/150%) pending owner |
 | OQ-2 | Do any real-world reports depend on legacy qualified-field discard / empty-range zeros? | DP-15, DP-36 | **Resolved 2026-10-02: no dependency found.** Scanned all 85 accessible `.vrt` files (79 repo: 25 demo + 42 regression + 2 indic + 10 modern fixtures; 6 user reports in `C:\Users\Admin\Documents`) plus directory sweeps (AppData, Desktop, Downloads, Public). Dataset-qualified tokens: **0** (the only dotted tokens are `[Param.*]` — the runtime-parameter namespace, a different feature). AVG/MIN/MAX aggregates: **0** (aggregates present: SUM ×4 files, COUNT ×1; all crosstab aggregates = Sum). No external/customer corpus exists on this machine — scope noted. Compat oracle stays frozen; DP-15 diagnostics would flag any future hit |
-| OQ-3 | `northwind.db` provenance — generated test data or real data? | DP-02 | Owner confirms; if real, remove immediately regardless of wave |
-| OQ-4 | `LibSuffix` on packages — support multi-version side-by-side installs? | DP-04 | Owner decision; default defer |
+| OQ-3 | `northwind.db` provenance — generated test data or real data? | DP-02 | **Resolved 2026-10-02 (owner): SAMPLE.** The committed `demo/db/northwind.db` is sample/demo data — no privacy removal required. DP-02 (swap the tracked DB for the SQL seed) is unblocked and proceeds as the remaining Wave 0 hygiene item |
+| OQ-4 | `LibSuffix` on packages — support multi-version side-by-side installs? | DP-04 | **Resolved 2026-10-02 (owner): DEFER.** No `LibSuffix` before v1.0 — adding one changes existing consumers' install paths; revisit post-v1.0 only if side-by-side demand appears |
 
 ---
 
