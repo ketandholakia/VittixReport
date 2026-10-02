@@ -221,14 +221,20 @@ Line.Segments[L].Width := W;
 
 ## 6. Wave 4 — Soak & v1.0.0 release checklist
 
-**Wave 4 baseline (2026-10-02):** HEAD `1db0354`, working tree clean; gate 753/753 tests (0 leaked); strict baselines 41/41 matched + 1 pre-existing skip; packaging smoke green; GDI Δ8 / USER Δ0.
+**Wave 4 entry baseline (2026-10-02, pre-DP-02):** HEAD `1db0354`, working tree clean; gate 753/753 tests (0 leaked); strict baselines 41/41 matched + 1 pre-existing skip; packaging smoke green; GDI Δ8 / USER Δ0.
 
 1. All Wave 0–3 items ✅ (or explicitly re-parked with a note here and in the report). — **Progress 2026-10-02: all Wave 0–3 items complete — DP-02 executed (`5c7b8ad`).**
 2. Freeze compliance audit: `git log --grep="^\[feature\]"` empty since `v1.0-freeze-start`. — **First automated pass 2026-10-02: PASS.** Zero `[feature]` commits (all `[fix]`/`[test]`/`[chore]`); 0 TODO/FIXME/XXX/HACK in internals; all 9 `OutputDebugString` sites deliberate (DEBUG-gated or documented warning channels); no tracked artifacts (`.dcu/.exe/.bak/.tmp/.log`); compat oracle untouched; packaging parity verified (Runtime 76 units, Design 2 units vs dpk); version metadata 1.0.0.0 on designer + both packages; strict-runner '1 Skipped' = the documented `16_large_preview_warning.vrt` policy skip. Minor items (owner-decidable): demo `VerInfo_Keys` blank (recommend 1.0.0.0 before tag); ~22 local-only gitignored strays at repo root (`.dcu`, stray `VittixRunner.exe`, test XMLs, one-off scripts — working-tree hygiene only, no repo impact).
 3. Full manual pass of `TESTING.md` on a clean machine (not just the dev box).
-4. Soak: run the 41-report strict suite + the designer interactively for 1–2 weeks of normal use; watch for new P0/P1 → they enter Wave 1 as new findings. — Not started (owner schedules; existing tooling only).
+4. Soak: run the 41-report strict suite + the designer interactively for 1–2 weeks of normal use; watch for new P0/P1 → they enter Wave 1 as new findings. — **STARTED 2026-10-02 (see soak log).** Automated half: full-gate re-runs on existing tooling (`tools\ci_gate.ps1`) at checkpoints; interactive half = owner's normal designer use (owner-confirmed only — never assumed).
 5. `VittixReport_FullCodeAnalysis.md` §5: mark every closed finding; move anything still open to Wave 5 with a reason.
 6. Tag `v1.0.0`. Then (and only then) unpark Wave 5.
+
+**Soak log** — start 2026-10-02; checkpoints use `tools\ci_gate.ps1 -IncludePackages` only (no parallel tooling). The interactive portion must not be marked performed until the owner confirms it.
+
+| Date (IST) | Checkpoint | HEAD | Gate result | Notes |
+|---|---|---|---|---|
+| 2026-10-02 11:25 | **soak start** | `5ff54e5` | 753/753 passed; 0 failed / 0 errored / 0 leaked; strict 41/41 matched + 1 policy skip; packaging PASS; baselines/oracle byte-identical; GDI Δ8 / USER Δ0 | working tree clean; snapshot taken before any checkpoint |
 
 ---
 
