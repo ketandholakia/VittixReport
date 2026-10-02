@@ -236,6 +236,9 @@ Line.Segments[L].Width := W;
 |---|---|---|---|---|
 | 2026-10-02 11:25 | **soak start** | `5ff54e5` | 753/753 passed; 0 failed / 0 errored / 0 leaked; strict 41/41 matched + 1 policy skip; packaging PASS; baselines/oracle byte-identical; GDI Δ8 / USER Δ0 | working tree clean; snapshot taken before any checkpoint |
 
+**Incidents:**
+- **2026-10-02 11:31 — checkpoint attempt vs running designer (environmental; no fix applied).** The initial checkpoint run was green on tests (753/753 passed, 0 leaked), strict baselines (41/41 matched + 1 policy skip; oracle byte-identical, mismatches 0) and resources (GDI Δ8 / USER Δ0), but the packaging-smoke designer rebuild (`vittixdesigner\VittixDesigner.dproj /t:Build`) failed: `error F2039: Could not create output file 'VittixDesigner.exe'` — `VittixDesigner.exe` (PID 26320) was started at 11:30:03 (interactive soak beginning), locking the build output. The identical full gate passed at 11:25, before the app started; nothing in the tree changed in between except documentation commits. Tests/baselines/oracle untouched; **no fix applied — awaiting owner decision** on checkpoint-vs-running-designer policy (proposal: when a checkpoint finds the designer running, defer-and-log instead of failing; retake today's checkpoint at the next quiet moment or on owner request). Evidence: `build\gate\incident-2026-10-02-designer-lock.txt` (raw msbuild capture; local/ignored).
+
 ---
 
 ## 7. Wave 5 — Post-v1.0 backlog (⏸ parked, do not start before the tag)
