@@ -1,5 +1,13 @@
 # VittixReport — Comprehensive Code Analysis Report
 
+> **Current review update (2026-10-07):** The original 2026-09-29 narrative below
+> is a historical baseline, not a list of defects still open. DP-01–DP-36 completion
+> is recorded in `DEVELOPMENT_PLAN.md`. The new, independently reproduced findings
+> in **§5, “2026-10-07 follow-up”** are open. A fresh Win32/Release full gate passed
+> 753/753 tests, zero reported test leaks, 41/41 strict baselines plus one policy
+> skip, GDI delta 8 / USER delta 0, and runtime/design packages, designer and demo
+> builds. Passing that gate does not cover the new counterexamples.
+
 > **Document status — SOURCE OF TRUTH for development planning (2026-09-29).**
 > This report is the canonical development plan: §5 (Issues by Severity) is the
 > working bug queue for `[fix]` work, §12 (Refactoring Plan) is the backlog of
@@ -248,6 +256,157 @@ Plus a golden test with colored/multi-font HTML memo.
 
 ---
 
+### 2026-10-07 follow-up — current code, independently reproduced
+
+**Scope and limits.** Reviewed current runtime, persistence, undo/snapshot lifecycle,
+export paths, data traversal, preview retention, packaging and gate implementation
+at `f7c9251`. No implementation fixes were applied. A temporary Delphi console
+probe in ignored `build/review-probe/ReviewProbe.dpr` used the freshly built Release
+units and the real `Frm.Main.Commands.TReportSnapshotCommand`. The probe is local
+evidence, not a committed regression suite; the scenarios below must become durable
+tests before fixes. No interactive UI, physical-printer, clean-machine installation,
+Win64 or scaled-monitor validation was performed in this follow-up.
+
+**Assessment:** the existing model/engine/renderer/export separation and regression
+infrastructure are worth retaining. Professional readiness is presently limited by
+uncaught semantic data loss and designer history safety, rather than missing object
+types. Treat P1 findings below as release blockers; the existing green gate alone
+is not sufficient evidence to tag v1.0.0.
+
+| ID | Priority | Current finding | Evidence |
+|---|---|---|---|
+| R-01 | P1 | ✅ Fixed 2026-10-08 — snapshot undo left later pointer-based commands in redo history | Regression test failed with two redo entries before the fix. Undo/redo of an invalidating command now preserves only that command; full gate passes 754/754. |
+| R-02 | P1 | ✅ Fixed 2026-10-08 — report variables were omitted from serialization and loading | Variables now round-trip as named strings; fixture 37 loads and renders all three values; legacy empty-array input remains accepted. Full gate passes 758/758. |
+| R-03 | P1 | ✅ Fixed 2026-10-08 — invalid configured detail key disabled filtering and printed unrelated rows | Detail links are validated once before traversal for TDataSet and wrapped user datasets; incomplete/missing fields raise an actionable report error; unlinked behavior is preserved. Full gate passes 762/762. |
+| R-04 | P1 | ✅ Fixed 2026-10-08 — XLSX sparse rows shifted values into the wrong columns | One document-wide X-position map now preserves holes and column identity across rows/pages; full gate passes 764/764. |
+| R-05 | P2 | ✅ Fixed 2026-10-08 — XLSX numeric inference lost identifier formatting and depended on process locale | Numeric inference is now invariant and conservative. Leading-zero and over-15-digit identifiers, rich text, decimal-comma values, currency, and dates remain inline strings; ordinary invariant numbers remain numeric. Full gate passes 768/768; final focused gate passes 769/769. |
+
+**R-01 — snapshot redo lifetime (extends C-1 / DP-08).**
+`source/Vittix.Report.Undo.pas`, `TCommandManager.DoCommand`, checks
+`InvalidatesObjectRefs`, but `UndoLast` and `RedoLast` do not. Both snapshot
+directions reload a model through `TReportSnapshotCommand.ApplyJSON` in
+`vittixdesigner/Frm.Main.Commands.pas` (duplicated in `Vittix.Designer.Commands.pas`).
+`TVittixReportDesigner.LoadReport` frees the owned previous model and is called with
+`ClearUndoHistory=False`. A later move command becomes a dangling redo entry when
+the snapshot is undone. The probe deliberately stopped before executing that move;
+the reachable stale entry was reproduced, not a forced access violation.
+
+Small fix direction: invalidate history on every graph-replacing transition,
+including rollback, retaining only commands whose references remain valid. Test
+the actual snapshot→edit→undo×2→redo sequence, including insert/delete commands
+whose destruction may itself touch ownership state. Preserve the snapshot's own
+undo/redo capability. Stable object identity remains a separate post-v1.0 design.
+Risk: history cleanup order and command-owned objects; do not merely add nil checks
+to pointers that are non-nil but freed.
+
+**Resolved 2026-10-08:** `TCommandManager.UndoLast` and `RedoLast` now extract the
+invalidating command, clear both history stacks before the graph replacement, and
+place only the successfully completed snapshot transition on the opposite stack.
+`Test_UndoInvalidating_DropsLaterRedoEntries` reproduces the snapshot → edit → undo
+edit → undo snapshot → redo snapshot sequence. Red: 753/754, with two redo entries;
+green/full gate: 754/754, zero reported leaks, strict 41/41 + one policy skip,
+GDI delta 8 / USER delta 0, runtime/design packages, designer and demo built.
+
+**R-02 — variable persistence.** `TReportSerializer.SaveToJSON` writes metadata,
+page settings, field names, dataset names and objects, but not `Variables`.
+`LoadFromJSONEx` likewise never reads the existing fixture's `Variables` object.
+This affects save/reopen and serialization-based snapshots/clones. The existing
+Phase1 round-trip test starts with the already-loaded model, comparing empty
+variables to empty variables, so it cannot detect loss on initial load.
+
+Small fix direction: persist/read the already-documented Variables JSON object;
+leave absent Variables valid for older files. Test raw fixture→expected three named
+values, populated model→save→reload, snapshot preservation, and rendered text
+`Acme Ltd`/`CONFIDENTIAL`. Risk: malformed input handling and value coercion;
+retain the current string-valued model contract and diagnostic conventions.
+
+**Resolved 2026-10-08:** the serializer writes `Variables` as the established
+root-level JSON object and loads only named string values. Missing `Variables`
+remains valid, and the legacy empty array in `44_chart_object.vrt` is accepted as
+empty; other arrays and non-string entries produce `INVALID_VARIABLES`. Tests pin
+raw JSON loading, populated round trips, malformed structure, fixture 37's three
+values, and the rendered `Acme Ltd`, address and `CONFIDENTIAL` output. Red:
+754/757; green/full gate: 758/758, zero reported leaks, strict 41/41 + one policy
+skip, GDI delta 8 / USER delta 0, packaging/designer/demo PASS.
+
+**R-03 — detail relationship validation.** In `TReportEngine.PrintDetailBandRecords`,
+the TDataSet branch folds key existence into `HasMasterField`. If either configured
+field cannot be resolved, `HasMasterField=False`; the record predicate then accepts
+every detail. Missing relationship configuration and invalid relationship
+configuration need distinct handling. The dynamic probe covered TClientDataSet;
+the TVittixUserDataSet branch needs its own parity tests.
+
+Small fix direction: validate explicit links before traversal; reject an invalid
+link with a useful diagnostic rather than treating it as unlinked. Preserve any
+intentional fully-unlinked-detail behavior. Test missing master/detail keys,
+partially configured links, no matches, Null keys and unchanged valid output.
+Risk: the correction changes previously incorrect report content and may change
+page counts; explain any baseline changes rather than accepting them wholesale.
+
+**Resolved 2026-10-08:** `ValidateDetailLinks` runs once after band caching and
+primary-source validation, before look-ahead or print traversal. Both fields blank
+retains the established unlinked behavior; exactly one field, a missing master
+field, or a missing detail field raises `EReportException` naming the band and
+field. Schema-aware `TVittixUserDataSet` wrappers receive the same validation;
+custom event-backed datasets without schema metadata remain supported. Red:
+758/761; green/full gate: 762/762, zero reported leaks, strict 41/41 + one policy
+skip, GDI delta 8 / USER delta 0, packaging/designer/demo PASS.
+
+**R-04 — XLSX column mapping.** `ExportToStream` sorts by geometry but resets
+`ColCounter := 1` at each new row and increments only for present text commands.
+Absolute X locations therefore do not establish stable spreadsheet columns.
+Blank or suppressed fields can place a value under a different heading.
+
+Small fix direction: derive stable column positions across rows from the captured
+layout, retaining holes. Test a missing first/middle cell, repeated headers and
+multiple pages; verify cell addresses and content, not merely ZIP validity.
+Risk: genuine staggered/overlapping report layouts need a documented mapping
+policy; avoid replacing this with an arbitrary fixed pixel-to-column conversion.
+
+**Resolved 2026-10-08:** XLSX export now clusters all text-command left edges
+across the document with the existing five-pixel layout tolerance, sorts those
+positions, and assigns every cell from that stable map. Sparse rows therefore
+retain holes, and page boundaries do not reset column identity. Tests assert exact
+cell addresses for same-page and cross-page sparse layouts. Red: 762/764;
+green/full gate: 764/764, zero reported leaks, strict 41/41 + one policy skip,
+GDI delta 8 / USER delta 0, packaging/designer/demo PASS.
+
+**R-05 — XLSX value typing (fixed 2026-10-08).** Numeric detection now uses
+`TFormatSettings.Invariant` and accepts only unambiguous plain numeric text.
+Leading-zero identifiers (including signed values), integers beyond Excel's
+15-digit precision, rich text, decimal-comma values, formatted currency, and
+dates are emitted as inline strings. Decimal-point numbers remain numeric even
+when the process locale uses a comma decimal separator. The command model still
+carries rendered text rather than original database type; carrying source types
+through the export pipeline remains a broader post-v1.0 API decision. Red:
+764/768; green/full gate: 768/768, zero reported leaks, strict 41/41 + one policy
+skip, GDI delta 8 / USER delta 0, packaging/designer/demo PASS. A final formatted
+value regression brought the focused suite to 769/769.
+
+**Why the full gate misses these cases.** Current tests are useful, but snapshot
+invalidation coverage concentrates on history *before* the snapshot; the variable
+round trip compares two already-lossy models; detail tests use valid key names;
+structural/page-count baselines cannot establish that values sit under the right
+headings. Existing pixel/export-command tests should be retained and expanded
+with these independent expected-result assertions.
+
+**Further validation priorities, not newly confirmed defects:**
+- Repeat preparation with the same export document, cancellation and exception
+  injection: preview pages reset while export capture appends pages. Establish
+  the intended reuse/append contract before changing it.
+- Two-pass reports whose final-pass callbacks change height, visibility or text:
+  verify final TotalPages and footer placement, not only ordinary deterministic
+  fixture page counts.
+- Dataset bookmark restoration failures: `RestoreDataSetBookmark` does not use a
+  finally around GotoBookmark/FreeBookmark; caller restoration and EnableControls
+  also need exception-injection coverage.
+- The CI gate tolerates missing USER/GDI telemetry, and absent parsed test counts
+  become -1 rather than an error. Harden these checks against false green results.
+- Complete the already-pending scaled-display re-probe, interactive designer soak,
+  clean-machine package-consumer/install test and supported-platform validation.
+
+---
+
 ## 6. Memory & Resource Management Findings
 
 **Overall: this is the codebase's strongest discipline.** Zero leaks reported by DUnitX's leak detector; runner enforces `USER delta = 0`, `GDI delta ≤ 16` (observed 8, explained as first-render font cache allocations). Specific verifications:
@@ -323,6 +482,15 @@ Plus a golden test with colored/multi-font HTML memo.
 ---
 
 ## 12. Refactoring Plan
+
+> **2026-10-07 priority clarification:** DP-01–DP-36 are complete per the execution
+> schedule; the short/medium-term lists below describe the original audit work,
+> not fresh authorization to repeat it. §5 R-01–R-05 were fixed and regression
+> tested before release. Existing post-v1.0 work stays parked. After release,
+> prioritize stable undo identities, explicit export fidelity/type contracts,
+> responsive cancellation/large-report traversal, and designer workflow tests
+> ahead of expanding the object palette. Preserve public APIs and `.vrt`
+> compatibility; no wholesale rewrite is justified by this review.
 
 Framed for the active **v1.0 freeze**: everything below is `[fix]`-with-failing-test, `[test]`, or `[chore]` — nothing needs new features.
 

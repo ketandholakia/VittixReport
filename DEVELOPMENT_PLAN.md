@@ -221,6 +221,27 @@ Line.Segments[L].Width := W;
 
 ## 6. Wave 4 — Soak & v1.0.0 release checklist
 
+**2026-10-07 independent review — new open findings:** The fresh full gate at
+`f7c9251` passed (753/753, zero reported leaks, strict 41/41 + 1 policy skip,
+GDI delta 8 / USER delta 0, packaging/designer/demo builds). Focused Delphi probes
+nevertheless reproduced the following gaps; details, risks and test directions
+are in `VittixReport_FullCodeAnalysis.md` §5, “2026-10-07 follow-up”. This is analysis
+only: no implementation fix or durable regression test has landed. Prior DP
+completion remains historical; overall release readiness is blocked by new P1s.
+
+| Order | Finding | Priority | Status | Required verification |
+|---|---|---|---|---|
+| 1 | R-01: snapshot undo leaves stale move in redo | P1 | ✅ done 2026-10-08 | Regression red at 753/754; fixed at the command-manager transition boundary; full gate 754/754, strict 41/41, packaging PASS |
+| 2 | R-02: report variables lost on save/load | P1 | ✅ done 2026-10-08 | String-object persistence plus legacy empty-array compatibility; raw/round-trip/malformed/render tests; full gate 758/758, strict 41/41, packaging PASS |
+| 3 | R-03: invalid detail field renders all details | P1 | ✅ done 2026-10-08 | One-time relationship validation; incomplete/missing fields rejected for TDataSet and wrapped UDS; valid/no-match/unlinked paths pinned; full gate 762/762 |
+| 4 | R-04: sparse XLSX rows shift columns | P1 | ✅ done 2026-10-08 | Document-wide X-position column map with five-pixel tolerance; sparse same-page/cross-page addresses pinned; full gate 764/764 |
+| 5 | R-05: XLSX numeric inference strips identifier formatting | P2 | ✅ done 2026-10-08 | Conservative invariant numeric inference; leading-zero/long identifiers, rich text, decimal-comma, currency, and dates remain text; full gate 768/768 plus final focused gate 769/769 |
+
+Use the existing red→green→full-gate workflow for each accepted fix. Local ignored
+`build/review-probe/ReviewProbe.dpr` is reproduction evidence only, not permanent
+coverage. Do not mark interactive soak or clean-machine checks complete based on
+this automated run.
+
 **Wave 4 entry baseline (2026-10-02, pre-DP-02):** HEAD `1db0354`, working tree clean; gate 753/753 tests (0 leaked); strict baselines 41/41 matched + 1 pre-existing skip; packaging smoke green; GDI Δ8 / USER Δ0.
 
 1. All Wave 0–3 items ✅ (or explicitly re-parked with a note here and in the report). — **Progress 2026-10-02: all Wave 0–3 items complete — DP-02 executed (`5c7b8ad`).**
