@@ -34,6 +34,7 @@ uses
   Vittix.Report.Bands,
   Vittix.Report.Objects,
   Vittix.Report.Engine,
+  Vittix.Report.UserDataSet,
   Vittix.Report.TraversalDiagnostics;
 
 type
@@ -42,7 +43,8 @@ type
   private
     function CreateMasterData(ACount: Integer): TClientDataSet;
     function CreateDetailData(const AMasterIDs: array of Integer): TClientDataSet;
-    function BuildLinkedReport: TReportModel;
+    function BuildLinkedReport(const AMasterField: string = 'ID';
+      const ADetailField: string = 'MasterID'): TReportModel;
     function RunEngine(AMaster: TClientDataSet; ADetail: TClientDataSet;
       out DetailTraversals, DetailRowsVisited, PageCount: Integer): Integer;
   public
@@ -50,6 +52,10 @@ type
     [Test] procedure Test_Detail_MatchLastRow_CurrentBehavior;
     [Test] procedure Test_Detail_MatchFirstRow_CurrentBehavior;
     [Test] procedure Test_Detail_ScalingBaseline_200x50;
+    [Test] procedure Test_Detail_InvalidDetailField_Raises;
+    [Test] procedure Test_Detail_PartialRelationship_Raises;
+    [Test] procedure Test_Detail_InvalidDetailField_UserDataSet_Raises;
+    [Test] procedure Test_Detail_Unlinked_RemainsSupported;
   end;
 
 implementation
@@ -84,7 +90,8 @@ begin
   Result.First;
 end;
 
-function TPhase6DetailTraversalTests.BuildLinkedReport: TReportModel;
+function TPhase6DetailTraversalTests.BuildLinkedReport(
+  const AMasterField, ADetailField: string): TReportModel;
 var
   MasterBand, DetailBand: TReportBand;
 begin
@@ -98,9 +105,149 @@ begin
   DetailBand.BandType := btDetail;
   DetailBand.Height := DetailBandHeight;
   DetailBand.DataSetName := 'Details';
-  DetailBand.MasterField := 'ID';
-  DetailBand.DetailField := 'MasterID';
+  DetailBand.MasterField := AMasterField;
+  DetailBand.DetailField := ADetailField;
   Result.Objects.Add(DetailBand);
+end;
+
+procedure TPhase6DetailTraversalTests.Test_Detail_InvalidDetailField_Raises;
+var
+  Master, Detail: TClientDataSet;
+  Model: TReportModel;
+  Engine: TReportEngine;
+  NamedDataSets: TDictionary<string, TDataSet>;
+  Raised: Boolean;
+begin
+  Master := CreateMasterData(2);
+  Detail := CreateDetailData([1, 2]);
+  Model := BuildLinkedReport('ID', 'TypoMasterID');
+  NamedDataSets := TDictionary<string, TDataSet>.Create;
+  try
+    NamedDataSets.Add('Details', Detail);
+    Engine := TReportEngine.Create(Model, Master, NamedDataSets, nil);
+    try
+      Raised := False;
+      try
+        Engine.Prepare;
+      except
+        on E: EReportException do
+        begin
+          Raised := True;
+          Assert.IsTrue(Pos('TypoMasterID', E.Message) > 0,
+            'diagnostic must identify the missing detail field');
+        end;
+      end;
+      Assert.IsTrue(Raised,
+        'an invalid configured relationship must not print every detail row');
+    finally
+      Engine.Free;
+    end;
+  finally
+    NamedDataSets.Free;
+    Model.Free;
+    Detail.Free;
+    Master.Free;
+  end;
+end;
+
+procedure TPhase6DetailTraversalTests.Test_Detail_PartialRelationship_Raises;
+var
+  Master, Detail: TClientDataSet;
+  Model: TReportModel;
+  Engine: TReportEngine;
+  NamedDataSets: TDictionary<string, TDataSet>;
+begin
+  Master := CreateMasterData(1);
+  Detail := CreateDetailData([1]);
+  Model := BuildLinkedReport('ID', '');
+  NamedDataSets := TDictionary<string, TDataSet>.Create;
+  try
+    NamedDataSets.Add('Details', Detail);
+    Engine := TReportEngine.Create(Model, Master, NamedDataSets, nil);
+    try
+      Assert.WillRaise(
+        procedure begin Engine.Prepare; end,
+        EReportException,
+        'a relationship must define both fields or neither field');
+    finally
+      Engine.Free;
+    end;
+  finally
+    NamedDataSets.Free;
+    Model.Free;
+    Detail.Free;
+    Master.Free;
+  end;
+end;
+
+procedure TPhase6DetailTraversalTests.Test_Detail_InvalidDetailField_UserDataSet_Raises;
+var
+  Master, Detail: TClientDataSet;
+  MasterUDS, DetailUDS: TVittixUserDataSet;
+  Model: TReportModel;
+  Engine: TReportEngine;
+  NamedUserDataSets: TDictionary<string, TVittixUserDataSet>;
+begin
+  Master := CreateMasterData(2);
+  Detail := CreateDetailData([1, 2]);
+  MasterUDS := TVittixUserDataSet.Create(nil);
+  DetailUDS := TVittixUserDataSet.Create(nil);
+  Model := BuildLinkedReport('ID', 'TypoMasterID');
+  NamedUserDataSets := TDictionary<string, TVittixUserDataSet>.Create;
+  try
+    MasterUDS.DataSet := Master;
+    DetailUDS.DataSet := Detail;
+    NamedUserDataSets.Add('Details', DetailUDS);
+    Engine := TReportEngine.Create(Model, MasterUDS, NamedUserDataSets, nil);
+    try
+      Assert.WillRaise(
+        procedure begin Engine.Prepare; end,
+        EReportException,
+        'wrapped datasets must receive the same relationship validation');
+    finally
+      Engine.Free;
+    end;
+  finally
+    NamedUserDataSets.Free;
+    Model.Free;
+    DetailUDS.Free;
+    MasterUDS.Free;
+    Detail.Free;
+    Master.Free;
+  end;
+end;
+
+procedure TPhase6DetailTraversalTests.Test_Detail_Unlinked_RemainsSupported;
+var
+  Master, Detail: TClientDataSet;
+  Model: TReportModel;
+  Engine: TReportEngine;
+  NamedDataSets: TDictionary<string, TDataSet>;
+  Snapshot: TReportTraversalSnapshot;
+begin
+  Master := CreateMasterData(1);
+  Detail := CreateDetailData([10, 20, 30]);
+  Model := BuildLinkedReport('', '');
+  NamedDataSets := TDictionary<string, TDataSet>.Create;
+  try
+    NamedDataSets.Add('Details', Detail);
+    Engine := TReportEngine.Create(Model, Master, NamedDataSets, nil);
+    try
+      Engine.TwoPassRendering := False;
+      TReportTraversalDiagnostics.Reset;
+      Engine.Prepare;
+      Snapshot := TReportTraversalDiagnostics.Snapshot;
+      Assert.AreEqual(4, Snapshot.DetailRowsVisited,
+        'unlinked detail keeps all rows: one look-ahead + three print visits');
+    finally
+      Engine.Free;
+    end;
+  finally
+    NamedDataSets.Free;
+    Model.Free;
+    Detail.Free;
+    Master.Free;
+  end;
 end;
 
 function TPhase6DetailTraversalTests.RunEngine(AMaster: TClientDataSet;

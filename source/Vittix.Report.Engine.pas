@@ -230,6 +230,7 @@ type
     function  PrimarySourceActive: Boolean;
     function  SourceFieldValue(ADataSet: TDataSet; AUserDataSet: TVittixUserDataSet;
       const AFieldName: string): Variant;
+    procedure ValidateDetailLinks;
     function  ComputeFirstDetailRowsHeight: Integer;
     procedure PrintDetailBandRecords(ABand: TReportBand; ADetailDS: TDataSet;
       ADetailUDS: TVittixUserDataSet);
@@ -1406,6 +1407,56 @@ begin
   Result := SafeSourceFieldValue(ADataSet, AUserDataSet, AFieldName);
 end;
 
+procedure TReportEngine.ValidateDetailLinks;
+var
+  Band: TReportBand;
+  DetailDS, MasterSchema, DetailSchema: TDataSet;
+  DetailUDS: TVittixUserDataSet;
+  MasterName, DetailName, BandName: string;
+begin
+  // R-03: an explicitly configured relationship is structural report data.
+  // Validate it once before either the look-ahead or print traversal; treating
+  // a typo as "unlinked" silently prints every detail row for every master.
+  for Band in FDetailBands do
+  begin
+    MasterName := Trim(Band.MasterField);
+    DetailName := Trim(Band.DetailField);
+
+    // Both blank is the established unlinked-detail contract: print all rows.
+    if (MasterName = '') and (DetailName = '') then
+      Continue;
+
+    BandName := Trim(Band.Name);
+    if BandName = '' then
+      BandName := '<unnamed detail band>';
+
+    if (MasterName = '') or (DetailName = '') then
+      raise EReportException.CreateFmt(
+        'Detail band "%s" must define both MasterField and DetailField, or neither.',
+        [BandName]);
+
+    MasterSchema := FDataSet;
+    if (not Assigned(MasterSchema)) and Assigned(FUserDataSet) then
+      MasterSchema := FUserDataSet.DataSet;
+    if Assigned(MasterSchema) and MasterSchema.Active and
+       not Assigned(MasterSchema.FindField(MasterName)) then
+      raise EReportException.CreateFmt(
+        'Detail band "%s": master field "%s" was not found.',
+        [BandName, MasterName]);
+
+    DetailDS := ResolveBandDataSet(Band);
+    DetailUDS := ResolveBandUserDataSet(Band);
+    DetailSchema := DetailDS;
+    if (not Assigned(DetailSchema)) and Assigned(DetailUDS) then
+      DetailSchema := DetailUDS.DataSet;
+    if Assigned(DetailSchema) and DetailSchema.Active and
+       not Assigned(DetailSchema.FindField(DetailName)) then
+      raise EReportException.CreateFmt(
+        'Detail band "%s": detail field "%s" was not found.',
+        [BandName, DetailName]);
+  end;
+end;
+
 function TReportEngine.ComputeFirstDetailRowsHeight: Integer;
 var
   Band: TReportBand;
@@ -1639,6 +1690,8 @@ begin
         raise EReportException.Create(
           'DataSet must be active to generate the report.');
     end;
+
+    ValidateDetailLinks;
 
     FReportDate := Now;
     CancelPrint := False;
