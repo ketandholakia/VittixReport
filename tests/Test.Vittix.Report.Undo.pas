@@ -82,6 +82,8 @@ type
     [Test]
     procedure Test_UndoAfterInvalidation_LeavesNoOlderEntries;
     [Test]
+    procedure Test_UndoInvalidating_DropsLaterRedoEntries;
+    [Test]
     procedure Test_DoCommand_ExecuteRaises_DoesNotStrandCommand;
     [Test]
     procedure Test_UndoLast_RollbackRaises_DoesNotStrandCommand;
@@ -439,6 +441,47 @@ begin
     end;
   finally
     Obj1.Free;
+  end;
+end;
+
+procedure TTestObjectRefInvalidation.Test_UndoInvalidating_DropsLaterRedoEntries;
+var
+  Mgr: TCommandManager;
+  Snap: TMockInvalidatingAction;
+  Edit: TMockUndoableAction;
+begin
+  // R-01: undoing a snapshot replaces the object graph just as executing it
+  // does. Any later edit already moved to the redo stack still holds pointers
+  // into the graph that Rollback is about to free, so only the snapshot itself
+  // may remain redoable after the transition.
+  Mgr := TCommandManager.Create;
+  try
+    Snap := TMockInvalidatingAction.Create;
+    Snap.ActionName := 'Band Manager Changes';
+    Mgr.DoCommand(Snap);
+
+    Edit := TMockUndoableAction.Create;
+    Edit.ActionName := 'Move Object';
+    Mgr.DoCommand(Edit);
+
+    Mgr.UndoLast; // Move Object enters redo history.
+    Assert.AreEqual(1, Mgr.RedoCount);
+    Assert.AreEqual('Move Object', Mgr.NextRedoName);
+
+    Mgr.UndoLast; // Snapshot rollback replaces the graph used by Move Object.
+
+    Assert.AreEqual(1, Snap.RollbackCount);
+    Assert.AreEqual(1, Mgr.RedoCount,
+      'later commands must be discarded when snapshot rollback replaces the graph');
+    Assert.AreEqual('Band Manager Changes', Mgr.NextRedoName,
+      'the snapshot itself must remain redoable');
+
+    Mgr.RedoLast;
+    Assert.AreEqual(2, Snap.ExecuteCount);
+    Assert.IsFalse(Mgr.CanRedo,
+      'no stale command may survive the snapshot redo transition');
+  finally
+    Mgr.Free;
   end;
 end;
 

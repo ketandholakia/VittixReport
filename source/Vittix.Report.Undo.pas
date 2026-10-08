@@ -48,11 +48,12 @@ type
     constructor Create; virtual;
     procedure Execute;  virtual; abstract;
     procedure Rollback; virtual; abstract;
-    { True when executing this command replaces (or may replace) the object
-      graph that other history entries hold raw pointers into (e.g. a
-      full-report snapshot).  The command manager discards prior undo/redo
-      history around such a command so no surviving entry can later write
-      through a dangling reference (DP-08).  Default: False. }
+    { True when executing OR rolling back this command replaces (or may
+      replace) the object graph that other history entries hold raw pointers
+      into (e.g. a full-report snapshot). The command manager discards all
+      other undo/redo history around either transition so no surviving entry
+      can later write through a dangling reference (DP-08, R-01).
+      Default: False. }
     function InvalidatesObjectRefs: Boolean; virtual;
     property ActionName: string read FActionName write FActionName;
   end;
@@ -322,6 +323,15 @@ var Cmd: TUndoableAction;
 begin
   if FUndo.Count = 0 then Exit;
   Cmd := FUndo.Last; FUndo.Extract(Cmd);
+  if Cmd.InvalidatesObjectRefs then
+  begin
+    // Rollback replaces the current graph too. Commands already in FRedo are
+    // later edits into that graph and become dangling as soon as Rollback
+    // runs. Clear both stacks after extracting Cmd so the snapshot itself can
+    // remain redoable, while no other raw object reference survives (R-01).
+    FUndo.Clear;
+    FRedo.Clear;
+  end;
   try
     Cmd.Rollback;
   except
@@ -336,6 +346,14 @@ var Cmd: TUndoableAction;
 begin
   if FRedo.Count = 0 then Exit;
   Cmd := FRedo.Last; FRedo.Extract(Cmd);
+  if Cmd.InvalidatesObjectRefs then
+  begin
+    // Re-executing the snapshot replaces the graph restored by Rollback.
+    // Preserve only Cmd, which is moved back to FUndo after a successful
+    // transition; every other history entry refers to an obsolete graph.
+    FUndo.Clear;
+    FRedo.Clear;
+  end;
   try
     Cmd.Execute;
   except
