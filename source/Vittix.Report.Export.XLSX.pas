@@ -124,6 +124,53 @@ begin
   Result := FormatFloat('0.###', ASize, FS);
 end;
 
+function TryGetInvariantNumericCellText(const S: string;
+  out ANormalized: string): Boolean;
+var
+  Dummy: Double;
+  UnsignedText, Mantissa, IntegerPart: string;
+  ExponentPos, DecimalPos, I, DigitCount: Integer;
+begin
+  Result := False;
+  ANormalized := '';
+  if (S = '') or (Trim(S) <> S) then
+    Exit;
+
+  DigitCount := 0;
+  for I := 1 to Length(S) do
+    if CharInSet(S[I], ['0'..'9']) then
+      Inc(DigitCount)
+    else if not CharInSet(S[I], ['+', '-', '.', 'e', 'E']) then
+      Exit;
+  if (DigitCount = 0) or
+     (not TryStrToFloat(S, Dummy, TFormatSettings.Invariant)) then
+    Exit;
+
+  UnsignedText := S;
+  if CharInSet(UnsignedText[1], ['+', '-']) then
+    Delete(UnsignedText, 1, 1);
+  ExponentPos := Pos('e', LowerCase(UnsignedText));
+  if ExponentPos > 0 then
+    Mantissa := Copy(UnsignedText, 1, ExponentPos - 1)
+  else
+    Mantissa := UnsignedText;
+  DecimalPos := Pos('.', Mantissa);
+  if DecimalPos > 0 then
+    IntegerPart := Copy(Mantissa, 1, DecimalPos - 1)
+  else
+    IntegerPart := Mantissa;
+
+  // Preserve identifier-like values. Excel discards leading zeroes and stores
+  // only 15 significant digits in numeric cells.
+  if (Length(IntegerPart) > 1) and (IntegerPart[1] = '0') then
+    Exit;
+  if (DecimalPos = 0) and (ExponentPos = 0) and (DigitCount > 15) then
+    Exit;
+
+  ANormalized := S;
+  Result := True;
+end;
+
 function NeedsPreserveWhitespace(const S: string): Boolean;
 var
   I: Integer;
@@ -215,9 +262,8 @@ var
   ColIdxWidth: Integer;
   ColsElement: string;
   IsNumeric: Boolean;
-  IsDate: Boolean;
+  NumericText: string;
   MergedRuns: TArray<TReportExportTextRun>;
-  Dummy: Double;
   StyleId: Integer;
   ColLetter: string;
   // Fill/border capture and style-table bookkeeping
@@ -233,7 +279,8 @@ var
   FillsXml, BordersXml, CellXfsXml: string;
   SheetXml: string;
   CurrentRow: Integer;
-  RowCounter, ColCounter: Integer;
+  RowCounter, ColumnIndex: Integer;
+  ColumnPositions: TList<Integer>;
   FillOrder, BorderOrder: TList<Integer>;  // deterministic creation order
   XfOrder: TList<string>;
 const
@@ -249,6 +296,7 @@ begin
   FillOrder := TList<Integer>.Create;
   BorderOrder := TList<Integer>.Create;
   XfOrder := TList<string>.Create;
+  ColumnPositions := TList<Integer>.Create;
   try
     // Collect all text from all pages
     for PageIdx := 0 to APages.Count - 1 do
@@ -312,25 +360,48 @@ begin
           Result := Left.X - Right.X;
       end));
 
+    // R-04: establish one geometry-derived column map for the whole
+    // workbook. Per-row ordinal numbering shifted later cells left whenever
+    // an earlier object was absent. X positions within five pixels share a
+    // column, matching the tolerance already used for row grouping.
+    for I := 0 to AllCells.Count - 1 do
+    begin
+      ColumnIndex := -1;
+      for Key := 0 to ColumnPositions.Count - 1 do
+        if Abs(AllCells[I].X - ColumnPositions[Key]) <= 5 then
+        begin
+          ColumnIndex := Key;
+          Break;
+        end;
+      if ColumnIndex < 0 then
+        ColumnPositions.Add(AllCells[I].X);
+    end;
+    ColumnPositions.Sort;
+
     // Assign grid row/column per cell and estimate column widths from content.
     // The row grouping logic (roughly 5 pixels) must stay identical to the
     // row emission pass below.
     LastY := -9999;
     RowCounter := 0;
-    ColCounter := 0;
     for I := 0 to AllCells.Count - 1 do
     begin
       Cell := AllCells[I];
       if Abs(Cell.Y - LastY) > 5 then
       begin
         Inc(RowCounter);
-        ColCounter := 1;
         LastY := Cell.Y;
-      end
-      else
-        Inc(ColCounter);
+      end;
       Cell.Row := RowCounter;
-      Cell.Col := ColCounter;
+      Cell.Col := 0;
+      for ColumnIndex := 0 to ColumnPositions.Count - 1 do
+        if Abs(Cell.X - ColumnPositions[ColumnIndex]) <= 5 then
+        begin
+          Cell.Col := ColumnIndex + 1;
+          Break;
+        end;
+      if Cell.Col = 0 then
+        raise Exception.CreateFmt(
+          'Internal XLSX column mapping failed for X=%d.', [Cell.X]);
 
       // Estimate width: each char ~1.1 units, minimum 8
       ColIdxWidth := Max(8, Ceil(Length(Cell.Text) * 1.1));
@@ -561,16 +632,11 @@ begin
         // fill/border variants were appended in the style resolution pass.
         StyleId := Cell.StyleId;
 
-        // Detect numeric/date content for number format
-        IsNumeric := TryStrToFloat(Cell.Text, Dummy);
-        IsDate := False;
-        if not IsNumeric then
-        begin
-          // Simple date detection: matches common date patterns
-          var Trimmed := Trim(Cell.Text);
-          if (Length(Trimmed) >= 8) and (Length(Trimmed) <= 10) then
-            IsDate := (Pos('/', Trimmed) > 0) or (Pos('-', Trimmed) > 0) or (Pos('.', Trimmed) > 0);
-        end;
+        // The command model carries rendered text rather than the source
+        // field type, so infer numbers conservatively. Rich text and values
+        // Excel would alter (identifiers and >15-digit integers) stay text.
+        IsNumeric := (not Cell.HasRuns) and
+          TryGetInvariantNumericCellText(Cell.Text, NumericText);
 
         // Build cell reference (supports A-ZZ columns)
         ColLetter := '';
@@ -583,7 +649,7 @@ begin
 
         if IsNumeric then
           SheetXml := SheetXml + Format('<c r="%s%d" s="%d"><v>%s</v></c>',
-            [ColLetter, Cell.Row, StyleId, StringReplace(Cell.Text, ',', '.', [])])
+            [ColLetter, Cell.Row, StyleId, NumericText])
         else if Cell.HasRuns then
         begin
           // Line-break runs are folded into adjacent text runs as a literal
@@ -673,6 +739,7 @@ begin
       Sheet1.Free;
     end;
   finally
+    ColumnPositions.Free;
     XfOrder.Free;
     BorderOrder.Free;
     FillOrder.Free;

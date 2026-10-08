@@ -35,6 +35,11 @@ type
   public
     [Test] procedure Test_TextCell_InlineString_Emitted;
     [Test] procedure Test_NumericCell_Value_Emitted;
+    [Test] procedure Test_LeadingZeroIdentifier_RemainsText;
+    [Test] procedure Test_LongIntegerIdentifier_RemainsText;
+    [Test] procedure Test_NumericRichRun_RemainsRichText;
+    [Test] procedure Test_NumericParsing_IsInvariant;
+    [Test] procedure Test_FormattedValues_RemainText;
     [Test] procedure Test_BoldStyle_Preserved;
     [Test] procedure Test_FillRectangle_BecomesCellFill;
     [Test] procedure Test_BorderRectangle_BecomesCellBorder;
@@ -55,6 +60,8 @@ type
     [Test] procedure Test_RunWhitespace_Preserved;
     [Test] procedure Test_StyleCombinations_Preserved;
     [Test] procedure Test_RichMemo_AllowHTML_Path;
+    [Test] procedure Test_SparseRow_PreservesColumnByX;
+    [Test] procedure Test_ColumnsRemainStableAcrossPages;
   end;
 
 implementation
@@ -177,6 +184,58 @@ end;
 
 { TExportXLSXTests }
 
+procedure TExportXLSXTests.Test_SparseRow_PreservesColumnByX;
+var
+  Doc: TReportExportDocument;
+  Page: TReportExportPage;
+  Pkg: TBytes;
+  Sheet: string;
+begin
+  Doc := TReportExportDocument.Create;
+  try
+    Page := Doc.AddPage(793, 1122);
+    Page.Commands.Add(TextCmd('Description', Rect(10, 10, 150, 30)));
+    Page.Commands.Add(TextCmd('Account', Rect(210, 10, 350, 30)));
+    // Row 2 has no first-column object. Its X position must still map to B.
+    Page.Commands.Add(TextCmd('ACC-123', Rect(210, 40, 350, 60)));
+
+    Pkg := ExportToBytes(Doc);
+    Sheet := ReadZipEntry(Pkg, 'xl/worksheets/sheet1.xml');
+    Assert.Contains(Sheet, 'r="A1"');
+    Assert.Contains(Sheet, 'r="B1"');
+    Assert.Contains(Sheet, 'r="B2"');
+    Assert.DoesNotContain(Sheet, 'r="A2"',
+      'a missing first cell must leave a hole instead of shifting column B');
+  finally
+    Doc.Free;
+  end;
+end;
+
+procedure TExportXLSXTests.Test_ColumnsRemainStableAcrossPages;
+var
+  Doc: TReportExportDocument;
+  Page: TReportExportPage;
+  Pkg: TBytes;
+  Sheet: string;
+begin
+  Doc := TReportExportDocument.Create;
+  try
+    Page := Doc.AddPage(793, 1122);
+    Page.Commands.Add(TextCmd('Left', Rect(10, 10, 150, 30)));
+    Page.Commands.Add(TextCmd('Right', Rect(210, 10, 350, 30)));
+    Page := Doc.AddPage(793, 1122);
+    Page.Commands.Add(TextCmd('PAGE-2-RIGHT', Rect(210, 10, 350, 30)));
+
+    Pkg := ExportToBytes(Doc);
+    Sheet := ReadZipEntry(Pkg, 'xl/worksheets/sheet1.xml');
+    Assert.Contains(Sheet, 'r="B2"');
+    Assert.DoesNotContain(Sheet, 'r="A2"',
+      'page boundaries must not reset geometry-derived columns');
+  finally
+    Doc.Free;
+  end;
+end;
+
 procedure TExportXLSXTests.Test_TextCell_InlineString_Emitted;
 var
   Doc: TReportExportDocument;
@@ -210,6 +269,120 @@ begin
     Sheet := ReadZipEntry(Pkg, 'xl/worksheets/sheet1.xml');
     // Numeric cells are emitted as raw <v> values without t="inlineStr".
     Assert.Contains(Sheet, '<c r="A1" s="0"><v>42</v></c>');
+  finally
+    Doc.Free;
+  end;
+end;
+
+procedure TExportXLSXTests.Test_LeadingZeroIdentifier_RemainsText;
+var
+  Doc: TReportExportDocument;
+  Pkg: TBytes;
+  Sheet: string;
+begin
+  Doc := TReportExportDocument.Create;
+  try
+    Doc.AddPage(793, 1122).Commands.Add(TextCmd('00123', Rect(10, 10, 300, 40)));
+    Doc.Pages[0].Commands.Add(TextCmd('-00123', Rect(320, 10, 500, 40)));
+    Pkg := ExportToBytes(Doc);
+    Sheet := ReadZipEntry(Pkg, 'xl/worksheets/sheet1.xml');
+    Assert.Contains(Sheet, 't="inlineStr"');
+    Assert.Contains(Sheet, '<t>00123</t>');
+    Assert.Contains(Sheet, '<t>-00123</t>');
+    Assert.DoesNotContain(Sheet, '<v>00123</v>');
+    Assert.DoesNotContain(Sheet, '<v>-00123</v>');
+  finally
+    Doc.Free;
+  end;
+end;
+
+procedure TExportXLSXTests.Test_LongIntegerIdentifier_RemainsText;
+var
+  Doc: TReportExportDocument;
+  Pkg: TBytes;
+  Sheet: string;
+begin
+  Doc := TReportExportDocument.Create;
+  try
+    Doc.AddPage(793, 1122).Commands.Add(
+      TextCmd('1234567890123456', Rect(10, 10, 300, 40)));
+    Pkg := ExportToBytes(Doc);
+    Sheet := ReadZipEntry(Pkg, 'xl/worksheets/sheet1.xml');
+    Assert.Contains(Sheet, 't="inlineStr"');
+    Assert.Contains(Sheet, '<t>1234567890123456</t>');
+    Assert.DoesNotContain(Sheet, '<v>1234567890123456</v>');
+  finally
+    Doc.Free;
+  end;
+end;
+
+procedure TExportXLSXTests.Test_NumericRichRun_RemainsRichText;
+var
+  Doc: TReportExportDocument;
+  Pkg: TBytes;
+  Sheet: string;
+  Runs: TArray<TReportExportTextRun>;
+begin
+  Doc := TReportExportDocument.Create;
+  try
+    Runs := [MakeRun('42', [fsBold])];
+    Doc.AddPage(793, 1122).Commands.Add(
+      TextCmdWithRuns('42', Runs, Rect(10, 10, 300, 40)));
+    Pkg := ExportToBytes(Doc);
+    Sheet := ReadZipEntry(Pkg, 'xl/worksheets/sheet1.xml');
+    Assert.Contains(Sheet, 't="inlineStr"');
+    Assert.Contains(Sheet, '<r>');
+    Assert.Contains(Sheet, '<t>42</t>');
+    Assert.DoesNotContain(Sheet, '<v>42</v>');
+  finally
+    Doc.Free;
+  end;
+end;
+
+procedure TExportXLSXTests.Test_NumericParsing_IsInvariant;
+var
+  Doc: TReportExportDocument;
+  Pkg: TBytes;
+  Sheet: string;
+  SavedFormatSettings: TFormatSettings;
+begin
+  SavedFormatSettings := FormatSettings;
+  try
+    FormatSettings.DecimalSeparator := ',';
+    FormatSettings.ThousandSeparator := '.';
+    Doc := TReportExportDocument.Create;
+    try
+      Doc.AddPage(793, 1122).Commands.Add(TextCmd('12.50', Rect(10, 10, 300, 40)));
+      Pkg := ExportToBytes(Doc);
+      Sheet := ReadZipEntry(Pkg, 'xl/worksheets/sheet1.xml');
+      Assert.Contains(Sheet, '<c r="A1" s="0"><v>12.50</v></c>');
+    finally
+      Doc.Free;
+    end;
+  finally
+    FormatSettings := SavedFormatSettings;
+  end;
+end;
+
+procedure TExportXLSXTests.Test_FormattedValues_RemainText;
+var
+  Doc: TReportExportDocument;
+  Page: TReportExportPage;
+  Pkg: TBytes;
+  Sheet: string;
+begin
+  Doc := TReportExportDocument.Create;
+  try
+    Page := Doc.AddPage(793, 1122);
+    Page.Commands.Add(TextCmd('1,23', Rect(10, 10, 150, 40)));
+    Page.Commands.Add(TextCmd('$1,234.50', Rect(170, 10, 310, 40)));
+    Page.Commands.Add(TextCmd('2026-10-08', Rect(330, 10, 470, 40)));
+    Pkg := ExportToBytes(Doc);
+    Sheet := ReadZipEntry(Pkg, 'xl/worksheets/sheet1.xml');
+    Assert.Contains(Sheet, '<t>1,23</t>');
+    Assert.Contains(Sheet, '<t>$1,234.50</t>');
+    Assert.Contains(Sheet, '<t>2026-10-08</t>');
+    Assert.DoesNotContain(Sheet, '<v>1.23</v>');
   finally
     Doc.Free;
   end;
