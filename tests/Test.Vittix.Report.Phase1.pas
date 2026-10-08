@@ -48,6 +48,8 @@ type
     procedure Test_GAP006_OneAndTwoPass_KeepPaginationAndExportPageCountsAligned;
     [Test]
     procedure Test_VRT_AllBundledFixtures_LoadSaveReload_PreserveModelShape;
+    [Test]
+    procedure Test_VRT_ReportVariables_LoadAndRender;
   end;
 
 implementation
@@ -337,6 +339,61 @@ begin
     finally
       Original.Free;
     end;
+  end;
+end;
+
+procedure TPhase1CharacterizationTests.Test_VRT_ReportVariables_LoadAndRender;
+var
+  Model: TReportModel;
+  Engine: TReportEngine;
+  Doc: TReportExportDocument;
+  Page: TReportExportPage;
+  Cmd: TReportExportCommand;
+  FoundCompany, FoundAddress, FoundFooter: Boolean;
+begin
+  // R-02: assert meaning at the raw fixture boundary. A load/save comparison
+  // alone missed this bug because both models had already lost Variables.
+  Model := TReportSerializer.LoadFromFile(
+    TPath.Combine(FindReportsDirectory, '37_report_variables.vrt'));
+  try
+    Assert.AreEqual(3, Model.Variables.Count);
+    Assert.AreEqual('Acme Ltd', Model.Variables.Values['CompanyName']);
+    Assert.AreEqual('123 Main Street', Model.Variables.Values['CompanyAddress']);
+    Assert.AreEqual('CONFIDENTIAL', Model.Variables.Values['ReportFooter']);
+
+    Doc := TReportExportDocument.Create;
+    try
+      Engine := TReportEngine.Create(Model, TDataSet(nil));
+      try
+        Engine.ExportDocument := Doc;
+        Engine.Prepare;
+      finally
+        Engine.Free;
+      end;
+
+      FoundCompany := False;
+      FoundAddress := False;
+      FoundFooter := False;
+      for Page in Doc.Pages do
+        for Cmd in Page.Commands do
+          if Cmd is TReportExportTextCommand then
+          begin
+            FoundCompany := FoundCompany or
+              (TReportExportTextCommand(Cmd).Text = 'Acme Ltd');
+            FoundAddress := FoundAddress or
+              (TReportExportTextCommand(Cmd).Text = '123 Main Street');
+            FoundFooter := FoundFooter or
+              (TReportExportTextCommand(Cmd).Text = 'CONFIDENTIAL');
+          end;
+
+      Assert.IsTrue(FoundCompany, 'CompanyName variable was not rendered');
+      Assert.IsTrue(FoundAddress, 'CompanyAddress variable was not rendered');
+      Assert.IsTrue(FoundFooter, 'ReportFooter variable was not rendered');
+    finally
+      Doc.Free;
+    end;
+  finally
+    Model.Free;
   end;
 end;
 

@@ -1087,6 +1087,7 @@ end;
 class function TReportSerializer.SaveToJSON(R: TReportModel): string;
 var
   Root:   TJSONObject;
+  VariablesObj: TJSONObject;
   Arr:    TJSONArray;
   FldArr: TJSONArray;
   Obj:    TReportObject;
@@ -1119,6 +1120,15 @@ begin
     for I := 0 to R.DataSetNames.Count - 1 do
       FldArr.Add(R.DataSetNames[I]);
     Root.AddPair('DataSetNames', FldArr);
+
+    // R-02: report variables are named string constants. Keep the established
+    // object shape used by 37_report_variables.vrt and omit bare TStringList
+    // entries that have no name/value separator.
+    VariablesObj := TJSONObject.Create;
+    for I := 0 to R.Variables.Count - 1 do
+      if R.Variables.Names[I] <> '' then
+        VariablesObj.AddPair(R.Variables.Names[I], R.Variables.ValueFromIndex[I]);
+    Root.AddPair('Variables', VariablesObj);
 
     Arr := TJSONArray.Create;
     for Obj in R.Objects do
@@ -1176,6 +1186,46 @@ begin
   Arr := TJSONArray(V);
   for i := 0 to Arr.Count - 1 do
     AList.Add(Arr.Items[i].Value);
+end;
+
+// Optional root-level named string values (Variables).
+// Missing key -> model defaults preserved. Present values must be a JSON
+// object whose values are strings; report variables are deliberately a
+// string-valued contract in TReportModel/TStringList. A legacy empty array is
+// accepted as empty because 44_chart_object.vrt uses that historical shape.
+procedure ReadOptionalStringObject(Root: TJSONObject; const AName: string;
+  AList: TStringList; const AErrorCode: string; AResult: TReportLoadResult);
+var
+  V: TJSONValue;
+  Obj: TJSONObject;
+  Pair: TJSONPair;
+begin
+  V := Root.GetValue(AName);
+  if not Assigned(V) then
+    Exit;
+  if (V is TJSONArray) and (TJSONArray(V).Count = 0) then
+    Exit;
+  if not (V is TJSONObject) then
+  begin
+    AResult.AddError(
+      Format('''%s'' must be a JSON object (found %s)', [AName, V.ClassName]),
+      AName, '', AErrorCode);
+    Exit;
+  end;
+
+  Obj := TJSONObject(V);
+  for Pair in Obj do
+  begin
+    if not (Pair.JsonValue is TJSONString) then
+    begin
+      AResult.AddError(
+        Format('''%s.%s'' must be a string (found %s)',
+          [AName, Pair.JsonString.Value, Pair.JsonValue.ClassName]),
+        AName + '.' + Pair.JsonString.Value, '', AErrorCode);
+      Continue;
+    end;
+    AList.Values[Pair.JsonString.Value] := Pair.JsonValue.Value;
+  end;
 end;
 
 
@@ -1455,6 +1505,8 @@ begin
         Result.Model.FieldNames, 'INVALID_FIELDNAMES', Result);
       ReadOptionalStringArray(Root, 'DataSetNames',
         Result.Model.DataSetNames, 'INVALID_DATASETNAMES', Result);
+      ReadOptionalStringObject(Root, 'Variables',
+        Result.Model.Variables, 'INVALID_VARIABLES', Result);
 
       // Objects is optional; when present it must be an array.
       ObjValue := Root.GetValue('Objects');

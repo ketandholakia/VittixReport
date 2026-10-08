@@ -22,6 +22,12 @@ type
     [Test]
     procedure Test_RoundTrip_ModelWithProperties;
     [Test]
+    procedure Test_RoundTrip_ReportVariables;
+    [Test]
+    procedure Test_Load_ReportVariablesObject;
+    [Test]
+    procedure Test_Invalid_ReportVariables_Rejected;
+    [Test]
     procedure Test_CloneReport;
     [Test]
     procedure Test_CloneObject;
@@ -102,6 +108,68 @@ begin
     end;
   finally
     M1.Free;
+  end;
+end;
+
+procedure TTestReportSerializer.Test_RoundTrip_ReportVariables;
+var
+  M1, M2: TReportModel;
+  JSON: string;
+begin
+  M1 := TReportModel.Create;
+  try
+    M1.Variables.Values['CompanyName'] := 'Acme Ltd';
+    M1.Variables.Values['ReportFooter'] := 'CONFIDENTIAL';
+
+    JSON := TReportSerializer.SaveToJSON(M1);
+    M2 := TReportSerializer.LoadFromJSON(JSON);
+    try
+      Assert.AreEqual(2, M2.Variables.Count);
+      Assert.AreEqual('Acme Ltd', M2.Variables.Values['CompanyName']);
+      Assert.AreEqual('CONFIDENTIAL', M2.Variables.Values['ReportFooter']);
+    finally
+      M2.Free;
+    end;
+  finally
+    M1.Free;
+  end;
+end;
+
+procedure TTestReportSerializer.Test_Load_ReportVariablesObject;
+var
+  M: TReportModel;
+begin
+  // This is the root-level shape already used by 37_report_variables.vrt.
+  M := TReportSerializer.LoadFromJSON(
+    '{"Version":2,"Variables":{' +
+    '"CompanyName":"Acme Ltd","ReportFooter":"CONFIDENTIAL"}}');
+  try
+    Assert.AreEqual(2, M.Variables.Count);
+    Assert.AreEqual('Acme Ltd', M.Variables.Values['CompanyName']);
+    Assert.AreEqual('CONFIDENTIAL', M.Variables.Values['ReportFooter']);
+  finally
+    M.Free;
+  end;
+end;
+
+procedure TTestReportSerializer.Test_Invalid_ReportVariables_Rejected;
+var
+  LR: TReportLoadResult;
+  I: Integer;
+  FoundCode: Boolean;
+begin
+  LR := TReportSerializer.LoadFromJSONEx(
+    '{"Version":2,"Variables":["not","an","object"]}', False);
+  try
+    Assert.IsFalse(LR.Success,
+      'a Variables array must not silently load as a named-value object');
+    FoundCode := False;
+    for I := 0 to LR.Diagnostics.Count - 1 do
+      if LR.Diagnostics[I].Code = 'INVALID_VARIABLES' then
+        FoundCode := True;
+    Assert.IsTrue(FoundCode, 'expected an INVALID_VARIABLES diagnostic');
+  finally
+    LR.Free;
   end;
 end;
 
