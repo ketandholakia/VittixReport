@@ -199,15 +199,26 @@ var
       []));
   end;
 
+  function PdfColorNumber(AValue: Double): AnsiString;
+  begin
+    // Color operands are already normalized to the PDF range 0..1.  They are
+    // not report coordinates and must not receive the pixel-to-point scale.
+    Result := AnsiString(StringReplace(
+      FormatFloat('0.###', AValue),
+      FormatSettings.DecimalSeparator,
+      '.',
+      []));
+  end;
+
   function PdfColor(AColor: TColor): AnsiString;
   var
     RGBColor: LongInt;
   begin
     RGBColor := ColorToRGB(AColor);
     Result :=
-      PdfNumber(GetRValue(RGBColor) / 255) + ' ' +
-      PdfNumber(GetGValue(RGBColor) / 255) + ' ' +
-      PdfNumber(GetBValue(RGBColor) / 255);
+      PdfColorNumber(GetRValue(RGBColor) / 255) + ' ' +
+      PdfColorNumber(GetGValue(RGBColor) / 255) + ' ' +
+      PdfColorNumber(GetBValue(RGBColor) / 255);
   end;
 
   function PdfY(APage: TReportExportPage; AY: Integer): Double;

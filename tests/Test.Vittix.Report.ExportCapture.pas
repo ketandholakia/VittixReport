@@ -72,6 +72,7 @@ type
     [Test] procedure Test_Line_Capture_Regression;
     [Test] procedure Test_Ellipse_HTMLExport_ContainsVectorEllipse;
     [Test] procedure Test_Ellipse_VectorPDF_ContainsBezierContent;
+    [Test] procedure Test_VectorPDF_RGBColors_AreNotScaled;
     [Test] procedure Test_FilePathBMP_VectorPDF_ContainsImage;
     [Test] procedure Test_FilePathGIF_VectorPDF_ContainsImage;
     [Test] procedure Test_FilePathPNG_VectorPDF_Regression;
@@ -1396,6 +1397,46 @@ begin
       Assert.Contains(Pdf, ' RG'#10);
       Assert.Contains(Pdf, ' rg'#10);
       Assert.IsFalse(ContainsText(Pdf, '/Im'), 'ellipse must not be rasterized');
+    finally
+      Ms.Free;
+    end;
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TExportCaptureTests.Test_VectorPDF_RGBColors_AreNotScaled;
+var
+  Shape: TReportShapeObject;
+  Engine: TReportEngine;
+  Doc: TReportExportDocument;
+  Model: TReportModel;
+  DS: TClientDataSet;
+  Ms: TStringStream;
+  Pdf: string;
+begin
+  Shape := TReportShapeObject.Create;
+  Shape.ShapeType := stRectangle;
+  Shape.BrushStyle := bsSolid;
+  Shape.BrushColor := clRed;
+  Shape.PenColor := clBlue;
+  Shape.PenWidth := 2;
+  Engine := BuildShapeEngine(Shape, Doc, Model, DS);
+  try
+    Engine.Prepare;
+    Ms := TStringStream.Create('', TEncoding.UTF8);
+    try
+      TReportVectorPDFExporter.ExportDocument(Doc, Ms);
+      Pdf := Ms.DataString;
+      Assert.Contains(Pdf, '1 0 0 rg' + #10,
+        'red fill must use normalized RGB values');
+      Assert.Contains(Pdf, '0 0 1 RG' + #10,
+        'blue border must use normalized RGB values');
+      Assert.IsFalse(ContainsText(Pdf, '0.75 0 0 rg'),
+        'RGB channels must not receive pixel-to-point scaling');
     finally
       Ms.Free;
     end;
