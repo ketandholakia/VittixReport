@@ -541,6 +541,9 @@ end;
   dataset entirely so no later path (including Destroy) touches it.  Safe
   to call repeatedly and when the engine was never prepared. }
 procedure TReportEngine.DetachDataSet;
+var
+  I: Integer;
+  HasGroupLevelBookmarks: Boolean;
 begin
   if (FDataSet <> nil) and
      (FHasGroupStartBookmark or FHasGroupEndBookmark) and
@@ -556,6 +559,25 @@ begin
   FGroupEndBookmark := nil;
   FHasGroupStartBookmark := False;
   FHasGroupEndBookmark := False;
+  HasGroupLevelBookmarks := False;
+  for I := 0 to High(FHasGroupStartBookmarks) do
+    HasGroupLevelBookmarks := HasGroupLevelBookmarks or FHasGroupStartBookmarks[I];
+  for I := 0 to High(FHasGroupEndBookmarks) do
+    HasGroupLevelBookmarks := HasGroupLevelBookmarks or FHasGroupEndBookmarks[I];
+  if Assigned(FDataSet) and HasGroupLevelBookmarks and
+     DataSetSupportsBookmarks(FDataSet) then
+  begin
+    for I := 0 to High(FGroupStartBookmarks) do
+      if (I <= High(FHasGroupStartBookmarks)) and FHasGroupStartBookmarks[I] then
+        FDataSet.FreeBookmark(FGroupStartBookmarks[I]);
+    for I := 0 to High(FGroupEndBookmarks) do
+      if (I <= High(FHasGroupEndBookmarks)) and FHasGroupEndBookmarks[I] then
+        FDataSet.FreeBookmark(FGroupEndBookmarks[I]);
+  end;
+  SetLength(FGroupStartBookmarks, 0);
+  SetLength(FGroupEndBookmarks, 0);
+  SetLength(FHasGroupStartBookmarks, 0);
+  SetLength(FHasGroupEndBookmarks, 0);
   FDataSet := nil;
 end;
 
@@ -857,6 +879,9 @@ end;
 
 procedure TReportEngine.BeginPass(
   ATotalPages: Integer; AReportProgress: Boolean; out ATotalRows, ARowNumber: Integer);
+var
+  I: Integer;
+  HasGroupLevelBookmarks: Boolean;
 begin
   FPages.Clear;
   FPageNumber := 0;
@@ -881,6 +906,25 @@ begin
   FGroupEndBookmark := nil;
   FHasGroupStartBookmark := False;
   FHasGroupEndBookmark := False;
+  HasGroupLevelBookmarks := False;
+  for I := 0 to High(FHasGroupStartBookmarks) do
+    HasGroupLevelBookmarks := HasGroupLevelBookmarks or FHasGroupStartBookmarks[I];
+  for I := 0 to High(FHasGroupEndBookmarks) do
+    HasGroupLevelBookmarks := HasGroupLevelBookmarks or FHasGroupEndBookmarks[I];
+  if Assigned(FDataSet) and HasGroupLevelBookmarks and
+     DataSetSupportsBookmarks(FDataSet) then
+  begin
+    for I := 0 to High(FGroupStartBookmarks) do
+      if (I <= High(FHasGroupStartBookmarks)) and FHasGroupStartBookmarks[I] then
+        FDataSet.FreeBookmark(FGroupStartBookmarks[I]);
+    for I := 0 to High(FGroupEndBookmarks) do
+      if (I <= High(FHasGroupEndBookmarks)) and FHasGroupEndBookmarks[I] then
+        FDataSet.FreeBookmark(FGroupEndBookmarks[I]);
+  end;
+  SetLength(FGroupStartBookmarks, 0);
+  SetLength(FGroupEndBookmarks, 0);
+  SetLength(FHasGroupStartBookmarks, 0);
+  SetLength(FHasGroupEndBookmarks, 0);
 end;
 
 procedure TReportEngine.PrintFirstPageBands;
