@@ -54,6 +54,8 @@ type
     [Test]
     procedure Test_GroupBreak_TypeFlap_Fires;
     [Test]
+    procedure Test_NestedGroupAggregates_UseOuterRange;
+    [Test]
     procedure Test_DP18_CrossTabTallerThanBand_NoBleedIntoNextBand;
     [Test]
     procedure Test_DP29_RowScopedAggregates_DoNotGrowCache;
@@ -569,6 +571,110 @@ begin
     end;
   finally
     Harness.Free;
+  end;
+end;
+
+procedure TTestReportEngine.Test_NestedGroupAggregates_UseOuterRange;
+var
+  DS: TClientDataSet;
+  Model: TReportModel;
+  Engine: TReportEngine;
+  Doc: TReportExportDocument;
+  Band: TReportBand;
+  Obj: TReportTextObject;
+  Cmd: TReportExportCommand;
+  Values: TStringList;
+begin
+  DS := TClientDataSet.Create(nil);
+  try
+    DS.FieldDefs.Add('Region', ftString, 20);
+    DS.FieldDefs.Add('Product', ftString, 20);
+    DS.FieldDefs.Add('Amount', ftFloat);
+    DS.CreateDataSet;
+    DS.AppendRecord(['East', 'A', 10.0]);
+    DS.AppendRecord(['East', 'B', 20.0]);
+    DS.AppendRecord(['West', 'A', 30.0]);
+    DS.AppendRecord(['West', 'B', 40.0]);
+    DS.First;
+
+    Model := TReportModel.Create;
+    try
+      Band := TReportBand.Create;
+      Band.BandType := btMasterData;
+      Band.Height := 20;
+      Obj := TReportTextObject.Create;
+      Obj.DataField := 'Amount';
+      Obj.Bounds := Rect(10, 2, 100, 18);
+      Band.Children.Add(Obj);
+      Model.Objects.Add(Band);
+
+      Band := TReportBand.Create;
+      Band.BandType := btGroupHeader;
+      Band.GroupField := 'Region';
+      Band.GroupLevel := 0;
+      Band.Height := 5;
+      Model.Objects.Add(Band);
+
+      Band := TReportBand.Create;
+      Band.BandType := btGroupHeader;
+      Band.GroupField := 'Product';
+      Band.GroupLevel := 1;
+      Band.Height := 5;
+      Model.Objects.Add(Band);
+
+      Band := TReportBand.Create;
+      Band.BandType := btGroupFooter;
+      Band.GroupField := 'Product';
+      Band.GroupLevel := 1;
+      Band.Height := 20;
+      Obj := TReportTextObject.Create;
+      Obj.Expression := 'SUM([Amount])';
+      Obj.Bounds := Rect(10, 2, 100, 18);
+      Band.Children.Add(Obj);
+      Model.Objects.Add(Band);
+
+      Band := TReportBand.Create;
+      Band.BandType := btGroupFooter;
+      Band.GroupField := 'Region';
+      Band.GroupLevel := 0;
+      Band.Height := 20;
+      Obj := TReportTextObject.Create;
+      Obj.Expression := 'SUM([Amount])';
+      Obj.Bounds := Rect(10, 2, 100, 18);
+      Band.Children.Add(Obj);
+      Model.Objects.Add(Band);
+
+      Doc := TReportExportDocument.Create;
+      try
+        Engine := TReportEngine.Create(Model, DS);
+        try
+          Engine.ExportDocument := Doc;
+          Engine.Prepare;
+
+          Values := TStringList.Create;
+          try
+            for Cmd in Doc.Pages[0].Commands do
+              if Cmd is TReportExportTextCommand then
+                Values.Add(TReportExportTextCommand(Cmd).Text);
+
+            Assert.IsTrue(Values.IndexOf('30') >= 0,
+              'nested group output must contain the East region total 30');
+            Assert.IsTrue(Values.IndexOf('70') >= 0,
+              'nested group output must contain the West region total 70');
+          finally
+            Values.Free;
+          end;
+        finally
+          Engine.Free;
+        end;
+      finally
+        Doc.Free;
+      end;
+    finally
+      Model.Free;
+    end;
+  finally
+    DS.Free;
   end;
 end;
 

@@ -54,6 +54,7 @@ type
 
 type
   TBooleanDynArray = array of Boolean;
+  TBookmarkDynArray = array of TBookmark;
 
 type
   TReportBeforePrintReportEvent = procedure(
@@ -175,6 +176,10 @@ type
     FGroupEndBookmark:      TBookmark;
     FHasGroupStartBookmark: Boolean;
     FHasGroupEndBookmark:   Boolean;
+    FGroupStartBookmarks: TBookmarkDynArray;
+    FGroupEndBookmarks: TBookmarkDynArray;
+    FHasGroupStartBookmarks: TBooleanDynArray;
+    FHasGroupEndBookmarks: TBooleanDynArray;
 
     FGroupHeaders:    TObjectList<TReportBand>;
     FGroupFooters:    TObjectList<TReportBand>;
@@ -210,8 +215,8 @@ type
     function DetectGroupBreak(const AActiveGroupHeader: TBooleanDynArray): Integer;
     function ProcessCurrentMasterRecord(AReportProgress: Boolean; var ARowNumber: Integer): Boolean;
     procedure ProcessMasterDataLoop(const AActiveGroupHeader: TBooleanDynArray; AReportProgress: Boolean; var ARowNumber: Integer; var AHasOpenedGroups: Boolean);
-    procedure CaptureGroupStartBookmark;
-    procedure CaptureGroupEndBookmark;
+    procedure CaptureGroupStartBookmark(ALevel: Integer = -1);
+    procedure CaptureGroupEndBookmark(ALevel: Integer = -1);
     function IsGroupLevelActive(const AActiveGroupHeader: TBooleanDynArray; ALevel: Integer): Boolean;
     procedure CloseGroupsForBreak(ABreakLevel: Integer; const AActiveGroupHeader: TBooleanDynArray);
     procedure OpenGroupsForBreak(ABreakLevel: Integer; const AActiveGroupHeader: TBooleanDynArray; var AHasOpenedGroups: Boolean);
@@ -1030,8 +1035,30 @@ begin
   end;
 end;
 
-procedure TReportEngine.CaptureGroupStartBookmark;
+procedure TReportEngine.CaptureGroupStartBookmark(ALevel: Integer);
+var
+  L: Integer;
 begin
+  if ALevel >= 0 then
+  begin
+    L := ALevel;
+    if Length(FGroupStartBookmarks) <= L then
+    begin
+      SetLength(FGroupStartBookmarks, L + 1);
+      SetLength(FHasGroupStartBookmarks, L + 1);
+    end;
+    if Assigned(FDataSet) and DataSetSupportsBookmarks(FDataSet) then
+    begin
+      if FHasGroupStartBookmarks[L] then
+        FDataSet.FreeBookmark(FGroupStartBookmarks[L]);
+      FGroupStartBookmarks[L] := FDataSet.GetBookmark;
+      FHasGroupStartBookmarks[L] := True;
+    end
+    else
+      FHasGroupStartBookmarks[L] := False;
+    Exit;
+  end;
+
   if Assigned(FDataSet) and DataSetSupportsBookmarks(FDataSet) then
   begin
     if FHasGroupStartBookmark then
@@ -1046,8 +1073,30 @@ begin
   end;
 end;
 
-procedure TReportEngine.CaptureGroupEndBookmark;
+procedure TReportEngine.CaptureGroupEndBookmark(ALevel: Integer);
+var
+  L: Integer;
 begin
+  if ALevel >= 0 then
+  begin
+    L := ALevel;
+    if Length(FGroupEndBookmarks) <= L then
+    begin
+      SetLength(FGroupEndBookmarks, L + 1);
+      SetLength(FHasGroupEndBookmarks, L + 1);
+    end;
+    if Assigned(FDataSet) and DataSetSupportsBookmarks(FDataSet) then
+    begin
+      if FHasGroupEndBookmarks[L] then
+        FDataSet.FreeBookmark(FGroupEndBookmarks[L]);
+      FGroupEndBookmarks[L] := FDataSet.GetBookmark;
+      FHasGroupEndBookmarks[L] := True;
+    end
+    else
+      FHasGroupEndBookmarks[L] := False;
+    Exit;
+  end;
+
   if Assigned(FDataSet) and DataSetSupportsBookmarks(FDataSet) then
   begin
     if FHasGroupEndBookmark then
@@ -1079,12 +1128,14 @@ var
   I: Integer;
   GF: TReportBand;
 begin
-  CaptureGroupEndBookmark;
   for I := 0 to FGroupFooters.Count - 1 do
   begin
     GF := FGroupFooters[I];
     if (GF.GroupLevel >= ABreakLevel) and IsGroupLevelActive(AActiveGroupHeader, GF.GroupLevel) then
+    begin
+      CaptureGroupEndBookmark(GF.GroupLevel);
       PrintBandWithSpaceCheck(GF);
+    end;
   end;
 end;
 
@@ -1113,6 +1164,8 @@ begin
       PrintPageHeader;
     end;
 
+    CaptureGroupStartBookmark(GH.GroupLevel);
+
     PrintBandWithSpaceCheck(GH);
     OpenedThisBreak := True;
 
@@ -1133,7 +1186,6 @@ begin
   if OpenedThisBreak then
     AHasOpenedGroups := True;
 
-  CaptureGroupStartBookmark;
 end;
 
 procedure TReportEngine.CloseRemainingGroups(
@@ -1145,10 +1197,12 @@ begin
   if not (AHasOpenedGroups and AHasAnyActiveGroup) then
     Exit;
 
-  CaptureGroupEndBookmark;
   for GF in FGroupFooters do
     if IsGroupLevelActive(AActiveGroupHeader, GF.GroupLevel) then
+    begin
+      CaptureGroupEndBookmark(GF.GroupLevel);
       PrintBandWithSpaceCheck(GF);
+    end;
 end;
 
 procedure TReportEngine.PrintSummaryWithSpaceCheck;
@@ -1183,6 +1237,7 @@ var
   OriginalBounds: array of TRect;
   AdjustedCount: Integer;
   EffectiveH: Integer;
+  GroupLevel: Integer;
 begin
   if not Assigned(ADataSet) then
     ADataSet := FDataSet;
@@ -1242,6 +1297,16 @@ begin
   Ctx.UserDataSet := AUserDataSet;
   Ctx.GroupStart  := FGroupStartBookmark;
   Ctx.GroupEnd    := FGroupEndBookmark;
+  GroupLevel := ABand.GroupLevel;
+  if ABand.BandType = btGroupFooter then
+  begin
+    if (GroupLevel >= 0) and (GroupLevel < Length(FGroupStartBookmarks)) and
+       FHasGroupStartBookmarks[GroupLevel] then
+      Ctx.GroupStart := FGroupStartBookmarks[GroupLevel];
+    if (GroupLevel >= 0) and (GroupLevel < Length(FGroupEndBookmarks)) and
+       FHasGroupEndBookmarks[GroupLevel] then
+      Ctx.GroupEnd := FGroupEndBookmarks[GroupLevel];
+  end;
   Ctx.PageNumber  := FPageNumber;
   Ctx.TotalPages  := FTotalPagesForPass;
   Ctx.RowNumber   := FRowNumber;
