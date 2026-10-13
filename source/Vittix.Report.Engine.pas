@@ -207,7 +207,7 @@ type
     procedure ApplyPageSettings(ASettings: TReportPageSettings);
 
     procedure EndCurrentPage;
-    procedure PrintPageHeader;  // prints PageHeader + ColumnHeader together
+    procedure PrintPageHeader(AIncludeColumnHeader: Boolean = False);
     procedure EnsurePageSpaceForBand(ABand: TReportBand; RequiredHeight: Integer; PrintColumnHeader: Boolean = False);
     procedure BeginPass(ATotalPages: Integer; AReportProgress: Boolean; out ATotalRows, ARowNumber: Integer);
     procedure PrintFirstPageBands;
@@ -685,11 +685,14 @@ begin
   FCurrentY := FReport.PageSettings.Margins.Top;
 end;
 
-procedure TReportEngine.PrintPageHeader;
+procedure TReportEngine.PrintPageHeader(AIncludeColumnHeader: Boolean);
 begin
-  // Page-level header only — column header is printed after group headers
+  // Column headers are emitted after group headers, so callers that do not
+  // own group-header ordering must opt in explicitly.
   if Assigned(FHeaderBand) then
     PrintBand(FHeaderBand);
+  if AIncludeColumnHeader and Assigned(FColumnHeaderBand) then
+    PrintBandWithSpaceCheck(FColumnHeaderBand, FDataSet);
 end;
 
 procedure TReportEngine.EndCurrentPage;
@@ -1302,7 +1305,7 @@ begin
     if ABand.OverridePageSettings then
       ApplyPageSettings(ABand.PageSettings);
     StartNewPage;
-    PrintPageHeader;
+    PrintPageHeader(True);
   end;
 
   // Evaluate PrintWhen expression — skip band if result is falsy
@@ -1452,7 +1455,7 @@ begin
   if BandHasChildPageBreak(ABand, False) and not FPrintingFooter then
   begin
     StartNewPage;
-    PrintPageHeader;
+    PrintPageHeader(True);
   end;
 end;
 

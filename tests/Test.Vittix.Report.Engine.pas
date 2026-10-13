@@ -56,6 +56,10 @@ type
     [Test]
     procedure Test_NestedGroupAggregates_UseOuterRange;
     [Test]
+    procedure Test_ExplicitPageBreak_RepeatsColumnHeader;
+    [Test]
+    procedure Test_ChildPageBreak_RepeatsColumnHeader;
+    [Test]
     procedure Test_DP18_CrossTabTallerThanBand_NoBleedIntoNextBand;
     [Test]
     procedure Test_DP29_RowScopedAggregates_DoNotGrowCache;
@@ -664,6 +668,141 @@ begin
           finally
             Values.Free;
           end;
+        finally
+          Engine.Free;
+        end;
+      finally
+        Doc.Free;
+      end;
+    finally
+      Model.Free;
+    end;
+  finally
+    DS.Free;
+  end;
+end;
+
+procedure TTestReportEngine.Test_ExplicitPageBreak_RepeatsColumnHeader;
+var
+  DS: TClientDataSet;
+  Model: TReportModel;
+  Engine: TReportEngine;
+  Doc: TReportExportDocument;
+  Band: TReportBand;
+  Obj: TReportTextObject;
+  Cmd: TReportExportCommand;
+  HeaderCount: Integer;
+begin
+  DS := TClientDataSet.Create(nil);
+  try
+    DS.FieldDefs.Add('ID', ftInteger);
+    DS.CreateDataSet;
+    DS.AppendRecord([1]);
+    DS.AppendRecord([2]);
+    DS.First;
+
+    Model := TReportModel.Create;
+    try
+      Band := TReportBand.Create;
+      Band.BandType := btColumnHeader;
+      Band.Height := 20;
+      Obj := TReportTextObject.Create;
+      Obj.Text := 'COLUMN';
+      Obj.Bounds := Rect(10, 2, 100, 18);
+      Band.Children.Add(Obj);
+      Model.Objects.Add(Band);
+
+      Band := TReportBand.Create;
+      Band.BandType := btMasterData;
+      Band.Height := 100;
+      Band.StartNewPage := True;
+      Model.Objects.Add(Band);
+
+      Doc := TReportExportDocument.Create;
+      try
+        Engine := TReportEngine.Create(Model, DS);
+        try
+          Engine.ExportDocument := Doc;
+          Engine.Prepare;
+          HeaderCount := 0;
+          for Cmd in Doc.Pages[0].Commands do
+            if (Cmd is TReportExportTextCommand) and
+               (TReportExportTextCommand(Cmd).Text = 'COLUMN') then
+              Inc(HeaderCount);
+          for var PageIndex := 1 to Doc.Pages.Count - 1 do
+            for Cmd in Doc.Pages[PageIndex].Commands do
+              if (Cmd is TReportExportTextCommand) and
+                 (TReportExportTextCommand(Cmd).Text = 'COLUMN') then
+                Inc(HeaderCount);
+          Assert.AreEqual(Engine.PageCount, HeaderCount,
+            'explicit page breaks must repeat the column header once per page');
+        finally
+          Engine.Free;
+        end;
+      finally
+        Doc.Free;
+      end;
+    finally
+      Model.Free;
+    end;
+  finally
+    DS.Free;
+  end;
+end;
+
+procedure TTestReportEngine.Test_ChildPageBreak_RepeatsColumnHeader;
+var
+  DS: TClientDataSet;
+  Model: TReportModel;
+  Engine: TReportEngine;
+  Doc: TReportExportDocument;
+  Band: TReportBand;
+  Obj: TReportTextObject;
+  Cmd: TReportExportCommand;
+  HeaderCount: Integer;
+begin
+  DS := TClientDataSet.Create(nil);
+  try
+    DS.FieldDefs.Add('ID', ftInteger);
+    DS.CreateDataSet;
+    DS.AppendRecord([1]);
+    DS.First;
+
+    Model := TReportModel.Create;
+    try
+      Band := TReportBand.Create;
+      Band.BandType := btColumnHeader;
+      Band.Height := 20;
+      Obj := TReportTextObject.Create;
+      Obj.Text := 'COLUMN';
+      Obj.Bounds := Rect(10, 2, 100, 18);
+      Band.Children.Add(Obj);
+      Model.Objects.Add(Band);
+
+      Band := TReportBand.Create;
+      Band.BandType := btMasterData;
+      Band.Height := 100;
+      Obj := TReportTextObject.Create;
+      Obj.Text := 'ROW';
+      Obj.PageBreakBefore := True;
+      Obj.Bounds := Rect(10, 2, 100, 18);
+      Band.Children.Add(Obj);
+      Model.Objects.Add(Band);
+
+      Doc := TReportExportDocument.Create;
+      try
+        Engine := TReportEngine.Create(Model, DS);
+        try
+          Engine.ExportDocument := Doc;
+          Engine.Prepare;
+          HeaderCount := 0;
+          for var Page in Doc.Pages do
+            for Cmd in Page.Commands do
+              if (Cmd is TReportExportTextCommand) and
+                 (TReportExportTextCommand(Cmd).Text = 'COLUMN') then
+                Inc(HeaderCount);
+          Assert.AreEqual(Engine.PageCount, HeaderCount,
+            'child page breaks must repeat the column header once per page');
         finally
           Engine.Free;
         end;
