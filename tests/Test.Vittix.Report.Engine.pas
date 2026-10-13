@@ -20,6 +20,7 @@ uses
   Vittix.Report.Objects.Chart,
   Vittix.Report.Objects.CrossTab,
   Vittix.Report.UserDataSet,
+  Vittix.Report.Serializer,
   Vittix.Report.Renderer,
   Vittix.Report.Expressions,
   Vittix.Report.TraversalDiagnostics,
@@ -59,6 +60,8 @@ type
     procedure Test_ExplicitPageBreak_RepeatsColumnHeader;
     [Test]
     procedure Test_ChildPageBreak_RepeatsColumnHeader;
+    [Test]
+    procedure Test_SubReport_MeasuresDuringCountingPass;
     [Test]
     procedure Test_DP18_CrossTabTallerThanBand_NoBleedIntoNextBand;
     [Test]
@@ -811,6 +814,65 @@ begin
       end;
     finally
       Model.Free;
+    end;
+  finally
+    DS.Free;
+  end;
+end;
+
+procedure TTestReportEngine.Test_SubReport_MeasuresDuringCountingPass;
+var
+  DS: TClientDataSet;
+  SubModel: TReportModel;
+  SubBand: TReportBand;
+  SubReport: TReportSubReportObject;
+  Bitmap: TBitmap;
+  Context: TExpressionContext;
+  Measured: Integer;
+  OriginalRecNo: Integer;
+begin
+  DS := TClientDataSet.Create(nil);
+  try
+    DS.FieldDefs.Add('ID', ftInteger);
+    DS.CreateDataSet;
+    DS.AppendRecord([1]);
+    DS.AppendRecord([2]);
+    DS.AppendRecord([3]);
+    DS.First;
+    OriginalRecNo := DS.RecNo;
+
+    SubModel := TReportModel.Create;
+    try
+      SubBand := TReportBand.Create;
+      SubBand.BandType := btMasterData;
+      SubBand.Height := 30;
+      SubModel.Objects.Add(SubBand);
+
+      SubReport := TReportSubReportObject.Create;
+      try
+        SubReport.ReportJSON := TReportSerializer.SaveToJSON(SubModel);
+        SubReport.Bounds := Rect(10, 10, 200, 30);
+
+        Bitmap := TBitmap.Create;
+        try
+          Bitmap.SetSize(400, 400);
+          Context := Default(TExpressionContext);
+          Context.DataSet := DS;
+          Context.IsCountingPass := True;
+          Measured := SubReport.MeasuredBottom(Bitmap.Canvas, Context);
+
+          Assert.IsTrue(Measured > SubReport.Bounds.Bottom,
+            'counting-pass measurement must include rendered subreport rows');
+          Assert.AreEqual(OriginalRecNo, DS.RecNo,
+            'subreport measurement must restore the dataset position');
+        finally
+          Bitmap.Free;
+        end;
+      finally
+        SubReport.Free;
+      end;
+    finally
+      SubModel.Free;
     end;
   finally
     DS.Free;

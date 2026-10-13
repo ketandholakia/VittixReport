@@ -2326,10 +2326,12 @@ var
   HasSaveBM: Boolean;
   RowCount: Integer;
   NeededH: Integer;
+  ControlsDisabledByUs: Boolean;
+  PrimaryException: Exception;
+  CleanupException: Exception;
 begin
   Result := FBounds.Bottom;
   if not ShouldPrintObject(Self, Context) then Exit;
-  if Context.IsCountingPass then Exit;
   if Trim(FReportJSON) = '' then Exit;
 
   Model := nil;
@@ -2359,23 +2361,62 @@ begin
     end;
 
     RowCount := 0;
-    DS.DisableControls;
+    ControlsDisabledByUs := False;
+    PrimaryException := nil;
+    CleanupException := nil;
     try
-      TReportTraversalDiagnostics.SubReportTraversalStarted;
-      DS.First;
-      while not DS.Eof do
-      begin
-        TReportTraversalDiagnostics.SubReportRowVisited;
-        if SubReportRowMatchesLink(Context.DataSet, DS, FMasterField, FDetailField) then
-          Inc(RowCount);
-        DS.Next;
+      try
+        DS.DisableControls;
+        ControlsDisabledByUs := True;
+        TReportTraversalDiagnostics.SubReportTraversalStarted;
+        DS.First;
+        while not DS.Eof do
+        begin
+          TReportTraversalDiagnostics.SubReportRowVisited;
+          if SubReportRowMatchesLink(Context.DataSet, DS, FMasterField, FDetailField) then
+            Inc(RowCount);
+          DS.Next;
+        end;
+      except
+        PrimaryException := Exception(AcquireExceptionObject);
       end;
     finally
-      DS.EnableControls;
-      if HasSaveBM and (SaveBM <> nil) and DS.BookmarkValid(SaveBM) then
-        DS.GotoBookmark(SaveBM);
-      if HasSaveBM and (SaveBM <> nil) then
-        DS.FreeBookmark(SaveBM);
+      try
+        try
+          if HasSaveBM and (SaveBM <> nil) then
+          begin
+            try
+              if DS.BookmarkValid(SaveBM) then
+                DS.GotoBookmark(SaveBM);
+            finally
+              DS.FreeBookmark(SaveBM);
+            end;
+          end;
+        except
+          CleanupException := Exception(AcquireExceptionObject);
+        end;
+      finally
+        if ControlsDisabledByUs then
+      begin
+          try
+            DS.EnableControls;
+          except
+            if not Assigned(CleanupException) then
+              CleanupException := Exception(AcquireExceptionObject)
+            else
+              ReleaseExceptionObject;
+          end;
+        end;
+      end;
+
+      if Assigned(PrimaryException) then
+      begin
+        if Assigned(CleanupException) then
+          CleanupException.Free;
+        raise PrimaryException;
+      end;
+      if Assigned(CleanupException) then
+        raise CleanupException;
     end;
 
     NeededH := 4 + (RowCount * MasterBand.Height);
