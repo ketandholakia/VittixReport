@@ -97,7 +97,16 @@ type
   TReportExportImageCommand = class(TReportExportCommand)
   public
     Bounds: TRect;
+    { File-path source (vector or raster).  When Length(Bytes) > 0, Bytes is
+      the image itself and Source stays empty so no temp file is needed. }
     Source: string;
+    { Raw encoded image bytes (PNG/JPEG/GIF/BMP, magic-byte sniffed).
+      Exporters must prefer Bytes over Source; this keeps embedded and
+      BLOB-sourced images out of %TEMP% entirely. }
+    Bytes: TBytes;
+    { Lower-case format hint for Bytes without the dot: 'png', 'jpeg',
+      'gif', 'bmp'.  Empty = exporters sniff from the magic bytes. }
+    SourceFormat: string;
     Stretch: Boolean;
     Center: Boolean;
     Proportional: Boolean;

@@ -709,9 +709,9 @@ var
   RectCmd: TReportExportRectangleCommand;
   ImageCmd: TReportExportImageCommand;
   ImageSource: string;
-  TempFile: string;
   Png: TPngImage;
   Bmp: Vcl.Graphics.TBitmap;
+  Ms: TMemoryStream;
   PW: Integer;
   PH: Integer;
   BW: Integer;
@@ -741,10 +741,11 @@ begin
   if TryGetBlobFieldBytes(Context, BlobBytes) then
   begin
     // Binary blob source (Firebird BLOB SUB_TYPE 0 logos/photos): the bytes
-    // are the image itself.  They go to a registered temp file in their
-    // original encoded format, so every exporter consumes exactly what a
-    // file-path image would (JPEG stays /DCTDecode in the Vector PDF, PNG
-    // keeps its palette/alpha handling).  A null/blank blob captures nothing.
+    // travel on the command itself in their original encoded format, so
+    // every exporter consumes exactly what a file-path image would (JPEG
+    // stays /DCTDecode in the Vector PDF, PNG keeps its palette/alpha
+    // handling) and no temp file is written.  A null/blank blob captures
+    // nothing.
     if (Length(BlobBytes) > 0) and
        Assigned(Picture.Graphic) and not Picture.Graphic.Empty then
     begin
@@ -753,18 +754,17 @@ begin
       begin
         ApplyCaptureGeometry(R);
 
-        TempFile := TPath.Combine(TPath.GetTempPath,
-          'vittix_export_' + TGUID.NewGuid.ToString + BlobExt);
-        TFile.WriteAllBytes(TempFile, BlobBytes);
-
         ImageCmd := TReportExportImageCommand.Create;
         ImageCmd.Bounds := R;
-        ImageCmd.Source := TempFile;
+        ImageCmd.Bytes := BlobBytes;
+        if SameText(BlobExt, '.jpg') then
+          ImageCmd.SourceFormat := 'jpeg'
+        else
+          ImageCmd.SourceFormat := Copy(BlobExt, 2, MaxInt);
         ImageCmd.Stretch := Stretch;
         ImageCmd.Center := Center;
         ImageCmd.Proportional := Proportional;
         ASink.AddCommand(ImageCmd);
-        ASink.RegisterTempFile(TempFile);
       end;
     end;
     Exit;
@@ -835,33 +835,34 @@ begin
   else if Assigned(Picture.Graphic) and not Picture.Graphic.Empty then
   begin
     // Embedded design-time picture (no usable data-bound source): capture
-    // the existing graphic as a temporary PNG registered with the export
-    // document, so it exports like file-path images and is deleted with
-    // the document.  The object's own graphic is not modified.
+    // the existing graphic as white-flattened PNG bytes carried on the
+    // command itself, so it exports like file-path images without a
+    // %TEMP% round trip.  The object's own graphic is not modified.
     if (Picture.Width > 0) and (Picture.Height > 0) then
     begin
       Bmp := Vcl.Graphics.TBitmap.Create;
       Png := TPngImage.Create;
+      Ms := TMemoryStream.Create;
       try
         Bmp.SetSize(Picture.Width, Picture.Height);
         Bmp.Canvas.Brush.Color := clWhite;
         Bmp.Canvas.FillRect(Rect(0, 0, Bmp.Width, Bmp.Height));
         Bmp.Canvas.Draw(0, 0, Picture.Graphic);
         Png.Assign(Bmp);
-
-        TempFile := TPath.Combine(TPath.GetTempPath,
-          'vittix_export_' + TGUID.NewGuid.ToString + '.png');
-        Png.SaveToFile(TempFile);
+        Png.SaveToStream(Ms);
 
         ImageCmd := TReportExportImageCommand.Create;
         ImageCmd.Bounds := R;
-        ImageCmd.Source := TempFile;
+        SetLength(ImageCmd.Bytes, Ms.Size);
+        if Ms.Size > 0 then
+          Move(Ms.Memory^, ImageCmd.Bytes[0], Ms.Size);
+        ImageCmd.SourceFormat := 'png';
         ImageCmd.Stretch := Stretch;
         ImageCmd.Center := Center;
         ImageCmd.Proportional := Proportional;
         ASink.AddCommand(ImageCmd);
-        ASink.RegisterTempFile(TempFile);
       finally
+        Ms.Free;
         Png.Free;
         Bmp.Free;
       end;

@@ -49,6 +49,7 @@ type
     [Test] procedure Test_BlobPNG_DrawPath_RendersPerRow_NoCrossRowReuse;
     [Test] procedure Test_BlobJPEG_DrawPath_RendersAndNullStaysEmpty;
     [Test] procedure Test_Blob_Capture_CommandsPerRow_InOriginalFormat;
+    [Test] procedure Test_Blob_And_Embedded_NoTempFileHop_VectorPDF;
     [Test] procedure Test_Blob_NullRow_ProducesNoCaptureCommand;
     [Test] procedure Test_BlobPNG_VectorPDF_ContainsImageXObject;
     [Test] procedure Test_BlobJPEG_VectorPDF_UsesDCTDecode;
@@ -454,39 +455,39 @@ var
   DS: TFDMemTable;
   Commands: TArray<TReportExportImageCommand>;
   I: Integer;
-  FileBytes: TBytes;
-  DeletedPaths: array[0..2] of string;
 begin
   // Logo (PNG) + Photo (JPEG) objects across 3 rows: row 1 has both images,
   // row 2 only the logo, row 3 both NULL.  Each non-null cell captures one
-  // command whose temp file keeps the ORIGINAL encoded format (not a
-  // re-encoded PNG): [Logo PNG, Photo JPEG, Logo PNG].
+  // command whose BYTES keep the ORIGINAL encoded format (not a re-encoded
+  // PNG): [Logo PNG, Photo JPEG, Logo PNG].  No temp file is involved.
   Engine := BuildEngine('Logo', True, Doc, Model, DS);
   try
     Engine.Prepare;
     Commands := CollectImageCommands(Doc);
     Assert.AreEqual(3, Length(Commands),
       'row1 logo + row1 photo + row2 logo = three image commands');
-    Assert.IsTrue(Length(Commands[0].Source) > 0, 'command must carry a source');
 
     for I := 0 to 2 do
     begin
-      Assert.IsTrue(TFile.Exists(Commands[I].Source),
-        Format('command %d temp file missing', [I]));
-      FileBytes := TFile.ReadAllBytes(Commands[I].Source);
-      DeletedPaths[I] := Commands[I].Source;
+      Assert.IsTrue(Commands[I].Source = '',
+        Format('command %d must not carry a file source', [I]));
       if I = 1 then
       begin
         // Photo object, row 1: JPEG bytes preserved
-        Assert.IsTrue((Length(FileBytes) > 3) and (FileBytes[0] = $FF) and
-          (FileBytes[1] = $D8) and (FileBytes[2] = $FF),
-          'command 1 must stay original JPEG');
+        Assert.IsTrue(Commands[I].SourceFormat = 'jpeg',
+          'command 1 must carry the jpeg hint');
+        Assert.IsTrue((Length(Commands[I].Bytes) > 3) and
+          (Commands[I].Bytes[0] = $FF) and (Commands[I].Bytes[1] = $D8) and
+          (Commands[I].Bytes[2] = $FF), 'command 1 must stay original JPEG');
       end
       else
       begin
         // Logo object, rows 1-2: PNG bytes preserved
-        Assert.IsTrue((Length(FileBytes) > 4) and (FileBytes[0] = $89) and
-          (FileBytes[1] = $50) and (FileBytes[2] = $4E) and (FileBytes[3] = $47),
+        Assert.IsTrue(Commands[I].SourceFormat = 'png',
+          Format('command %d must carry the png hint', [I]));
+        Assert.IsTrue((Length(Commands[I].Bytes) > 4) and
+          (Commands[I].Bytes[0] = $89) and (Commands[I].Bytes[1] = $50) and
+          (Commands[I].Bytes[2] = $4E) and (Commands[I].Bytes[3] = $47),
           Format('command %d must stay original PNG', [I]));
       end;
     end;
@@ -496,10 +497,68 @@ begin
     Model.Free;
     DS.Free;
   end;
+end;
 
-  for I := 0 to 2 do
-    Assert.IsFalse(TFile.Exists(DeletedPaths[I]),
-      'export document must delete the registered blob temp file on free');
+procedure TBlobImageTests.Test_Blob_And_Embedded_NoTempFileHop_VectorPDF;
+var
+  Doc: TReportExportDocument;
+  Engine: TReportEngine;
+  Model: TReportModel;
+  DS: TFDMemTable;
+  Band: TReportBand;
+  Img: TReportImageObject;
+  Pdf: string;
+  TempDir: string;
+  FilesBefore, FilesAfter: TArray<string>;
+begin
+  // Task contract: exporting a report with an embedded picture AND a BLOB
+  // picture to PDF must produce the image XObjects while writing NO
+  // vittix_export_* file into the temp folder (no orphaned files on crash,
+  // no extra I/O).
+  TempDir := TPath.GetTempPath;
+  FilesBefore := TDirectory.GetFiles(TempDir, 'vittix_export_*');
+
+  Engine := BuildEngine('Logo', True, Doc, Model, DS);
+  try
+    // Add a second, embedded (design-time) picture to the same band.
+    Band := Model.Objects[0] as TReportBand;
+    Img := TReportImageObject.Create;
+    Img.Name := 'imgEmbedded';
+    Img.Bounds := Rect(300, 5, 340, 45);
+    Img.DataField := '';
+    var Bmp := TBitmap.Create;
+    try
+      Bmp.SetSize(24, 16);
+      Bmp.Canvas.Brush.Color := clRed;
+      Bmp.Canvas.FillRect(Rect(0, 0, 24, 16));
+      Img.Picture.Assign(Bmp);
+    finally
+      Bmp.Free;
+    end;
+    Band.Children.Add(Img);
+
+    Engine.Prepare;
+    // Captures: blob logo rows 1-2 (2) + blob photo row 1 (1) + the embedded
+    // picture, which repeats on all 3 master rows (3) = 6 commands.
+    Assert.AreEqual(6, Length(CollectImageCommands(Doc)),
+      '2 blob logos + 1 blob photo + 3x embedded = six image commands');
+
+    Pdf := ExportDocToPdfText(Doc);
+    Assert.Contains(Pdf, '%%EOF', 'vector PDF must be complete');
+    Assert.Contains(Pdf, '/Subtype /Image',
+      'blob + embedded images must export as image XObjects');
+    Assert.Contains(Pdf, '/DCTDecode', 'blob JPEG must pass through');
+    Assert.Contains(Pdf, ' Do'#10, 'image XObjects must be drawn');
+
+    FilesAfter := TDirectory.GetFiles(TempDir, 'vittix_export_*');
+    Assert.AreEqual(Length(FilesBefore), Length(FilesAfter),
+      'embedded + blob captures must not create vittix_export_* temp files');
+  finally
+    Doc.Free;
+    Engine.Free;
+    Model.Free;
+    DS.Free;
+  end;
 end;
 
 procedure TBlobImageTests.Test_Blob_NullRow_ProducesNoCaptureCommand;

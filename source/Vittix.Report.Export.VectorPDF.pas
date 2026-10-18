@@ -878,15 +878,82 @@ var
     end;
   end;
 
-  // Loads a JPEG file as a to-be-embedded Image XObject. Baseline JPEG
+  // Format hint for a command's Bytes: the explicit SourceFormat when set,
+  // otherwise sniffed from the magic bytes (lower-case, no dot; '' when the
+  // bytes are absent or unrecognized).
+  function BytesFormatOf(AImage: TReportExportImageCommand): string;
+  begin
+    Result := '';
+    if Length(AImage.Bytes) < 8 then
+      Exit;
+    if AImage.SourceFormat <> '' then
+    begin
+      Result := LowerCase(AImage.SourceFormat);
+      if Result = 'jpg' then
+        Result := 'jpeg';
+    end
+    else if (AImage.Bytes[0] = $89) and (AImage.Bytes[1] = $50) and
+            (AImage.Bytes[2] = $4E) and (AImage.Bytes[3] = $47) then
+      Result := 'png'
+    else if (AImage.Bytes[0] = $FF) and (AImage.Bytes[1] = $D8) and
+            (AImage.Bytes[2] = $FF) then
+      Result := 'jpeg'
+    else if (AImage.Bytes[0] = Ord('G')) and (AImage.Bytes[1] = Ord('I')) and
+            (AImage.Bytes[2] = Ord('F')) and (AImage.Bytes[3] = Ord('8')) then
+      Result := 'gif'
+    else if (AImage.Bytes[0] = Ord('B')) and (AImage.Bytes[1] = Ord('M')) then
+      Result := 'bmp';
+  end;
+
+  // Loads a JPEG as a to-be-embedded Image XObject. Baseline JPEG
   // bytes can be embedded as-is under /DCTDecode; progressive or CMYK
   // JPEGs are a known pre-existing limitation, unchanged by this pass.
   function TryLoadJPEGXObject(AImage: TReportExportImageCommand;
     const AName: AnsiString; out AXObject: TPdfImageXObject): Boolean;
   var
     JPEG: TJPEGImage;
+    Src: TMemoryStream;
   begin
     Result := False;
+
+    // Bytes path (embedded/BLOB images): no temp file involved.
+    if Length(AImage.Bytes) > 0 then
+    begin
+      if BytesFormatOf(AImage) <> 'jpeg' then
+        Exit;
+      JPEG := TJPEGImage.Create;
+      try
+        Src := TMemoryStream.Create;
+        try
+          Src.WriteBuffer(AImage.Bytes[0], Length(AImage.Bytes));
+          Src.Position := 0;
+          try
+            JPEG.LoadFromStream(Src);
+          except
+            Exit; // malformed/unreadable image: graceful skip
+          end;
+          if (JPEG.Width <= 0) or (JPEG.Height <= 0) then
+            Exit;
+          AXObject.Name := AName;
+          AXObject.Width := JPEG.Width;
+          AXObject.Height := JPEG.Height;
+          AXObject.ColorSpace := '/DeviceRGB';
+          AXObject.BitsPerComponent := 8;
+          AXObject.Filter := '/DCTDecode';
+          AXObject.Bytes := AImage.Bytes;
+          AXObject.SMaskName := '';
+          AXObject.SMaskObjectNo := 0;
+          SetLength(AXObject.SMaskBytes, 0);
+          Result := Length(AXObject.Bytes) > 0;
+        finally
+          Src.Free;
+        end;
+      finally
+        JPEG.Free;
+      end;
+      Exit;
+    end;
+
     if (AImage.Source = '') or not FileExists(AImage.Source) or
        not IsJPEGFile(AImage.Source) then
       Exit;
@@ -979,8 +1046,32 @@ var
     const AName: AnsiString; out AXObject: TPdfImageXObject): Boolean;
   var
     PNG: TPngImage;
+    Src: TMemoryStream;
   begin
     Result := False;
+
+    // Bytes path (embedded/BLOB images): no temp file involved.
+    if Length(AImage.Bytes) > 0 then
+    begin
+      if BytesFormatOf(AImage) <> 'png' then
+        Exit;
+      PNG := TPngImage.Create;
+      try
+        Src := TMemoryStream.Create;
+        try
+          Src.WriteBuffer(AImage.Bytes[0], Length(AImage.Bytes));
+          Src.Position := 0;
+          PNG.LoadFromStream(Src);
+          Result := BuildFlateRGBXObject(PNG, AName, AXObject);
+        finally
+          Src.Free;
+        end;
+      finally
+        PNG.Free;
+      end;
+      Exit;
+    end;
+
     if (AImage.Source = '') or not FileExists(AImage.Source) or
        not IsPNGFile(AImage.Source) then
       Exit;
@@ -1006,8 +1097,40 @@ var
   var
     Ext: string;
     G: TGraphic;
+    Src: TMemoryStream;
   begin
     Result := False;
+
+    // Bytes path (embedded/BLOB images): no temp file involved.
+    if Length(AImage.Bytes) > 0 then
+    begin
+      Ext := BytesFormatOf(AImage);
+      if (Ext <> 'bmp') and (Ext <> 'gif') then
+        Exit;
+      if Ext = 'bmp' then
+        G := TBitmap.Create
+      else
+        G := TGIFImage.Create;
+      try
+        Src := TMemoryStream.Create;
+        try
+          Src.WriteBuffer(AImage.Bytes[0], Length(AImage.Bytes));
+          Src.Position := 0;
+          try
+            G.LoadFromStream(Src);
+          except
+            Exit; // malformed/unreadable image: graceful skip
+          end;
+          Result := BuildFlateRGBXObject(G, AName, AXObject);
+        finally
+          Src.Free;
+        end;
+      finally
+        G.Free;
+      end;
+      Exit;
+    end;
+
     if (AImage.Source = '') or not FileExists(AImage.Source) then
       Exit;
     Ext := LowerCase(ExtractFileExt(AImage.Source));

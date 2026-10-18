@@ -70,6 +70,53 @@ begin
   end;
 end;
 
+{ Builds the data-URI for a command's in-memory image bytes (embedded /
+  BLOB-sourced images carry Bytes and no temp file).  The MIME type comes
+  from the command's SourceFormat hint, falling back to a magic-byte sniff.
+  Unsupported formats return False so the Source/file-URI fallback runs. }
+function TryGetBase64ImageBytes(const AFormat: string; const ABytes: TBytes;
+  out ABase64Data: string): Boolean;
+var
+  Fmt: string;
+  MimeType: string;
+begin
+  Result := False;
+  if Length(ABytes) = 0 then
+    Exit;
+
+  Fmt := LowerCase(AFormat);
+  if Fmt = '' then
+  begin
+    if (Length(ABytes) >= 4) and (ABytes[0] = $89) and (ABytes[1] = $50) and
+       (ABytes[2] = $4E) and (ABytes[3] = $47) then
+      Fmt := 'png'
+    else if (Length(ABytes) >= 3) and (ABytes[0] = $FF) and (ABytes[1] = $D8) and
+            (ABytes[2] = $FF) then
+      Fmt := 'jpeg'
+    else if (Length(ABytes) >= 4) and (ABytes[0] = Ord('G')) and
+            (ABytes[1] = Ord('I')) and (ABytes[2] = Ord('F')) and
+            (ABytes[3] = Ord('8')) then
+      Fmt := 'gif'
+    else if (Length(ABytes) >= 2) and (ABytes[0] = Ord('B')) and
+            (ABytes[1] = Ord('M')) then
+      Fmt := 'bmp';
+  end;
+
+  if (Fmt = 'jpg') or (Fmt = 'jpeg') then MimeType := 'image/jpeg'
+  else if Fmt = 'png' then MimeType := 'image/png'
+  else if Fmt = 'gif' then MimeType := 'image/gif'
+  else if Fmt = 'bmp' then MimeType := 'image/bmp'
+  else Exit;
+
+  try
+    ABase64Data := 'data:' + MimeType + ';base64,' +
+      TNetEncoding.Base64.EncodeBytesToString(ABytes);
+    Result := True;
+  except
+    // ignore
+  end;
+end;
+
 function PathToFileURI(const APath: string): string;
 {
   Converts a filesystem path to a properly percent-encoded file:/// URI.
@@ -351,8 +398,15 @@ begin
             eckImage:
               begin
                 ImageCmd := TReportExportImageCommand(Command);
-                // Try Base64 embedding first
-                if TryGetBase64Image(ImageCmd.Source, Base64Img) then
+                // In-memory bytes (embedded/BLOB images) first: no temp file
+                // exists for them.
+                if TryGetBase64ImageBytes(ImageCmd.SourceFormat, ImageCmd.Bytes, Base64Img) then
+                  Writer.WriteLine(Format('<img class="vrt-img" style="left:%dpx; top:%dpx; width:%dpx; height:%dpx; object-fit:%s;" src="%s" />',
+                    [ImageCmd.Bounds.Left, ImageCmd.Bounds.Top, ImageCmd.Bounds.Width, ImageCmd.Bounds.Height,
+                     IfThen(ImageCmd.Stretch, 'fill', IfThen(ImageCmd.Proportional, 'contain', 'none')),
+                     Base64Img]))
+                // Try Base64 embedding from the file source
+                else if TryGetBase64Image(ImageCmd.Source, Base64Img) then
                 begin
                   Writer.WriteLine(Format('<img class="vrt-img" style="left:%dpx; top:%dpx; width:%dpx; height:%dpx; object-fit:%s;" src="%s" />',
                     [ImageCmd.Bounds.Left, ImageCmd.Bounds.Top, ImageCmd.Bounds.Width, ImageCmd.Bounds.Height,
