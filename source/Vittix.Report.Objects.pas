@@ -272,7 +272,16 @@ type
     FBorderVisible:  Boolean;
     FBorderColor:    TColor;
     FBorderWidth:    Integer;
-    FDataField:      string;  // field holding a file path or base64 image
+    FDataField:      string;  // field holding a file path, base64 image or raw blob
+    { True when the bound field is a binary blob column (ftBlob/ftGraphic/
+      ftOraBlob); ABytes receives the raw encoded image bytes (empty for a
+      null/blank field).  False when the source is not a blob column, so the
+      caller keeps the file-path/base64 string handling. }
+    function TryGetBlobFieldBytes(const Context: TExpressionContext;
+      out ABytes: TBytes): Boolean;
+    { Applies Stretch/Proportional/Center to the capture rect using the
+      current Picture dimensions (shared by blob and embedded capture). }
+    procedure ApplyCaptureGeometry(var R: TRect);
   public
     constructor Create; override;
     destructor Destroy; override;
@@ -655,6 +664,43 @@ begin
   ASink.AddCommand(LineCmd);
 end;
 
+{ File extension matching the encoded image format sniffed from the magic
+  bytes (empty when the bytes are not a supported raster format). }
+function ImageBytesFileExt(const ABytes: TBytes): string;
+begin
+  Result := '';
+  if (Length(ABytes) >= 4) and (ABytes[0] = $89) and (ABytes[1] = $50) and
+     (ABytes[2] = $4E) and (ABytes[3] = $47) then
+    Result := '.png'
+  else if (Length(ABytes) >= 3) and (ABytes[0] = $FF) and (ABytes[1] = $D8) and
+          (ABytes[2] = $FF) then
+    Result := '.jpg'
+  else if (Length(ABytes) >= 4) and (ABytes[0] = Ord('G')) and
+          (ABytes[1] = Ord('I')) and (ABytes[2] = Ord('F')) and
+          (ABytes[3] = Ord('8')) then
+    Result := '.gif'
+  else if (Length(ABytes) >= 2) and (ABytes[0] = Ord('B')) and
+          (ABytes[1] = Ord('M')) then
+    Result := '.bmp';
+end;
+
+{ Cheap per-row cache key for blob-sourced images: length + FNV-1a over the
+  bytes.  Distinct rows with equal content share the cache slot; different
+  content (or a null row, which never consults the cache) cannot reuse it. }
+function ImageBlobCacheKey(const ABytes: TBytes): string;
+const
+  FnvOffsetBasis = UInt64($CBF29CE484222325);
+  FnvPrime       = UInt64($00000100000001B3);
+var
+  I: Integer;
+  H: UInt64;
+begin
+  H := FnvOffsetBasis;
+  for I := 0 to High(ABytes) do
+    H := (H xor UInt64(ABytes[I])) * FnvPrime;
+  Result := Format('blob:%d:%.16x', [Length(ABytes), H]);
+end;
+
 procedure TReportImageObject.CaptureExportCommands(const Context: TExpressionContext;
   const ASink: IReportExportCaptureSink);
 var
@@ -673,6 +719,8 @@ var
   ScaleX: Double;
   ScaleY: Double;
   Scale: Double;
+  BlobBytes: TBytes;
+  BlobExt: string;
 begin
   if not Assigned(ASink) then
     Exit;
@@ -688,6 +736,38 @@ begin
     RectCmd.BorderColor := BorderColor;
     RectCmd.BorderWidth := BorderWidth;
     ASink.AddCommand(RectCmd);
+  end;
+
+  if TryGetBlobFieldBytes(Context, BlobBytes) then
+  begin
+    // Binary blob source (Firebird BLOB SUB_TYPE 0 logos/photos): the bytes
+    // are the image itself.  They go to a registered temp file in their
+    // original encoded format, so every exporter consumes exactly what a
+    // file-path image would (JPEG stays /DCTDecode in the Vector PDF, PNG
+    // keeps its palette/alpha handling).  A null/blank blob captures nothing.
+    if (Length(BlobBytes) > 0) and
+       Assigned(Picture.Graphic) and not Picture.Graphic.Empty then
+    begin
+      BlobExt := ImageBytesFileExt(BlobBytes);
+      if BlobExt <> '' then
+      begin
+        ApplyCaptureGeometry(R);
+
+        TempFile := TPath.Combine(TPath.GetTempPath,
+          'vittix_export_' + TGUID.NewGuid.ToString + BlobExt);
+        TFile.WriteAllBytes(TempFile, BlobBytes);
+
+        ImageCmd := TReportExportImageCommand.Create;
+        ImageCmd.Bounds := R;
+        ImageCmd.Source := TempFile;
+        ImageCmd.Stretch := Stretch;
+        ImageCmd.Center := Center;
+        ImageCmd.Proportional := Proportional;
+        ASink.AddCommand(ImageCmd);
+        ASink.RegisterTempFile(TempFile);
+      end;
+    end;
+    Exit;
   end;
 
   ImageSource := ResolveImageSource(Context);
@@ -1465,6 +1545,145 @@ begin
   Result := SafeSourceFieldAsString(Context.DataSet, Context.UserDataSet, FDataField);
 end;
 
+function TReportImageObject.TryGetBlobFieldBytes(
+  const Context: TExpressionContext; out ABytes: TBytes): Boolean;
+var
+  Fld: TField;
+  Stream: TStream;
+  Len: Integer;
+begin
+  ABytes := nil;
+  Result := False;
+
+  // Only TDataSet sources expose TBlobField columns (Firebird BLOB SUB_TYPE 0
+  // through FireDAC etc.).  The UserDataSet callback contract has no binary
+  // field type and keeps its string behavior.
+  if (FDataField = '') or Assigned(Context.UserDataSet) then
+    Exit;
+  if not TryGetField(Context.DataSet, FDataField, Fld) then
+    Exit;
+  if not (Fld is TBlobField) or
+     not (Fld.DataType in [ftBlob, ftGraphic, ftOraBlob]) then
+    Exit;
+
+  // Blob-image field: a null/blank value is reported as True with empty
+  // bytes so the caller blanks the picture instead of falling through to
+  // the string path.
+  Result := True;
+  if Fld.IsNull then
+    Exit;
+
+  try
+    Stream := Context.DataSet.CreateBlobStream(Fld, bmRead);
+    try
+      Len := Stream.Size;
+      if Len > 0 then
+      begin
+        SetLength(ABytes, Len);
+        Stream.ReadBuffer(ABytes[0], Len);
+      end;
+    finally
+      Stream.Free;
+    end;
+  except
+    ABytes := nil; // unreadable blob behaves like a blank field
+  end;
+end;
+
+procedure TReportImageObject.ApplyCaptureGeometry(var R: TRect);
+var
+  PW, PH, BW, BH: Integer;
+  ScaleX, ScaleY, Scale: Double;
+begin
+  if Stretch then
+  begin
+    if Proportional then
+    begin
+      PW := Picture.Width;
+      PH := Picture.Height;
+      BW := R.Width;
+      BH := R.Height;
+      if (PW > 0) and (PH > 0) and (BW > 0) and (BH > 0) then
+      begin
+        ScaleX := BW / PW;
+        ScaleY := BH / PH;
+        if ScaleX < ScaleY then Scale := ScaleX else Scale := ScaleY;
+        R := Rect(R.Left, R.Top,
+                  R.Left + Round(PW * Scale),
+                  R.Top + Round(PH * Scale));
+        if Center then
+          OffsetRect(R, (BW - R.Width) div 2, (BH - R.Height) div 2);
+      end;
+    end;
+  end
+  else if Center then
+  begin
+    PW := Picture.Width;
+    PH := Picture.Height;
+    BW := R.Width;
+    BH := R.Height;
+    R := Rect(R.Left + (BW - PW) div 2,
+              R.Top + (BH - PH) div 2,
+              R.Left + (BW - PW) div 2 + PW,
+              R.Top + (BH - PH) div 2 + PH);
+  end
+  else
+    R := Rect(R.Left, R.Top,
+              R.Left + Picture.Width,
+              R.Top + Picture.Height);
+end;
+
+function TryLoadPictureFromBytes(APicture: TPicture; const ABytes: TBytes): Boolean;
+{
+  Loads raw encoded image bytes into APicture.  The graphic format is
+  detected from the magic bytes and loaded with the matching registered
+  graphic class.  Best-effort: any failure leaves APicture empty and returns
+  False (same contract as TryLoadPictureFromFile).
+}
+var
+  Stream: TMemoryStream;
+  G: TGraphic;
+begin
+  Result := False;
+  if not Assigned(APicture) then
+    Exit;
+  if Length(ABytes) < 8 then
+    Exit;
+
+  // Format sniff from magic bytes; EMF/WMF are not supported inline.
+  if (ABytes[0] = $89) and (ABytes[1] = $50) and
+     (ABytes[2] = $4E) and (ABytes[3] = $47) then
+    G := TPngImage.Create
+  else if (ABytes[0] = $FF) and (ABytes[1] = $D8) and (ABytes[2] = $FF) then
+    G := TJPEGImage.Create
+  else if (ABytes[0] = Ord('G')) and (ABytes[1] = Ord('I')) and
+          (ABytes[2] = Ord('F')) and (ABytes[3] = Ord('8')) then
+    G := TGIFImage.Create
+  else if (ABytes[0] = Ord('B')) and (ABytes[1] = Ord('M')) then
+    G := Vcl.Graphics.TBitmap.Create
+  else
+    Exit;
+  try
+    try
+      Stream := TMemoryStream.Create;
+      try
+        Stream.WriteBuffer(ABytes[0], Length(ABytes));
+        Stream.Position := 0;
+        G.LoadFromStream(Stream);
+        APicture.Assign(G);
+        Result := Assigned(APicture.Graphic) and (not APicture.Graphic.Empty);
+      finally
+        Stream.Free;
+      end;
+    except
+      APicture.Assign(nil);
+      Result := False;
+    end;
+  finally
+    G.Free;
+  end;
+end;
+
 function TryLoadPictureFromBase64(APicture: TPicture; const AText: string): Boolean;
 {
   Loads an inline base64 image value (the documented DataField alternative
@@ -1479,8 +1698,6 @@ const
 var
   Payload: string;
   Bytes: TBytes;
-  Stream: TMemoryStream;
-  G: TGraphic;
   I: Integer;
 begin
   Result := False;
@@ -1523,42 +1740,8 @@ begin
   except
     Exit;
   end;
-  if Length(Bytes) < 8 then
-    Exit;
 
-  // Format sniff from magic bytes; EMF/WMF are not supported inline.
-  if (Length(Bytes) >= 4) and (Bytes[0] = $89) and (Bytes[1] = $50) and
-     (Bytes[2] = $4E) and (Bytes[3] = $47) then
-    G := TPngImage.Create
-  else if (Bytes[0] = $FF) and (Bytes[1] = $D8) and (Bytes[2] = $FF) then
-    G := TJPEGImage.Create
-  else if (Length(Bytes) >= 4) and (Bytes[0] = Ord('G')) and
-          (Bytes[1] = Ord('I')) and (Bytes[2] = Ord('F')) and
-          (Bytes[3] = Ord('8')) then
-    G := TGIFImage.Create
-  else if (Bytes[0] = Ord('B')) and (Bytes[1] = Ord('M')) then
-    G := Vcl.Graphics.TBitmap.Create
-  else
-    Exit;
-  try
-    try
-      Stream := TMemoryStream.Create;
-      try
-        Stream.WriteBuffer(Bytes[0], Length(Bytes));
-        Stream.Position := 0;
-        G.LoadFromStream(Stream);
-        APicture.Assign(G);
-        Result := Assigned(APicture.Graphic) and (not APicture.Graphic.Empty);
-      finally
-        Stream.Free;
-      end;
-    except
-      APicture.Assign(nil);
-      Result := False;
-    end;
-  finally
-    G.Free;
-  end;
+  Result := TryLoadPictureFromBytes(APicture, Bytes);
 end;
 
 function TryLoadPictureFromFile(APicture: TPicture; const AFileName: string): Boolean;
@@ -1626,6 +1809,7 @@ var
   PW, PH, BW, BH: Integer;
   ScaleX, ScaleY, Scale: Double;
   PathOrBase64:   string;
+  BlobBytes:      TBytes;
 {$IFDEF DEBUG}
   Fld: TField;
   DiagStr: string;
@@ -1652,49 +1836,89 @@ begin
         DebugLogDataFieldIssue(Self, FDataField, 'field value conversion/read error', Context.DataSet);
       end;
 {$ENDIF}
-    PathOrBase64 := SafeSourceFieldAsString(Context.DataSet, Context.UserDataSet, FDataField);
     FPicture.Assign(nil); // avoid stale image reuse when field is blank/missing/null
 
-    if PathOrBase64 = '' then
+    if TryGetBlobFieldBytes(Context, BlobBytes) then
     begin
-      // Blank/missing/null field: keep empty and do not reuse prior row image.
-    end
-    else if (FCachedImageAttempted) and SameText(PathOrBase64, FCachedImagePath) then
-    begin
-      if FCachedImageValid then
-        FPicture.Assign(FCachedPicture);
-      // Cached invalid path stays empty.
-    end
-    else
-    begin
-      FCachedImagePath := PathOrBase64;
-      FCachedImageAttempted := True;
-      FCachedImageValid := False;
-      FCachedPicture.Assign(nil);
-
-      if FileExists(PathOrBase64) then
+      // Binary blob source (ftBlob/ftGraphic/ftOraBlob): the bytes are the
+      // encoded image.  Cache key is the byte content, not a string value.
+      if Length(BlobBytes) > 0 then
       begin
-        try
-          FCachedImageValid := TryLoadPictureFromFile(FCachedPicture, PathOrBase64);
+        PathOrBase64 := ImageBlobCacheKey(BlobBytes);
+        if (FCachedImageAttempted) and SameText(PathOrBase64, FCachedImagePath) then
+        begin
           if FCachedImageValid then
             FPicture.Assign(FCachedPicture);
-        except
-          // silently ignore invalid image data/path
+          // Cached invalid blob stays empty.
+        end
+        else
+        begin
+          FCachedImagePath := PathOrBase64;
+          FCachedImageAttempted := True;
           FCachedImageValid := False;
           FCachedPicture.Assign(nil);
+
+          try
+            FCachedImageValid := TryLoadPictureFromBytes(FCachedPicture, BlobBytes);
+            if FCachedImageValid then
+              FPicture.Assign(FCachedPicture);
+          except
+            // silently ignore invalid image data
+            FCachedImageValid := False;
+            FCachedPicture.Assign(nil);
+          end;
         end;
       end
       else
       begin
-        // Documented alternative source: inline base64 image value
-        // (data-URI or bare base64).  Same cache semantics as file paths.
-        try
-          FCachedImageValid := TryLoadPictureFromBase64(FCachedPicture, PathOrBase64);
-          if FCachedImageValid then
-            FPicture.Assign(FCachedPicture);
-        except
-          FCachedImageValid := False;
-          FCachedPicture.Assign(nil);
+        // Null/blank blob: keep empty and do not reuse prior row image.
+      end;
+    end
+    else
+    begin
+      PathOrBase64 := SafeSourceFieldAsString(Context.DataSet, Context.UserDataSet, FDataField);
+
+      if PathOrBase64 = '' then
+      begin
+        // Blank/missing/null field: keep empty and do not reuse prior row image.
+      end
+      else if (FCachedImageAttempted) and SameText(PathOrBase64, FCachedImagePath) then
+      begin
+        if FCachedImageValid then
+          FPicture.Assign(FCachedPicture);
+        // Cached invalid path stays empty.
+      end
+      else
+      begin
+        FCachedImagePath := PathOrBase64;
+        FCachedImageAttempted := True;
+        FCachedImageValid := False;
+        FCachedPicture.Assign(nil);
+
+        if FileExists(PathOrBase64) then
+        begin
+          try
+            FCachedImageValid := TryLoadPictureFromFile(FCachedPicture, PathOrBase64);
+            if FCachedImageValid then
+              FPicture.Assign(FCachedPicture);
+          except
+            // silently ignore invalid image data/path
+            FCachedImageValid := False;
+            FCachedPicture.Assign(nil);
+          end;
+        end
+        else
+        begin
+          // Documented alternative source: inline base64 image value
+          // (data-URI or bare base64).  Same cache semantics as file paths.
+          try
+            FCachedImageValid := TryLoadPictureFromBase64(FCachedPicture, PathOrBase64);
+            if FCachedImageValid then
+              FPicture.Assign(FCachedPicture);
+          except
+            FCachedImageValid := False;
+            FCachedPicture.Assign(nil);
+          end;
         end;
       end;
     end;
