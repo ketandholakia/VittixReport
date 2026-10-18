@@ -17,6 +17,7 @@ uses
   Vittix.Report.Bands,
   Vittix.Report.Objects,
   Vittix.Report.Context,
+  Vittix.Report.LayoutBookmarks,
   Vittix.Report.Objects.Chart,
   Vittix.Report.Objects.CrossTab,
   Vittix.Report.UserDataSet,
@@ -92,6 +93,39 @@ type
     FreeBookmarkCalls: Integer;
     function GetBookmark: TBookmark; override;
     procedure FreeBookmark(Bookmark: TBookmark); override;
+  end;
+
+  { Bookmark restore contract under a failing dataset: RestoreDataSetBookmark
+    must free the captured bookmark even when GotoBookmark raises, and the
+    original exception must stay primary when the free itself also fails.
+    TDataSet.GotoBookmark is static and dispatches to the virtual
+    InternalGotoBookmark, so the raise hook lives there - the observable
+    behavior ("GotoBookmark raises") is the same for RestoreDataSetBookmark. }
+  EBookmarkTestPrimary = class(Exception);
+  EBookmarkTestCleanup = class(Exception);
+
+  TBookmarkFailingDataSet = class(TClientDataSet)
+  protected
+    procedure InternalGotoBookmark(Bookmark: TBookmark); override;
+  public
+    GotoBookmarkCalls: Integer;
+    FreeBookmarkCalls: Integer;
+    RaiseOnGotoBookmark: ExceptClass;
+    RaiseOnFreeBookmark: ExceptClass;
+    procedure FreeBookmark(Bookmark: TBookmark); override;
+  end;
+
+  [TestFixture]
+  TBookmarkRestoreExceptionTests = class
+  private
+    function BuildDataSetWithBookmark: TBookmarkFailingDataSet;
+  public
+    [Test]
+    procedure Test_GotoBookmarkRaises_BookmarkStillFreed;
+    [Test]
+    procedure Test_FreeBookmarkAlsoRaises_OriginalExceptionWins;
+    [Test]
+    procedure Test_NormalRestore_FreesBookmarkOnce;
   end;
 
   { DP-34 / M-22: the engine borrows its dataset; while prepared it may hold
@@ -1150,6 +1184,26 @@ begin
   inherited FreeBookmark(Bookmark);
 end;
 
+{ TBookmarkFailingDataSet }
+
+procedure TBookmarkFailingDataSet.InternalGotoBookmark(Bookmark: TBookmark);
+begin
+  Inc(GotoBookmarkCalls);
+  if RaiseOnGotoBookmark <> nil then
+    raise RaiseOnGotoBookmark.Create('goto bookmark failed');
+  inherited InternalGotoBookmark(Bookmark);
+end;
+
+procedure TBookmarkFailingDataSet.FreeBookmark(Bookmark: TBookmark);
+begin
+  Inc(FreeBookmarkCalls);
+  inherited FreeBookmark(Bookmark);
+  { Raise after the inherited free so the deliberate failure cannot leak the
+    bookmark storage inside the test itself. }
+  if RaiseOnFreeBookmark <> nil then
+    raise RaiseOnFreeBookmark.Create('free bookmark failed');
+end;
+
 { TEngineDataSetLifetimeTests }
 
 function TEngineDataSetLifetimeTests.BuildGroupedDataSet: TBookmarkCountingDataSet;
@@ -1277,8 +1331,89 @@ begin
   end;
 end;
 
+{ TBookmarkRestoreExceptionTests }
+
+function TBookmarkRestoreExceptionTests.BuildDataSetWithBookmark: TBookmarkFailingDataSet;
+begin
+  Result := TBookmarkFailingDataSet.Create(nil);
+  Result.FieldDefs.Add('G', ftString, 10);
+  Result.CreateDataSet;
+  Result.AppendRecord(['A']);
+  Result.First;
+end;
+
+procedure TBookmarkRestoreExceptionTests.Test_GotoBookmarkRaises_BookmarkStillFreed;
+var
+  DS: TBookmarkFailingDataSet;
+  BM: TBookmark;
+begin
+  DS := BuildDataSetWithBookmark;
+  try
+    BM := DS.GetBookmark;
+    Assert.IsTrue(BM <> nil, 'Precondition: the dataset must yield a bookmark.');
+    DS.RaiseOnGotoBookmark := EBookmarkTestPrimary;
+
+    Assert.WillRaise(
+      procedure begin
+        RestoreDataSetBookmark(DS, BM, True);
+      end,
+      EBookmarkTestPrimary,
+      'the original GotoBookmark exception must propagate');
+
+    Assert.AreEqual(1, DS.GotoBookmarkCalls, 'GotoBookmark must have been attempted.');
+    Assert.AreEqual(1, DS.FreeBookmarkCalls,
+      'FreeBookmark must run even when GotoBookmark raises.');
+  finally
+    DS.Free;
+  end;
+end;
+
+procedure TBookmarkRestoreExceptionTests.Test_FreeBookmarkAlsoRaises_OriginalExceptionWins;
+var
+  DS: TBookmarkFailingDataSet;
+  BM: TBookmark;
+begin
+  DS := BuildDataSetWithBookmark;
+  try
+    BM := DS.GetBookmark;
+    DS.RaiseOnGotoBookmark := EBookmarkTestPrimary;
+    DS.RaiseOnFreeBookmark := EBookmarkTestCleanup;
+
+    Assert.WillRaise(
+      procedure begin
+        RestoreDataSetBookmark(DS, BM, True);
+      end,
+      EBookmarkTestPrimary,
+      'the primary GotoBookmark exception must win over the cleanup failure');
+
+    Assert.AreEqual(1, DS.FreeBookmarkCalls,
+      'FreeBookmark must still have been attempted.');
+  finally
+    DS.Free;
+  end;
+end;
+
+procedure TBookmarkRestoreExceptionTests.Test_NormalRestore_FreesBookmarkOnce;
+var
+  DS: TBookmarkFailingDataSet;
+  BM: TBookmark;
+begin
+  DS := BuildDataSetWithBookmark;
+  try
+    BM := DS.GetBookmark;
+
+    RestoreDataSetBookmark(DS, BM, True);   // must not raise
+
+    Assert.AreEqual(1, DS.GotoBookmarkCalls, 'a valid bookmark must be restored.');
+    Assert.AreEqual(1, DS.FreeBookmarkCalls, 'the bookmark must be freed exactly once.');
+  finally
+    DS.Free;
+  end;
+end;
+
 initialization
   TDUnitX.RegisterTestFixture(TTestReportEngine);
   TDUnitX.RegisterTestFixture(TEngineDataSetLifetimeTests);
+  TDUnitX.RegisterTestFixture(TBookmarkRestoreExceptionTests);
 
 end.
