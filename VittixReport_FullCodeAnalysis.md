@@ -399,11 +399,28 @@ with these independent expected-result assertions.
   fixture page counts.
 - Dataset bookmark restoration failures: `RestoreDataSetBookmark` does not use a
   finally around GotoBookmark/FreeBookmark; caller restoration and EnableControls
-  also need exception-injection coverage.
+  also need exception-injection coverage. — ✅ Resolved 2026-10-18 (see below).
 - The CI gate tolerates missing USER/GDI telemetry, and absent parsed test counts
   become -1 rather than an error. Harden these checks against false green results.
 - Complete the already-pending scaled-display re-probe, interactive designer soak,
   clean-machine package-consumer/install test and supported-platform validation.
+
+**Resolved 2026-10-18 — dataset bookmark restoration exception safety.** The
+shared helper `RestoreDataSetBookmark` (`Vittix.Report.LayoutBookmarks.pas`) now
+runs `FreeBookmark` in a `finally`: a raising `BookmarkValid`/`GotoBookmark` can
+no longer skip the bookmark free, the original restore exception stays primary
+(a cleanup failure is captured via `AcquireExceptionObject` and freed when both
+fire, or raised alone), and the happy path and guards are unchanged. Fixed in
+`1ca3875` (`[fix]`), with the red fail-injection suite in `1681720` (`[test]`):
+`TBookmarkRestoreExceptionTests` pins free-on-raise, primary-exception-wins, and
+the green-before normal path (`TDataSet.GotoBookmark` is static, so injection
+hooks the virtual `InternalGotoBookmark` it dispatches to). Caller-side halves
+of this item landed earlier in the same thread: subreport
+EnableControls/bookmark cleanup in `d32f8d9`, nested group aggregate bookmark
+isolation in `165c31d`, unheld-bookmark probing in `f4e5984`. Gate at `1ca3875`
+(committed tree): 777/777 tests, 0 failed / 0 errored / 0 leaked; strict 41/41
+matched + 1 policy skip; packaging PASS; GDI Δ8 / USER Δ0 — recorded in the
+DEVELOPMENT_PLAN soak log.
 
 ---
 
