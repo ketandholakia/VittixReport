@@ -127,6 +127,9 @@ type
     ColorSpace: AnsiString;
     BitsPerComponent: Integer;
     Filter: AnsiString;    // '/DCTDecode' (JPEG) or '/FlateDecode' (PNG, raw RGB).
+    { Optional /Decode array text (e.g. ' /Decode [1 0 1 0 1 0 1 0]' for
+      Adobe-inverted CMYK JPEGs); empty = no /Decode entry. }
+    Decode: AnsiString;
     Bytes: TBytes;
     SMaskName: AnsiString;
     SMaskObjectNo: Integer;
@@ -905,46 +908,133 @@ var
       Result := 'bmp';
   end;
 
-  // Loads a JPEG as a to-be-embedded Image XObject. Baseline JPEG
-  // bytes can be embedded as-is under /DCTDecode; progressive or CMYK
-  // JPEGs are a known pre-existing limitation, unchanged by this pass.
+  function BuildFlateRGBXObject(const AGraphic: TGraphic;
+    const AName: AnsiString; out AXObject: TPdfImageXObject): Boolean; forward;
+
+  { Parses JPEG segment markers far enough to embed the DCT stream
+    correctly: dimensions and component count come from the SOFn marker,
+    AProgressive reports an SOF2 (progressive) file, AAdobeInverted
+    reports an Adobe APP14 marker (Adobe 4-component JPEGs store inverted
+    CMYK/YCCK values, which PDF compensates with
+    /Decode [1 0 1 0 1 0 1 0]).  Returns False when no usable SOF is
+    found (malformed file). }
+  function ParseJPEGMarkers(const ABytes: TBytes;
+    out AWidth, AHeight, AComponents: Integer;
+    out AProgressive, AAdobeInverted: Boolean): Boolean;
+  var
+    P, Marker, SegLen: Integer;
+  begin
+    Result := False;
+    AWidth := 0;
+    AHeight := 0;
+    AComponents := 0;
+    AProgressive := False;
+    AAdobeInverted := False;
+    if (Length(ABytes) < 4) or (ABytes[0] <> $FF) or (ABytes[1] <> $D8) then
+      Exit;
+
+    P := 2;
+    while P + 1 < Length(ABytes) do
+    begin
+      if ABytes[P] <> $FF then
+        Exit; // lost marker sync - treat as malformed
+      while (P < Length(ABytes)) and (ABytes[P] = $FF) do
+        Inc(P);
+      if P >= Length(ABytes) then
+        Exit;
+      Marker := ABytes[P];
+      Inc(P);
+      // Standalone markers without a length field.
+      if (Marker = $D8) or (Marker = $01) or
+         ((Marker >= $D0) and (Marker <= $D7)) then
+        Continue;
+
+      if P + 1 >= Length(ABytes) then
+        Exit;
+      SegLen := (ABytes[P] shl 8) or ABytes[P + 1];
+      if SegLen < 2 then
+        Exit;
+
+      if (Marker >= $C0) and (Marker <= $CF) and
+         (Marker <> $C4) and (Marker <> $C8) and (Marker <> $CC) then
+      begin
+        // SOFn: P sits on the length-high byte, then length-low, then
+        // precision(1) height(2) width(2) components(1).
+        if P + 7 > Length(ABytes) then
+          Exit;
+        AHeight     := (ABytes[P + 3] shl 8) or ABytes[P + 4];
+        AWidth      := (ABytes[P + 5] shl 8) or ABytes[P + 6];
+        AComponents := ABytes[P + 7];
+        AProgressive := (Marker = $C2); // SOF2
+        Result := (AWidth > 0) and (AHeight > 0) and
+                  (AComponents in [1, 3, 4]);
+        Exit;
+      end
+      else if Marker = $EE then
+      begin
+        // APP14: check the payload for the 'Adobe' signature.
+        if (P + 7 <= Length(ABytes)) and
+           (ABytes[P + 2] = Ord('A')) and (ABytes[P + 3] = Ord('d')) and
+           (ABytes[P + 4] = Ord('o')) and (ABytes[P + 5] = Ord('b')) and
+           (ABytes[P + 6] = Ord('e')) then
+          AAdobeInverted := True;
+      end;
+      Inc(P, SegLen);
+    end;
+  end;
+
+  // Loads a JPEG as a to-be-embedded Image XObject.  The SOF marker decides
+  // the color space (1 component = /DeviceGray, 3 = /DeviceRGB, 4 =
+  // /DeviceCMYK with /Decode [1 0 1 0 1 0 1 0] for Adobe-inverted CMYK/YCCK)
+  // so CMYK scans keep their separations; progressive (SOF2) files are
+  // decoded through the VCL codec and flattened onto white via the shared
+  // BuildFlateRGBXObject path.  Baseline RGB files keep the unchanged
+  // as-is /DCTDecode embedding.
   function TryLoadJPEGXObject(AImage: TReportExportImageCommand;
     const AName: AnsiString; out AXObject: TPdfImageXObject): Boolean;
   var
-    JPEG: TJPEGImage;
+    RawBytes: TBytes;
     Src: TMemoryStream;
+    JPEG: TJPEGImage;
+    W, H, Components: Integer;
+    Progressive, AdobeInverted: Boolean;
   begin
     Result := False;
 
-    // Bytes path (embedded/BLOB images): no temp file involved.
+    // Gather the raw encoded bytes (in-memory or file source).
     if Length(AImage.Bytes) > 0 then
     begin
       if BytesFormatOf(AImage) <> 'jpeg' then
         Exit;
+      RawBytes := AImage.Bytes;
+    end
+    else
+    begin
+      if (AImage.Source = '') or not FileExists(AImage.Source) or
+         not IsJPEGFile(AImage.Source) then
+        Exit;
+      RawBytes := TFile.ReadAllBytes(AImage.Source);
+    end;
+
+    if not ParseJPEGMarkers(RawBytes, W, H, Components, Progressive, AdobeInverted) then
+      Exit;
+
+    if Progressive then
+    begin
+      // Progressive DCT streams are not universally rendered by PDF
+      // viewers - decode and embed the flattened pixels instead.
       JPEG := TJPEGImage.Create;
       try
         Src := TMemoryStream.Create;
         try
-          Src.WriteBuffer(AImage.Bytes[0], Length(AImage.Bytes));
+          Src.WriteBuffer(RawBytes[0], Length(RawBytes));
           Src.Position := 0;
           try
             JPEG.LoadFromStream(Src);
           except
-            Exit; // malformed/unreadable image: graceful skip
+            Exit; // malformed/unsupported: graceful skip
           end;
-          if (JPEG.Width <= 0) or (JPEG.Height <= 0) then
-            Exit;
-          AXObject.Name := AName;
-          AXObject.Width := JPEG.Width;
-          AXObject.Height := JPEG.Height;
-          AXObject.ColorSpace := '/DeviceRGB';
-          AXObject.BitsPerComponent := 8;
-          AXObject.Filter := '/DCTDecode';
-          AXObject.Bytes := AImage.Bytes;
-          AXObject.SMaskName := '';
-          AXObject.SMaskObjectNo := 0;
-          SetLength(AXObject.SMaskBytes, 0);
-          Result := Length(AXObject.Bytes) > 0;
+          Result := BuildFlateRGBXObject(JPEG, AName, AXObject);
         finally
           Src.Free;
         end;
@@ -954,30 +1044,28 @@ var
       Exit;
     end;
 
-    if (AImage.Source = '') or not FileExists(AImage.Source) or
-       not IsJPEGFile(AImage.Source) then
-      Exit;
-
-    JPEG := TJPEGImage.Create;
-    try
-      JPEG.LoadFromFile(AImage.Source);
-      if (JPEG.Width <= 0) or (JPEG.Height <= 0) then
-        Exit;
-
-       AXObject.Name := AName;
-       AXObject.Width := JPEG.Width;
-       AXObject.Height := JPEG.Height;
-       AXObject.ColorSpace := '/DeviceRGB';
-       AXObject.BitsPerComponent := 8;
-       AXObject.Filter := '/DCTDecode';
-       AXObject.Bytes := TFile.ReadAllBytes(AImage.Source);
-       AXObject.SMaskName := '';
-       AXObject.SMaskObjectNo := 0;
-       SetLength(AXObject.SMaskBytes, 0);
-       Result := Length(AXObject.Bytes) > 0;
-    finally
-      JPEG.Free;
+    AXObject.Name := AName;
+    AXObject.Width := W;
+    AXObject.Height := H;
+    AXObject.BitsPerComponent := 8;
+    AXObject.Filter := '/DCTDecode';
+    AXObject.Decode := '';
+    AXObject.Bytes := RawBytes;
+    AXObject.SMaskName := '';
+    AXObject.SMaskObjectNo := 0;
+    SetLength(AXObject.SMaskBytes, 0);
+    case Components of
+      1: AXObject.ColorSpace := '/DeviceGray';
+      3: AXObject.ColorSpace := '/DeviceRGB';
+      4:
+      begin
+        AXObject.ColorSpace := '/DeviceCMYK';
+        // Adobe CMYK/YCCK scans carry inverted component values.
+        if AdobeInverted then
+          AXObject.Decode := ' /Decode [1 0 1 0 1 0 1 0]';
+      end;
     end;
+    Result := Length(AXObject.Bytes) > 0;
   end;
 
   // Builds a white-flattened raw-RGB FlateDecode Image XObject from any
@@ -1030,6 +1118,7 @@ var
     AXObject.ColorSpace := '/DeviceRGB';
     AXObject.BitsPerComponent := 8;
     AXObject.Filter := '/FlateDecode';
+    AXObject.Decode := '';
     AXObject.Bytes := CompressBytes(RawBytes);
     AXObject.SMaskName := '';
     AXObject.SMaskObjectNo := 0;
@@ -2001,6 +2090,7 @@ begin
           ' /Height ' + IntToStr(Img.Height) +
           ' /ColorSpace ' + string(Img.ColorSpace) +
           ' /BitsPerComponent ' + IntToStr(Img.BitsPerComponent) +
+          Img.Decode +
           ' /Filter ') +
           Img.Filter +
           AnsiString(' /Length ' + IntToStr(Length(Img.Bytes))));

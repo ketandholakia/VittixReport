@@ -66,6 +66,7 @@ uses
   Test.Vittix.Report.Objects.Text in 'Test.Vittix.Report.Objects.Text.pas',
   Test.Vittix.Report.ExportCapture in 'Test.Vittix.Report.ExportCapture.pas',
   Test.Vittix.Report.BlobImages in 'Test.Vittix.Report.BlobImages.pas',
+  Test.Vittix.Report.VectorPDF.JPEG in 'Test.Vittix.Report.VectorPDF.JPEG.pas',
   Test.Vittix.Report.Export.HTML in 'Test.Vittix.Report.Export.HTML.pas',
   Test.Vittix.Report.Export.XLSX in 'Test.Vittix.Report.Export.XLSX.pas',
   Test.Vittix.Report.DesignerLoad in 'Test.Vittix.Report.DesignerLoad.pas',
