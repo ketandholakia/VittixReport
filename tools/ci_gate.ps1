@@ -132,7 +132,7 @@ if ($Failed -gt 0 -or $Errored -gt 0) {
 # --- Gate 3 + 4: build and run the regression runner ------------------------
 if (-not $SkipRunner) {
   Write-Step 'Gate 3/4: build VittixRunner'
-  Invoke-Msbuild 'VittixRunner.dproj' 'Build'
+  Invoke-Msbuild 'tools\runner\VittixRunner.dproj' 'Build'
 
   Write-Step 'Gate 4/4: run VittixRunner --strict (pagination + resources)'
   $RunnerExe = Join-Path $RepoRoot ('bin\{0}\{1}\VittixRunner.exe' -f $Platform, $Config)

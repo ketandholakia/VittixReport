@@ -17,7 +17,7 @@ if %errorlevel% neq 0 (
 echo Building VittixRunner...
 :: Compiles the project using Delphi's MSBuild 
 taskkill /f /im VittixRunner.exe >nul 2>nul
-msbuild VittixRunner.dproj /p:Config=Debug /p:Platform=Win32
+msbuild tools\runner\VittixRunner.dproj /p:Config=Debug /p:Platform=Win32
 if %errorlevel% neq 0 (
     echo.
     echo MSBuild failed!
