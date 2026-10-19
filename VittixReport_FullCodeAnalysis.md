@@ -29,6 +29,60 @@
 
 ---
 
+## Owner-approved freeze-scoped consolidation (2026-10-19)
+
+The owner explicitly approved a focused correctness branch containing the
+numeric/BCD/timestamp/initialization fixes, the dataset capability guard,
+scan-based detail traversal and restoration, supported pagination, single-object
+z-order correction, and atomic-save correction, with their required regression
+tests. This approval defines the exception scope for this consolidation; it does
+not mark release readiness complete.
+
+Excluded from this branch: BLOB image and image-export capability, extended JPEG
+support, repository-wide BOM edits, runner relocation, scratch cleanup, and
+unrelated archived-backlog edits. The final traversal uses ordered scans; the
+previous per-pass detail-key index is superseded and is not included.
+
+Evidence provenance: source/test behavior was reviewed on preserved consolidation
+head `a1f0df36fe52b8e211d474f54d05e30c6bdde986` and its `batch4b-final-20261019-224500`
+snapshot. This focused branch starts from `origin/main` at
+`841a24a9a50122b207db00fae50e2deb4f5d4886`; historical 837-test and owner UI
+results remain tied to that prior snapshot and are not evidence for this branch.
+New run evidence belongs to this branch's commit and CI artifacts. Portable
+snapshot identifiers should be used in place of workstation backup paths.
+
+**Focused branch verification:** source and tests at `8dac38d37c70aec8e4391a5919e975f206f51968`
+passed the Delphi 12 Win32 Release suite **824/824**, with 0 failures, 0 errors,
+and 0 leaks. DUnitX filtered focused run matched **152 tests** across aggregate,
+capability, detail traversal, pagination, engine, z-order/undo, save, and object
+fixtures; **152 passed**, 0 failed/errors/leaks. The strict runner discovered 42
+reports, checked and matched 41, with 0 mismatches, 0 missing/orphan baselines,
+0 execution errors, and 1 documented skip. Resource deltas: GDI +8 (16 to 24,
+limit 16), USER 0, memory 0 KB. The repository gate also built runtime and design
+packages, the designer, and demo successfully (`-IncludePackages`). Logs are the
+portable CI artifacts `build/gate/dunitx-console.txt` and
+`build/gate/runner-console.txt` in that worktree; older 837/837 evidence remains
+attached only to the named Batch 4B snapshot.
+
+Integrated behavior: detail traversal uses ordered scans and preserves NULL
+matching, relationship validation, linked-dataset refresh, and position/control
+restoration; an already caller-disabled master cannot be advanced safely, so
+Prepare rejects that state without balancing the caller's DisableControls.
+Supported subreport continuation is flat or one nested child level. Deeper
+nested layouts retain the legacy atomic draw/clipping fallback; unsupported
+overflow layouts report the existing explicit error. `DrawPlannedRow` is an
+additive public renderer method used by the continuation path. Cancellation and
+render failures may leave partial output from completed rows/pages; a subsequent
+Prepare replaces the prior pages and export commands. The superseded detail-key
+index is absent.
+
+The five owner UI checks from the prior snapshot must be repeated on this build:
+save/reopen, cancelled Save-As during close, failed-save preservation, z-order
+undo/redo, and preview/export continuation consistency. Firebird recovery and
+authorized separate test-database access, 125/150% scaled-display behavior, and
+clean-machine package/install checks remain pending. Release readiness remains
+incomplete.
+
 ## Top 10 Riskiest Files
 
 | # | File | Why it's risky |

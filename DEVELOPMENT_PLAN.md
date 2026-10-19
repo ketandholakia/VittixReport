@@ -12,6 +12,37 @@
 
 ---
 
+## Focused consolidation scope approval (2026-10-19)
+
+Owner-approved freeze scope for the isolated branch from
+`origin/main` `841a24a9a50122b207db00fae50e2deb4f5d4886`: numeric/BCD/timestamp/
+initialization correctness, dataset capability guard, scan-based detail
+traversal/restoration, supported pagination, single-object z-order, and atomic
+save, with required tests. The approved result excludes BLOB/image-export and
+extended JPEG capability, broad BOM changes, runner relocation, scratch cleanup,
+and archived-backlog edits. The per-pass detail index is superseded by ordered
+scans.
+
+Prior 837/837 automated and owner UI results remain attributed to the preserved
+`batch4b-final-20261019-224500` snapshot at reviewed head
+`a1f0df36fe52b8e211d474f54d05e30c6bdde986`; they do not verify this reduced
+branch. Re-run and report evidence against the focused branch's resulting commit.
+The Firebird access/recovery, scaled-display, and clean-machine package/install
+checks remain pending. Release readiness remains incomplete.
+
+**Focused branch results at code commit `8dac38d37c70aec8e4391a5919e975f206f51968`:**
+Delphi 12 Win32 Release passed **824/824** with no failures, errors, or leaks;
+the filtered changed-area run matched **152/152** tests with zero leaks. Strict
+runner validation matched **41/41** checked reports (42 discovered, one
+documented skip, zero mismatches or execution errors). Resource deltas were GDI
++8 (within the 16 limit), USER 0, and memory 0 KB. With `-IncludePackages`, the
+runtime and design packages, designer, and demo builds all passed. Evidence is
+in portable worktree artifacts `build/gate/dunitx-console.txt` and
+`build/gate/runner-console.txt`. Repeat the five UI checks on this build; the
+owner's earlier confirmation remains tied to the Batch 4B snapshot. Pending
+release checks remain Firebird recovery/separate database access, scaled-display
+behavior, and clean-machine package/install.
+
 ## 0. How to work an item
 
 Every `[fix]` item follows the same micro-cycle (mirrors AGENTS.md "Preferred Workflow"):
