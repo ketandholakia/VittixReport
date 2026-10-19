@@ -42,6 +42,11 @@ type
       the engine after every store/eviction so tests can assert that
       row-scoped re-evaluations stay bounded. }
     AggregateCacheEntries: Integer;
+    { Compatibility field retained from the short-lived indexed traversal
+      implementation in the consolidation branch. Scan-based engine
+      execution leaves this field at zero unless a caller explicitly uses
+      the retained DetailIndexDiscarded diagnostic method. }
+    DetailIndexDiscarded: Integer;
   end;
 
   TReportTraversalDiagnostics = class
@@ -65,6 +70,7 @@ type
     class procedure LegacyQualifiedFieldToken; static;
     class procedure LegacyAggregateOverUserDataSet; static;
     class procedure AggregateCacheSize(AValue: Integer); static;
+    class procedure DetailIndexDiscarded; static;
   end;
 
 implementation
@@ -152,6 +158,11 @@ end;
 class procedure TReportTraversalDiagnostics.AggregateCacheSize(AValue: Integer);
 begin
   FSnapshot.AggregateCacheEntries := AValue;
+end;
+
+class procedure TReportTraversalDiagnostics.DetailIndexDiscarded;
+begin
+  Inc(FSnapshot.DetailIndexDiscarded);
 end;
 
 end.

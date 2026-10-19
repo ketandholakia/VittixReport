@@ -7,12 +7,14 @@ uses
   System.Classes,
   System.SysUtils,
   System.Types,
+  System.Generics.Collections,
   System.Variants,
   Vcl.Graphics,
   Vcl.Imaging.PNGImage,
   Data.DB,
   Datasnap.DBClient,
   Vittix.Report.Model,
+  Vittix.Report.PageSettings,
   Vittix.Report.Engine,
   Vittix.Report.Bands,
   Vittix.Report.Objects,
@@ -24,6 +26,8 @@ uses
   Vittix.Report.Serializer,
   Vittix.Report.Renderer,
   Vittix.Report.Expressions,
+  Vittix.Report.Interfaces,
+  Vittix.Report.Scripting,
   Vittix.Report.TraversalDiagnostics,
   Vittix.Report.Export.Commands;
 
@@ -34,7 +38,12 @@ type
     FReport: TReportModel;
     FDataSet: TClientDataSet;
     FEngine: TReportEngine;
+    FRaiseOnContinuationRow: Boolean;
+    FContinuationFailureRow: Integer;
     class function BitmapsDiffer(const A, B: TBitmap): Boolean;
+    procedure RaiseOnContinuationObject(AReport: TReportModel;
+      AObject: TReportObject; const Script: string;
+      var Context: TExpressionContext; var ACanPrint: Boolean);
   public
     [Setup]
     procedure Setup;
@@ -64,11 +73,33 @@ type
     [Test]
     procedure Test_SubReport_MeasuresDuringCountingPass;
     [Test]
+    procedure Test_SubReport_FlatRowsContinueAcrossOrdinaryPages;
+    [Test]
+    procedure Test_SubReport_FlatContinuation_CancelAfterBoundaryThenPrepare;
+    [Test]
+    procedure Test_SubReport_FlatContinuation_RenderFailureThenPrepare;
+    [Test]
+    procedure Test_SubReport_NestedRowsContinueAcrossOrdinaryPages;
+    [Test]
+    procedure Test_SubReport_ThirdLevelUsesLegacyClippedDrawing;
+    [Test]
+    procedure Test_SubReport_UnsupportedOverflowAndOversizedRowsRaise;
+    [Test]
     procedure Test_DP18_CrossTabTallerThanBand_NoBleedIntoNextBand;
     [Test]
     procedure Test_DP29_RowScopedAggregates_DoNotGrowCache;
     [Test]
     procedure Test_DP29_AggregateCache_CapEnforced_FIFO;
+  end;
+
+  TContinuationTestProgress = class(TInterfacedObject, IReportProgress)
+  public
+    CancelAtAdvance: Integer;
+    AdvanceCount: Integer;
+    Total: Integer;
+    procedure SetTotal(const ATotal: Integer);
+    procedure Advance(const ACurrent: Integer);
+    function IsCancelled: Boolean;
   end;
 
   { Event harness for a purely event-driven TVittixUserDataSet whose group
@@ -264,6 +295,124 @@ begin
     for X := 0 to (A.Width * 4) - 1 do
       if RowA[X] <> RowB[X] then
         Exit(True);
+  end;
+end;
+
+procedure TTestReportEngine.RaiseOnContinuationObject(AReport: TReportModel;
+  AObject: TReportObject; const Script: string;
+  var Context: TExpressionContext; var ACanPrint: Boolean);
+begin
+  if FRaiseOnContinuationRow and not Context.IsCountingPass and
+     Assigned(Context.DataSet) and
+     (Context.DataSet.FieldByName('ID').AsInteger = FContinuationFailureRow) then
+    raise Exception.Create('injected continuation render failure');
+end;
+
+procedure TContinuationTestProgress.SetTotal(const ATotal: Integer);
+begin
+  Total := ATotal;
+end;
+
+procedure TContinuationTestProgress.Advance(const ACurrent: Integer);
+begin
+  Inc(AdvanceCount);
+end;
+
+function TContinuationTestProgress.IsCancelled: Boolean;
+begin
+  Result := (CancelAtAdvance > 0) and
+    (AdvanceCount >= CancelAtAdvance);
+end;
+
+procedure BuildFlatContinuationFixture(AMasterDS, AChildDS: TClientDataSet;
+  ANamedDataSets: TDictionary<string, TDataSet>; AModel, AChildModel: TReportModel;
+  const APrefix: string; out AMarker: TReportTextObject;
+  out AFooterBand: TReportBand);
+var
+  MasterBand, ChildBand: TReportBand;
+  SubReport: TReportSubReportObject;
+  FooterText: TReportTextObject;
+  MasterID, RowID: Integer;
+begin
+  AMasterDS.FieldDefs.Add('ID', ftInteger);
+  AMasterDS.CreateDataSet;
+  for MasterID := 1 to 2 do
+    AMasterDS.AppendRecord([MasterID]);
+  AMasterDS.First;
+
+  AChildDS.FieldDefs.Add('ID', ftInteger);
+  AChildDS.FieldDefs.Add('MasterID', ftInteger);
+  AChildDS.FieldDefs.Add('Marker', ftString, 40);
+  AChildDS.CreateDataSet;
+  for MasterID := 1 to 2 do
+    for RowID := 1 to 30 do
+      AChildDS.AppendRecord([RowID, MasterID,
+        Format('%s-%d-%2.2d', [APrefix, MasterID, RowID])]);
+  AChildDS.First;
+  ANamedDataSets.Add('ChildRows', AChildDS);
+
+  ChildBand := TReportBand.Create;
+  ChildBand.BandType := btMasterData;
+  ChildBand.Height := 30;
+  AMarker := TReportTextObject.Create;
+  AMarker.DataField := 'Marker';
+  AMarker.OnBeforePrint := 'raise-continuation';
+  AMarker.Bounds := Rect(4, 4, 180, 26);
+  ChildBand.Children.Add(AMarker);
+  AChildModel.Objects.Add(ChildBand);
+
+  MasterBand := TReportBand.Create;
+  MasterBand.BandType := btMasterData;
+  MasterBand.Height := 40;
+  MasterBand.CanGrow := True;
+  SubReport := TReportSubReportObject.Create;
+  SubReport.ReportJSON := TReportSerializer.SaveToJSON(AChildModel);
+  SubReport.DataSetName := 'ChildRows';
+  SubReport.MasterField := 'ID';
+  SubReport.DetailField := 'MasterID';
+  SubReport.Bounds := Rect(5, 2, 260, 170);
+  SubReport.Transparent := True;
+  SubReport.BorderVisible := False;
+  MasterBand.Children.Add(SubReport);
+  AModel.Objects.Add(MasterBand);
+
+  AFooterBand := TReportBand.Create;
+  AFooterBand.BandType := btPageFooter;
+  AFooterBand.Height := 24;
+  FooterText := TReportTextObject.Create;
+  FooterText.Text := 'CONTINUATION-FOOTER';
+  FooterText.Bounds := Rect(4, 2, 220, 20);
+  AFooterBand.Children.Add(FooterText);
+  AModel.Objects.Add(AFooterBand);
+
+  AModel.PageSettings.PaperSize := psCustom;
+  AModel.PageSettings.CustomWidth := 400;
+  AModel.PageSettings.CustomHeight := 500;
+  AModel.PageSettings.Margins := TReportMargins.Default;
+end;
+
+procedure CollectContinuationMarkers(ADocument: TReportExportDocument;
+  const APrefix: string; AValues: TStrings; APageIndexes: TList<Integer>);
+var
+  PageIndex: Integer;
+  Page: TReportExportPage;
+  Command: TReportExportCommand;
+  TextCommand: TReportExportTextCommand;
+begin
+  for PageIndex := 0 to ADocument.Pages.Count - 1 do
+  begin
+    Page := ADocument.Pages[PageIndex];
+    for Command in Page.Commands do
+      if Command is TReportExportTextCommand then
+      begin
+        TextCommand := TReportExportTextCommand(Command);
+        if Copy(TextCommand.Text, 1, Length(APrefix)) = APrefix then
+        begin
+          AValues.Add(TextCommand.Text);
+          if Assigned(APageIndexes) then
+            APageIndexes.Add(PageIndex);
+        end;
+      end;
   end;
 end;
 
@@ -910,6 +1059,830 @@ begin
     end;
   finally
     DS.Free;
+  end;
+end;
+
+procedure TTestReportEngine.Test_SubReport_FlatRowsContinueAcrossOrdinaryPages;
+var
+  MasterDS, ChildDS: TClientDataSet;
+  NamedDataSets: TDictionary<string, TDataSet>;
+  Model, ChildModel: TReportModel;
+  MasterBand, ChildBand: TReportBand;
+  FooterBand: TReportBand;
+  SubReport: TReportSubReportObject;
+  Marker: TReportTextObject;
+  FooterText: TReportTextObject;
+  Engine: TReportEngine;
+  ExportDoc: TReportExportDocument;
+  Command: TReportExportCommand;
+  TextCommand: TReportExportTextCommand;
+  MarkerCount: Integer;
+  FooterCount: Integer;
+  MarkerValues: TStringList;
+  MarkerPages: TList<Integer>;
+  Page: TReportExportPage;
+  PageIndex: Integer;
+  ExpectedPageIndex: Integer;
+  ExpectedY: Integer;
+  ExpectedRowTop: Integer;
+  PrintableBottom: Integer;
+  I: Integer;
+begin
+  MasterDS := TClientDataSet.Create(nil);
+  ChildDS := TClientDataSet.Create(nil);
+  NamedDataSets := TDictionary<string, TDataSet>.Create;
+  Model := TReportModel.Create;
+  ChildModel := TReportModel.Create;
+  ExportDoc := TReportExportDocument.Create;
+  try
+    MasterDS.FieldDefs.Add('ID', ftInteger);
+    MasterDS.CreateDataSet;
+    MasterDS.AppendRecord([1]);
+    MasterDS.First;
+
+    ChildDS.FieldDefs.Add('ID', ftInteger);
+    ChildDS.FieldDefs.Add('Marker', ftString, 32);
+    ChildDS.CreateDataSet;
+    for I := 1 to 30 do
+      ChildDS.AppendRecord([I, Format('ROW-%4.4d', [I])]);
+    ChildDS.First;
+    NamedDataSets.Add('ChildRows', ChildDS);
+
+    ChildBand := TReportBand.Create;
+    ChildBand.BandType := btMasterData;
+    ChildBand.Height := 30;
+    Marker := TReportTextObject.Create;
+    Marker.DataField := 'Marker';
+    Marker.Bounds := Rect(4, 4, 180, 26);
+    ChildBand.Children.Add(Marker);
+    ChildModel.Objects.Add(ChildBand);
+
+    MasterBand := TReportBand.Create;
+    MasterBand.BandType := btMasterData;
+    MasterBand.Height := 40;
+    MasterBand.CanGrow := True;
+    SubReport := TReportSubReportObject.Create;
+    SubReport.ReportJSON := TReportSerializer.SaveToJSON(ChildModel);
+    SubReport.DataSetName := 'ChildRows';
+    SubReport.Bounds := Rect(5, 2, 260, 170);
+    SubReport.Transparent := True;
+    SubReport.BorderVisible := False;
+    MasterBand.Children.Add(SubReport);
+    Model.Objects.Add(MasterBand);
+    FooterBand := TReportBand.Create;
+    FooterBand.BandType := btPageFooter;
+    FooterBand.Height := 24;
+    FooterText := TReportTextObject.Create;
+    FooterText.Text := 'CONTINUATION-FOOTER';
+    FooterText.Bounds := Rect(4, 2, 220, 20);
+    FooterBand.Children.Add(FooterText);
+    Model.Objects.Add(FooterBand);
+    Model.PageSettings.PaperSize := psCustom;
+    Model.PageSettings.CustomWidth := 400;
+    Model.PageSettings.CustomHeight := 500;
+    Model.PageSettings.Margins := TReportMargins.Default;
+
+    Engine := TReportEngine.Create(Model, MasterDS, NamedDataSets, nil);
+    try
+      Engine.ExportDocument := ExportDoc;
+      Engine.Prepare;
+
+      Assert.IsTrue(Engine.PageCount > 1,
+        'ordinary preparation must continue flat child rows across pages');
+      Assert.AreEqual(Engine.PageCount, ExportDoc.Pages.Count,
+        'continuation must keep metafile and export page counts aligned');
+      MarkerCount := 0;
+      FooterCount := 0;
+      MarkerValues := TStringList.Create;
+      MarkerPages := TList<Integer>.Create;
+      try
+      try
+        for PageIndex := 0 to ExportDoc.Pages.Count - 1 do
+        begin
+          Page := ExportDoc.Pages[PageIndex];
+          Assert.IsTrue(Page.Commands.Count > 0,
+            'continuation must not create a blank page');
+          for Command in Page.Commands do
+            if Command is TReportExportTextCommand then
+            begin
+              TextCommand := TReportExportTextCommand(Command);
+              if Copy(TextCommand.Text, 1, 4) = 'ROW-' then
+              begin
+                Inc(MarkerCount);
+                MarkerValues.Add(TextCommand.Text);
+                MarkerPages.Add(PageIndex);
+                Assert.IsTrue(TextCommand.Bounds.Top >= Model.PageSettings.Margins.Top,
+                  'planned continuation rows stay below the printable top margin');
+                Assert.IsTrue(TextCommand.Bounds.Bottom <=
+                  Page.Height - Model.PageSettings.Margins.Bottom - FooterBand.Height,
+                  'planned continuation rows stay above the reserved footer area');
+              end;
+              if TextCommand.Text = 'CONTINUATION-FOOTER' then
+              begin
+                Inc(FooterCount);
+                Assert.IsTrue(TextCommand.Bounds.Top > (Page.Height div 2),
+                  'page footer command is positioned in the lower page area');
+              end;
+            end;
+        end;
+        Assert.AreEqual(30, MarkerCount,
+          'every child row must be present in the rendered command pages');
+        Assert.AreEqual(Engine.PageCount, FooterCount,
+          'every completed page has exactly one footer');
+        for I := 1 to 30 do
+          Assert.AreEqual(Format('ROW-%4.4d', [I]), MarkerValues[I - 1],
+            'flat continuation preserves child dataset order');
+
+        { Independently simulate the documented row-height/page-footer
+          budget and compare each marker with its expected page. }
+        ExpectedPageIndex := 0;
+        ExpectedY := Model.PageSettings.Margins.Top;
+        PrintableBottom := Model.PageSettings.PageHeight -
+          Model.PageSettings.Margins.Bottom - FooterBand.Height;
+        for I := 0 to MarkerPages.Count - 1 do
+        begin
+          ExpectedRowTop := 0;
+          if I = 0 then
+            ExpectedRowTop := SubReport.Bounds.Top + 2;
+          if ExpectedY + ExpectedRowTop + ChildBand.Height > PrintableBottom then
+          begin
+            Inc(ExpectedPageIndex);
+            ExpectedY := Model.PageSettings.Margins.Top;
+            ExpectedRowTop := 0;
+          end;
+          Assert.AreEqual(ExpectedPageIndex, MarkerPages[I],
+            'each marker is captured on the page predicted by the row and footer bounds');
+          ExpectedY := ExpectedY + ExpectedRowTop + ChildBand.Height;
+        end;
+        Assert.IsTrue(MarkerPages[0] = 0,
+          'the first planned row remains on the first page');
+        Assert.IsTrue(MarkerPages[MarkerPages.Count - 1] = Engine.PageCount - 1,
+          'the final planned row reaches the last continuation page');
+      finally
+        MarkerPages.Free;
+      end;
+      finally
+        MarkerValues.Free;
+      end;
+      Assert.AreEqual(1, MasterDS.RecNo,
+        'ordinary continuation must restore the parent cursor');
+      Assert.AreEqual(1, ChildDS.RecNo,
+        'ordinary continuation must restore the child cursor');
+      Engine.Prepare;
+      Assert.AreEqual(Engine.PageCount, ExportDoc.Pages.Count,
+        'repeated Prepare replaces captured pages instead of appending duplicates');
+    finally
+      Engine.Free;
+    end;
+  finally
+    ExportDoc.Free;
+    ChildModel.Free;
+    Model.Free;
+    NamedDataSets.Free;
+    ChildDS.Free;
+    MasterDS.Free;
+  end;
+end;
+
+procedure TTestReportEngine.Test_SubReport_FlatContinuation_CancelAfterBoundaryThenPrepare;
+var
+  MasterDS, ChildDS: TClientDataSet;
+  NamedDataSets: TDictionary<string, TDataSet>;
+  Model, ChildModel: TReportModel;
+  FooterBand: TReportBand;
+  Marker: TReportTextObject;
+  Engine: TReportEngine;
+  ExportDoc: TReportExportDocument;
+  ProgressObject: TContinuationTestProgress;
+  Progress: IReportProgress;
+  Values, ExpectedValues: TStringList;
+  PageIndexes: TList<Integer>;
+  I, MasterID, RowID: Integer;
+begin
+  MasterDS := TClientDataSet.Create(nil);
+  ChildDS := TClientDataSet.Create(nil);
+  NamedDataSets := TDictionary<string, TDataSet>.Create;
+  Model := TReportModel.Create;
+  ChildModel := TReportModel.Create;
+  ExportDoc := TReportExportDocument.Create;
+  Values := TStringList.Create;
+  PageIndexes := TList<Integer>.Create;
+  try
+    BuildFlatContinuationFixture(MasterDS, ChildDS, NamedDataSets, Model,
+      ChildModel, 'CANCEL', Marker, FooterBand);
+    MasterDS.First;
+    ChildDS.First;
+    ProgressObject := TContinuationTestProgress.Create;
+    ProgressObject.CancelAtAdvance := 1;
+    ProgressObject.AdvanceCount := 0;
+    Progress := ProgressObject;
+    Engine := TReportEngine.Create(Model, MasterDS, NamedDataSets, Progress);
+    try
+      Engine.ExportDocument := ExportDoc;
+      Engine.Prepare;
+
+      Assert.IsTrue(Engine.PageCount > 1,
+        'the first master row crosses a continuation page before cancellation is observed');
+      Assert.AreEqual(Engine.PageCount, ExportDoc.Pages.Count,
+        'cancelled preparation retains aligned partial metafile and export pages');
+      CollectContinuationMarkers(ExportDoc, 'CANCEL-', Values, PageIndexes);
+      Assert.AreEqual(30, Values.Count,
+        'cancellation after the first master row retains its completed continuation output');
+      Assert.IsTrue(PageIndexes[PageIndexes.Count - 1] > 0,
+        'the retained partial output proves continuation crossed a page boundary');
+      for I := 0 to Values.Count - 1 do
+        Assert.AreEqual(Format('CANCEL-1-%2.2d', [I + 1]), Values[I],
+          'cancellation retains only the first master row in source order');
+      Assert.AreEqual(1, MasterDS.RecNo,
+        'cancellation restores the primary dataset position');
+      Assert.AreEqual(1, ChildDS.RecNo,
+        'cancellation restores the continuation dataset position');
+      Assert.IsFalse(MasterDS.ControlsDisabled,
+        'cancellation restores primary controls');
+      Assert.IsFalse(ChildDS.ControlsDisabled,
+        'cancellation restores continuation controls');
+
+      { A caller may prepare again after discarding the partial result. }
+      ProgressObject.CancelAtAdvance := 0;
+      ProgressObject.AdvanceCount := 0;
+      Values.Clear;
+      PageIndexes.Clear;
+      Engine.Prepare;
+      CollectContinuationMarkers(ExportDoc, 'CANCEL-', Values, PageIndexes);
+      Assert.AreEqual(60, Values.Count,
+        'successful retry replaces partial export commands and renders both masters');
+      Assert.AreEqual(Engine.PageCount, Engine.Pages.Count,
+        'successful retry replaces partial metafile pages');
+      Assert.AreEqual(Engine.PageCount, ExportDoc.Pages.Count,
+        'successful retry replaces partial export pages');
+      ExpectedValues := TStringList.Create;
+      try
+        for MasterID := 1 to 2 do
+          for RowID := 1 to 30 do
+            ExpectedValues.Add(Format('CANCEL-%d-%2.2d', [MasterID, RowID]));
+        Assert.AreEqual(ExpectedValues.Text, Values.Text,
+          'retry has no stale, duplicated, or omitted continuation rows');
+      finally
+        ExpectedValues.Free;
+      end;
+    finally
+      Engine.Free;
+      Progress := nil;
+    end;
+  finally
+    PageIndexes.Free;
+    Values.Free;
+    ExportDoc.Free;
+    ChildModel.Free;
+    Model.Free;
+    NamedDataSets.Free;
+    ChildDS.Free;
+    MasterDS.Free;
+  end;
+end;
+
+procedure TTestReportEngine.Test_SubReport_FlatContinuation_RenderFailureThenPrepare;
+var
+  MasterDS, ChildDS: TClientDataSet;
+  NamedDataSets: TDictionary<string, TDataSet>;
+  Model, ChildModel: TReportModel;
+  FooterBand: TReportBand;
+  Marker: TReportTextObject;
+  Engine: TReportEngine;
+  ExportDoc: TReportExportDocument;
+  Values, ExpectedValues: TStringList;
+  Raised: Boolean;
+  I, MasterID, RowID: Integer;
+begin
+  MasterDS := TClientDataSet.Create(nil);
+  ChildDS := TClientDataSet.Create(nil);
+  NamedDataSets := TDictionary<string, TDataSet>.Create;
+  Model := TReportModel.Create;
+  ChildModel := TReportModel.Create;
+  ExportDoc := TReportExportDocument.Create;
+  Values := TStringList.Create;
+  try
+    BuildFlatContinuationFixture(MasterDS, ChildDS, NamedDataSets, Model,
+      ChildModel, 'FAIL', Marker, FooterBand);
+    MasterDS.First;
+    ChildDS.First;
+    FRaiseOnContinuationRow := True;
+    FContinuationFailureRow := 18; // beyond the first page's planned rows
+    Engine := TReportEngine.Create(Model, MasterDS, NamedDataSets, nil);
+    try
+      Engine.ExportDocument := ExportDoc;
+      Engine.ScriptEngine.OnObjectBeforePrint := RaiseOnContinuationObject;
+      Raised := False;
+      try
+        Engine.Prepare;
+      except
+        on E: EReportException do
+          Raised := Pos('injected continuation render failure', E.Message) > 0;
+      end;
+      Assert.IsTrue(Raised,
+        'the injected failure occurs while drawing a planned continuation row');
+      Assert.IsTrue(Engine.PageCount > 1,
+        'the continuation crossed a page before the injected failure');
+      Assert.IsTrue(Engine.Pages.Count > 0,
+        'the failed preparation retains its documented partial metafile output');
+      Assert.IsTrue(ExportDoc.Pages.Count > 0,
+        'the failed preparation retains its documented partial export output');
+      CollectContinuationMarkers(ExportDoc, 'FAIL-', Values, nil);
+      Assert.IsTrue(Values.Count > 0,
+        'partial export commands from rows before the failure remain observable');
+      Assert.IsTrue(Values.Count < 30,
+        'the failed row and following rows are absent from partial output');
+      Assert.AreEqual(1, MasterDS.RecNo,
+        'render failure restores the primary dataset position');
+      Assert.AreEqual(1, ChildDS.RecNo,
+        'render failure restores the continuation dataset position');
+      Assert.IsFalse(MasterDS.ControlsDisabled,
+        'render failure restores primary controls');
+      Assert.IsFalse(ChildDS.ControlsDisabled,
+        'render failure restores continuation controls');
+
+      FRaiseOnContinuationRow := False;
+      Values.Clear;
+      Engine.Prepare;
+      CollectContinuationMarkers(ExportDoc, 'FAIL-', Values, nil);
+      Assert.AreEqual(60, Values.Count,
+        'successful retry replaces partial export commands and renders both masters');
+      Assert.AreEqual(Engine.PageCount, Engine.Pages.Count,
+        'successful retry replaces partial metafile pages');
+      Assert.AreEqual(Engine.PageCount, ExportDoc.Pages.Count,
+        'successful retry replaces partial export pages');
+      ExpectedValues := TStringList.Create;
+      try
+        for MasterID := 1 to 2 do
+          for RowID := 1 to 30 do
+            ExpectedValues.Add(Format('FAIL-%d-%2.2d', [MasterID, RowID]));
+        Assert.AreEqual(ExpectedValues.Text, Values.Text,
+          'retry has no stale, duplicated, or omitted continuation rows');
+      finally
+        ExpectedValues.Free;
+      end;
+    finally
+      Engine.Free;
+    end;
+  finally
+    FRaiseOnContinuationRow := False;
+    Values.Free;
+    ExportDoc.Free;
+    ChildModel.Free;
+    Model.Free;
+    NamedDataSets.Free;
+    ChildDS.Free;
+    MasterDS.Free;
+  end;
+end;
+
+
+procedure TTestReportEngine.Test_SubReport_NestedRowsContinueAcrossOrdinaryPages;
+var
+  MasterDS, OuterDS, InnerDS: TClientDataSet;
+  MasterSrc, OuterSrc: TDataSource;
+  NamedDataSets: TDictionary<string, TDataSet>;
+  Model, OuterModel, InnerModel: TReportModel;
+  MasterBand, OuterBand, InnerBand: TReportBand;
+  OuterSubReport, InnerSubReport: TReportSubReportObject;
+  Marker: TReportTextObject;
+  Engine: TReportEngine;
+  ExportDoc: TReportExportDocument;
+  Command: TReportExportCommand;
+  TextCommand: TReportExportTextCommand;
+  MarkerCount: Integer;
+  Page: TReportExportPage;
+  Values, ExpectedValues: TStringList;
+  I: Integer;
+begin
+  MasterDS := TClientDataSet.Create(nil);
+  OuterDS := TClientDataSet.Create(nil);
+  InnerDS := TClientDataSet.Create(nil);
+  MasterSrc := TDataSource.Create(nil);
+  OuterSrc := TDataSource.Create(nil);
+  NamedDataSets := TDictionary<string, TDataSet>.Create;
+  Model := TReportModel.Create;
+  OuterModel := TReportModel.Create;
+  InnerModel := TReportModel.Create;
+  ExportDoc := TReportExportDocument.Create;
+  try
+    MasterDS.FieldDefs.Add('ID', ftInteger);
+    MasterDS.CreateDataSet;
+    MasterDS.AppendRecord([1]);
+    MasterDS.First;
+
+    OuterDS.FieldDefs.Add('ID', ftInteger);
+    OuterDS.FieldDefs.Add('MasterID', ftInteger);
+    OuterDS.CreateDataSet;
+    OuterDS.AppendRecord([10, 1]);
+    OuterDS.AppendRecord([11, 1]);
+    OuterDS.AppendRecord([20, 1]);
+    MasterSrc.DataSet := MasterDS;
+    OuterDS.IndexFieldNames := 'MasterID';
+    OuterDS.MasterFields := 'ID';
+    OuterDS.MasterSource := MasterSrc;
+    OuterDS.First;
+    NamedDataSets.Add('OuterRows', OuterDS);
+
+    InnerDS.FieldDefs.Add('OuterID', ftInteger);
+    InnerDS.FieldDefs.Add('Marker', ftString, 32);
+    InnerDS.CreateDataSet;
+    for I := 1 to 10 do
+    begin
+      InnerDS.AppendRecord([10, Format('NEST-A%2.2d', [I])]);
+      InnerDS.AppendRecord([11, Format('NEST-B%2.2d', [I])]);
+      InnerDS.AppendRecord([20, Format('NEST-C%2.2d', [I])]);
+    end;
+    OuterSrc.DataSet := OuterDS;
+    InnerDS.IndexFieldNames := 'OuterID';
+    InnerDS.MasterFields := 'ID';
+    InnerDS.MasterSource := OuterSrc;
+    InnerDS.First;
+    ExpectedValues := TStringList.Create;
+    try
+      OuterDS.First;
+      while not OuterDS.Eof do
+      begin
+        InnerDS.First;
+        Assert.AreEqual(10, InnerDS.RecordCount,
+          'each outer row exposes its own ten inner rows');
+        while not InnerDS.Eof do
+        begin
+          ExpectedValues.Add(InnerDS.FieldByName('Marker').AsString);
+          InnerDS.Next;
+        end;
+        OuterDS.Next;
+      end;
+    finally
+      ExpectedValues.Free;
+    end;
+    OuterDS.First;
+    InnerDS.First;
+    NamedDataSets.Add('InnerRows', InnerDS);
+
+    InnerBand := TReportBand.Create;
+    InnerBand.BandType := btMasterData;
+    InnerBand.Height := 30;
+    Marker := TReportTextObject.Create;
+    Marker.DataField := 'Marker';
+    Marker.Bounds := Rect(4, 4, 180, 26);
+    InnerBand.Children.Add(Marker);
+    InnerModel.Objects.Add(InnerBand);
+
+    OuterBand := TReportBand.Create;
+    OuterBand.BandType := btMasterData;
+    OuterBand.Height := 40;
+    InnerSubReport := TReportSubReportObject.Create;
+    InnerSubReport.ReportJSON := TReportSerializer.SaveToJSON(InnerModel);
+    InnerSubReport.DataSetName := 'InnerRows';
+    InnerSubReport.MasterField := 'ID';
+    InnerSubReport.DetailField := 'OuterID';
+    InnerSubReport.Bounds := Rect(5, 2, 250, 170);
+    InnerSubReport.Transparent := True;
+    InnerSubReport.BorderVisible := False;
+    OuterBand.Children.Add(InnerSubReport);
+    OuterModel.Objects.Add(OuterBand);
+
+    MasterBand := TReportBand.Create;
+    MasterBand.BandType := btMasterData;
+    MasterBand.Height := 40;
+    MasterBand.CanGrow := True;
+    OuterSubReport := TReportSubReportObject.Create;
+    OuterSubReport.ReportJSON := TReportSerializer.SaveToJSON(OuterModel);
+    OuterSubReport.DataSetName := 'OuterRows';
+    OuterSubReport.MasterField := 'ID';
+    OuterSubReport.DetailField := 'MasterID';
+    OuterSubReport.Bounds := Rect(5, 2, 260, 170);
+    OuterSubReport.Transparent := True;
+    OuterSubReport.BorderVisible := False;
+    MasterBand.Children.Add(OuterSubReport);
+    Model.Objects.Add(MasterBand);
+    Model.PageSettings.PaperSize := psCustom;
+    Model.PageSettings.CustomWidth := 400;
+    Model.PageSettings.CustomHeight := 500;
+    Model.PageSettings.Margins := TReportMargins.Default;
+
+    Engine := TReportEngine.Create(Model, MasterDS, NamedDataSets, nil);
+    try
+      Engine.ExportDocument := ExportDoc;
+      Engine.Prepare;
+
+      Assert.IsTrue(Engine.PageCount > 1,
+        'ordinary preparation must continue nested child rows across pages');
+      Assert.AreEqual(Engine.PageCount, ExportDoc.Pages.Count,
+        'nested continuation must keep metafile and export page counts aligned');
+      MarkerCount := 0;
+      Values := TStringList.Create;
+      try
+      for Page in ExportDoc.Pages do
+      begin
+        Assert.IsTrue(Page.Commands.Count > 0,
+          'nested continuation must not create a blank page');
+        for Command in Page.Commands do
+          if Command is TReportExportTextCommand then
+          begin
+            TextCommand := TReportExportTextCommand(Command);
+            if Copy(TextCommand.Text, 1, 5) = 'NEST-' then
+            begin
+              Inc(MarkerCount);
+              Values.Add(TextCommand.Text);
+            end;
+          end;
+      end;
+      Assert.AreEqual(30, MarkerCount,
+        'every nested child row must be present in the rendered command pages');
+      ExpectedValues := TStringList.Create;
+      try
+        OuterDS.First;
+        while not OuterDS.Eof do
+        begin
+          InnerDS.First;
+          while not InnerDS.Eof do
+          begin
+            ExpectedValues.Add(InnerDS.FieldByName('Marker').AsString);
+            InnerDS.Next;
+          end;
+          OuterDS.Next;
+        end;
+        Assert.AreEqual(ExpectedValues.Text, Values.Text,
+          'nested output preserves each changing linked visible set in dataset order');
+      finally
+        ExpectedValues.Free;
+      end;
+      finally
+        Values.Free;
+      end;
+      Assert.AreEqual(1, MasterDS.RecNo,
+        'nested continuation must restore the parent dataset position');
+      Assert.IsFalse(OuterDS.IsEmpty,
+        'nested continuation leaves the outer linked view available');
+      InnerDS.First;
+      Assert.AreEqual(OuterDS.FieldByName('ID').AsInteger,
+        InnerDS.FieldByName('OuterID').AsInteger,
+        'nested continuation leaves the inner view linked to its current outer row');
+      Assert.IsFalse(MasterDS.ControlsDisabled,
+        'nested continuation preserves master controls');
+      Assert.IsFalse(OuterDS.ControlsDisabled,
+        'nested continuation preserves outer linked controls');
+      Assert.IsFalse(InnerDS.ControlsDisabled,
+        'nested continuation preserves inner linked controls');
+    finally
+      Engine.Free;
+    end;
+  finally
+    ExportDoc.Free;
+    InnerModel.Free;
+    OuterModel.Free;
+    Model.Free;
+    NamedDataSets.Free;
+    OuterSrc.Free;
+    MasterSrc.Free;
+    InnerDS.Free;
+    OuterDS.Free;
+    MasterDS.Free;
+  end;
+end;
+
+procedure TTestReportEngine.Test_SubReport_ThirdLevelUsesLegacyClippedDrawing;
+var
+  MasterDS, ChildDS, GrandDS, LeafDS: TClientDataSet;
+  NamedDataSets: TDictionary<string, TDataSet>;
+  Model, ChildModel, GrandModel, LeafModel: TReportModel;
+  MasterBand, ChildBand, GrandBand, LeafBand: TReportBand;
+  RootSubReport, ChildSubReport, GrandSubReport: TReportSubReportObject;
+  Marker: TReportTextObject;
+  Engine: TReportEngine;
+  ExportDoc: TReportExportDocument;
+  Values: TStringList;
+  Command: TReportExportCommand;
+  I: Integer;
+begin
+  MasterDS := TClientDataSet.Create(nil);
+  ChildDS := TClientDataSet.Create(nil);
+  GrandDS := TClientDataSet.Create(nil);
+  LeafDS := TClientDataSet.Create(nil);
+  NamedDataSets := TDictionary<string, TDataSet>.Create;
+  Model := TReportModel.Create;
+  ChildModel := TReportModel.Create;
+  GrandModel := TReportModel.Create;
+  LeafModel := TReportModel.Create;
+  ExportDoc := TReportExportDocument.Create;
+  Values := TStringList.Create;
+  try
+    MasterDS.FieldDefs.Add('ID', ftInteger);
+    MasterDS.CreateDataSet;
+    MasterDS.AppendRecord([1]);
+    MasterDS.First;
+
+    ChildDS.FieldDefs.Add('ID', ftInteger);
+    ChildDS.FieldDefs.Add('MasterID', ftInteger);
+    ChildDS.CreateDataSet;
+    ChildDS.AppendRecord([10, 1]);
+    ChildDS.First;
+    NamedDataSets.Add('ChildRows', ChildDS);
+
+    GrandDS.FieldDefs.Add('ID', ftInteger);
+    GrandDS.FieldDefs.Add('ChildID', ftInteger);
+    GrandDS.CreateDataSet;
+    GrandDS.AppendRecord([100, 10]);
+    GrandDS.First;
+    NamedDataSets.Add('GrandRows', GrandDS);
+
+    LeafDS.FieldDefs.Add('GrandID', ftInteger);
+    LeafDS.FieldDefs.Add('Marker', ftString, 24);
+    LeafDS.CreateDataSet;
+    for I := 1 to 10 do
+      LeafDS.AppendRecord([100, Format('LEGACY-%2.2d', [I])]);
+    LeafDS.First;
+    NamedDataSets.Add('LeafRows', LeafDS);
+
+    LeafBand := TReportBand.Create;
+    LeafBand.BandType := btMasterData;
+    LeafBand.Height := 20;
+    Marker := TReportTextObject.Create;
+    Marker.DataField := 'Marker';
+    Marker.Bounds := Rect(2, 1, 150, 18);
+    LeafBand.Children.Add(Marker);
+    LeafModel.Objects.Add(LeafBand);
+
+    GrandBand := TReportBand.Create;
+    GrandBand.BandType := btMasterData;
+    GrandBand.Height := 30;
+    GrandSubReport := TReportSubReportObject.Create;
+    GrandSubReport.ReportJSON := TReportSerializer.SaveToJSON(LeafModel);
+    GrandSubReport.DataSetName := 'LeafRows';
+    GrandSubReport.MasterField := 'ID';
+    GrandSubReport.DetailField := 'GrandID';
+    GrandSubReport.Bounds := Rect(0, 0, 170, 55);
+    GrandSubReport.Transparent := True;
+    GrandSubReport.BorderVisible := False;
+    GrandBand.Children.Add(GrandSubReport);
+    GrandModel.Objects.Add(GrandBand);
+
+    ChildBand := TReportBand.Create;
+    ChildBand.BandType := btMasterData;
+    ChildBand.Height := 40;
+    ChildSubReport := TReportSubReportObject.Create;
+    ChildSubReport.ReportJSON := TReportSerializer.SaveToJSON(GrandModel);
+    ChildSubReport.DataSetName := 'GrandRows';
+    ChildSubReport.MasterField := 'ID';
+    ChildSubReport.DetailField := 'ChildID';
+    ChildSubReport.Bounds := Rect(0, 0, 220, 100);
+    ChildSubReport.Transparent := True;
+    ChildSubReport.BorderVisible := False;
+    ChildBand.Children.Add(ChildSubReport);
+    ChildModel.Objects.Add(ChildBand);
+
+    MasterBand := TReportBand.Create;
+    MasterBand.BandType := btMasterData;
+    MasterBand.Height := 60;
+    MasterBand.CanGrow := True;
+    RootSubReport := TReportSubReportObject.Create;
+    RootSubReport.ReportJSON := TReportSerializer.SaveToJSON(ChildModel);
+    RootSubReport.DataSetName := 'ChildRows';
+    RootSubReport.MasterField := 'ID';
+    RootSubReport.DetailField := 'MasterID';
+    RootSubReport.Bounds := Rect(5, 2, 270, 150);
+    RootSubReport.Transparent := True;
+    RootSubReport.BorderVisible := False;
+    MasterBand.Children.Add(RootSubReport);
+    Model.Objects.Add(MasterBand);
+    Model.PageSettings.PaperSize := psCustom;
+    Model.PageSettings.CustomWidth := 400;
+    Model.PageSettings.CustomHeight := 500;
+    Model.PageSettings.Margins := TReportMargins.Default;
+
+    Engine := TReportEngine.Create(Model, MasterDS, NamedDataSets, nil);
+    try
+      Engine.ExportDocument := ExportDoc;
+      Engine.Prepare;
+
+      Assert.AreEqual(1, Engine.PageCount,
+        'third-level nesting remains on the legacy atomic drawing path');
+      for Command in ExportDoc.Pages[0].Commands do
+        if Command is TReportExportTextCommand then
+          if Copy(TReportExportTextCommand(Command).Text, 1, 7) = 'LEGACY-' then
+            Values.Add(TReportExportTextCommand(Command).Text);
+      Assert.AreEqual(3, Values.Count,
+        'legacy nested drawing stops at the grandchild subreport object bounds');
+      for I := 1 to Values.Count do
+        Assert.AreEqual(Format('LEGACY-%2.2d', [I]), Values[I - 1],
+          'legacy clipped fallback preserves the visible prefix in dataset order');
+      Assert.AreEqual(1, MasterDS.RecNo,
+        'legacy fallback restores the primary dataset position');
+      Assert.AreEqual(1, ChildDS.RecNo,
+        'legacy fallback restores the child dataset position');
+      Assert.AreEqual(1, GrandDS.RecNo,
+        'legacy fallback restores the grandchild dataset position');
+      Assert.AreEqual(1, LeafDS.RecNo,
+        'legacy fallback restores the leaf dataset position');
+      Assert.IsFalse(ChildDS.ControlsDisabled,
+        'legacy fallback restores child controls');
+      Assert.IsFalse(GrandDS.ControlsDisabled,
+        'legacy fallback restores grandchild controls');
+      Assert.IsFalse(LeafDS.ControlsDisabled,
+        'legacy fallback restores leaf controls');
+    finally
+      Engine.Free;
+    end;
+  finally
+    Values.Free;
+    ExportDoc.Free;
+    LeafModel.Free;
+    GrandModel.Free;
+    ChildModel.Free;
+    Model.Free;
+    NamedDataSets.Free;
+    LeafDS.Free;
+    GrandDS.Free;
+    ChildDS.Free;
+    MasterDS.Free;
+  end;
+end;
+
+
+procedure TTestReportEngine.Test_SubReport_UnsupportedOverflowAndOversizedRowsRaise;
+var
+  ChildDS: TClientDataSet;
+  NamedDataSets: TDictionary<string, TDataSet>;
+  ChildModel: TReportModel;
+  MasterBand, ChildBand: TReportBand;
+  SubReport: TReportSubReportObject;
+  Marker: TReportTextObject;
+  Engine: TReportEngine;
+  Raised: Boolean;
+  I: Integer;
+begin
+  ChildDS := TClientDataSet.Create(nil);
+  NamedDataSets := TDictionary<string, TDataSet>.Create;
+  ChildModel := TReportModel.Create;
+  try
+    ChildDS.FieldDefs.Add('Marker', ftString, 32);
+    ChildDS.CreateDataSet;
+    for I := 1 to 10 do
+      ChildDS.AppendRecord([Format('OVERFLOW-%2.2d', [I])]);
+    ChildDS.First;
+    NamedDataSets.Add('OverflowRows', ChildDS);
+
+    ChildBand := TReportBand.Create;
+    ChildBand.BandType := btMasterData;
+    ChildBand.Height := 30;
+    Marker := TReportTextObject.Create;
+    Marker.DataField := 'Marker';
+    Marker.Bounds := Rect(2, 2, 190, 26);
+    ChildBand.Children.Add(Marker);
+    ChildModel.Objects.Add(ChildBand);
+
+    MasterBand := TReportBand.Create;
+    MasterBand.BandType := btMasterData;
+    MasterBand.Height := 40;
+    MasterBand.CanGrow := False; // makes continuation unsupported
+    SubReport := TReportSubReportObject.Create;
+    SubReport.ReportJSON := TReportSerializer.SaveToJSON(ChildModel);
+    SubReport.DataSetName := 'OverflowRows';
+    SubReport.Bounds := Rect(4, 2, 250, 102);
+    SubReport.Transparent := True;
+    SubReport.BorderVisible := False;
+    MasterBand.Children.Add(SubReport);
+    FReport.Objects.Add(MasterBand);
+
+    Engine := TReportEngine.Create(FReport, FDataSet, NamedDataSets, nil);
+    try
+      Raised := False;
+      try
+        Engine.Prepare;
+      except
+        on E: EReportException do
+          Raised := Pos('does not support flat or nested page continuation',
+            E.Message) > 0;
+      end;
+      Assert.IsTrue(Raised,
+        'overflow in an unsupported parent layout fails clearly instead of clipping rows');
+    finally
+      Engine.Free;
+    end;
+
+    MasterBand.CanGrow := True;
+    ChildBand.Height := 2000;
+    SubReport.ReportJSON := TReportSerializer.SaveToJSON(ChildModel);
+    Engine := TReportEngine.Create(FReport, FDataSet, NamedDataSets, nil);
+    try
+      Raised := False;
+      try
+        Engine.Prepare;
+      except
+        on E: EReportException do
+          Raised := Pos('taller than the printable page area', E.Message) > 0;
+      end;
+      Assert.IsTrue(Raised,
+        'a continuation row taller than one printable page is rejected explicitly');
+    finally
+      Engine.Free;
+    end;
+  finally
+    NamedDataSets.Free;
+    ChildModel.Free;
+    ChildDS.Free;
   end;
 end;
 

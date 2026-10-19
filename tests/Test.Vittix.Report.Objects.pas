@@ -38,7 +38,10 @@ uses
   Vcl.Graphics,
   System.Classes,
   System.SysUtils,
+  System.Variants,
   Data.DB,
+  Data.SqlTimSt,
+  Datasnap.DBClient,
   Vittix.Report.Context,
   Vittix.Report.Objects;
 
@@ -75,6 +78,8 @@ type
   public
     [Test]
     procedure Test_FontAssignment_CopiesIntoOwnedInstance_NoAliasing;
+    [Test]
+    procedure Test_TimestampVariant_UsesDateDisplayFormat;
   end;
 
   { Minimal TReportObject derivative whose Draw records the
@@ -285,6 +290,39 @@ begin
       Replacement.Free; // post-fix: the object never adopted it
     Obj.Free;
     Src.Free;
+  end;
+end;
+
+procedure TTextObjectFontTests.Test_TimestampVariant_UsesDateDisplayFormat;
+var
+  DS: TClientDataSet;
+  Field: TReportFieldObject;
+  Ctx: TExpressionContext;
+begin
+  DS := TClientDataSet.Create(nil);
+  Field := TReportFieldObject.Create;
+  try
+    DS.FieldDefs.Add('POSTED_AT', ftTimeStamp);
+    DS.CreateDataSet;
+    DS.Append;
+    DS.FieldByName('POSTED_AT').Value :=
+      VarSQLTimeStampCreate(EncodeDate(2026, 1, 15) +
+        EncodeTime(10, 30, 0, 0));
+    DS.Post;
+    DS.First;
+
+    Assert.IsTrue(VarIsSQLTimeStamp(DS.FieldByName('POSTED_AT').Value),
+      'fixture must expose the SQLTimeStamp custom variant');
+    Ctx := Default(TExpressionContext);
+    Ctx.DataSet := DS;
+    Field.DataField := 'POSTED_AT';
+    Field.DisplayFormat := 'yyyy-mm-dd';
+
+    Assert.AreEqual('2026-01-15', Field.ResolveDisplayText(Ctx),
+      'SQLTimeStamp custom variants must use date formatting');
+  finally
+    Field.Free;
+    DS.Free;
   end;
 end;
 
