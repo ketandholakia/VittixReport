@@ -61,7 +61,7 @@ const
   convention; NOT banker's rounding).  Uses exact 64-bit scaled
   arithmetic while the product cannot overflow, and falls back to a
   Double product with the same explicit rounding for magnitudes beyond
-  the 64-bit scaled range (documented in DEVELOPER_MANUAL.md). }
+  the 64-bit scaled range. }
 function CurrScaled(const A: Currency): Int64; inline;
 begin
   // Currency is a scaled 64-bit integer (value * 10000); read that

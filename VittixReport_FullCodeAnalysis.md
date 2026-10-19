@@ -71,10 +71,12 @@ Prepare rejects that state without balancing the caller's DisableControls.
 Supported subreport continuation is flat or one nested child level. Deeper
 nested layouts retain the legacy atomic draw/clipping fallback; unsupported
 overflow layouts report the existing explicit error. `DrawPlannedRow` is an
-additive public renderer method used by the continuation path. Cancellation and
-render failures may leave partial output from completed rows/pages; a subsequent
-Prepare replaces the prior pages and export commands. The superseded detail-key
-index is absent.
+additive public renderer method used by the continuation path; the
+`TReportProgressTotalHook` is also a newly added host extension point for
+authoritative dataset totals. Neither is a compatibility shim. Cancellation
+and render failures may leave partial output from completed rows/pages; a
+subsequent Prepare replaces the prior pages and export commands. The superseded
+detail-key index is absent.
 
 The five owner UI checks from the prior snapshot must be repeated on this build:
 save/reopen, cancelled Save-As during close, failed-save preservation, z-order
@@ -589,7 +591,10 @@ Framed for the active **v1.0 freeze**: everything below is `[fix]`-with-failing-
 2. Split `Frm.Main.pas` (finish the helpers migration; delete dead duplicates; extract the 2,608-line demo harness out of the production form — it already exists as `Vittix.Designer.RuntimeDemo.pas`, currently dead).
 3. Background/progressive rendering behind `IReportProgress` with cancellation (M-18), preview thumbnails.
 4. BUG-005 (UDS aggregates) and RTL PDF shaping.
-5. Aggregates: keyed cache, optional detail-dataset index for linked details.
+5. Aggregate/performance work remains parked post-v1.0. The former optional
+   detail-dataset index idea is superseded by the approved ordered-scan behavior;
+   do not restore it without a demonstrated performance need and linked/mutation
+   regression evidence.
 6. Schema: reject `Version > 2`, then introduce real migration hooks when v3 semantics arrive.
 
 ---

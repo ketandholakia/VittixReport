@@ -315,7 +315,7 @@ From report §12 long-term + unscheduled Lows (each needs its own analysis-first
 - **Background/progressive rendering** behind `IReportProgress` with cancellation; preview thumbnails; print page-range/collate.
 - **BUG-005 proper fix** (aggregates over `TVittixUserDataSet`) — DP-36 decided 2026-10-02: semantics stay parked, the silent fallback is now counted (`LegacyAggregatesOverUserDataSet`); the real repair remains this Phase4I-20-aligned evaluator work.
 - **RTL PDF text** (M-15): proper bidi placement instead of rasterization fallback.
-- **Aggregate performance:** keyed (dictionary) cache, cached `TField` resolution, optional detail-dataset index to kill the O(master × detail) rescan (`Engine.pas:1320-1399`).
+- **Aggregate/performance work:** keyed cache and cached `TField` resolution remain parked. The former optional detail-dataset index idea is superseded by the approved ordered-scan behavior; do not restore it without demonstrated performance need and linked/mutation regression evidence.
 - **Schema evolution:** real version migration hooks once v3 semantics exist (DP-26 is the guard rail).
 - **PDF polish:** compress content streams (M-16), per-glyph `Tj` batching, RTL, `/W` width-metric verification (report §14.2), glyf-table pruning in the VectorPDF subsetter (embedding adds ~150-560 KB/document since DP-30).
 - **Designer UX:** single INI session (fewer open/write cycles), `%APPDATA%` hive, icon-index robustness, high-DPI designer pass if OQ-1 shows impact.
