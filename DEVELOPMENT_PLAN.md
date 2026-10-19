@@ -38,10 +38,18 @@ documented skip, zero mismatches or execution errors). Resource deltas were GDI
 +8 (within the 16 limit), USER 0, and memory 0 KB. With `-IncludePackages`, the
 runtime and design packages, designer, and demo builds all passed. Evidence is
 in portable worktree artifacts `build/gate/dunitx-console.txt` and
-`build/gate/runner-console.txt`. Repeat the five UI checks on this build; the
-owner's earlier confirmation remains tied to the Batch 4B snapshot. Pending
-release checks remain Firebird recovery/separate database access, scaled-display
-behavior, and clean-machine package/install.
+`build/gate/runner-console.txt`. **Owner UI confirmation dated 2026-10-20:**
+the owner reports all five checks on the actual checklist passed on the
+`codex/consolidation-freeze-fixes` build: save/reopen; cancelled Save-As during
+close; failed-save preservation; single-object z-order undo/redo; and
+preview/export continuation consistency.
+The verified branch HEAD was `9e629778568e2eca788a6fd73660e9036618850b`; the
+recorded gate source/test revision was `8dac38d37c70aec8e4391a5919e975f206f51968`.
+The intervening branch delta contains tracking updates and a one-line source
+comment correction only, with no runtime or test behavior changes. The UI
+confirmation is owner-reported interactive evidence, separate from the gate.
+Firebird recovery/separate database access, scaled-display behavior, and
+clean-machine package/install checks remain pending.
 
 ## 0. How to work an item
 

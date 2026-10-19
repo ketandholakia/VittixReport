@@ -78,12 +78,19 @@ and render failures may leave partial output from completed rows/pages; a
 subsequent Prepare replaces the prior pages and export commands. The superseded
 detail-key index is absent.
 
-The five owner UI checks from the prior snapshot must be repeated on this build:
-save/reopen, cancelled Save-As during close, failed-save preservation, z-order
-undo/redo, and preview/export continuation consistency. Firebird recovery and
-authorized separate test-database access, 125/150% scaled-display behavior, and
-clean-machine package/install checks remain pending. Release readiness remains
-incomplete.
+**Owner UI confirmation (2026-10-20):** the owner confirmed that all five checks
+on the actual checklist passed on the `codex/consolidation-freeze-fixes` build:
+(1) save/reopen, (2) cancelled Save-As during close, (3) failed-save
+preservation, (4) single-object z-order undo/redo, and (5) preview/export
+continuation consistency. The verified branch
+HEAD was `9e629778568e2eca788a6fd73660e9036618850b`; the recorded automated gate
+was run at source/test revision `8dac38d37c70aec8e4391a5919e975f206f51968`.
+Inspection confirms the later branch delta changes no runtime or test behavior:
+it contains tracking updates and a one-line source comment correction. This is
+owner-reported interactive verification, not a new automated run. Firebird
+recovery and authorized separate test-database access, 125/150% scaled-display
+behavior, and clean-machine package/install checks remain pending. Release
+readiness remains incomplete.
 
 ## Top 10 Riskiest Files
 
