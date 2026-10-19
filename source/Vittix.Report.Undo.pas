@@ -198,7 +198,7 @@ type
     FList: TObjectList<TReportObject>;
     FObj : TReportObject;
     FOldIdx, FNewIdx: Integer;
-    procedure MoveItem(FromIdx, ToIdx: Integer);
+    procedure MoveItemToIndex(TargetIdx: Integer);
   public
     constructor Create(AList: TObjectList<TReportObject>;
                        AObj: TReportObject; OldIdx, NewIdx: Integer);
@@ -628,20 +628,30 @@ begin
   ActionName := 'Z Order';
 end;
 
-procedure TZOrderCommand.MoveItem(FromIdx, ToIdx: Integer);
+procedure TZOrderCommand.MoveItemToIndex(TargetIdx: Integer);
 var
-  Obj     : TReportObject;
-  InsertAt: Integer;
+  Obj: TReportObject;
+  CurrentIdx: Integer;
 begin
-  Obj      := FList.Extract(FList[FromIdx]);
-  InsertAt := ToIdx;
-  if FromIdx < ToIdx then Dec(InsertAt);
-  if InsertAt < 0 then InsertAt := 0;
-  if InsertAt >= FList.Count then FList.Add(Obj) else FList.Insert(InsertAt, Obj);
+  { TargetIdx is the final index after the move. Resolve the object by
+    identity because stored indexes can be stale after other list changes.
+    An absent object is a safe no-op; clamp requested targets to the ends. }
+  if not Assigned(FList) then
+    Exit;
+  CurrentIdx := FList.IndexOf(FObj);
+  if CurrentIdx < 0 then
+    Exit;
+  Obj := FList.Extract(FObj);
+  if TargetIdx < 0 then
+    TargetIdx := 0;
+  if TargetIdx >= FList.Count then
+    FList.Add(Obj)
+  else
+    FList.Insert(TargetIdx, Obj);
 end;
 
-procedure TZOrderCommand.Execute;  begin MoveItem(FOldIdx, FNewIdx); end;
-procedure TZOrderCommand.Rollback; begin MoveItem(FNewIdx, FOldIdx); end;
+procedure TZOrderCommand.Execute;  begin MoveItemToIndex(FNewIdx); end;
+procedure TZOrderCommand.Rollback; begin MoveItemToIndex(FOldIdx); end;
 
 // ===========================================================================
 // TPropertyChangeCommand

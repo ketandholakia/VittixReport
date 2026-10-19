@@ -42,6 +42,12 @@ type
     procedure Rollback; override;
   end;
 
+  TZOrderOwnershipProbe = class(TReportTextObject)
+  public
+    class var DestroyedCount: Integer;
+    destructor Destroy; override;
+  end;
+
   TExecuteRaisingAction = class(TUndoableAction)
   public
     procedure Execute; override;
@@ -68,6 +74,10 @@ type
     procedure Test_RedoLast_ExecutesAgain;
     [Test]
     procedure Test_DoCommand_CapsHistoryAt100;
+    [Test]
+    procedure Test_ZOrder_FinalIndex_ForwardBackward_UndoRedoCycles;
+    [Test]
+    procedure Test_ZOrder_ClampsNoOpsAbsentAndOwnership;
   end;
 
   [TestFixture]
@@ -207,6 +217,12 @@ begin
   // no-op: only Execute raises
 end;
 
+destructor TZOrderOwnershipProbe.Destroy;
+begin
+  Inc(DestroyedCount);
+  inherited;
+end;
+
 { TTestMacroCommand }
 
 procedure TTestMacroCommand.Test_MacroCommand_ExecuteOrder;
@@ -311,6 +327,137 @@ begin
   finally
     Mgr.Free;
   end;
+end;
+
+procedure TTestCommandManager.Test_ZOrder_FinalIndex_ForwardBackward_UndoRedoCycles;
+var
+  Mgr: TCommandManager;
+  Items: TObjectList<TReportObject>;
+  A, B, C, D: TReportTextObject;
+begin
+  Items := TObjectList<TReportObject>.Create(True);
+  try
+    A := TReportTextObject.Create;
+    B := TReportTextObject.Create;
+    C := TReportTextObject.Create;
+    D := TReportTextObject.Create;
+    Items.Add(A); Items.Add(B); Items.Add(C); Items.Add(D);
+    Mgr := TCommandManager.Create;
+    try
+      Mgr.DoCommand(TZOrderCommand.Create(Items, B, 1, 3));
+      Assert.IsTrue((Items[0] = A) and (Items[1] = C) and
+        (Items[2] = D) and (Items[3] = B),
+        'moving forward to index 3 uses the final index and places B last');
+      Mgr.UndoLast;
+      Assert.IsTrue((Items[0] = A) and (Items[1] = B) and
+        (Items[2] = C) and (Items[3] = D),
+        'undo restores the exact original order');
+      Mgr.RedoLast;
+      Assert.IsTrue((Items[0] = A) and (Items[1] = C) and
+        (Items[2] = D) and (Items[3] = B),
+        'redo restores the exact forward order');
+      Mgr.UndoLast;
+      Assert.IsTrue((Items[0] = A) and (Items[1] = B) and
+        (Items[2] = C) and (Items[3] = D),
+        'a repeated undo cycle still restores the exact original order');
+      Mgr.RedoLast;
+      Assert.IsTrue((Items[0] = A) and (Items[1] = C) and
+        (Items[2] = D) and (Items[3] = B),
+        'a repeated redo cycle still restores the exact forward order');
+
+      Mgr.DoCommand(TZOrderCommand.Create(Items, D, 2, 0));
+      Assert.IsTrue((Items[0] = D) and (Items[1] = A) and
+        (Items[2] = C) and (Items[3] = B),
+        'moving backward to index 0 places D first');
+      Mgr.UndoLast;
+      Assert.IsTrue((Items[0] = A) and (Items[1] = C) and
+        (Items[2] = D) and (Items[3] = B),
+        'undo of a backward move restores its exact prior order');
+      Mgr.RedoLast;
+      Assert.IsTrue((Items[0] = D) and (Items[1] = A) and
+        (Items[2] = C) and (Items[3] = B),
+        'redo of a backward move restores its exact target order');
+      Assert.AreEqual(2, Mgr.UndoCount,
+        'each real single-object move remains one history entry');
+    finally
+      Mgr.Free;
+    end;
+  finally
+    Items.Free;
+  end;
+end;
+
+procedure TTestCommandManager.Test_ZOrder_ClampsNoOpsAbsentAndOwnership;
+var
+  Mgr: TCommandManager;
+  Items: TObjectList<TReportObject>;
+  A, B, C: TZOrderOwnershipProbe;
+  Absent: TZOrderOwnershipProbe;
+begin
+  TZOrderOwnershipProbe.DestroyedCount := 0;
+  Items := TObjectList<TReportObject>.Create(True);
+  try
+    A := TZOrderOwnershipProbe.Create;
+    B := TZOrderOwnershipProbe.Create;
+    C := TZOrderOwnershipProbe.Create;
+    Absent := TZOrderOwnershipProbe.Create;
+    Items.Add(A); Items.Add(B); Items.Add(C);
+    Mgr := TCommandManager.Create;
+    try
+      Mgr.DoCommand(TZOrderCommand.Create(Items, B, 1, 1));
+      Assert.IsTrue((Items[0] = A) and (Items[1] = B) and (Items[2] = C),
+        'a no-op target keeps the exact list order');
+      Assert.AreEqual(1, Mgr.UndoCount,
+        'the existing command manager records the submitted no-op command');
+      Mgr.UndoLast;
+      Assert.IsTrue((Items[0] = A) and (Items[1] = B) and (Items[2] = C),
+        'undo of a no-op keeps the exact list order');
+      Mgr.RedoLast;
+      Assert.IsTrue((Items[0] = A) and (Items[1] = B) and (Items[2] = C),
+        'redo of a no-op keeps the exact list order');
+
+      Mgr.DoCommand(TZOrderCommand.Create(Items, B, 1, -5));
+      Assert.IsTrue((Items[0] = B) and (Items[1] = A) and (Items[2] = C),
+        'a negative target clamps to the first position');
+      Mgr.UndoLast;
+      Assert.IsTrue((Items[0] = A) and (Items[1] = B) and (Items[2] = C),
+        'undo restores the order after a negative target');
+      Mgr.RedoLast;
+      Assert.IsTrue((Items[0] = B) and (Items[1] = A) and (Items[2] = C),
+        'redo reapplies the clamped first position');
+      Mgr.UndoLast;
+
+      Mgr.DoCommand(TZOrderCommand.Create(Items, B, 1, 999));
+      Assert.IsTrue((Items[0] = A) and (Items[1] = C) and (Items[2] = B),
+        'a target beyond the list clamps to the last position');
+      Mgr.UndoLast;
+      Assert.IsTrue((Items[0] = A) and (Items[1] = B) and (Items[2] = C),
+        'undo restores the order after a high target');
+
+      Mgr.DoCommand(TZOrderCommand.Create(Items, Absent, 0, 2));
+      Assert.IsTrue((Items[0] = A) and (Items[1] = B) and (Items[2] = C),
+        'an object absent from the list is a safe no-op');
+      Assert.AreEqual(2, Mgr.UndoCount,
+        'an absent-object command preserves prior history and adds its submitted entry');
+      Mgr.UndoLast;
+      Assert.IsTrue((Items[0] = A) and (Items[1] = B) and (Items[2] = C),
+        'undo of an absent-object command cannot move a different list item');
+      Mgr.RedoLast;
+      Assert.IsTrue((Items[0] = A) and (Items[1] = B) and (Items[2] = C),
+        'redo of an absent-object command cannot move a different list item');
+      Assert.AreEqual(0, TZOrderOwnershipProbe.DestroyedCount,
+        'execute, undo, and redo do not free list-owned objects');
+    finally
+      Mgr.Free;
+    end;
+    Assert.AreEqual(0, TZOrderOwnershipProbe.DestroyedCount,
+      'disposing command history does not free list-owned objects');
+  finally
+    Absent.Free;
+    Items.Free;
+  end;
+  Assert.AreEqual(4, TZOrderOwnershipProbe.DestroyedCount,
+    'the three list-owned objects and absent probe are each destroyed exactly once');
 end;
 
 procedure TTestCommandManager.Test_DoCommand_CapsHistoryAt100;
