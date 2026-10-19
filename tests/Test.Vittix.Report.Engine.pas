@@ -1257,7 +1257,7 @@ var
   Progress: IReportProgress;
   Values, ExpectedValues: TStringList;
   PageIndexes: TList<Integer>;
-  I, MasterID, RowID: Integer;
+  MasterID, RowID: Integer;
 begin
   MasterDS := TClientDataSet.Create(nil);
   ChildDS := TClientDataSet.Create(nil);

@@ -394,6 +394,7 @@ var
   A, B, C: TZOrderOwnershipProbe;
   Absent: TZOrderOwnershipProbe;
 begin
+  Absent := nil;
   TZOrderOwnershipProbe.DestroyedCount := 0;
   Items := TObjectList<TReportObject>.Create(True);
   try
