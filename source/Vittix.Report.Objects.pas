@@ -329,6 +329,9 @@ type
   public
     constructor Create; override;
     procedure Draw(C: TCanvas; const Context: TExpressionContext); override;
+    procedure DrawPlannedRow(C: TCanvas; ADetailBand: TReportObject;
+      const Context: TExpressionContext; AOriginX, AOriginY,
+      AClipWidth, AClipHeight: Integer);
     function MeasuredBottom(C: TCanvas; const Context: TExpressionContext): Integer; override;
     class function DisplayName: string; override;
   published
@@ -1058,7 +1061,14 @@ begin
       // Normalize by-ref variants so date/datetime values are detected reliably.
       ValueVarType := VarType(AValue) and varTypeMask;
 
-      if ValueVarType = varDate then
+      if (ValueVarType = varDate) or
+         ((ValueVarType <> varString) and (ValueVarType <> varUString) and
+          (ValueVarType <> varBoolean) and
+          not (ValueVarType in [varSmallint, varInteger, varSingle, varDouble,
+            varCurrency, varShortInt, varByte, varWord, varLongWord,
+            varInt64])) then
+        // Date/time-carrying custom variants (such as FireDAC's SQLTimestamp)
+        // must use date formatting as well as the standard varDate type.
         Result := FormatDateTime(ADisplayFormat, VarToDateTime(AValue))
       else
       begin
@@ -2213,6 +2223,7 @@ var
   SaveBM: TBookmark;
   HasSaveBM: Boolean;
   DrawY: Integer;
+  ControlsDisabledByUs: Boolean;
   SubCtx: TExpressionContext;
 begin
   if not ShouldPrintObject(Self, Context) then Exit;
@@ -2269,7 +2280,9 @@ begin
     SaveDC(C.Handle);
     try
       IntersectClipRect(C.Handle, R.Left, R.Top, R.Right, R.Bottom);
-      DS.DisableControls;
+      ControlsDisabledByUs := not DS.ControlsDisabled;
+      if ControlsDisabledByUs then
+        DS.DisableControls;
       try
         TReportTraversalDiagnostics.SubReportTraversalStarted;
         DS.First;
@@ -2292,7 +2305,8 @@ begin
           DS.Next;
         end;
       finally
-        DS.EnableControls;
+        if ControlsDisabledByUs then
+          DS.EnableControls;
       end;
     finally
       RestoreDC(C.Handle, -1);
@@ -2315,6 +2329,23 @@ begin
   end;
 
   if FSelected then DrawSelection(C);
+end;
+
+procedure TReportSubReportObject.DrawPlannedRow(C: TCanvas;
+  ADetailBand: TReportObject; const Context: TExpressionContext;
+  AOriginX, AOriginY, AClipWidth, AClipHeight: Integer);
+begin
+  if not Assigned(C) or not (ADetailBand is TReportBand) then
+    raise EArgumentException.Create(
+      'A planned subreport row requires a detail band.');
+  SaveDC(C.Handle);
+  try
+    SetViewportOrgEx(C.Handle, AOriginX, AOriginY, nil);
+    IntersectClipRect(C.Handle, 0, 0, AClipWidth, AClipHeight);
+    TReportBand(ADetailBand).Draw(C, Context);
+  finally
+    RestoreDC(C.Handle, -1);
+  end;
 end;
 
 function TReportSubReportObject.MeasuredBottom(C: TCanvas; const Context: TExpressionContext): Integer;
@@ -2366,8 +2397,9 @@ begin
     CleanupException := nil;
     try
       try
-        DS.DisableControls;
-        ControlsDisabledByUs := True;
+        ControlsDisabledByUs := not DS.ControlsDisabled;
+        if ControlsDisabledByUs then
+          DS.DisableControls;
         TReportTraversalDiagnostics.SubReportTraversalStarted;
         DS.First;
         while not DS.Eof do

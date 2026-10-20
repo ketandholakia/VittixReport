@@ -21,6 +21,7 @@
         <DCC_S>false</DCC_S>
         <DCC_F>false</DCC_F>
         <DCC_K>false</DCC_K>
+        <DCC_Define>VITTIX_REPORT_TESTS;$(DCC_Define)</DCC_Define>
         <DCC_UnitSearchPath>..;..\source;..\source\ThirdParty\QRCodeGenLib\src\QRCodeGen;..\source\ThirdParty\QRCodeGenLib\src\Interfaces;..\source\ThirdParty\QRCodeGenLib\src\Utils;..\source\ThirdParty\QRCodeGenLib\src\Include;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;$(DCC_Namespace)</DCC_Namespace>
     </PropertyGroup>
@@ -47,6 +48,15 @@
             <DCCReference>MainSource</DCCReference>
         </DelphiCompile>
         <DelphiCompile Include="Test.Vittix.Report.Objects.pas">
+            <DCCReference>MainSource</DCCReference>
+        </DelphiCompile>
+        <DelphiCompile Include="Test.Vittix.Report.AggregatesCurrency.pas">
+            <DCCReference>MainSource</DCCReference>
+        </DelphiCompile>
+        <DelphiCompile Include="Test.Vittix.Report.CapabilityGuard.pas">
+            <DCCReference>MainSource</DCCReference>
+        </DelphiCompile>
+        <DelphiCompile Include="Test.Vittix.Report.FileSave.pas">
             <DCCReference>MainSource</DCCReference>
         </DelphiCompile>
         <DelphiCompile Include="Test.Vittix.Report.Component.pas">

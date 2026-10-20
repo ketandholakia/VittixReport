@@ -21,6 +21,7 @@ interface
 uses
   System.Classes,
   System.Generics.Collections,
+  Data.DB,
   Vcl.Graphics;
 
 // ---------------------------------------------------------------------------
@@ -87,6 +88,26 @@ type
     /// </summary>
     function IsCancelled: Boolean;
   end;
+
+// ---------------------------------------------------------------------------
+// Progress-total hook
+//   Optional host hook deciding whether ADataSet exposes an AUTHORITATIVE
+//   row total for IReportProgress.SetTotal.  Implementations return True
+//   and set ATotal when the count is real; False marks the total unknown
+//   (the progress UI then runs without a total, SetTotal(0)).  Hosts
+//   driving FireDAC on-demand cursors register a hook here: a
+//   unidirectional / blocked-fetch TFDQuery only knows the fetched-so-far
+//   count, which must not be published as a total.  The core deliberately
+//   has no FireDAC dependency - the FireDAC-aware check lives host-side.
+// ---------------------------------------------------------------------------
+type
+  TReportProgressTotalHook = function(ADataSet: TDataSet;
+    out ATotal: Integer): Boolean;
+
+var
+  { Assignable from host code; nil (the default) keeps the historical
+    behavior of reporting SafeRecordCount as the progress total. }
+  ProgressTotalHook: TReportProgressTotalHook = nil;
 
 implementation
 

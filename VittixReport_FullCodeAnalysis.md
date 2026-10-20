@@ -29,6 +29,126 @@
 
 ---
 
+## Owner-approved freeze-scoped consolidation (2026-10-19)
+
+The owner explicitly approved a focused correctness branch containing the
+numeric/BCD/timestamp/initialization fixes, the dataset capability guard,
+scan-based detail traversal and restoration, supported pagination, single-object
+z-order correction, and atomic-save correction, with their required regression
+tests. This approval defines the exception scope for this consolidation; it does
+not mark release readiness complete.
+
+Excluded from this branch: BLOB image and image-export capability, extended JPEG
+support, repository-wide BOM edits, runner relocation, scratch cleanup, and
+unrelated archived-backlog edits. The final traversal uses ordered scans; the
+previous per-pass detail-key index is superseded and is not included.
+
+Evidence provenance: source/test behavior was reviewed on preserved consolidation
+head `a1f0df36fe52b8e211d474f54d05e30c6bdde986` and its `batch4b-final-20261019-224500`
+snapshot. This focused branch starts from `origin/main` at
+`841a24a9a50122b207db00fae50e2deb4f5d4886`; historical 837-test and owner UI
+results remain tied to that prior snapshot and are not evidence for this branch.
+New run evidence belongs to this branch's commit and CI artifacts. Portable
+snapshot identifiers should be used in place of workstation backup paths.
+
+**Focused branch verification:** source and tests at `8dac38d37c70aec8e4391a5919e975f206f51968`
+passed the Delphi 12 Win32 Release suite **824/824**, with 0 failures, 0 errors,
+and 0 leaks. DUnitX filtered focused run matched **152 tests** across aggregate,
+capability, detail traversal, pagination, engine, z-order/undo, save, and object
+fixtures; **152 passed**, 0 failed/errors/leaks. The strict runner discovered 42
+reports, checked and matched 41, with 0 mismatches, 0 missing/orphan baselines,
+0 execution errors, and 1 documented skip. Resource deltas: GDI +8 (16 to 24,
+limit 16), USER 0, memory 0 KB. The repository gate also built runtime and design
+packages, the designer, and demo successfully (`-IncludePackages`). Logs are the
+portable CI artifacts `build/gate/dunitx-console.txt` and
+`build/gate/runner-console.txt` in that worktree; older 837/837 evidence remains
+attached only to the named Batch 4B snapshot.
+
+Integrated behavior: detail traversal uses ordered scans and preserves NULL
+matching, relationship validation, linked-dataset refresh, and position/control
+restoration; an already caller-disabled master cannot be advanced safely, so
+Prepare rejects that state without balancing the caller's DisableControls.
+Supported subreport continuation is flat or one nested child level. Deeper
+nested layouts retain the legacy atomic draw/clipping fallback; unsupported
+overflow layouts report the existing explicit error. `DrawPlannedRow` is an
+additive public renderer method used by the continuation path; the
+`TReportProgressTotalHook` is also a newly added host extension point for
+authoritative dataset totals. Neither is a compatibility shim. Cancellation
+and render failures may leave partial output from completed rows/pages; a
+subsequent Prepare replaces the prior pages and export commands. The superseded
+detail-key index is absent.
+
+**Owner UI confirmation (2026-10-20):** the owner confirmed that all five checks
+on the actual checklist passed on the `codex/consolidation-freeze-fixes` build:
+(1) save/reopen, (2) cancelled Save-As during close, (3) failed-save
+preservation, (4) single-object z-order undo/redo, and (5) preview/export
+continuation consistency. The verified branch
+HEAD was `9e629778568e2eca788a6fd73660e9036618850b`; the recorded automated gate
+was run at source/test revision `8dac38d37c70aec8e4391a5919e975f206f51968`.
+Inspection confirms the later branch delta changes no runtime or test behavior:
+it contains tracking updates and a one-line source comment correction. This is
+owner-reported interactive verification, not a new automated run. Firebird
+recovery and authorized separate test-database access, 125/150% scaled-display
+behavior, and clean-machine package/install checks remain pending. Release
+readiness remains incomplete.
+
+### Freeze-fix remediation: exact numeric aggregates (2026-10-20)
+
+The focused PR branch reproduced four arithmetic failures before the fix: a
+large/fractional computed product returned `-99959.88` instead of
+`300000.125`; a scale-6 computed aggregate lost its FMTBCD result; and SUM/AVG
+over ten maximum-range BCD rows failed exact-value comparisons for both
+positive and negative values. The regression-first run had 828 tests, 824
+passed, and those four failures. The failing cases are in
+`tests/Test.Vittix.Report.AggregatesCurrency.pas`.
+
+The fix uses checked decimal coefficient arithmetic for exact numeric paths.
+Its supported bound is 64 coefficient digits and 64 fractional places; values
+exceeding that bound raise `EConvertError`. Exact computed expressions support
+additive/subtractive terms made from products of numeric literals and exact
+numeric fields (BCD/FMTBCD, Currency, and integer fields). The computation keeps
+scale until the final result. Float fields and unsupported low-scale expression
+forms retain the historical Double path. A high-scale BCD expression outside
+the exact grammar (for example division) now raises a clear error instead of
+silently losing precision through Double. SUM/MIN/MAX return Currency when the
+exact result fits its range and scale, otherwise FMTBCD; AVG preserves the
+historical Double division for a fitting Currency sum and uses bounded exact
+decimal division for wider results. This can expose FMTBCD through the existing
+Variant result when a formerly rounded or overflowing case is evaluated.
+
+The former Currency scale-mismatch and intermediate-overflow defects are
+covered by the red/green cases above, including large products, scale-6
+computed values, and positive/negative ten-row maximum BCD accumulations. The
+diagnostic `DetailIndexDiscarded` symbol was removed: it was introduced only
+in the superseded detail-index consolidation commits, is absent from the
+focused branch base, and has no in-repository consumers. No claim is made about
+consumers outside this repository.
+
+**Verification at source/test commit `cd975fd6278a013f400da592bcc2c5adefeb2344`:** focused aggregate and
+traversal fixtures passed **36/36**, with zero failures, errors, or leaks. The
+Delphi 12 Win32 Release full suite passed **829/829**, with zero failures,
+errors, or leaks. The strict runner found 42 reports, checked/matched 41, had
+zero mismatches, missing/orphan baselines, or execution errors, and one
+documented skip. `-IncludePackages` built runtime and design packages, the
+designer, and demo successfully. Resource deltas were GDI +8 (16 to 24; limit
+16), USER 0, and memory 0 KB. The full command was
+`tools/ci_gate.ps1 -IncludePackages`; the focused DUnitX filter selected
+`Test.Vittix.Report.AggregatesCurrency.TAggregatesCurrencyTests` and
+`Test.Vittix.Report.Phase6.DetailTraversal`. The full gate exited successfully
+at this commit; the focused run also exited successfully. These results do not
+replace the earlier 824/824 evidence tied to
+`8dac38d37c70aec8e4391a5919e975f206f51968`. GitHub `Build and Test` run
+`39369512939` was triggered for PR head
+`7d720ec589bda77e6d49dd26167ee2670f514a69` but remained pending with no jobs
+allocated; the repository Actions runners endpoint reported zero registered
+runners. The workflow requires a self-hosted Windows runner with Delphi, so
+remote CI verification is blocked by runner availability. This is not a pass;
+the tracking-only commit that records it will trigger a new exact-head run.
+
+Firebird recovery and authorized separate test-database access, scaled-display
+behavior, and clean-machine package/install verification remain pending.
+Release readiness remains incomplete.
+
 ## Top 10 Riskiest Files
 
 | # | File | Why it's risky |
@@ -535,7 +655,10 @@ Framed for the active **v1.0 freeze**: everything below is `[fix]`-with-failing-
 2. Split `Frm.Main.pas` (finish the helpers migration; delete dead duplicates; extract the 2,608-line demo harness out of the production form — it already exists as `Vittix.Designer.RuntimeDemo.pas`, currently dead).
 3. Background/progressive rendering behind `IReportProgress` with cancellation (M-18), preview thumbnails.
 4. BUG-005 (UDS aggregates) and RTL PDF shaping.
-5. Aggregates: keyed cache, optional detail-dataset index for linked details.
+5. Aggregate/performance work remains parked post-v1.0. The former optional
+   detail-dataset index idea is superseded by the approved ordered-scan behavior;
+   do not restore it without a demonstrated performance need and linked/mutation
+   regression evidence.
 6. Schema: reject `Version > 2`, then introduce real migration hooks when v3 semantics arrive.
 
 ---

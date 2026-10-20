@@ -12,6 +12,80 @@
 
 ---
 
+## Focused consolidation scope approval (2026-10-19)
+
+Owner-approved freeze scope for the isolated branch from
+`origin/main` `841a24a9a50122b207db00fae50e2deb4f5d4886`: numeric/BCD/timestamp/
+initialization correctness, dataset capability guard, scan-based detail
+traversal/restoration, supported pagination, single-object z-order, and atomic
+save, with required tests. The approved result excludes BLOB/image-export and
+extended JPEG capability, broad BOM changes, runner relocation, scratch cleanup,
+and archived-backlog edits. The per-pass detail index is superseded by ordered
+scans.
+
+Prior 837/837 automated and owner UI results remain attributed to the preserved
+`batch4b-final-20261019-224500` snapshot at reviewed head
+`a1f0df36fe52b8e211d474f54d05e30c6bdde986`; they do not verify this reduced
+branch. Re-run and report evidence against the focused branch's resulting commit.
+The Firebird access/recovery, scaled-display, and clean-machine package/install
+checks remain pending. Release readiness remains incomplete.
+
+**Focused branch results at code commit `8dac38d37c70aec8e4391a5919e975f206f51968`:**
+Delphi 12 Win32 Release passed **824/824** with no failures, errors, or leaks;
+the filtered changed-area run matched **152/152** tests with zero leaks. Strict
+runner validation matched **41/41** checked reports (42 discovered, one
+documented skip, zero mismatches or execution errors). Resource deltas were GDI
++8 (within the 16 limit), USER 0, and memory 0 KB. With `-IncludePackages`, the
+runtime and design packages, designer, and demo builds all passed. Evidence is
+in portable worktree artifacts `build/gate/dunitx-console.txt` and
+`build/gate/runner-console.txt`. **Owner UI confirmation dated 2026-10-20:**
+the owner reports all five checks on the actual checklist passed on the
+`codex/consolidation-freeze-fixes` build: save/reopen; cancelled Save-As during
+close; failed-save preservation; single-object z-order undo/redo; and
+preview/export continuation consistency.
+The verified branch HEAD was `9e629778568e2eca788a6fd73660e9036618850b`; the
+recorded gate source/test revision was `8dac38d37c70aec8e4391a5919e975f206f51968`.
+The intervening branch delta contains tracking updates and a one-line source
+comment correction only, with no runtime or test behavior changes. The UI
+confirmation is owner-reported interactive evidence, separate from the gate.
+Firebird recovery/separate database access, scaled-display behavior, and
+clean-machine package/install checks remain pending.
+
+## Freeze-fix aggregate remediation (2026-10-20)
+
+Red-before-green evidence on the focused PR branch: 828 tests ran, 824 passed,
+and four new Currency/BCD regression tests failed. The reproduced outputs were
+`-99959.88` instead of `300000.125` for a large computed product, scale-6
+computed aggregate output was not FMTBCD, and positive/negative SUM/AVG over
+ten maximum-range BCD rows failed exact comparisons.
+
+The fix adds bounded exact decimal coefficient arithmetic (64 digits and 64
+fractional places), preserves exact scale for supported additive/subtractive
+products over numeric literals and exact decimal/integer fields, returns
+FMTBCD when Currency cannot represent a wide result, and raises an explicit
+error for high-scale expressions outside that grammar instead of silently
+falling back to Double. Float fields retain the existing Double path. The
+former detail-index diagnostic is removed because it was absent from the
+focused branch base and had no in-repository consumers; external consumers
+are not presumed absent.
+
+Verification at source/test commit `cd975fd6278a013f400da592bcc2c5adefeb2344`:
+focused aggregate and
+traversal fixtures **36/36**; Delphi 12 Win32 Release suite **829/829**; zero
+failures, errors, and leaks. Strict runner: 42 discovered, 41 matched, one
+documented skip, zero mismatches or execution errors. Runtime/design packages,
+designer, and demo built successfully with `-IncludePackages`. Resource deltas:
+GDI +8 (16 to 24; limit 16), USER 0, memory 0 KB. Earlier 824/824 and 152/152
+results remain tied to their prior snapshot. GitHub `Build and Test` run
+`39369512939` for head `7d720ec589bda77e6d49dd26167ee2670f514a69` remained
+pending without allocated jobs; the Actions runners endpoint reported zero
+registered runners. Since this gate requires a self-hosted Windows Delphi
+runner, remote CI is blocked by runner availability, not passed. A tracking-
+only commit recording this status will trigger another exact-head run.
+Firebird recovery/separate test-database access, scaled-display, and clean-
+machine package/install checks remain pending; release readiness is not
+complete.
+
 ## 0. How to work an item
 
 Every `[fix]` item follows the same micro-cycle (mirrors AGENTS.md "Preferred Workflow"):
@@ -284,7 +358,7 @@ From report §12 long-term + unscheduled Lows (each needs its own analysis-first
 - **Background/progressive rendering** behind `IReportProgress` with cancellation; preview thumbnails; print page-range/collate.
 - **BUG-005 proper fix** (aggregates over `TVittixUserDataSet`) — DP-36 decided 2026-10-02: semantics stay parked, the silent fallback is now counted (`LegacyAggregatesOverUserDataSet`); the real repair remains this Phase4I-20-aligned evaluator work.
 - **RTL PDF text** (M-15): proper bidi placement instead of rasterization fallback.
-- **Aggregate performance:** keyed (dictionary) cache, cached `TField` resolution, optional detail-dataset index to kill the O(master × detail) rescan (`Engine.pas:1320-1399`).
+- **Aggregate/performance work:** keyed cache and cached `TField` resolution remain parked. The former optional detail-dataset index idea is superseded by the approved ordered-scan behavior; do not restore it without demonstrated performance need and linked/mutation regression evidence.
 - **Schema evolution:** real version migration hooks once v3 semantics exist (DP-26 is the guard rail).
 - **PDF polish:** compress content streams (M-16), per-glyph `Tj` batching, RTL, `/W` width-metric verification (report §14.2), glyf-table pruning in the VectorPDF subsetter (embedding adds ~150-560 KB/document since DP-30).
 - **Designer UX:** single INI session (fewer open/write cycles), `%APPDATA%` hive, icon-index robustness, high-DPI designer pass if OQ-1 shows impact.

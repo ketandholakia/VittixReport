@@ -292,9 +292,10 @@ begin
       Engine.Prepare;
       Snapshot := TReportTraversalDiagnostics.Snapshot;
       Assert.AreEqual(4, Snapshot.DetailTraversals,
-        'Two master rows currently cause a look-ahead and print scan each.');
+        'Two master rows cause a look-ahead and print scan each (traversal ' +
+        'one of each per master row).');
       Assert.AreEqual(9, Snapshot.DetailRowsVisited,
-        'Diagnostic row count must expose the existing repeated scan pattern.');
+        'Look-ahead scans to the first match and print scans all 3 rows per master.');
     finally
       Engine.Free;
     end;

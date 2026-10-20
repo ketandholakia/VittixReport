@@ -44,6 +44,7 @@ uses
   Vittix.Report.Bands,
   Vittix.Report.PageSettings,
   Vittix.Report.Serializer,
+  Vittix.Report.FileSave,
   Vittix.Report.DesignerControl,
   Vittix.Report.Toolbox,
   Vittix.Report.PropertyBridge,
@@ -6778,27 +6779,14 @@ end;
   permissions) can never destroy the previous copy.  Returns True only when
   the target file now holds the report. }
 function TfrmMain.SaveReportTo(const APath: string): Boolean;
-var
-  TempPath: string;
 begin
   Result := False;
-  TempPath := APath + '.tmp';
   try
-    TReportSerializer.SaveToFile(FDesigner.Report, TempPath);
-    if TFile.Exists(APath) then
-      TFile.Replace(TempPath, APath, '')
-    else
-      TFile.Move(TempPath, APath);
+    TReportFileSaver.SaveToPath(FDesigner.Report, APath);
     Result := True;
   except
     on E: Exception do
     begin
-      if TFile.Exists(TempPath) then
-        try
-          TFile.Delete(TempPath);
-        except
-          // best-effort cleanup; the original failure is reported below
-        end;
       ShowMessage('Error saving report: ' + E.Message);
     end;
   end;
