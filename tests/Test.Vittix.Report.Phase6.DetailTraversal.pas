@@ -397,9 +397,8 @@ var
   Master, Detail: TClientDataSet;
   Traversals, RowsVisited: Integer;
 begin
-  // 10 masters x 10 details, no detail row ever matches.
-  // Current behavior: every master performs TWO full detail scans
-  // (one look-ahead for the first detail row's height, one to print).
+  // 10 masters x 10 details, no detail row ever matches.  The per-pass
+  // key index builds once and no-match lookups visit no detail rows.
   Master := CreateMasterData(10);
   Detail := CreateDetailData([999, 999, 999, 999, 999, 999, 999, 999, 999, 999]);
   try
@@ -407,8 +406,8 @@ begin
 
     Assert.AreEqual(20, Traversals,
       'Two detail traversals per master row (height look-ahead + print).');
-    Assert.AreEqual(200, RowsVisited,
-      'No match: 10 masters x 2 full scans x 10 detail rows.');
+    Assert.AreEqual(10, RowsVisited,
+      'One 10-row index build; no-match master keys visit nothing.');
   finally
     Detail.Free;
     Master.Free;
@@ -421,7 +420,7 @@ var
   Traversals, RowsVisited: Integer;
 begin
   // One master, and its only matching detail row is the LAST of 10.
-  // Current behavior: the look-ahead scan visits all 10 rows to find it.
+  // The index builds once over all 10 rows, then visits only the match.
   Master := CreateMasterData(1);
   Detail := CreateDetailData([999, 999, 999, 999, 999, 999, 999, 999, 999, 1]);
   try
@@ -429,8 +428,8 @@ begin
 
     Assert.AreEqual(2, Traversals,
       'Two detail traversals: height look-ahead + print.');
-    Assert.AreEqual(20, RowsVisited,
-      'Look-ahead reaches the last row (10); print scans all 10 rows.');
+    Assert.AreEqual(12, RowsVisited,
+      'One 10-row index build + one matched look-ahead + one matched print visit.');
   finally
     Detail.Free;
     Master.Free;
@@ -449,8 +448,9 @@ begin
     RunEngine(Master, Detail, Traversals, RowsVisited);
 
     Assert.AreEqual(2, Traversals, 'Two detail traversals: look-ahead + print.');
-    Assert.AreEqual(11, RowsVisited,
-      'Look-ahead stops at the first row; print scans all 10 rows.');
+    Assert.AreEqual(12, RowsVisited,
+      'One 10-row index build + one matched look-ahead + one matched print ' +
+      'visit (build overhead shows on tiny data; the 2000x20 benchmark wins).');
   finally
     Detail.Free;
     Master.Free;
@@ -475,8 +475,8 @@ begin
     RunEngine(Master, Detail, Traversals, RowsVisited);
 
     Assert.AreEqual(400, Traversals, 'Two traversals per master row: 2 x 200.');
-    Assert.AreEqual(20000, RowsVisited,
-      'Scan cost: 2 x 200 masters x 50 detail rows.');
+    Assert.AreEqual(50, RowsVisited,
+      'One 50-row index build replaces every per-master scan.');
   finally
     Detail.Free;
     Master.Free;

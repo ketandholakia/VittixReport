@@ -294,8 +294,8 @@ begin
       Assert.AreEqual(4, Snapshot.DetailTraversals,
         'Two master rows cause a look-ahead and print scan each (traversal ' +
         'one of each per master row).');
-      Assert.AreEqual(9, Snapshot.DetailRowsVisited,
-        'Look-ahead scans to the first match and print scans all 3 rows per master.');
+      Assert.AreEqual(7, Snapshot.DetailRowsVisited,
+        'Per-pass key index: one 3-row build + one look-ahead + one print visit per master.');
     finally
       Engine.Free;
     end;

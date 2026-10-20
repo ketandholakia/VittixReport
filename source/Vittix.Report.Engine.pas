@@ -57,6 +57,25 @@ type
   TBookmarkDynArray = array of TBookmark;
 
 type
+  { Per-pass key index for one detail band's dataset: maps the encoded
+    DetailField value to the bookmarks of every row carrying it, so
+    master-detail linking is a direct lookup instead of a First..Eof scan
+    per master row (O(masters + details) instead of O(masters x details)).
+    Built lazily on the first master row of a pass; invalidated with the
+    other execution caches at the start of every pass.  Bookmarks are the
+    managed TBytes TBookmark values - they stay valid while the dataset is
+    open, which is the index's whole lifetime. }
+  TDetailBandKeyIndex = class
+  public
+    Band: TReportBand;
+    DS: TDataSet;
+    Keys: TDictionary<string, TList<TBookmark>>;
+    Stale: Boolean;
+    constructor Create;
+    destructor Destroy; override;
+  end;
+
+type
   TReportBeforePrintReportEvent = procedure(
     Sender: TObject;
     AEngine: TObject;
@@ -167,6 +186,7 @@ type
     FColumnHeaderBand:  TReportBand;   // btColumnHeader
     FMasterBand:        TReportBand;   // primary master loop band
     FDetailBands:       TObjectList<TReportBand>; // btDetail bands that use their own datasets
+    FDetailKeyIndexes:  TObjectList<TDetailBandKeyIndex>; // per-pass master-detail key index
     FFooterBand:        TReportBand;
     FSummaryBand:       TReportBand;
     FOverlayBand:       TReportBand;   // btOverlay — drawn last over the full page
@@ -244,6 +264,10 @@ type
     function  ComputeFirstDetailRowsHeight: Integer;
     procedure PrintDetailBandRecords(ABand: TReportBand; ADetailDS: TDataSet;
       ADetailUDS: TVittixUserDataSet);
+    { Lazily builds (once per pass) and returns the DetailField key index
+      for ABand's dataset; nil when the dataset cannot carry bookmarks. }
+    function  GetDetailKeyIndex(ABand: TReportBand; ADetailDS: TDataSet;
+      ADetailFld: TField): TDetailBandKeyIndex;
     procedure PrintDetailBands;
     procedure ClearExecutionCaches;
     function  ExecutePass(ATotalPages: Integer; AReportProgress: Boolean): Integer;
@@ -553,6 +577,7 @@ begin
   FScriptEngine := TReportScriptEngine.Create(nil);
   FParameters := TStringList.Create;
   FAggregateCache := TObjectList<TAggregateCacheEntry>.Create(True);
+  FDetailKeyIndexes := TObjectList<TDetailBandKeyIndex>.Create(True);
   FSubReportModelCache := TObjectList<TSubReportModelCacheEntry>.Create(True);
   if Assigned(ANamedDataSets) then
     for var Pair in ANamedDataSets do
@@ -625,6 +650,7 @@ begin
   FNamedUserDataSets.Free;
   FParameters.Free;
   FAggregateCache.Free;
+  FDetailKeyIndexes.Free;
   FSubReportModelCache.Free;
   FScriptEngine.Free;
   FGroupHeaders.Free;
@@ -723,6 +749,28 @@ procedure TReportEngine.ClearExecutionCaches;
 begin
   FAggregateCache.Clear;
   FSubReportModelCache.Clear;
+  // The detail key index must not survive a pass: detail data can change
+  // between passes and bookmarks are only stable while the cursor does.
+  FDetailKeyIndexes.Clear;
+end;
+
+constructor TDetailBandKeyIndex.Create;
+begin
+  inherited;
+  Keys := TDictionary<string, TList<TBookmark>>.Create;
+end;
+
+destructor TDetailBandKeyIndex.Destroy;
+var
+  List: TList<TBookmark>;
+begin
+  if Assigned(Keys) then
+  begin
+    for List in Keys.Values do
+      List.Free;
+    Keys.Free;
+  end;
+  inherited;
 end;
 
 function TReportEngine.ReportExpressionMode: TExpressionMode;
@@ -2270,6 +2318,43 @@ begin
   end;
 end;
 
+{ Encodes a variant link value into a comparison key with the same match
+  semantics the legacy scan's VarSameValue had: NULL matches only NULL,
+  numbers compare by value across their subtypes (VarSameValue(1, 1.0)),
+  dates participate as numbers (variant dates are doubles), numeric STRINGS
+  coerce into the numeric bucket (VarSameValue delegates to VarCompareValue,
+  which converts numeric strings), and values of different families never
+  match.  The kind tag keeps the families distinct. }
+function DetailKeyValueString(const V: Variant): string;
+var
+  D: Double;
+  S: string;
+begin
+  if VarIsNull(V) or System.Variants.VarIsEmpty(V) then
+    Exit(#1 + 'N');
+  case VarType(V) and varTypeMask of
+    varSmallint, varInteger, varSingle, varDouble, varCurrency,
+    varShortInt, varByte, varWord, varLongWord, varInt64, varDate:
+      Result := #1 + 'F' + FloatToStr(Double(V));
+    varBoolean:
+      if Boolean(V) then
+        Result := #1 + 'B1'
+      else
+        Result := #1 + 'B0';
+  else
+    begin
+      S := VarToStr(V);
+      // Legacy VarSameValue coerced numeric strings ('1' = 1); keep that
+      // matching behavior by routing parseable strings into the numeric
+      // bucket the same way VarCompareValue does.
+      if TryStrToFloat(S, D) then
+        Result := #1 + 'F' + FloatToStr(D)
+      else
+        Result := #1 + 'S' + S;
+    end;
+  end;
+end;
+
 function TReportEngine.ComputeFirstDetailRowsHeight: Integer;
 var
   Band: TReportBand;
@@ -2281,6 +2366,8 @@ var
   HasMasterField: Boolean;
   MasterFld: TField;
   DetailFld: TField;
+  Idx: TDetailBandKeyIndex;
+  BMs: TList<TBookmark>;
 begin
   Result := 0;
 
@@ -2333,6 +2420,36 @@ begin
       else
         MasterValue := Null;
 
+      // Key-index fast path: the legacy look-ahead walks the detail dataset
+      // until the FIRST match to measure its band height.  The index holds
+      // bookmarks in row order, so the first bookmark is the same row the
+      // scan would have stopped at.
+      if HasMasterField and Assigned(DetailFld) and
+         DataSetSupportsBookmarks(DetailDS) and
+         not DataSetIsMasterLinked(DetailDS) then
+      begin
+        Idx := GetDetailKeyIndex(Band, DetailDS, DetailFld);
+        if Assigned(Idx) and not Idx.Stale then
+        begin
+          if Idx.Keys.TryGetValue(DetailKeyValueString(MasterValue), BMs) and
+             (BMs.Count > 0) and DetailDS.BookmarkValid(BMs[0]) then
+          begin
+            DetailDS.GotoBookmark(BMs[0]);
+            if VarSameValue(DetailFld.Value, MasterValue) then
+            begin
+              TReportTraversalDiagnostics.DetailRowVisited;
+              Inc(Result, ComputeEffectiveBandHeight(Band, DetailDS));
+              Continue;
+            end;
+            // The bookmark no longer carries this key: the dataset was
+            // mutated mid-pass.  Fall back to the ordered scan below.
+            Idx.Stale := True;
+          end
+          else
+            Continue;
+        end;
+      end;
+
       DetailDS.First;
       while not DetailDS.Eof do
       begin
@@ -2351,6 +2468,60 @@ begin
   end;
 end;
 
+function TReportEngine.GetDetailKeyIndex(ABand: TReportBand;
+  ADetailDS: TDataSet; ADetailFld: TField): TDetailBandKeyIndex;
+var
+  Idx: TDetailBandKeyIndex;
+  I: Integer;
+  SaveBM: TBookmark;
+  HasSaveBM: Boolean;
+  Key: string;
+  List: TList<TBookmark>;
+  BM: TBookmark;
+begin
+  for I := 0 to FDetailKeyIndexes.Count - 1 do
+    if (FDetailKeyIndexes[I].Band = ABand) and
+       (FDetailKeyIndexes[I].DS = ADetailDS) then
+      Exit(FDetailKeyIndexes[I]);
+
+  // Without bookmarks the matched rows cannot be revisited - the legacy
+  // First..Eof scan stays in charge.  Master-linked datasets are excluded
+  // too: their visible rows change as the master advances, so a per-pass
+  // index would capture only the first master's view.
+  if not DataSetSupportsBookmarks(ADetailDS) or
+     DataSetIsMasterLinked(ADetailDS) then
+    Exit(nil);
+
+  Idx := TDetailBandKeyIndex.Create;
+  Idx.Band := ABand;
+  Idx.DS := ADetailDS;
+  FDetailKeyIndexes.Add(Idx);
+
+  HasSaveBM := Vittix.Report.LayoutBookmarks.CaptureDataSetBookmark(ADetailDS, SaveBM);
+  ADetailDS.DisableControls;
+  try
+    ADetailDS.First;
+    while not ADetailDS.Eof do
+    begin
+      TReportTraversalDiagnostics.DetailRowVisited;
+      Key := DetailKeyValueString(ADetailFld.Value);
+      if not Idx.Keys.TryGetValue(Key, List) then
+      begin
+        List := TList<TBookmark>.Create;
+        Idx.Keys.Add(Key, List);
+      end;
+      BM := ADetailDS.GetBookmark;
+      if Assigned(BM) then
+        List.Add(BM);
+      ADetailDS.Next;
+    end;
+  finally
+    Vittix.Report.LayoutBookmarks.RestoreDataSetBookmark(ADetailDS, SaveBM, HasSaveBM);
+    ADetailDS.EnableControls;
+  end;
+  Result := Idx;
+end;
+
 procedure TReportEngine.PrintDetailBandRecords(ABand: TReportBand;
   ADetailDS: TDataSet; ADetailUDS: TVittixUserDataSet);
 var
@@ -2359,6 +2530,9 @@ var
   EffH: Integer;
   MasterFld: TField;
   DetailFld: TField;
+  Idx: TDetailBandKeyIndex;
+  BMs: TList<TBookmark>;
+  I: Integer;
 begin
   TReportTraversalDiagnostics.DetailTraversalStarted;
   if Assigned(ADetailUDS) then
@@ -2398,6 +2572,59 @@ begin
     MasterValue := SourceFieldValue(FDataSet, FUserDataSet, ABand.MasterField)
   else
     MasterValue := Null;
+
+  // Per-pass key index fast path: direct bookmark lookup instead of a
+  // First..Eof scan per master row.  Match semantics are encoded in
+  // DetailKeyValueString (NULL only matches NULL, numbers by value,
+  // distinct kind families never match) and row order is preserved by the
+  // bookmark list, so the printed output is identical to the scan below.
+  if HasMasterField and Assigned(DetailFld) and
+     DataSetSupportsBookmarks(ADetailDS) and
+     not DataSetIsMasterLinked(ADetailDS) then
+  begin
+    Idx := GetDetailKeyIndex(ABand, ADetailDS, DetailFld);
+    if Assigned(Idx) and not Idx.Stale then
+    begin
+      if Idx.Keys.TryGetValue(DetailKeyValueString(MasterValue), BMs) then
+      begin
+        // Validate the cached row keys before printing: an interior row
+        // mutation can leave the bookmark list pointing at a row that no
+        // longer carries this master value.  A stale index falls back to
+        // the ordered scan for the rest of the pass.
+        for I := 0 to BMs.Count - 1 do
+          if ADetailDS.BookmarkValid(BMs[I]) then
+          begin
+            ADetailDS.GotoBookmark(BMs[I]);
+            if not VarSameValue(DetailFld.Value, MasterValue) then
+            begin
+              Idx.Stale := True;
+              Break;
+            end;
+          end
+          else
+          begin
+            Idx.Stale := True;
+            Break;
+          end;
+
+        if not Idx.Stale then
+        begin
+          for I := 0 to BMs.Count - 1 do
+            if ADetailDS.BookmarkValid(BMs[I]) then
+            begin
+              ADetailDS.GotoBookmark(BMs[I]);
+              TReportTraversalDiagnostics.DetailRowVisited;
+              EffH := ComputeEffectiveBandHeight(ABand, ADetailDS);
+              EnsurePageSpaceForBand(ABand, EffH, True);
+              PrintBand(ABand, ADetailDS, EffH);
+            end;
+          Exit;
+        end;
+      end
+      else
+        Exit;
+    end;
+  end;
 
   ADetailDS.First;
   while not ADetailDS.Eof do
