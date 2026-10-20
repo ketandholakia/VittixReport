@@ -1,4 +1,4 @@
-unit Vittix.Report.SelectionHelpers;
+﻿unit Vittix.Report.SelectionHelpers;
 
 interface
 

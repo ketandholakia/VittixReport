@@ -1,4 +1,4 @@
-unit Test.Gap005.OutputGuard;
+﻿unit Test.Gap005.OutputGuard;
 
 {
   GAP-005 Step 0 — renderer / export guard (test-only).

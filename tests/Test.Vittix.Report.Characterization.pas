@@ -1,4 +1,4 @@
-unit Test.Vittix.Report.Characterization;
+﻿unit Test.Vittix.Report.Characterization;
 
 {
   Phase 0 — Characterization Tests for Verified Findings

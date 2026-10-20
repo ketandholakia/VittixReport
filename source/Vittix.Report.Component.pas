@@ -1,4 +1,4 @@
-unit Vittix.Report.Component;
+﻿unit Vittix.Report.Component;
 
 {
   Vittix.Report.Component

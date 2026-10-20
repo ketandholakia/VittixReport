@@ -1,4 +1,4 @@
-unit Vittix.Report.Serializer;
+﻿unit Vittix.Report.Serializer;
 
 (*
   Vittix.Report.Serializer

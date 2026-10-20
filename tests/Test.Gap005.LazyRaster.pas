@@ -1,4 +1,4 @@
-unit Test.Gap005.LazyRaster;
+﻿unit Test.Gap005.LazyRaster;
 
 {
   GAP-005 / P2 — lazy rasterisation contract (test-only unit).

@@ -1,4 +1,4 @@
-unit Vittix.Report.Bands;
+﻿unit Vittix.Report.Bands;
 
 interface
 

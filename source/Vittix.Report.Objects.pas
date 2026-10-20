@@ -1,4 +1,4 @@
-unit Vittix.Report.Objects;
+﻿unit Vittix.Report.Objects;
 
 interface
 

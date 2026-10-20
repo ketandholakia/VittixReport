@@ -1,4 +1,4 @@
-unit Vittix.Report.Preview;
+﻿unit Vittix.Report.Preview;
 
 {
   Vittix.Report.Preview

@@ -1,4 +1,4 @@
-unit Vittix.Report.Export.HTML;
+﻿unit Vittix.Report.Export.HTML;
 
 interface
 

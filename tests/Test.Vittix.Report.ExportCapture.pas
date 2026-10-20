@@ -1,4 +1,4 @@
-unit Test.Vittix.Report.ExportCapture;
+﻿unit Test.Vittix.Report.ExportCapture;
 
 {
   Phase 4I-1: chart/crosstab export-capture correctness tests.

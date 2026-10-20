@@ -1,4 +1,4 @@
-unit Test.Vittix.Report.Export.HTML;
+﻿unit Test.Vittix.Report.Export.HTML;
 
 {
   Phase 4I-2: HTML export hardening tests.

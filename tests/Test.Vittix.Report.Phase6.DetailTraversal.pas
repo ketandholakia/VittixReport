@@ -1,4 +1,4 @@
-unit Test.Vittix.Report.Phase6.DetailTraversal;
+﻿unit Test.Vittix.Report.Phase6.DetailTraversal;
 
 {
   Phase 6 — linked-detail traversal (GAP-004).

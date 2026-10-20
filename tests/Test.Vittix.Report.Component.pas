@@ -1,4 +1,4 @@
-unit Test.Vittix.Report.Component;
+﻿unit Test.Vittix.Report.Component;
 
 {
   Phase 4G-3: component-level engine configuration tests.

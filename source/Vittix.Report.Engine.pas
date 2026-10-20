@@ -1,4 +1,4 @@
-unit Vittix.Report.Engine;
+﻿unit Vittix.Report.Engine;
 
 {
   Vittix.Report.Engine

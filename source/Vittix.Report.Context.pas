@@ -1,4 +1,4 @@
-unit Vittix.Report.Context;
+﻿unit Vittix.Report.Context;
 
 {
   Vittix.Report.Context

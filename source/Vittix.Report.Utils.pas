@@ -1,4 +1,4 @@
-unit Vittix.Report.Utils;
+﻿unit Vittix.Report.Utils;
 
 {
   Vittix.Report.Utils
