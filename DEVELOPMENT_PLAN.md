@@ -76,10 +76,15 @@ failures, errors, and leaks. Strict runner: 42 discovered, 41 matched, one
 documented skip, zero mismatches or execution errors. Runtime/design packages,
 designer, and demo built successfully with `-IncludePackages`. Resource deltas:
 GDI +8 (16 to 24; limit 16), USER 0, memory 0 KB. Earlier 824/824 and 152/152
-results remain tied to their prior snapshot. PR CI for the final pushed HEAD
-will be recorded separately after it completes. Firebird recovery/separate
-test-database access, scaled-display, and clean-machine package/install checks
-remain pending; release readiness is not complete.
+results remain tied to their prior snapshot. GitHub `Build and Test` run
+`39369512939` for head `7d720ec589bda77e6d49dd26167ee2670f514a69` remained
+pending without allocated jobs; the Actions runners endpoint reported zero
+registered runners. Since this gate requires a self-hosted Windows Delphi
+runner, remote CI is blocked by runner availability, not passed. A tracking-
+only commit recording this status will trigger another exact-head run.
+Firebird recovery/separate test-database access, scaled-display, and clean-
+machine package/install checks remain pending; release readiness is not
+complete.
 
 ## 0. How to work an item
 

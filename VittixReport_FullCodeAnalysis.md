@@ -137,8 +137,13 @@ designer, and demo successfully. Resource deltas were GDI +8 (16 to 24; limit
 `Test.Vittix.Report.Phase6.DetailTraversal`. The full gate exited successfully
 at this commit; the focused run also exited successfully. These results do not
 replace the earlier 824/824 evidence tied to
-`8dac38d37c70aec8e4391a5919e975f206f51968`. PR CI for the final pushed HEAD is
-tracked separately below after it completes.
+`8dac38d37c70aec8e4391a5919e975f206f51968`. GitHub `Build and Test` run
+`39369512939` was triggered for PR head
+`7d720ec589bda77e6d49dd26167ee2670f514a69` but remained pending with no jobs
+allocated; the repository Actions runners endpoint reported zero registered
+runners. The workflow requires a self-hosted Windows runner with Delphi, so
+remote CI verification is blocked by runner availability. This is not a pass;
+the tracking-only commit that records it will trigger a new exact-head run.
 
 Firebird recovery and authorized separate test-database access, scaled-display
 behavior, and clean-machine package/install verification remain pending.
