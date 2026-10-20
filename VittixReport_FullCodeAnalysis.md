@@ -92,6 +92,58 @@ recovery and authorized separate test-database access, 125/150% scaled-display
 behavior, and clean-machine package/install checks remain pending. Release
 readiness remains incomplete.
 
+### Freeze-fix remediation: exact numeric aggregates (2026-10-20)
+
+The focused PR branch reproduced four arithmetic failures before the fix: a
+large/fractional computed product returned `-99959.88` instead of
+`300000.125`; a scale-6 computed aggregate lost its FMTBCD result; and SUM/AVG
+over ten maximum-range BCD rows failed exact-value comparisons for both
+positive and negative values. The regression-first run had 828 tests, 824
+passed, and those four failures. The failing cases are in
+`tests/Test.Vittix.Report.AggregatesCurrency.pas`.
+
+The fix uses checked decimal coefficient arithmetic for exact numeric paths.
+Its supported bound is 64 coefficient digits and 64 fractional places; values
+exceeding that bound raise `EConvertError`. Exact computed expressions support
+additive/subtractive terms made from products of numeric literals and exact
+numeric fields (BCD/FMTBCD, Currency, and integer fields). The computation keeps
+scale until the final result. Float fields and unsupported low-scale expression
+forms retain the historical Double path. A high-scale BCD expression outside
+the exact grammar (for example division) now raises a clear error instead of
+silently losing precision through Double. SUM/MIN/MAX return Currency when the
+exact result fits its range and scale, otherwise FMTBCD; AVG preserves the
+historical Double division for a fitting Currency sum and uses bounded exact
+decimal division for wider results. This can expose FMTBCD through the existing
+Variant result when a formerly rounded or overflowing case is evaluated.
+
+The former Currency scale-mismatch and intermediate-overflow defects are
+covered by the red/green cases above, including large products, scale-6
+computed values, and positive/negative ten-row maximum BCD accumulations. The
+diagnostic `DetailIndexDiscarded` symbol was removed: it was introduced only
+in the superseded detail-index consolidation commits, is absent from the
+focused branch base, and has no in-repository consumers. No claim is made about
+consumers outside this repository.
+
+**Verification at source/test commit `cd975fd6278a013f400da592bcc2c5adefeb2344`:** focused aggregate and
+traversal fixtures passed **36/36**, with zero failures, errors, or leaks. The
+Delphi 12 Win32 Release full suite passed **829/829**, with zero failures,
+errors, or leaks. The strict runner found 42 reports, checked/matched 41, had
+zero mismatches, missing/orphan baselines, or execution errors, and one
+documented skip. `-IncludePackages` built runtime and design packages, the
+designer, and demo successfully. Resource deltas were GDI +8 (16 to 24; limit
+16), USER 0, and memory 0 KB. The full command was
+`tools/ci_gate.ps1 -IncludePackages`; the focused DUnitX filter selected
+`Test.Vittix.Report.AggregatesCurrency.TAggregatesCurrencyTests` and
+`Test.Vittix.Report.Phase6.DetailTraversal`. The full gate exited successfully
+at this commit; the focused run also exited successfully. These results do not
+replace the earlier 824/824 evidence tied to
+`8dac38d37c70aec8e4391a5919e975f206f51968`. PR CI for the final pushed HEAD is
+tracked separately below after it completes.
+
+Firebird recovery and authorized separate test-database access, scaled-display
+behavior, and clean-machine package/install verification remain pending.
+Release readiness remains incomplete.
+
 ## Top 10 Riskiest Files
 
 | # | File | Why it's risky |

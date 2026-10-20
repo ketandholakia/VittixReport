@@ -51,6 +51,36 @@ confirmation is owner-reported interactive evidence, separate from the gate.
 Firebird recovery/separate database access, scaled-display behavior, and
 clean-machine package/install checks remain pending.
 
+## Freeze-fix aggregate remediation (2026-10-20)
+
+Red-before-green evidence on the focused PR branch: 828 tests ran, 824 passed,
+and four new Currency/BCD regression tests failed. The reproduced outputs were
+`-99959.88` instead of `300000.125` for a large computed product, scale-6
+computed aggregate output was not FMTBCD, and positive/negative SUM/AVG over
+ten maximum-range BCD rows failed exact comparisons.
+
+The fix adds bounded exact decimal coefficient arithmetic (64 digits and 64
+fractional places), preserves exact scale for supported additive/subtractive
+products over numeric literals and exact decimal/integer fields, returns
+FMTBCD when Currency cannot represent a wide result, and raises an explicit
+error for high-scale expressions outside that grammar instead of silently
+falling back to Double. Float fields retain the existing Double path. The
+former detail-index diagnostic is removed because it was absent from the
+focused branch base and had no in-repository consumers; external consumers
+are not presumed absent.
+
+Verification at source/test commit `cd975fd6278a013f400da592bcc2c5adefeb2344`:
+focused aggregate and
+traversal fixtures **36/36**; Delphi 12 Win32 Release suite **829/829**; zero
+failures, errors, and leaks. Strict runner: 42 discovered, 41 matched, one
+documented skip, zero mismatches or execution errors. Runtime/design packages,
+designer, and demo built successfully with `-IncludePackages`. Resource deltas:
+GDI +8 (16 to 24; limit 16), USER 0, memory 0 KB. Earlier 824/824 and 152/152
+results remain tied to their prior snapshot. PR CI for the final pushed HEAD
+will be recorded separately after it completes. Firebird recovery/separate
+test-database access, scaled-display, and clean-machine package/install checks
+remain pending; release readiness is not complete.
+
 ## 0. How to work an item
 
 Every `[fix]` item follows the same micro-cycle (mirrors AGENTS.md "Preferred Workflow"):
