@@ -1,18 +1,11 @@
 ﻿unit Test.Vittix.Report.AggregatesCurrency;
 
 {
-  Currency-safe aggregates (v1.0 freeze fix).
+  Exact decimal aggregate regressions (v1.0 freeze fix).
 
-  TReportAggregates used to accumulate SUM/AVG/MIN/MAX in Double, so
-  NUMERIC(18,2) columns (FireDAC ftBCD - the Firebird money layout)
-  drifted away from SQL SUM() as rows accumulated.  SUM/AVG/MIN/MAX now
-  accumulate in Currency when the inner expression is a bare [Field]
-  token bound to a BCD/FMTBCD/currency field (read via Field.AsCurrency,
-  no Double round trip), or when the evaluator hands back a varCurrency
-  value.  Every other input keeps the exact Double path from before.
-
-  These tests pin EXACT equality (not tolerance): the old Double
-  accumulator fails them, the Currency accumulator passes.
+  These tests pin decimal scale, product magnitude, and accumulator range.
+  Exact decimal paths use checked coefficient arithmetic through 64 digits
+  and fractional places. Floating fields retain the historical Double path.
 
   Note: an "equivalent SQL SUM" cross-check was considered via FireDAC
   Local SQL and deliberately dropped - Local SQL drags the SQLite engine
@@ -29,6 +22,7 @@ uses
   System.Variants,
   Data.DB,
   Datasnap.DBClient,
+  Data.FmtBcd,
   Vittix.Report.Model,
   Vittix.Report.Engine,
   Vittix.Report.Bands,
@@ -66,6 +60,11 @@ type
     [Test] procedure Test_Sum_Computed_FloatColumn_KeepsDouble;
     [Test] procedure Test_Sum_Computed_GroupFooter_AndReportSummary_Exact;
     [Test] procedure Test_Sum_Scale6_Column_Exact_At_Field_Scale;
+    [Test] procedure Test_Sum_Computed_LargeProduct_UsesCorrectScale;
+    [Test] procedure Test_Sum_Computed_Scale6_PreservesFieldScale;
+    [Test] procedure Test_Bcd_Accumulator_HandlesTenMaximumValues;
+    [Test] procedure Test_Bcd_Average_DoesNotOverflowIntermediateSum;
+    [Test] procedure Test_Computed_HighScale_Bcd_RejectsUnsupportedGrammar;
   end;
 
 implementation
@@ -359,7 +358,7 @@ begin
   end;
 end;
 
-{ Qty INTEGER + Rate NUMERIC(18,2) table for computed-aggregate tests.
+{ Qty INTEGER + Rate NUMERIC(18,3) table for computed-aggregate tests.
   ARows entries: Variant arrays [Grp, Qty, Rate]; Null allowed in Qty/Rate. }
 function BuildQtyRateTable(const ARows: TArray<Variant>): TClientDataSet;
 var
@@ -373,7 +372,7 @@ begin
   Def.Name := 'Rate';
   Def.DataType := ftBCD;
   Def.Precision := 18;
-  Def.Size := 2;
+  Def.Size := 3;
   Result.FieldDefs.Add('F', ftFloat);
   Result.CreateDataSet;
   for V in ARows do
@@ -621,10 +620,7 @@ var
   I: Integer;
 begin
   // NUMERIC(18,6) values with REAL 6-decimal digits: 10,000 x 1.000001.
-  // The Currency accumulator (4 decimals) would round every row to 1.0000
-  // and return 10000; the scaled-Int64 path returns exactly 10000.01.
-  // The pre-fix Double path drifts (1.000001 is not binary-representable)
-  // and fails the exact equality below.
+  // The result is exact even though 1.000001 is not binary-representable.
   DS := TClientDataSet.Create(nil);
   try
     DS.FieldDefs.Add('ID', ftInteger);
@@ -651,15 +647,11 @@ begin
 
     BuildContextOver(DS, Ctx, Engine, Model);
     try
-      // Tolerance is the half-ulp class of Double at this magnitude
-      // (~1e-12); the PRE-fix Currency accumulator returned 10000.00
-      // (every row rounded to 4 decimals), off by 0.01 - a different
-      // failure class entirely.
+      // The exact comparison pins the mathematical sum while allowing a
+      // Currency result when the reduced scale and value fit exactly.
       V := TReportExpression.Evaluate('SUM([R6])', Ctx);
-      Assert.IsTrue(VarType(V) = varDouble, 'scale>4 SUM stays a Double');
-      Assert.IsTrue(Abs(Double(V) - 10000.01) < 1e-9,
-        Format('SUM of 6-decimal values must be 10000.01, got %.15f',
-          [Double(V)]));
+      Assert.AreEqual(0, BcdCompare(VarToBcd(V), StrToBcd('10000.01')),
+        'SUM of 6-decimal values must be exact at the input scale');
 
       V := TReportExpression.Evaluate('MIN([R6])', Ctx);
       Assert.IsTrue(Abs(Double(V) - 1.000001) < 1e-12, 'MIN at field scale');
@@ -667,6 +659,243 @@ begin
       Assert.IsTrue(Abs(Double(V) - 1.000001) < 1e-12, 'MAX at field scale');
       V := TReportExpression.Evaluate('AVG([R6])', Ctx);
       Assert.IsTrue(Abs(Double(V) - 1.000001) < 1e-12, 'AVG at field scale');
+    finally
+      Engine.Free;
+      Model.Free;
+    end;
+  finally
+    DS.Free;
+  end;
+end;
+
+procedure TAggregatesCurrencyTests.Test_Sum_Computed_LargeProduct_UsesCorrectScale;
+var
+  Rows: TArray<Variant>;
+  DS: TClientDataSet;
+  Model: TReportModel;
+  Engine: TReportEngine;
+  Ctx: TExpressionContext;
+  V: Variant;
+begin
+  // A large operand and a fractional product used to enter a magnitude
+  // fallback with a mismatched scale. Pin scale, sign, and exact output.
+  SetLength(Rows, 3);
+  Rows[0] := VarArrayOf(['G', 400000, 1.0]);
+  Rows[1] := VarArrayOf(['G', -200000, 0.5]);
+  Rows[2] := VarArrayOf(['G', 1, 0.125]);
+  DS := BuildQtyRateTable(Rows);
+  try
+    BuildContextOver(DS, Ctx, Engine, Model);
+    try
+      V := TReportExpression.Evaluate('SUM([Qty]*[Rate])', Ctx);
+      Assert.AreEqual(300000.125, Double(V), 0.0000001,
+        'large positive/negative products and a fraction retain their scale');
+    finally
+      Engine.Free;
+      Model.Free;
+    end;
+  finally
+    DS.Free;
+  end;
+end;
+
+procedure TAggregatesCurrencyTests.Test_Sum_Computed_Scale6_PreservesFieldScale;
+var
+  Def: TFieldDef;
+  DS: TClientDataSet;
+  Model: TReportModel;
+  Engine: TReportEngine;
+  Ctx: TExpressionContext;
+  V: Variant;
+begin
+  DS := TClientDataSet.Create(nil);
+  try
+    Def := DS.FieldDefs.AddFieldDef;
+    Def.Name := 'Amount';
+    Def.DataType := ftFMTBCD;
+    Def.Precision := 18;
+    Def.Size := 6;
+    DS.CreateDataSet;
+    DS.Append;
+    DS.FieldByName('Amount').AsString := '1.234567';
+    DS.Post;
+    DS.Append;
+    DS.FieldByName('Amount').AsString := '2.000001';
+    DS.Post;
+    DS.First;
+    BuildContextOver(DS, Ctx, Engine, Model);
+    try
+      V := TReportExpression.Evaluate('SUM([Amount]*1)', Ctx);
+      Assert.IsTrue(VarIsFMTBcd(V),
+        'computed FMTBCD aggregate returns a decimal-preserving result');
+      Assert.AreEqual(0, BcdCompare(VarToBcd(V), StrToBcd('3.234568')),
+        'computed SUM retains all six input decimal places');
+    finally
+      Engine.Free;
+      Model.Free;
+    end;
+  finally
+    DS.Free;
+  end;
+end;
+
+procedure TAggregatesCurrencyTests.Test_Bcd_Accumulator_HandlesTenMaximumValues;
+var
+  Def: TFieldDef;
+  DS: TClientDataSet;
+  Model: TReportModel;
+  Engine: TReportEngine;
+  Ctx: TExpressionContext;
+  V: Variant;
+  I: Integer;
+begin
+  DS := TClientDataSet.Create(nil);
+  try
+    Def := DS.FieldDefs.AddFieldDef;
+    Def.Name := 'Amount';
+    Def.DataType := ftFMTBCD;
+    Def.Precision := 18;
+    Def.Size := 4;
+    DS.CreateDataSet;
+    for I := 1 to 10 do
+    begin
+      DS.Append;
+      DS.FieldByName('Amount').AsString := '99999999999999.9999';
+      DS.Post;
+    end;
+    DS.First;
+    BuildContextOver(DS, Ctx, Engine, Model);
+    try
+      V := TReportExpression.Evaluate('SUM([Amount])', Ctx);
+      Assert.AreEqual(0,
+        BcdCompare(VarToBcd(V), StrToBcd('999999999999999.9990')),
+        'SUM of ten maximum NUMERIC(18,4) values is exact');
+      V := TReportExpression.Evaluate('AVG([Amount])', Ctx);
+      Assert.AreEqual(0,
+        BcdCompare(VarToBcd(V), StrToBcd('99999999999999.9999')),
+        'AVG keeps the legal input maximum despite an out-of-Currency sum');
+      DS.First;
+      while not DS.Eof do
+      begin
+        DS.Edit;
+        DS.FieldByName('Amount').AsString := '-99999999999999.9999';
+        DS.Post;
+        DS.Next;
+      end;
+      Engine.Prepare; // clear the engine's aggregate result cache after data changes
+      DS.First;
+      V := TReportExpression.Evaluate('SUM([Amount])', Ctx);
+      Assert.AreEqual(0,
+        BcdCompare(VarToBcd(V), StrToBcd('-999999999999999.9990')),
+        'negative SUM of ten maximum NUMERIC(18,4) values is exact');
+      V := TReportExpression.Evaluate('AVG([Amount])', Ctx);
+      Assert.AreEqual(0,
+        BcdCompare(VarToBcd(V), StrToBcd('-99999999999999.9999')),
+        'negative AVG keeps its input value despite an out-of-Currency sum');
+    finally
+      Engine.Free;
+      Model.Free;
+    end;
+  finally
+    DS.Free;
+  end;
+end;
+
+procedure TAggregatesCurrencyTests.Test_Bcd_Average_DoesNotOverflowIntermediateSum;
+var
+  Def: TFieldDef;
+  DS: TClientDataSet;
+  Model: TReportModel;
+  Engine: TReportEngine;
+  Ctx: TExpressionContext;
+  V: Variant;
+  I: Integer;
+begin
+  DS := TClientDataSet.Create(nil);
+  try
+    Def := DS.FieldDefs.AddFieldDef;
+    Def.Name := 'Amount';
+    Def.DataType := ftFMTBCD;
+    Def.Precision := 18;
+    Def.Size := 6;
+    DS.CreateDataSet;
+    for I := 1 to 10 do
+    begin
+      DS.Append;
+      DS.FieldByName('Amount').AsString := '999999999999.999999';
+      DS.Post;
+    end;
+    DS.First;
+    BuildContextOver(DS, Ctx, Engine, Model);
+    try
+      V := TReportExpression.Evaluate('SUM([Amount])', Ctx);
+      Assert.AreEqual(0,
+        BcdCompare(VarToBcd(V), StrToBcd('9999999999999.999990')),
+        'SUM of ten maximum NUMERIC(18,6) values is exact');
+      V := TReportExpression.Evaluate('AVG([Amount])', Ctx);
+      Assert.AreEqual(0,
+        BcdCompare(VarToBcd(V), StrToBcd('999999999999.999999')),
+        'AVG preserves all six places without an overflowing scaled sum; got ' +
+        BcdToStr(VarToBcd(V)));
+      DS.First;
+      while not DS.Eof do
+      begin
+        DS.Edit;
+        DS.FieldByName('Amount').AsString := '-999999999999.999999';
+        DS.Post;
+        DS.Next;
+      end;
+      Engine.Prepare; // clear the engine's aggregate result cache after data changes
+      DS.First;
+      V := TReportExpression.Evaluate('SUM([Amount])', Ctx);
+      Assert.AreEqual(0,
+        BcdCompare(VarToBcd(V), StrToBcd('-9999999999999.999990')),
+        'negative SUM of ten maximum NUMERIC(18,6) values is exact');
+      V := TReportExpression.Evaluate('AVG([Amount])', Ctx);
+      Assert.AreEqual(0,
+        BcdCompare(VarToBcd(V), StrToBcd('-999999999999.999999')),
+        'negative AVG preserves all six places without an overflowing sum');
+    finally
+      Engine.Free;
+      Model.Free;
+    end;
+  finally
+    DS.Free;
+  end;
+end;
+
+procedure TAggregatesCurrencyTests.Test_Computed_HighScale_Bcd_RejectsUnsupportedGrammar;
+var
+  Def: TFieldDef;
+  DS: TClientDataSet;
+  Model: TReportModel;
+  Engine: TReportEngine;
+  Ctx: TExpressionContext;
+  Raised: Boolean;
+begin
+  DS := TClientDataSet.Create(nil);
+  try
+    Def := DS.FieldDefs.AddFieldDef;
+    Def.Name := 'Amount';
+    Def.DataType := ftFMTBCD;
+    Def.Precision := 18;
+    Def.Size := 6;
+    DS.CreateDataSet;
+    DS.Append;
+    DS.FieldByName('Amount').AsString := '1.234567';
+    DS.Post;
+    DS.First;
+    BuildContextOver(DS, Ctx, Engine, Model);
+    try
+      Raised := False;
+      try
+        TReportExpression.Evaluate('SUM([Amount]/2)', Ctx);
+      except
+        on E: EConvertError do
+          Raised := Pos('supported exact-decimal expression', E.Message) > 0;
+      end;
+      Assert.IsTrue(Raised,
+        'unsupported high-scale BCD grammar fails explicitly instead of using Double');
     finally
       Engine.Free;
       Model.Free;

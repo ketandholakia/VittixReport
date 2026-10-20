@@ -1,5 +1,9 @@
 unit Vittix.Report.Aggregates;
 
+{ Exact decimal paths use checked coefficient arithmetic through 64 digits
+  and 64 fractional places. Unsupported precision raises EConvertError;
+  floating fields retain the historical Double evaluation path. }
+
 {
   Vittix.Report.Aggregates
   ========================
@@ -18,6 +22,7 @@ interface
 uses
   System.SysUtils,
   System.Variants,
+  Data.FmtBcd,
   Data.DB,
   Vittix.Report.Context,
   Vittix.Report.Expressions,
@@ -35,13 +40,18 @@ type
 implementation
 
 type
-  { One factor of a Currency-safe aggregate expression: either a field
-    read through AsCurrency or a numeric literal. }
+  TExactDecimal = record
+    Digits: string;  // unsigned coefficient, without a decimal separator
+    Scale: Integer;
+    Negative: Boolean;
+  end;
+
+  { One factor of an exact-decimal aggregate expression. }
   TAggFactorKind = (afField, afLiteral);
   TAggFactor = record
     Kind: TAggFactorKind;
     Fld: TField;
-    Lit: Currency;
+    Lit: TExactDecimal;
   end;
 
   { One additive term: Sign * Product(Factors). }
@@ -51,62 +61,316 @@ type
   end;
 
 const
-  { Field types whose AsCurrency read is exact (integer-exact or decimal
-    with scale <= 4).  Anything else (floats) keeps the Double path. }
-  CCurrencyExactFieldTypes = [ftBcd, ftFMTBcd, ftCurrency, ftInteger,
+  { Integral and decimal field types can be read as exact decimal text.
+    Anything else (notably floats) keeps the historical Double path. }
+  CExactDecimalFieldTypes = [ftBcd, ftFMTBcd, ftCurrency, ftInteger,
     ftSmallint, ftWord, ftLargeint, ftByte, ftAutoInc];
+  CMaxExactDecimalDigits = 64;
 
-{ Multiplies two Currency values exactly at scale 8 and rounds the
-  product to Currency's scale 4 with round-half-AWAY-from-zero (money
-  convention; NOT banker's rounding).  Uses exact 64-bit scaled
-  arithmetic while the product cannot overflow, and falls back to a
-  Double product with the same explicit rounding for magnitudes beyond
-  the 64-bit scaled range. }
-function CurrScaled(const A: Currency): Int64; inline;
+procedure RaiseDecimalCapacityError;
 begin
-  // Currency is a scaled 64-bit integer (value * 10000); read that
-  // representation directly - Int64() would be a value conversion.
-  Result := PInt64(@A)^;
+  raise EConvertError.Create(
+    'Exact aggregate decimal arithmetic exceeds the supported 64-digit precision or scale');
 end;
 
-procedure SetCurrScaled(var A: Currency; AValue: Int64); inline;
+procedure NormalizeDecimal(var AValue: TExactDecimal);
 begin
-  // Inverse of CurrScaled: store the scaled representation bit-exact
-  // (an Int64 -> Currency cast would be a value conversion).
-  PInt64(@A)^ := AValue;
-end;
-
-function MulCurrencyHalfAway(const A, B: Currency): Currency;
-var
-  P, Q, R: Int64;
-begin
-  if (Abs(CurrScaled(A)) <= 3037000499) and (Abs(CurrScaled(B)) <= 3037000499) then
-    P := CurrScaled(A) * CurrScaled(B)                    // exact, scale 8
-  else
-    P := Round(CurrScaled(A) / 10000.0 * CurrScaled(B));  // magnitude fallback
-  if P >= 0 then
+  while (Length(AValue.Digits) > 1) and (AValue.Digits[1] = '0') do
+    Delete(AValue.Digits, 1, 1);
+  while (AValue.Scale > 0) and (Length(AValue.Digits) > 1) and
+        (AValue.Digits[Length(AValue.Digits)] = '0') do
   begin
-    Q := P div 10000;
-    R := P mod 10000;
-    if R >= 5000 then Inc(Q);
+    Delete(AValue.Digits, Length(AValue.Digits), 1);
+    Dec(AValue.Scale);
+  end;
+  if (AValue.Digits = '') or (AValue.Digits = '0') then
+  begin
+    AValue.Digits := '0';
+    AValue.Scale := 0;
+    AValue.Negative := False;
+  end;
+  if (AValue.Scale > CMaxExactDecimalDigits) or
+     (Length(AValue.Digits) > CMaxExactDecimalDigits) then
+    RaiseDecimalCapacityError;
+end;
+
+function DecimalIsZero(const AValue: TExactDecimal): Boolean;
+begin
+  Result := (AValue.Digits = '0');
+end;
+
+function DecimalFromText(const AText: string;
+  const AFormat: TFormatSettings): TExactDecimal;
+var
+  S: string;
+  I, DotAt: Integer;
+  C: Char;
+begin
+  S := Trim(AText);
+  Result.Digits := '';
+  Result.Scale := 0;
+  Result.Negative := False;
+  if S = '' then
+    raise EConvertError.Create('Empty numeric value in exact aggregate expression');
+  if S[1] = '-' then
+  begin
+    Result.Negative := True;
+    Delete(S, 1, 1);
+  end;
+  if (S <> '') and (S[1] = '+') then
+    Delete(S, 1, 1);
+  DotAt := 0;
+  for I := 1 to Length(S) do
+  begin
+    C := S[I];
+    if (C = '.') or (C = AFormat.DecimalSeparator) then
+    begin
+      if DotAt <> 0 then
+        raise EConvertError.CreateFmt('Invalid exact decimal value "%s"', [AText]);
+      DotAt := I;
+    end
+    else if CharInSet(C, ['0'..'9']) then
+      Result.Digits := Result.Digits + C
+    else
+      raise EConvertError.CreateFmt('Invalid exact decimal value "%s"', [AText]);
+  end;
+  if Result.Digits = '' then
+    raise EConvertError.CreateFmt('Invalid exact decimal value "%s"', [AText]);
+  if DotAt > 0 then
+    Result.Scale := Length(S) - DotAt;
+  NormalizeDecimal(Result);
+end;
+
+function DecimalToText(const AValue: TExactDecimal): string;
+var
+  D: string;
+  I: Integer;
+begin
+  D := AValue.Digits;
+  if AValue.Scale > 0 then
+  begin
+    while Length(D) <= AValue.Scale do
+      D := '0' + D;
+    I := Length(D) - AValue.Scale;
+    Insert('.', D, I + 1);
+  end;
+  if AValue.Negative and not DecimalIsZero(AValue) then
+    D := '-' + D;
+  Result := D;
+end;
+
+function CompareUnsigned(const A, B: string): Integer;
+begin
+  if Length(A) < Length(B) then Exit(-1);
+  if Length(A) > Length(B) then Exit(1);
+  Result := CompareStr(A, B);
+end;
+
+function AddUnsigned(const A, B: string): string;
+var
+  I, J, Carry, N: Integer;
+begin
+  I := Length(A);
+  J := Length(B);
+  Carry := 0;
+  Result := '';
+  while (I > 0) or (J > 0) or (Carry > 0) do
+  begin
+    N := Carry;
+    if I > 0 then begin Inc(N, Ord(A[I]) - Ord('0')); Dec(I); end;
+    if J > 0 then begin Inc(N, Ord(B[J]) - Ord('0')); Dec(J); end;
+    Carry := N div 10;
+    Result := Char(Ord('0') + N mod 10) + Result;
+  end;
+  if Result = '' then Result := '0';
+end;
+
+function SubtractUnsigned(const A, B: string): string;
+var
+  I, J, Borrow, N: Integer;
+begin
+  // Requires A >= B.
+  I := Length(A);
+  J := Length(B);
+  Borrow := 0;
+  Result := '';
+  while I > 0 do
+  begin
+    N := Ord(A[I]) - Ord('0') - Borrow;
+    if J > 0 then begin Dec(N, Ord(B[J]) - Ord('0')); Dec(J); end;
+    Borrow := 0;
+    if N < 0 then begin Inc(N, 10); Borrow := 1; end;
+    Result := Char(Ord('0') + N) + Result;
+    Dec(I);
+  end;
+  while (Length(Result) > 1) and (Result[1] = '0') do
+    Delete(Result, 1, 1);
+end;
+
+procedure AlignDecimals(var A, B: TExactDecimal);
+var
+  TargetScale: Integer;
+begin
+  TargetScale := A.Scale;
+  if B.Scale > TargetScale then TargetScale := B.Scale;
+  A.Digits := A.Digits + StringOfChar('0', TargetScale - A.Scale);
+  B.Digits := B.Digits + StringOfChar('0', TargetScale - B.Scale);
+  A.Scale := TargetScale;
+  B.Scale := TargetScale;
+end;
+
+function AddDecimals(const A, B: TExactDecimal): TExactDecimal;
+var
+  Left, Right: TExactDecimal;
+  Cmp: Integer;
+begin
+  Left := A;
+  Right := B;
+  AlignDecimals(Left, Right);
+  Result.Scale := Left.Scale;
+  if Left.Negative = Right.Negative then
+  begin
+    Result.Digits := AddUnsigned(Left.Digits, Right.Digits);
+    Result.Negative := Left.Negative;
   end
   else
   begin
-    Q := -((-P) div 10000);
-    R := (-P) mod 10000;
-    if R >= 5000 then Dec(Q);
+    Cmp := CompareUnsigned(Left.Digits, Right.Digits);
+    if Cmp >= 0 then
+    begin
+      Result.Digits := SubtractUnsigned(Left.Digits, Right.Digits);
+      Result.Negative := Left.Negative;
+    end
+    else
+    begin
+      Result.Digits := SubtractUnsigned(Right.Digits, Left.Digits);
+      Result.Negative := Right.Negative;
+    end;
   end;
-  SetCurrScaled(Result, Q);
+  NormalizeDecimal(Result);
 end;
 
-{ Parses a Currency-safe aggregate inner expression: a sum/difference of
+function CompareDecimalValues(const A, B: TExactDecimal): Integer;
+var
+  Left, Right: TExactDecimal;
+begin
+  if DecimalIsZero(A) and DecimalIsZero(B) then Exit(0);
+  if A.Negative <> B.Negative then
+  begin
+    if A.Negative then Exit(-1) else Exit(1);
+  end;
+  Left := A;
+  Right := B;
+  AlignDecimals(Left, Right);
+  Result := CompareUnsigned(Left.Digits, Right.Digits);
+  if A.Negative then Result := -Result;
+end;
+
+function MultiplyDecimals(const A, B: TExactDecimal): TExactDecimal;
+var
+  Digits: TArray<Integer>;
+  I, J, K, Carry: Integer;
+begin
+  SetLength(Digits, Length(A.Digits) + Length(B.Digits));
+  for I := 1 to Length(A.Digits) do
+    for J := 1 to Length(B.Digits) do
+    begin
+      K := I + J - 1;
+      Inc(Digits[K], (Ord(A.Digits[I]) - Ord('0')) *
+        (Ord(B.Digits[J]) - Ord('0')));
+    end;
+  for K := High(Digits) downto 1 do
+  begin
+    Carry := Digits[K] div 10;
+    Digits[K] := Digits[K] mod 10;
+    Inc(Digits[K - 1], Carry);
+  end;
+  Result.Digits := '';
+  for I := 0 to High(Digits) do
+    Result.Digits := Result.Digits + Char(Ord('0') + Digits[I]);
+  Result.Scale := A.Scale + B.Scale;
+  Result.Negative := A.Negative xor B.Negative;
+  NormalizeDecimal(Result);
+end;
+
+function DivideDecimalByInt(const A: TExactDecimal; ADivisor: Integer): TExactDecimal;
+var
+  Quotient, Fraction: string;
+  Remainder, Digit: Int64;
+  I, ExtraDigits: Integer;
+  RoundUp: Boolean;
+begin
+  if ADivisor <= 0 then
+    raise EConvertError.Create('Invalid divisor in exact AVG aggregate');
+  Remainder := 0;
+  Quotient := '';
+  for I := 1 to Length(A.Digits) do
+  begin
+    Remainder := Remainder * 10 + Ord(A.Digits[I]) - Ord('0');
+    Digit := Remainder div ADivisor;
+    Remainder := Remainder mod ADivisor;
+    Quotient := Quotient + Char(Ord('0') + Digit);
+  end;
+  while (Length(Quotient) > 1) and (Quotient[1] = '0') do
+    Delete(Quotient, 1, 1);
+  Fraction := '';
+  ExtraDigits := CMaxExactDecimalDigits - A.Scale;
+  if ExtraDigits > 10 then ExtraDigits := 10;
+  if ExtraDigits < 0 then ExtraDigits := 0;
+  for I := 1 to ExtraDigits + 1 do
+  begin
+    Remainder := Remainder * 10;
+    Digit := Remainder div ADivisor;
+    Remainder := Remainder mod ADivisor;
+    Fraction := Fraction + Char(Ord('0') + Digit);
+  end;
+  RoundUp := (Length(Fraction) > ExtraDigits) and
+    (Fraction[ExtraDigits + 1] >= '5');
+  if Length(Fraction) > ExtraDigits then
+    Delete(Fraction, ExtraDigits + 1, 1);
+  Result.Digits := Quotient + Fraction;
+  Result.Scale := A.Scale + ExtraDigits;
+  Result.Negative := A.Negative;
+  if RoundUp then
+  begin
+    I := Length(Result.Digits);
+    while (I > 0) and (Result.Digits[I] = '9') do
+    begin
+      Result.Digits[I] := '0';
+      Dec(I);
+    end;
+    if I = 0 then
+      Result.Digits := '1' + Result.Digits
+    else
+      Result.Digits[I] := Char(Ord(Result.Digits[I]) + 1);
+  end;
+  NormalizeDecimal(Result);
+end;
+
+function DecimalVariant(const AValue: TExactDecimal): Variant;
+var
+  C: Currency;
+  B: TBcd;
+  S: string;
+begin
+  S := DecimalToText(AValue);
+  if (AValue.Scale <= 4) and TryStrToCurr(S, C, TFormatSettings.Invariant) then
+  begin
+    Result := C;
+    Exit;
+  end;
+  B := StrToBcd(S, TFormatSettings.Invariant);
+  Result := VarFMTBcdCreate(B);
+end;
+
+{ Parses an exact-decimal aggregate inner expression: a sum/difference of
   products of [Field] tokens and numeric literals, e.g.
   [Qty]*[Rate] or [Qty]*[Rate]+[Bonus]*2.  Division, function calls,
-  parentheses and any field outside CCurrencyExactFieldTypes make the
+  parentheses and any field outside CExactDecimalFieldTypes make the
   parse fail so the caller keeps the historical Double evaluation.
   Returns False for a bare single token as well - the existing
   single-field path already covers that cheaper case. }
-function TryParseCurrencyAggExpr(ADataSet: TDataSet; const AExpr: string;
+function TryParseExactDecimalAggExpr(ADataSet: TDataSet; const AExpr: string;
   out ATerms: TArray<TAggTerm>): Boolean;
 var
   S: string;
@@ -127,7 +391,7 @@ var
     Result := False;
     AFactor.Kind := afLiteral;
     AFactor.Fld := nil;
-    AFactor.Lit := 0;
+    AFactor.Lit := DecimalFromText('0', TFormatSettings.Invariant);
     SkipSpaces;
     if P > Length(S) then
       Exit;
@@ -143,8 +407,11 @@ var
       if Pos('.', Name) > 0 then
         Exit; // qualified tokens keep the Double path
       Fld := ADataSet.FindField(Name);
-      if not Assigned(Fld) or not (Fld.DataType in CCurrencyExactFieldTypes) then
+      if not Assigned(Fld) or not (Fld.DataType in CExactDecimalFieldTypes) then
         Exit;
+      if (Fld.DataType in [ftBcd, ftFMTBcd]) and
+         (Fld.Size > CMaxExactDecimalDigits) then
+        RaiseDecimalCapacityError;
       AFactor.Kind := afField;
       AFactor.Fld := Fld;
       Result := True;
@@ -157,8 +424,8 @@ var
       // plain unsigned number (sign handled by term/factor grammar)
       if P = Start then
         Exit;
-      if not TryStrToCurr(Copy(S, Start, P - Start), AFactor.Lit) then
-        Exit;
+      AFactor.Lit := DecimalFromText(Copy(S, Start, P - Start),
+        TFormatSettings.Invariant);
       AFactor.Kind := afLiteral;
       Result := True;
     end;
@@ -241,20 +508,21 @@ begin
   Result := False; // literals only: let the Double path handle it
 end;
 
-{ Evaluates the parsed terms for the current row in Currency.  Returns
+{ Evaluates the parsed terms for the current row with checked decimal
+  coefficient arithmetic. Returns
   False when any field operand is NULL (the row is skipped, as before). }
-function EvalCurrencyAggTerms(const ATerms: TArray<TAggTerm>;
-  out AValue: Currency): Boolean;
+function EvalExactDecimalAggTerms(const ATerms: TArray<TAggTerm>;
+  out AValue: TExactDecimal): Boolean;
 var
   Term: TAggFactor;
   I, J: Integer;
-  TermVal, FactorVal: Currency;
+  TermVal, FactorVal: TExactDecimal;
 begin
   Result := False;
-  AValue := 0;
+  AValue := DecimalFromText('0', TFormatSettings.Invariant);
   for I := 0 to High(ATerms) do
   begin
-    TermVal := 1;
+    TermVal := DecimalFromText('1', TFormatSettings.Invariant);
     for J := 0 to High(ATerms[I].Factors) do
     begin
       Term := ATerms[I].Factors[J];
@@ -262,16 +530,17 @@ begin
       begin
         if Term.Fld.IsNull then
           Exit;
-        FactorVal := Term.Fld.AsCurrency;
+        FactorVal := DecimalFromText(Term.Fld.AsString,
+          TFormatSettings.Create);
       end
       else
         FactorVal := Term.Lit;
-      TermVal := MulCurrencyHalfAway(TermVal, FactorVal);
+      TermVal := MultiplyDecimals(TermVal, FactorVal);
     end;
     if ATerms[I].Neg then
-      AValue := AValue - TermVal
-    else
-      AValue := AValue + TermVal;
+      if not DecimalIsZero(TermVal) then
+        TermVal.Negative := not TermVal.Negative;
+    AValue := AddDecimals(AValue, TermVal);
   end;
   Result := True;
 end;
@@ -292,134 +561,72 @@ var
   FirstVal: Boolean;
   MinVal, MaxVal: Double;
   AtGroupEnd: Boolean;
-  { Currency-safe accumulation for NUMERIC(18,x) columns (FireDAC
-    ftBCD/ftFMTBCD, TCurrencyField): SUM/AVG/MIN/MAX accumulate in Currency,
-    which is a scaled 64-bit integer and therefore EXACT for the 4 decimal
-    places those columns carry - the SQL SUM() comparison no longer drifts.
-    Chosen over TBcd: Currency covers NUMERIC up to scale 4 (the dominant
-    money layout) with plain arithmetic and no FMTBcd dependency, while
-    values with scale > 4 arrive from the field/evaluator as Double anyway,
-    where a BCD accumulator would only add rounding steps without gaining
-    exactness.  Double accumulation is kept for every other input so float
-    sums with more than 4 decimals behave exactly as before. }
-  SumC, ValCur, MinC, MaxC: Currency;
-  UseCurrency: Boolean;
-  FieldBound, BcdBound: Boolean;
-  BcdScale, Pw: Integer;
-  ScaleMul: Double;
-  SumScaled, ScaledI, MinScaled, MaxScaled: Int64;
+  SumDecimal, ValDecimal, MinDecimal, MaxDecimal: TExactDecimal;
+  AverageCurrency: Currency;
+  UseDecimal: Boolean;
+  ExactFieldBound: Boolean;
   AggFld: TField;
   AggTerms: TArray<TAggTerm>;
   TermsParsed: Boolean;
   RowHasValue: Boolean;
   FieldName: string;
 
-  { Adds one non-null value to the Currency accumulators (SUM/AVG/MIN/MAX). }
-  procedure AccumulateCurrencyValue(AVal: Currency);
+  { Adds one non-null exact decimal value to the aggregate accumulators. }
+  procedure AccumulateDecimalValue(const AVal: TExactDecimal);
   begin
     if Func = 'SUM' then
-      SumC := SumC + AVal
+      SumDecimal := AddDecimals(SumDecimal, AVal)
     else if Func = 'AVG' then
     begin
-      SumC := SumC + AVal;
+      SumDecimal := AddDecimals(SumDecimal, AVal);
       Inc(Count);
     end
     else if Func = 'MIN' then
     begin
-      if FirstVal or (AVal < MinC) then MinC := AVal;
+      if FirstVal or (CompareDecimalValues(AVal, MinDecimal) < 0) then
+        MinDecimal := AVal;
     end
     else if Func = 'MAX' then
     begin
-      if FirstVal or (AVal > MaxC) then MaxC := AVal;
+      if FirstVal or (CompareDecimalValues(AVal, MaxDecimal) > 0) then
+        MaxDecimal := AVal;
     end;
     if Func <> 'COUNT' then FirstVal := False;
   end;
 
-  { Adds one non-null value to the scaled-integer accumulators used for
-    BCD columns whose scale exceeds Currency's 4 decimals. }
-  procedure AccumulateScaledValue(AVal: Int64);
+  function ReadDecimalValue: TExactDecimal;
   begin
-    if Func = 'SUM' then
-      SumScaled := SumScaled + AVal
-    else if Func = 'AVG' then
-    begin
-      SumScaled := SumScaled + AVal;
-      Inc(Count);
-    end
-    else if Func = 'MIN' then
-    begin
-      if FirstVal or (AVal < MinScaled) then MinScaled := AVal;
-    end
-    else if Func = 'MAX' then
-    begin
-      if FirstVal or (AVal > MaxScaled) then MaxScaled := AVal;
-    end;
-    if Func <> 'COUNT' then FirstVal := False;
+    Result := DecimalFromText(AggFld.AsString, TFormatSettings.Create);
   end;
 
-  { Converts a value scaled by ScaleMul (10^BcdScale, integral) to Double
-    as intPart + fraction/ScaleMul - the nearest-double decomposition of
-    the exact decimal, avoiding one large Int64/Double division that can
-    round away from the decimal value (e.g. 10000100000/1e6). }
-  function ScaledToDouble(AValue: Int64): Double;
+  function ContainsUnsupportedHighScaleBcd(const S: string): Boolean;
   var
-    ScaleI: Int64;
-    IntPart: Int64;
-  begin
-    ScaleI := Trunc(ScaleMul);
-    IntPart := AValue div ScaleI;
-    Result := IntPart + (AValue - IntPart * ScaleI) / ScaleI;
-  end;
-
-  { Parses the field's exact BCD string form ('-1234.5678') into an Int64
-    scaled by AScale digits.  False when the text is not a clean decimal
-    in range (the row is then skipped, like a failed conversion today). }
-  function ReadScaledInt64(const AText: string; out AValue: Int64): Boolean;
-  var
-    T, IntPart, FracPart: string;
-    Dot, Frac: Integer;
-    Neg: Boolean;
+    I, J: Integer;
+    Name: string;
+    F: TField;
   begin
     Result := False;
-    T := Trim(AText);
-    Neg := (T <> '') and (T[1] = '-');
-    if Neg then
-      Delete(T, 1, 1)
-    else if (T <> '') and (T[1] = '+') then
-      Delete(T, 1, 1);
-    Dot := Pos('.', T);
-    if Dot = 0 then
+    I := 1;
+    while I <= Length(S) do
     begin
-      IntPart := T;
-      FracPart := '';
-    end
-    else
-    begin
-      IntPart := Copy(T, 1, Dot - 1);
-      FracPart := Copy(T, Dot + 1, MaxInt);
+      if S[I] <> '[' then
+      begin
+        Inc(I);
+        Continue;
+      end;
+      J := I + 1;
+      while (J <= Length(S)) and (S[J] <> ']') do Inc(J);
+      if J > Length(S) then Exit;
+      Name := Copy(S, I + 1, J - I - 1);
+      if (Name <> '') and (Pos('.', Name) = 0) then
+      begin
+        F := Context.DataSet.FindField(Name);
+        if Assigned(F) and (F.DataType in [ftBcd, ftFMTBcd]) and
+         (F.Size > 4) then
+          Exit(True);
+      end;
+      I := J + 1;
     end;
-    if IntPart = '' then
-      IntPart := '0';
-    // The field's BCD string never carries more fraction digits than its
-    // declared scale; anything longer cannot come from this column.
-    Frac := Length(FracPart);
-    if Frac > BcdScale then
-      Exit;
-    while Frac < BcdScale do
-    begin
-      FracPart := FracPart + '0';
-      Inc(Frac);
-    end;
-    if (IntPart = '') or (Length(IntPart) + BcdScale > 18) then
-      Exit; // outside Int64 safety: caller falls back to the Currency row value
-    try
-      AValue := StrToInt64(IntPart + FracPart);
-    except
-      Exit;
-    end;
-    if Neg then
-      AValue := -AValue;
-    Result := True;
   end;
 
 begin
@@ -439,10 +646,9 @@ begin
 
   if not Assigned(Context.DataSet) or not Context.DataSet.Active then Exit;
 
-  // Currency-mode probe: a bare [Field] token bound to a BCD/currency
-  // column is read via Field.AsCurrency per row - no Double round trip.
-  FieldBound := False;
-  BcdBound := False;
+  // Exact-decimal mode for bare BCD/Currency fields. Integer and decimal
+  // fields in supported computed expressions use the parser below.
+  ExactFieldBound := False;
   AggFld := nil;
   FieldName := '';
   if (Length(InnerExpr) >= 3) and (InnerExpr[1] = '[') and
@@ -452,29 +658,24 @@ begin
     if (FieldName <> '') and (Pos('.', FieldName) = 0) then
     begin
       AggFld := Context.DataSet.FindField(FieldName);
-      FieldBound := Assigned(AggFld) and
-        ((AggFld.DataType = ftCurrency) or
-         ((AggFld.DataType in [ftBcd, ftFMTBcd]) and
-          (AggFld.Size in [0..4])));
-      BcdBound := Assigned(AggFld) and not FieldBound and
-        (AggFld.DataType in [ftBcd, ftFMTBcd]) and (AggFld.Size > 4);
-      if BcdBound then
-      begin
-        BcdScale := AggFld.Size;
-        ScaleMul := 1.0;
-        for Pw := 1 to BcdScale do
-          ScaleMul := ScaleMul * 10.0;
-      end;
+      ExactFieldBound := Assigned(AggFld) and
+        (AggFld.DataType in [ftCurrency, ftBcd, ftFMTBcd]);
+      if Assigned(AggFld) and (AggFld.DataType in [ftBcd, ftFMTBcd]) and
+         (AggFld.Size > CMaxExactDecimalDigits) then
+        RaiseDecimalCapacityError;
     end;
   end;
 
-  // Currency-mode probe 2: a sum/difference of products of exact fields
-  // and literals (the invoice case SUM([Qty]*[Rate])).  Evaluated per row
-  // in Currency with round-half-away-from-zero at 4 decimals; division,
-  // floats, qualified tokens or anything unparsable keep the Double path.
+  // A sum/difference of products of exact fields and literals (the invoice
+  // case SUM([Qty]*[Rate])) stays decimal throughout; float fields keep the
+  // historical Double route.
   TermsParsed := False;
-  if not FieldBound then
-    TermsParsed := TryParseCurrencyAggExpr(Context.DataSet, InnerExpr, AggTerms);
+  if not ExactFieldBound then
+    TermsParsed := TryParseExactDecimalAggExpr(Context.DataSet, InnerExpr, AggTerms);
+  if not ExactFieldBound and not TermsParsed and
+     ContainsUnsupportedHighScaleBcd(InnerExpr) then
+    raise EConvertError.Create(
+      'Computed BCD aggregates above scale 4 require a supported exact-decimal expression');
 
   TReportTraversalDiagnostics.AggregateEvaluationStarted;
   if Assigned(Context.Hooks) and
@@ -495,16 +696,13 @@ begin
 
     Count       := 0;
     Sum         := 0.0;
-    SumC        := 0;
-    SumScaled   := 0;
-    MinScaled   := 0;
-    MaxScaled   := 0;
+    SumDecimal  := DecimalFromText('0', TFormatSettings.Invariant);
+    MinDecimal  := DecimalFromText('0', TFormatSettings.Invariant);
+    MaxDecimal  := DecimalFromText('0', TFormatSettings.Invariant);
     MinVal      := 0.0;
     MaxVal      := 0.0;
-    MinC        := 0;
-    MaxC        := 0;
     FirstVal    := True;
-    UseCurrency := FieldBound or TermsParsed;
+    UseDecimal  := ExactFieldBound or TermsParsed;
     TReportTraversalDiagnostics.AggregateTraversalStarted;
 
     while not Context.DataSet.Eof do
@@ -526,43 +724,28 @@ begin
       if AtGroupEnd then Break;
       // ------------------------------------------------------
 
-      if BcdBound then
+      if ExactFieldBound or TermsParsed then
       begin
-        // NUMERIC(x, scale>4): accumulate EXACTLY at the field's own
-        // scale; the Double conversion happens once, at the result.
-        if not AggFld.IsNull then
-        begin
-          if ReadScaledInt64(AggFld.AsString, ScaledI) then
-          begin
-            if Func = 'COUNT' then
-              Inc(Count)
-            else
-              AccumulateScaledValue(ScaledI);
-          end
-        end;
-      end
-      else if FieldBound or TermsParsed then
-      begin
-        // Exact Currency row value (bare BCD/currency field or a parsed
-        // sum-of-products); NULL operands skip the row as before.
+        // Exact BCD row value (bare BCD/Currency field or a parsed product);
+        // NULL operands skip the row as before.
         RowHasValue := False;
-        if FieldBound then
+        if ExactFieldBound then
         begin
           if not AggFld.IsNull then
           begin
-            ValCur := AggFld.AsCurrency;
+            ValDecimal := ReadDecimalValue;
             RowHasValue := True;
           end;
         end
         else
-          RowHasValue := EvalCurrencyAggTerms(AggTerms, ValCur);
+          RowHasValue := EvalExactDecimalAggTerms(AggTerms, ValDecimal);
 
         if RowHasValue then
         begin
           if Func = 'COUNT' then
             Inc(Count)
           else
-            AccumulateCurrencyValue(ValCur);
+            AccumulateDecimalValue(ValDecimal);
         end;
       end
       else
@@ -575,18 +758,17 @@ begin
             Inc(Count)
           else
           begin
-            // A varCurrency value (modern-mode field token, TCurrencyField)
-            // also switches to the exact accumulator.
-            if not UseCurrency and (VarType(ValVar) = varCurrency) then
-              UseCurrency := True;
-
-            if UseCurrency then
+            // Preserve exact Currency Variants through the decimal
+            // accumulator; floating and other numeric values remain Double.
+            if VarType(ValVar) = varCurrency then
             begin
               try
-                ValCur := ValVar;
-                AccumulateCurrencyValue(ValCur);
+                ValDecimal := DecimalFromText(VarToStr(ValVar),
+                  TFormatSettings.Create);
+                UseDecimal := True;
+                AccumulateDecimalValue(ValDecimal);
               except
-                // Ignore non-numeric values for math aggregates
+                // Ignore values that cannot be converted to exact decimal.
               end;
             end
             else
@@ -625,32 +807,40 @@ begin
     if Func = 'COUNT'     then Value := Count
     else if Func = 'SUM'  then
     begin
-      if BcdBound then Value := ScaledToDouble(SumScaled)
-      else if UseCurrency then Value := SumC else Value := Sum;
+      if UseDecimal then Value := DecimalVariant(SumDecimal)
+      else Value := Sum;
     end
     else if Func = 'AVG'  then
     begin
       if Count > 0 then
       begin
-        // AVG stays a Double (historical result type/scale); the Currency
-        // numerator is exact, only the final division is floating point.
-        if BcdBound then Value := ScaledToDouble(SumScaled) / Count
-        else if UseCurrency then Value := Double(SumC) / Count
+        if UseDecimal then
+        begin
+          // Preserve historical Double precision when the exact sum fits
+          // Currency. Wider sums use exact decimal division with ten guard
+          // places (or the remaining supported scale when nearer capacity).
+          if (SumDecimal.Scale <= 4) and
+             TryStrToCurr(DecimalToText(SumDecimal), AverageCurrency,
+               TFormatSettings.Invariant) then
+            Value := Double(AverageCurrency) / Count
+          else
+            Value := DecimalVariant(DivideDecimalByInt(SumDecimal, Count));
+        end
         else Value := Sum / Count;
       end
       else Value := 0;
     end
     else if Func = 'MIN'  then
     begin
-      if FirstVal then Value := MinVal
-      else if BcdBound then Value := ScaledToDouble(MinScaled)
-      else if UseCurrency then Value := MinC else Value := MinVal;
+      if FirstVal then Value := 0
+      else if UseDecimal then Value := DecimalVariant(MinDecimal)
+      else Value := MinVal;
     end
     else if Func = 'MAX'  then
     begin
-      if FirstVal then Value := MaxVal
-      else if BcdBound then Value := ScaledToDouble(MaxScaled)
-      else if UseCurrency then Value := MaxC else Value := MaxVal;
+      if FirstVal then Value := 0
+      else if UseDecimal then Value := DecimalVariant(MaxDecimal)
+      else Value := MaxVal;
     end;
 
     Result := True;
