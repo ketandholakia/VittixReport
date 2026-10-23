@@ -46,6 +46,8 @@ type
     procedure BuildContextOver(ADataSet: TClientDataSet;
       out AContext: TExpressionContext; out AEngine: TReportEngine;
       out AModel: TReportModel);
+    procedure CheckComputedSingleRow(AQty: Integer; ARate: Currency;
+      const AExpected: string);
   public
     [Test] procedure Test_Sum_10000_Rows_Of_0_10_Is_Exactly_1000;
     [Test] procedure Test_Sum_Mixed_Nulls_SkipsNulls_Exact;
@@ -65,6 +67,14 @@ type
     [Test] procedure Test_Bcd_Accumulator_HandlesTenMaximumValues;
     [Test] procedure Test_Bcd_Average_DoesNotOverflowIntermediateSum;
     [Test] procedure Test_Computed_HighScale_Bcd_RejectsUnsupportedGrammar;
+    [Test] procedure Test_Computed_MultipleTerms_NegativeAndTinyScales;
+    [Test] procedure Test_Computed_ProductBeyondCapacity_Raises;
+    [Test] procedure Test_Computed_PositiveRow_Individually;
+    [Test] procedure Test_Computed_NegativeRow_Individually;
+    [Test] procedure Test_Computed_ThirdPositiveRow_Individually;
+    [Test] procedure Test_Computed_SignedOperandMatrix;
+    [Test] procedure Test_Computed_SignedAccumulationOrder;
+    [Test] procedure Test_Sum_BareNegativeSubunit_Exact;
   end;
 
 implementation
@@ -390,6 +400,151 @@ begin
     Result.Post;
   end;
   Result.First;
+end;
+
+procedure TAggregatesCurrencyTests.CheckComputedSingleRow(AQty: Integer;
+  ARate: Currency; const AExpected: string);
+var
+  Rows: TArray<Variant>;
+  DS: TClientDataSet;
+  Model: TReportModel;
+  Engine: TReportEngine;
+  Ctx: TExpressionContext;
+  V: Variant;
+begin
+  SetLength(Rows, 1);
+  Rows[0] := VarArrayOf(['A', AQty, ARate]);
+  DS := BuildQtyRateTable(Rows);
+  try
+    Assert.AreEqual(AQty, DS.FieldByName('Qty').AsInteger,
+      'dataset must expose the signed integer operand unchanged');
+    Assert.AreEqual(ARate, DS.FieldByName('Rate').AsCurrency,
+      'dataset must expose the decimal operand unchanged');
+    Assert.AreEqual(Integer(ftInteger), Integer(DS.FieldByName('Qty').DataType));
+    Assert.AreEqual(Integer(ftBCD), Integer(DS.FieldByName('Rate').DataType));
+    Assert.AreEqual(18, DS.FieldDefs.Find('Rate').Precision);
+    Assert.AreEqual(3, DS.FieldByName('Rate').Size);
+
+    BuildContextOver(DS, Ctx, Engine, Model);
+    try
+      V := TReportExpression.Evaluate('SUM([Qty]*[Rate])', Ctx);
+      Assert.AreEqual(0, BcdCompare(VarToBcd(V), StrToBcd(AExpected)),
+        Format('single row %d x %s: expected %s, got %s',
+          [AQty, CurrToStr(ARate, TFormatSettings.Invariant), AExpected,
+           BcdToStr(VarToBcd(V))]));
+    finally
+      Engine.Free;
+      Model.Free;
+    end;
+  finally
+    DS.Free;
+  end;
+end;
+
+procedure TAggregatesCurrencyTests.Test_Computed_PositiveRow_Individually;
+begin
+  CheckComputedSingleRow(1, 0.125, '0.125');
+end;
+
+procedure TAggregatesCurrencyTests.Test_Computed_NegativeRow_Individually;
+begin
+  CheckComputedSingleRow(-2, 0.125, '-0.25');
+end;
+
+procedure TAggregatesCurrencyTests.Test_Computed_ThirdPositiveRow_Individually;
+begin
+  CheckComputedSingleRow(3, 0.25, '0.75');
+end;
+
+procedure TAggregatesCurrencyTests.Test_Computed_SignedOperandMatrix;
+begin
+  CheckComputedSingleRow(-1, 1, '-1');
+  CheckComputedSingleRow(-2, 1, '-2');
+  CheckComputedSingleRow(-10, 1, '-10');
+  CheckComputedSingleRow(-11, 1, '-11');
+  CheckComputedSingleRow(-1, 0.1, '-0.1');
+  CheckComputedSingleRow(-2, 0.125, '-0.25');
+  CheckComputedSingleRow(2, -0.125, '-0.25');
+  CheckComputedSingleRow(-2, -0.125, '0.25');
+  CheckComputedSingleRow(0, -0.125, '0');
+end;
+
+procedure TAggregatesCurrencyTests.Test_Computed_SignedAccumulationOrder;
+var
+  Rows: TArray<Variant>;
+  procedure CheckRows(const ARows: TArray<Variant>; const AExpected: string);
+  var
+    DS: TClientDataSet;
+    Model: TReportModel;
+    Engine: TReportEngine;
+    Ctx: TExpressionContext;
+    V: Variant;
+  begin
+    DS := BuildQtyRateTable(ARows);
+    try
+      BuildContextOver(DS, Ctx, Engine, Model);
+      try
+        V := TReportExpression.Evaluate('SUM([Qty]*[Rate])', Ctx);
+        Assert.AreEqual(0, BcdCompare(VarToBcd(V), StrToBcd(AExpected)),
+          'ordered exact sum expected ' + AExpected + ', got ' +
+          BcdToStr(VarToBcd(V)));
+      finally
+        Engine.Free;
+        Model.Free;
+      end;
+    finally
+      DS.Free;
+    end;
+  end;
+begin
+  SetLength(Rows, 2);
+  Rows[0] := VarArrayOf(['A', 1, 0.125]);
+  Rows[1] := VarArrayOf(['A', -2, 0.125]);
+  CheckRows(Rows, '-0.125');
+
+  Rows[0] := VarArrayOf(['A', -2, 0.125]);
+  Rows[1] := VarArrayOf(['A', 1, 0.125]);
+  CheckRows(Rows, '-0.125');
+
+  Rows[0] := VarArrayOf(['A', 1, 0.125]);
+  Rows[1] := VarArrayOf(['A', -1, 0.125]);
+  CheckRows(Rows, '0');
+
+  Rows[0] := VarArrayOf(['A', -2, 0.125]);
+  Rows[1] := VarArrayOf(['A', -1, 0.125]);
+  CheckRows(Rows, '-0.375');
+end;
+
+procedure TAggregatesCurrencyTests.Test_Sum_BareNegativeSubunit_Exact;
+var
+  Values: TArray<Variant>;
+  DS: TClientDataSet;
+  Model: TReportModel;
+  Engine: TReportEngine;
+  Ctx: TExpressionContext;
+  V: Variant;
+begin
+  // This exercises the same signed accumulator through the bare-field path:
+  // -.1 - .2 + .15 = -.15, independently of computed-expression parsing.
+  SetLength(Values, 3);
+  Values[0] := -0.1;
+  Values[1] := -0.2;
+  Values[2] := 0.15;
+  DS := BuildBcdTable(18, 2, Values);
+  try
+    BuildContextOver(DS, Ctx, Engine, Model);
+    try
+      V := TReportExpression.Evaluate('SUM([Amt])', Ctx);
+      Assert.AreEqual(0, BcdCompare(VarToBcd(V), StrToBcd('-0.15')),
+        'bare BCD SUM must preserve a negative subunit total; got ' +
+        BcdToStr(VarToBcd(V)));
+    finally
+      Engine.Free;
+      Model.Free;
+    end;
+  finally
+    DS.Free;
+  end;
 end;
 
 procedure TAggregatesCurrencyTests.Test_Sum_QtyTimesRate_10000_Exact;
@@ -730,6 +885,10 @@ begin
         'computed FMTBCD aggregate returns a decimal-preserving result');
       Assert.AreEqual(0, BcdCompare(VarToBcd(V), StrToBcd('3.234568')),
         'computed SUM retains all six input decimal places');
+      V := TReportExpression.Evaluate('SUM([Amount]*0.000001)', Ctx);
+      Assert.AreEqual(0,
+        BcdCompare(VarToBcd(V), StrToBcd('0.000003234568')),
+        'a high-scale product retains all twelve mathematically significant places');
     finally
       Engine.Free;
       Model.Free;
@@ -896,6 +1055,117 @@ begin
       end;
       Assert.IsTrue(Raised,
         'unsupported high-scale BCD grammar fails explicitly instead of using Double');
+    finally
+      Engine.Free;
+      Model.Free;
+    end;
+  finally
+    DS.Free;
+  end;
+end;
+
+procedure TAggregatesCurrencyTests.Test_Computed_MultipleTerms_NegativeAndTinyScales;
+var
+  Rows: TArray<Variant>;
+  DS: TClientDataSet;
+  Model: TReportModel;
+  Engine: TReportEngine;
+  Ctx: TExpressionContext;
+  V: Variant;
+begin
+  // Independent arithmetic: (1*.125 + 1*.05) + (-2*.125 + -2*.05)
+  // + (3*.25 + 3*.05) = .175 - .35 + .9 = .725.
+  SetLength(Rows, 3);
+  Rows[0] := VarArrayOf(['A', 1, 0.125]);
+  Rows[1] := VarArrayOf(['A', -2, 0.125]);
+  Rows[2] := VarArrayOf(['A', 3, 0.25]);
+  DS := BuildQtyRateTable(Rows);
+  try
+    DS.First;
+    Assert.AreEqual(1, DS.FieldByName('Qty').AsInteger);
+    Assert.AreEqual('0.125', DS.FieldByName('Rate').AsString);
+    DS.Next;
+    Assert.AreEqual(-2, DS.FieldByName('Qty').AsInteger);
+    Assert.AreEqual('0.125', DS.FieldByName('Rate').AsString);
+    DS.Next;
+    Assert.AreEqual(3, DS.FieldByName('Qty').AsInteger);
+    Assert.AreEqual('0.25', DS.FieldByName('Rate').AsString);
+    DS.First;
+    BuildContextOver(DS, Ctx, Engine, Model);
+    try
+      V := TReportExpression.Evaluate('SUM([Qty]*[Rate])', Ctx);
+      Assert.AreEqual(0, BcdCompare(VarToBcd(V), StrToBcd('0.625')),
+        'independent product total for rows is 0.625; got ' +
+        BcdToStr(VarToBcd(V)));
+      V := TReportExpression.Evaluate('SUM([Qty]*0.05)', Ctx);
+      Assert.AreEqual(0, BcdCompare(VarToBcd(V), StrToBcd('0.1')),
+        'independent literal-product total for rows is 0.1');
+      V := TReportExpression.Evaluate(
+        'SUM([Qty]*[Rate]+[Qty]*0.05)', Ctx);
+      Assert.AreEqual(0, BcdCompare(VarToBcd(V), StrToBcd('0.725')),
+        'multi-term decimal sum must match independently calculated 0.725; got ' +
+        BcdToStr(VarToBcd(V)));
+      V := TReportExpression.Evaluate(
+        'SUM([Qty]*0.05+[Qty]*[Rate])', Ctx);
+      Assert.AreEqual(0, BcdCompare(VarToBcd(V), StrToBcd('0.725')),
+        'reversing additive term order must preserve exact output');
+      V := TReportExpression.Evaluate(
+        'SUM([Qty]*[Rate]-[Qty]*0.05)', Ctx);
+      Assert.AreEqual(0, BcdCompare(VarToBcd(V), StrToBcd('0.525')),
+        'product minus product must preserve signs for negative operands');
+      V := TReportExpression.Evaluate(
+        'SUM([Qty]*[Rate]+[Qty]*0.05-[Qty]*0.01)', Ctx);
+      Assert.AreEqual(0, BcdCompare(VarToBcd(V), StrToBcd('0.705')),
+        'three additive product terms must match independent arithmetic');
+      V := TReportExpression.Evaluate(
+        'SUM([Qty]*[Rate]+[Qty]*[Rate])', Ctx);
+      Assert.AreEqual(0, BcdCompare(VarToBcd(V), StrToBcd('1.25')),
+        'adding product terms must not change sign or scale');
+      V := TReportExpression.Evaluate('SUM([Rate]*0.00004)', Ctx);
+      Assert.AreEqual(0, BcdCompare(VarToBcd(V), StrToBcd('0.00002')),
+        'positive and negative five-place products retain exact scale');
+    finally
+      Engine.Free;
+      Model.Free;
+    end;
+  finally
+    DS.Free;
+  end;
+end;
+
+procedure TAggregatesCurrencyTests.Test_Computed_ProductBeyondCapacity_Raises;
+var
+  Def: TFieldDef;
+  DS: TClientDataSet;
+  Model: TReportModel;
+  Engine: TReportEngine;
+  Ctx: TExpressionContext;
+  Raised: Boolean;
+begin
+  DS := TClientDataSet.Create(nil);
+  try
+    Def := DS.FieldDefs.AddFieldDef;
+    Def.Name := 'Amount';
+    Def.DataType := ftFMTBCD;
+    Def.Precision := 18;
+    Def.Size := 0;
+    DS.CreateDataSet;
+    DS.Append;
+    DS.FieldByName('Amount').AsString := '999999999999999999';
+    DS.Post;
+    DS.First;
+    BuildContextOver(DS, Ctx, Engine, Model);
+    try
+      Raised := False;
+      try
+        TReportExpression.Evaluate(
+          'SUM([Amount]*[Amount]*[Amount]*[Amount])', Ctx);
+      except
+        on E: EConvertError do
+          Raised := Pos('64-digit precision or scale', E.Message) > 0;
+      end;
+      Assert.IsTrue(Raised,
+        'an exact product exceeding the documented capacity must raise, not round or fall back');
     finally
       Engine.Free;
       Model.Free;
