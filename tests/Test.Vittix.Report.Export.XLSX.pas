@@ -1,4 +1,4 @@
-unit Test.Vittix.Report.Export.XLSX;
+﻿unit Test.Vittix.Report.Export.XLSX;
 
 {
   Phase 4I-7: XLSX export cell fill/border fidelity tests.

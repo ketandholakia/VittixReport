@@ -1,4 +1,4 @@
-unit Test.Vittix.Report.ExpressionLegacyReference;
+﻿unit Test.Vittix.Report.ExpressionLegacyReference;
 
 {
   Phase 4B-1 — FROZEN LEGACY REFERENCE IMPLEMENTATION (test-only).

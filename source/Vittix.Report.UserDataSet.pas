@@ -1,4 +1,4 @@
-unit Vittix.Report.UserDataSet;
+﻿unit Vittix.Report.UserDataSet;
 
 {
   Vittix.Report.UserDataSet

@@ -1,4 +1,4 @@
-unit Test.Vittix.Report.Objects.QR;
+﻿unit Test.Vittix.Report.Objects.QR;
 
 {
   Phase 4H-2: QR Code symbology tests.

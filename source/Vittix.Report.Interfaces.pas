@@ -1,4 +1,4 @@
-unit Vittix.Report.Interfaces;
+﻿unit Vittix.Report.Interfaces;
 
 {
   Vittix.Report.Interfaces

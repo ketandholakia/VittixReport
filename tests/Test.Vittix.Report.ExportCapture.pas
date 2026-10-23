@@ -1,4 +1,4 @@
-unit Test.Vittix.Report.ExportCapture;
+﻿unit Test.Vittix.Report.ExportCapture;
 
 {
   Phase 4I-1: chart/crosstab export-capture correctness tests.
@@ -371,10 +371,11 @@ var
   Doc: TReportExportDocument;
   Engine: TReportEngine;
   Commands: TArray<TReportExportImageCommand>;
-  PngBytes: TBytes;
 begin
   // Embedded design-time picture: DataField empty, graphic set via the
   // public Picture property (as the designer does through PictureData).
+  // Since the bytes-on-command change, the captured PNG travels with the
+  // command and no %TEMP% file is written at all.
   Engine := BuildEngine(True, True, Chart, CrossTab, Doc, Model, DS);
   try
     Band := Model.Objects[0] as TReportBand;
@@ -401,11 +402,11 @@ begin
     Commands := CollectBySize(Doc, 200, 40);
     Assert.IsTrue(Length(Commands) = 1,
       Format('embedded image commands=%d', [Length(Commands)]));
-    Assert.IsTrue(TFile.Exists(Commands[0].Source), 'temp PNG missing');
-    PngBytes := TFile.ReadAllBytes(Commands[0].Source);
-    Assert.IsTrue(Length(PngBytes) > 8, 'temp PNG is empty');
-    Assert.IsTrue((PngBytes[0] = $89) and (PngBytes[1] = Ord('P')),
-      'temp file is not a PNG');
+    Assert.IsTrue(Commands[0].Source = '', 'bytes command must not carry a file source');
+    Assert.IsTrue(Commands[0].SourceFormat = 'png', 'bytes command must carry the png hint');
+    Assert.IsTrue(Length(Commands[0].Bytes) > 8, 'captured PNG bytes are empty');
+    Assert.IsTrue((Commands[0].Bytes[0] = $89) and (Commands[0].Bytes[1] = Ord('P')),
+      'captured bytes are not a PNG');
     // Presentation flags preserved from the object.
     Assert.IsTrue(Commands[0].Stretch);
     Assert.IsFalse(Commands[0].Center);
@@ -424,42 +425,61 @@ var
   DS: TClientDataSet;
   Band: TReportBand;
   Img: TReportImageObject;
-  Chart, CrossTab: TReportObject;
   Doc: TReportExportDocument;
   Engine: TReportEngine;
   Commands: TArray<TReportExportImageCommand>;
-  TempPath: string;
+  TempDir: string;
+  FilesBefore, FilesAfter: TArray<string>;
 begin
-  Engine := BuildEngine(True, True, Chart, CrossTab, Doc, Model, DS);
-  try
-    Band := Model.Objects[0] as TReportBand;
-    Img := TReportImageObject.Create;
-    Img.Bounds := Rect(20, 150, 220, 190);
-    Img.DataField := '';
-    var Bmp := TBitmap.Create;
-    try
-      Bmp.SetSize(16, 16);
-      Bmp.Canvas.Brush.Color := clBlue;
-      Bmp.Canvas.FillRect(Rect(0, 0, 16, 16));
-      Img.Picture.Assign(Bmp);
-    finally
-      Bmp.Free;
-    end;
-    Band.Children.Add(Img);
+  // Since the bytes-on-command change the embedded picture never touches
+  // %TEMP%: no vittix_export_* file may be created by the capture at all.
+  // The builder is deliberately chart/crosstab-free: those objects still
+  // legitimately rasterize through registered temp PNGs.
+  TempDir := TPath.GetTempPath;
+  FilesBefore := TDirectory.GetFiles(TempDir, 'vittix_export_*');
 
+  DS := TClientDataSet.Create(nil);
+  DS.FieldDefs.Add('Name', ftString, 20);
+  DS.CreateDataSet;
+  DS.AppendRecord(['row1']);
+  DS.First;
+
+  Model := TReportModel.Create;
+  Band := TReportBand.Create;
+  Band.BandType := btPageHeader;
+  Band.Height := 400;
+  Img := TReportImageObject.Create;
+  Img.Bounds := Rect(20, 150, 220, 190);
+  Img.DataField := '';
+  var Bmp := TBitmap.Create;
+  try
+    Bmp.SetSize(16, 16);
+    Bmp.Canvas.Brush.Color := clBlue;
+    Bmp.Canvas.FillRect(Rect(0, 0, 16, 16));
+    Img.Picture.Assign(Bmp);
+  finally
+    Bmp.Free;
+  end;
+  Band.Children.Add(Img);
+  Model.Objects.Add(Band);
+
+  Doc := TReportExportDocument.Create;
+  Engine := TReportEngine.Create(Model, DS, nil, nil);
+  try
+    Engine.ExportDocument := Doc;
     Engine.Prepare;
     Commands := CollectBySize(Doc, 200, 40);
     Assert.IsTrue(Length(Commands) = 1);
-    TempPath := Commands[0].Source;
-    Assert.IsTrue(TFile.Exists(TempPath));
+    Assert.IsTrue(Length(Commands[0].Bytes) > 0, 'capture must carry PNG bytes');
+    FilesAfter := TDirectory.GetFiles(TempDir, 'vittix_export_*');
+    Assert.AreEqual(Length(FilesBefore), Length(FilesAfter),
+      'embedded-picture capture must not create vittix_export_* temp files');
   finally
     Doc.Free;
     Engine.Free;
     Model.Free;
     DS.Free;
   end;
-  Assert.IsFalse(TFile.Exists(TempPath),
-    'export document must delete the embedded-picture temp PNG on free');
 end;
 
 procedure TExportCaptureTests.Test_HiddenEmbeddedPicture_NoCommand;
@@ -680,6 +700,7 @@ var
   Commands: TArray<TReportExportImageCommand>;
   PngPath, Pdf: string;
   TempPng: TPngImage;
+  PngMs: TMemoryStream;
 begin
   PngPath := WriteTransparentPngFixture;
   try
@@ -702,11 +723,18 @@ begin
       Commands := CollectBySize(Doc, 200, 40);
       Assert.AreEqual(1, Length(Commands), 'embedded image command missing');
 
-      // Capture-level characterization: the registered temp PNG has no alpha
+      // Capture-level characterization: the carried PNG bytes have no alpha
       // and the transparent half is baked to white.
       TempPng := TPngImage.Create;
       try
-        TempPng.LoadFromFile(Commands[0].Source);
+        PngMs := TMemoryStream.Create;
+        try
+          PngMs.WriteBuffer(Commands[0].Bytes[0], Length(Commands[0].Bytes));
+          PngMs.Position := 0;
+          TempPng.LoadFromStream(PngMs);
+        finally
+          PngMs.Free;
+        end;
         Assert.IsFalse(
           TempPng.Header.ColorType in [COLOR_RGBALPHA, COLOR_GRAYSCALEALPHA],
           'engine capture currently drops alpha (documented limitation)');
@@ -1009,7 +1037,11 @@ begin
     Commands := CollectBySize(Doc, 200, 40);
     Assert.IsTrue(Length(Commands) = 1,
       Format('data-URI image commands=%d', [Length(Commands)]));
-    Assert.IsTrue(TFile.Exists(Commands[0].Source), 'export temp PNG missing');
+    // The decoded data-URI picture travels on the command as PNG bytes
+    // (no %TEMP% round trip).
+    Assert.IsTrue(Length(Commands[0].Bytes) > 8, 'captured PNG bytes are empty');
+    Assert.IsTrue((Commands[0].Bytes[0] = $89) and (Commands[0].Bytes[1] = Ord('P')),
+      'captured bytes are not a PNG');
     // The rendered image must reach the real HTML exporter as base64 output.
     var Ms := TStringStream.Create('', TEncoding.UTF8);
     try

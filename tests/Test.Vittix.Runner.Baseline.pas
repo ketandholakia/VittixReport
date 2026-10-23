@@ -1,4 +1,4 @@
-unit Test.Vittix.Runner.Baseline;
+﻿unit Test.Vittix.Runner.Baseline;
 
 {
   Phase 3C-2b-1: read-only baseline loader tests.

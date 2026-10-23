@@ -1,4 +1,4 @@
-unit Vittix.Report.DesignerControl;
+﻿unit Vittix.Report.DesignerControl;
 
 (*
   Vittix.Report.DesignerControl  --  Full-featured report designer VCL control

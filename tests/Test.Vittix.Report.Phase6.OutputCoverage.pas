@@ -1,4 +1,4 @@
-unit Test.Vittix.Report.Phase6.OutputCoverage;
+﻿unit Test.Vittix.Report.Phase6.OutputCoverage;
 
 {
   Phase 6 — widened regression coverage (test-only).

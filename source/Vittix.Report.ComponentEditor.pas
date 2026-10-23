@@ -1,4 +1,4 @@
-unit Vittix.Report.ComponentEditor;
+﻿unit Vittix.Report.ComponentEditor;
 
 {
   Vittix.Report.ComponentEditor

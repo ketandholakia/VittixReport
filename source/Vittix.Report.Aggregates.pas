@@ -1,4 +1,4 @@
-unit Vittix.Report.Aggregates;
+﻿unit Vittix.Report.Aggregates;
 
 { Exact decimal paths use checked coefficient arithmetic through 64 digits
   and 64 fractional places. Unsupported precision raises EConvertError;
@@ -12,7 +12,7 @@ unit Vittix.Report.Aggregates;
 
   Bug fixes in this revision
   --------------------------
-  â€¢ BookmarkLeak: The while-loop previously called GetBookmark every row for
+  - BookmarkLeak: The while-loop previously called GetBookmark every row for
     the group-end boundary check but never freed the returned bookmark.
     Fix: capture in a local variable (RowBM) and free it after the comparison.
 }

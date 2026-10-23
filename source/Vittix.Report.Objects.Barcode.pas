@@ -1,4 +1,4 @@
-unit Vittix.Report.Objects.Barcode;
+﻿unit Vittix.Report.Objects.Barcode;
 
 interface
 

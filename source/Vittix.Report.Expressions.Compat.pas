@@ -1,4 +1,4 @@
-unit Vittix.Report.Expressions.Compat;
+﻿unit Vittix.Report.Expressions.Compat;
 
 {
   Vittix.Report.Expressions.Compat

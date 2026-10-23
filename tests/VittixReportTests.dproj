@@ -22,7 +22,7 @@
         <DCC_F>false</DCC_F>
         <DCC_K>false</DCC_K>
         <DCC_Define>VITTIX_REPORT_TESTS;$(DCC_Define)</DCC_Define>
-        <DCC_UnitSearchPath>..;..\source;..\source\ThirdParty\QRCodeGenLib\src\QRCodeGen;..\source\ThirdParty\QRCodeGenLib\src\Interfaces;..\source\ThirdParty\QRCodeGenLib\src\Utils;..\source\ThirdParty\QRCodeGenLib\src\Include;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>..;..\tools\runner;..\source;..\source\ThirdParty\QRCodeGenLib\src\QRCodeGen;..\source\ThirdParty\QRCodeGenLib\src\Interfaces;..\source\ThirdParty\QRCodeGenLib\src\Utils;..\source\ThirdParty\QRCodeGenLib\src\Include;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;$(DCC_Namespace)</DCC_Namespace>
     </PropertyGroup>
     <ItemGroup>
@@ -89,6 +89,12 @@
         <DelphiCompile Include="Test.Vittix.Report.ExportCapture.pas">
             <DCCReference>MainSource</DCCReference>
         </DelphiCompile>
+        <DelphiCompile Include="Test.Vittix.Report.BlobImages.pas">
+            <DCCReference>MainSource</DCCReference>
+        </DelphiCompile>
+        <DelphiCompile Include="Test.Vittix.Report.VectorPDF.JPEG.pas">
+            <DCCReference>MainSource</DCCReference>
+        </DelphiCompile>
         <DelphiCompile Include="Test.Vittix.Report.Export.HTML.pas">
             <DCCReference>MainSource</DCCReference>
         </DelphiCompile>
@@ -101,13 +107,13 @@
         <DelphiCompile Include="Test.Vittix.Runner.Options.pas">
             <DCCReference>MainSource</DCCReference>
         </DelphiCompile>
-        <DelphiCompile Include="..\Vittix.Runner.Baseline.pas">
+        <DelphiCompile Include="..\tools\runner\Vittix.Runner.Baseline.pas">
             <DCCReference>MainSource</DCCReference>
         </DelphiCompile>
         <DelphiCompile Include="Test.Vittix.Runner.Baseline.pas">
             <DCCReference>MainSource</DCCReference>
         </DelphiCompile>
-        <DelphiCompile Include="..\Vittix.Runner.ExportVerification.pas">
+        <DelphiCompile Include="..\tools\runner\Vittix.Runner.ExportVerification.pas">
             <DCCReference>MainSource</DCCReference>
         </DelphiCompile>
         <DelphiCompile Include="Test.Vittix.Runner.ExportVerification.pas">

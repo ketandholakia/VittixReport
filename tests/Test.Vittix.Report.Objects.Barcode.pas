@@ -1,4 +1,4 @@
-unit Test.Vittix.Report.Objects.Barcode;
+﻿unit Test.Vittix.Report.Objects.Barcode;
 
 {
   Phase 4H-1: Code128 and EAN-13 barcode symbology tests.

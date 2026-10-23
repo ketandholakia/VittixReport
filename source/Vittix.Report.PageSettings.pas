@@ -1,4 +1,4 @@
-unit Vittix.Report.PageSettings;
+﻿unit Vittix.Report.PageSettings;
 
 {
   Vittix.Report.PageSettings
