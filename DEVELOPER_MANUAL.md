@@ -29,19 +29,32 @@ output; they differ in who does the matching.
 
 ### Pattern 1 — FireDAC `MasterSource` (recommended for large data)
 
-Let FireDAC do the linking. Bind the detail query through
-`TDataSource` + `MasterFields`, and leave the detail band's `MasterField`
-and `DetailField` properties **empty**:
+Let FireDAC do the linking, and leave the detail band's `MasterField`
+and `DetailField` properties **empty**. Choose one of these mutually
+exclusive mechanisms; do not combine them:
+
+**(a) Parameterized query, linked through `MasterSource`**
 
 ```pascal
 // Master
 FDQueryMaster.Open('SELECT ID, NAME FROM CUSTOMER ORDER BY NAME');
-// Detail - filtered by FireDAC on every master cursor move
+// FireDAC re-runs the query with the new :ID on each master cursor move.
+// The WHERE clause filters rows, so IndexFieldNames is not needed.
 FDQueryDetail.MasterSource := dsMaster;
-FDQueryDetail.MasterFields := 'ID';          // links :ID param
-FDQueryDetail.IndexFieldNames := 'CUSTOMER_ID';
 FDQueryDetail.Open('SELECT * FROM INVOICE WHERE CUSTOMER_ID = :ID');
+```
 
+**(b) Unfiltered query, with local master-detail filtering**
+
+```pascal
+FDQueryMaster.Open('SELECT ID, NAME FROM CUSTOMER ORDER BY NAME');
+FDQueryDetail.MasterSource := dsMaster;
+FDQueryDetail.MasterFields := 'ID';              // master link field
+FDQueryDetail.IndexFieldNames := 'CUSTOMER_ID';  // detail range field
+FDQueryDetail.Open('SELECT * FROM INVOICE');
+```
+
+```pascal
 VittixReport.Execute;   // detail band: DataSetName='Details',
                         // MasterField='' DetailField='' -> prints ALL
                         // rows the detail dataset currently holds
@@ -74,10 +87,16 @@ without bookmarks (e.g. `TVittixUserDataSet`, or a `TFDQuery` with
 `FetchOptions.Unidirectional := True`) automatically keep the historical
 scan.
 
-Reports that need groups, aggregates, cross-tab or chart objects require
+Do not combine Pattern 2 with a FireDAC master-linked detail dataset:
+the visible detail rows change as the master moves, so the engine uses the
+historical scan instead of indexing that dataset.
+
+Reports that need aggregates, cross-tab or chart objects require
 a bookmark-capable main dataset; the engine raises a clear
 `EReportException` at `Prepare` otherwise (for TFDQuery set
-`FetchOptions.Unidirectional := False`).
+`FetchOptions.Unidirectional := False`). Grouping does not impose this
+requirement: group bookmarks are captured only when supported, and grouped
+reports continue without bookmarks.
 
 ## Extending the Framework
 - **Custom Objects**: Register new object types via `Vittix.Report.ObjectRegistry`.
