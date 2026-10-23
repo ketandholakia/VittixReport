@@ -39,6 +39,8 @@ type
   private
     FDetailMutationDone: Boolean;
     FDetailToMutate: TClientDataSet;
+    FMutationTargetKey: Integer;
+    FMutationNewKey: Integer;
     function CreateMasterData(ACount: Integer): TClientDataSet;
     function CreateDetailData(const AMasterIDs: array of Integer): TClientDataSet;
     function BuildLinkedReport(const AMasterField: string = 'ID';
@@ -48,6 +50,9 @@ type
       ABand: TReportBand; const Context: TExpressionContext;
       var ACanPrint: Boolean);
     procedure HandleBeforeBandForFailure(Sender: TObject; AEngine: TObject;
+      ABand: TReportBand; const Context: TExpressionContext;
+      var ACanPrint: Boolean);
+    procedure HandleBeforeBandForDelete(Sender: TObject; AEngine: TObject;
       ABand: TReportBand; const Context: TExpressionContext;
       var ACanPrint: Boolean);
     procedure HandleBeforePrintCancel(Sender: TObject; AEngine: TObject;
@@ -72,6 +77,9 @@ type
     [Test] procedure Test_Detail_NestedMasterLinksChangeVisibleRows;
     [Test] procedure Test_Detail_DataChangesBetweenPasses_SecondPassReflectsNewData;
     [Test] procedure Test_Detail_MidPassInteriorMutation_SameCountAndFirstKey;
+    [Test] procedure Test_Detail_MidPassFirstRowMutation_FallsBackWithCorrectOutput;
+    [Test] procedure Test_Detail_MidPassDeletedBookmark_FallsBackWithCorrectOutput;
+    [Test] procedure Test_Detail_CloseReopenMidPass_UsesFreshRows;
     [Test] procedure Test_Detail_RenderFailure_RestoresPositionAndControls;
   end;
 
@@ -160,16 +168,14 @@ procedure TPhase6DetailTraversalTests.HandleBeforeBandForMutation(
   const Context: TExpressionContext; var ACanPrint: Boolean);
 begin
   ACanPrint := True;
-  // At the start of master row 2, mutate an INTERIOR detail row. The
-  // record count and first detail key stay unchanged; later scans must see
-  // the row's new key and omit it from master row 3.
+  // At the start of master row 2, mutate the configured detail row.
   if FDetailMutationDone or (Context.RowNumber <> 2) then
     Exit;
   FDetailMutationDone := True;
-  if FDetailToMutate.Locate('MasterID', 3, []) then
+  if FDetailToMutate.Locate('MasterID', FMutationTargetKey, []) then
   begin
     FDetailToMutate.Edit;
-    FDetailToMutate.FieldByName('MasterID').AsInteger := 99;
+    FDetailToMutate.FieldByName('MasterID').AsInteger := FMutationNewKey;
     FDetailToMutate.Post;
   end;
 end;
@@ -1000,6 +1006,8 @@ begin
         Engine.TwoPassRendering := False;
         FDetailMutationDone := False;
         FDetailToMutate := Detail;
+        FMutationTargetKey := 3;
+        FMutationNewKey := 99;
         Engine.OnBeforeBand := Self.HandleBeforeBandForMutation;
         Engine.Prepare;
 
@@ -1020,6 +1028,194 @@ begin
           'interior mutation path leaves controls enabled');
         Assert.AreEqual(1, Detail.RecNo,
           'position restores to the original first row');
+      finally
+        Engine.Free;
+        Doc.Free;
+      end;
+    finally
+      NamedDataSets.Free;
+      Model.Free;
+    end;
+  finally
+    Detail.Free;
+    Master.Free;
+  end;
+end;
+
+procedure TPhase6DetailTraversalTests.HandleBeforeBandForDelete(
+  Sender: TObject; AEngine: TObject; ABand: TReportBand;
+  const Context: TExpressionContext; var ACanPrint: Boolean);
+begin
+  ACanPrint := True;
+  if (Context.RowNumber = 2) and FDetailToMutate.Locate('MasterID', 3, []) then
+    FDetailToMutate.Delete;
+end;
+
+procedure TPhase6DetailTraversalTests.Test_Detail_MidPassFirstRowMutation_FallsBackWithCorrectOutput;
+var
+  Master, Detail: TClientDataSet;
+  Model: TReportModel;
+  Engine: TReportEngine;
+  NamedDataSets: TDictionary<string, TDataSet>;
+  Doc: TReportExportDocument;
+  Texts: TStringList;
+begin
+  // The first detail row changes from master key 1 to 3 after master 1 has
+  // printed. This adds a row to master 3's match set even though that key's
+  // old bookmark remains valid and unchanged. The output assertion verifies
+  // fallback behavior, not merely a traversal counter.
+  Master := CreateMasterData(3);
+  Detail := CreateDetailData([1, 2, 3]);
+  try
+    Model := BuildLinkedReportWithText;
+    NamedDataSets := TDictionary<string, TDataSet>.Create;
+    try
+      NamedDataSets.Add('Details', Detail);
+      Doc := TReportExportDocument.Create;
+      Engine := TReportEngine.Create(Model, Master, NamedDataSets, nil);
+      try
+        Engine.ExportDocument := Doc;
+        Engine.TwoPassRendering := False;
+        FDetailMutationDone := False;
+        FDetailToMutate := Detail;
+        FMutationTargetKey := 1;
+        FMutationNewKey := 3;
+        Engine.OnBeforeBand := Self.HandleBeforeBandForMutation;
+        Engine.Prepare;
+
+        Texts := CollectDetailTexts(Doc);
+        try
+          Assert.AreEqual(4, Texts.Count,
+            'the changed first row must join the later master 3 output');
+          Assert.AreEqual('1', Texts[0], 'master 1 output predates mutation');
+          Assert.AreEqual('2', Texts[1], 'master 2 output remains ordered');
+          Assert.AreEqual('3', Texts[2], 'mutated first row is now a master 3 match');
+          Assert.AreEqual('3', Texts[3], 'original master 3 row follows it');
+        finally
+          Texts.Free;
+        end;
+      finally
+        Engine.Free;
+        Doc.Free;
+      end;
+    finally
+      NamedDataSets.Free;
+      Model.Free;
+    end;
+  finally
+    Detail.Free;
+    Master.Free;
+  end;
+end;
+
+procedure TPhase6DetailTraversalTests.Test_Detail_MidPassDeletedBookmark_FallsBackWithCorrectOutput;
+var
+  Master, Detail: TClientDataSet;
+  Model: TReportModel;
+  Engine: TReportEngine;
+  NamedDataSets: TDictionary<string, TDataSet>;
+  Doc: TReportExportDocument;
+  Texts: TStringList;
+begin
+  Master := CreateMasterData(3);
+  Detail := CreateDetailData([1, 2, 3]);
+  try
+    Model := BuildLinkedReportWithText;
+    NamedDataSets := TDictionary<string, TDataSet>.Create;
+    try
+      NamedDataSets.Add('Details', Detail);
+      Doc := TReportExportDocument.Create;
+      Engine := TReportEngine.Create(Model, Master, NamedDataSets, nil);
+      try
+        Engine.ExportDocument := Doc;
+        Engine.TwoPassRendering := False;
+        FDetailToMutate := Detail;
+        Engine.OnBeforeBand := Self.HandleBeforeBandForDelete;
+        Engine.Prepare;
+
+        Texts := CollectDetailTexts(Doc);
+        try
+          Assert.AreEqual(2, Texts.Count,
+            'a deleted indexed row must not be rendered for master 3');
+          Assert.AreEqual('1', Texts[0]);
+          Assert.AreEqual('2', Texts[1]);
+        finally
+          Texts.Free;
+        end;
+      finally
+        Engine.Free;
+        Doc.Free;
+      end;
+    finally
+      NamedDataSets.Free;
+      Model.Free;
+    end;
+  finally
+    Detail.Free;
+    Master.Free;
+  end;
+end;
+
+procedure TPhase6DetailTraversalTests.Test_Detail_CloseReopenMidPass_UsesFreshRows;
+var
+  Master, Detail: TClientDataSet;
+  Model: TReportModel;
+  Engine: TReportEngine;
+  NamedDataSets: TDictionary<string, TDataSet>;
+  Doc: TReportExportDocument;
+  Texts: TStringList;
+begin
+  Master := CreateMasterData(3);
+  Detail := CreateDetailData([1, 2, 3]);
+  try
+    Model := BuildLinkedReportWithText;
+    NamedDataSets := TDictionary<string, TDataSet>.Create;
+    try
+      NamedDataSets.Add('Details', Detail);
+      Doc := TReportExportDocument.Create;
+      Engine := TReportEngine.Create(Model, Master, NamedDataSets, nil);
+      try
+        Engine.ExportDocument := Doc;
+        Engine.TwoPassRendering := False;
+        Engine.Prepare;
+
+        Texts := CollectDetailTexts(Doc);
+        try
+          Assert.AreEqual(3, Texts.Count, 'first render uses original detail rows');
+          Assert.AreEqual('1', Texts[0]);
+          Assert.AreEqual('2', Texts[1]);
+          Assert.AreEqual('3', Texts[2]);
+        finally
+          Texts.Free;
+        end;
+
+        // The previous report execution built and used its per-pass index.
+        // Reopen the same dataset, replace the rows, and execute again: the
+        // second render must build fresh bookmarks and include both key-2 rows.
+        Detail.Close;
+        Detail.Open;
+        Detail.EmptyDataSet;
+        Detail.AppendRecord([1]);
+        Detail.AppendRecord([2]);
+        Detail.AppendRecord([2]);
+        Detail.First;
+        Assert.IsTrue(Detail.Active, 'detail is active after close/reopen');
+        Assert.AreEqual(3, Detail.RecordCount, 'replacement rows loaded after reopen');
+
+        Doc.Free;
+        Doc := TReportExportDocument.Create;
+        Engine.ExportDocument := Doc;
+        Engine.Prepare;
+        Texts := CollectDetailTexts(Doc);
+        try
+          Assert.AreEqual(3, Texts.Count,
+            'second execution uses reopened rows, including duplicate keys');
+          Assert.AreEqual('1', Texts[0], 'master 1 after reopen');
+          Assert.AreEqual('2', Texts[1], 'first key-2 detail after reopen');
+          Assert.AreEqual('2', Texts[2], 'second key-2 detail after reopen');
+        finally
+          Texts.Free;
+        end;
       finally
         Engine.Free;
         Doc.Free;
