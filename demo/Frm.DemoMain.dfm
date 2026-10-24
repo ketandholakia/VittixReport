@@ -103,6 +103,15 @@ object frmDemoMain: TfrmDemoMain
         TabOrder = 0
         OnClick = btnOpenFolderClick
       end
+      object btnVrtFolder: TButton
+        Left = 148
+        Top = 10
+        Width = 150
+        Height = 28
+        Caption = 'Template Folder...'
+        TabOrder = 1
+        OnClick = btnVrtFolderClick
+      end
       object btnDesign: TButton
         Left = 620
         Top = 10
@@ -110,7 +119,7 @@ object frmDemoMain: TfrmDemoMain
         Height = 28
         Caption = 'Design'
         Enabled = False
-        TabOrder = 1
+        TabOrder = 2
         OnClick = btnDesignClick
       end
       object btnPreview: TButton
@@ -120,7 +129,7 @@ object frmDemoMain: TfrmDemoMain
         Height = 28
         Caption = 'Preview'
         Enabled = False
-        TabOrder = 2
+        TabOrder = 3
         OnClick = btnPreviewClick
       end
     end

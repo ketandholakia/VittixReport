@@ -69,6 +69,9 @@ type
   public
     Band: TReportBand;
     DS: TDataSet;
+    DetailField: TField;
+    FirstKey: string;
+    HasFirstKey: Boolean;
     Keys: TDictionary<string, TList<TBookmark>>;
     Stale: Boolean;
     constructor Create;
@@ -2478,11 +2481,39 @@ var
   Key: string;
   List: TList<TBookmark>;
   BM: TBookmark;
+  CurKey: string;
 begin
   for I := 0 to FDetailKeyIndexes.Count - 1 do
     if (FDetailKeyIndexes[I].Band = ABand) and
        (FDetailKeyIndexes[I].DS = ADetailDS) then
-      Exit(FDetailKeyIndexes[I]);
+    begin
+      Idx := FDetailKeyIndexes[I];
+      if Idx.HasFirstKey then
+      begin
+        // A first-row key mutation can move a detail row into a different
+        // master bucket that is not present in that master's cached list.
+        // Validate this stable sentinel before trusting any indexed lookup.
+        HasSaveBM := Vittix.Report.LayoutBookmarks.CaptureDataSetBookmark(
+          ADetailDS, SaveBM);
+        try
+          try
+            ADetailDS.First;
+            if ADetailDS.Eof then
+              CurKey := DetailKeyValueString(Null)
+            else
+              CurKey := DetailKeyValueString(Idx.DetailField.Value);
+            if CurKey <> Idx.FirstKey then
+              Idx.Stale := True;
+          except
+            Idx.Stale := True;
+          end;
+        finally
+          Vittix.Report.LayoutBookmarks.RestoreDataSetBookmark(
+            ADetailDS, SaveBM, HasSaveBM);
+        end;
+      end;
+      Exit(Idx);
+    end;
 
   // Without bookmarks the matched rows cannot be revisited - the legacy
   // First..Eof scan stays in charge.  Master-linked datasets are excluded
@@ -2495,12 +2526,19 @@ begin
   Idx := TDetailBandKeyIndex.Create;
   Idx.Band := ABand;
   Idx.DS := ADetailDS;
+  Idx.DetailField := ADetailFld;
+  Idx.HasFirstKey := False;
   FDetailKeyIndexes.Add(Idx);
 
   HasSaveBM := Vittix.Report.LayoutBookmarks.CaptureDataSetBookmark(ADetailDS, SaveBM);
   ADetailDS.DisableControls;
   try
     ADetailDS.First;
+    if not ADetailDS.Eof then
+    begin
+      Idx.HasFirstKey := True;
+      Idx.FirstKey := DetailKeyValueString(ADetailFld.Value);
+    end;
     while not ADetailDS.Eof do
     begin
       TReportTraversalDiagnostics.DetailRowVisited;

@@ -15,13 +15,17 @@ uses
   System.SysUtils,
   System.Classes,
   System.IOUtils,
+  System.TypInfo,
   System.Generics.Collections,
   Vcl.Controls,
+  Vcl.Dialogs,
+  Vcl.FileCtrl,
   Vcl.Forms,
   Vcl.ExtCtrls,
   Vcl.StdCtrls,
   Vcl.ComCtrls,
   Data.DB,
+  System.IniFiles,
   FireDAC.Comp.Client,
   FireDAC.Stan.Def,
   FireDAC.Stan.Async,
@@ -33,6 +37,12 @@ uses
   Vittix.Report.Component,
   Vittix.Report.UserDataSet,
   Vittix.Report.Model,
+  Vittix.Report.Engine,
+  Vittix.Report.Bands,
+  Vittix.Report.Objects,
+  Vittix.Report.Export.Commands,
+  Vittix.Report.Renderer,
+  Vittix.Report.Preview,
   Vittix.Report.Serializer;
 
 type
@@ -57,6 +67,7 @@ type
     btnDesign   : TButton;
     btnPreview  : TButton;
     btnOpenFolder : TButton;
+    btnVrtFolder  : TButton;
     StatusBar1  : TStatusBar;
     Splitter1   : TSplitter;
     procedure FormCreate(Sender: TObject);
@@ -65,10 +76,21 @@ type
     procedure btnDesignClick(Sender: TObject);
     procedure btnPreviewClick(Sender: TObject);
     procedure btnOpenFolderClick(Sender: TObject);
+    procedure btnVrtFolderClick(Sender: TObject);
+  public
+    procedure ValidateAcceptanceFixtureForTest;
+    function AcceptanceValidationEvidence: string;
   private
     FConn            : TFDConnection;
     FMainQuery       : TFDQuery;
+    FMoneyAcceptanceDataSet: TFDMemTable;
     FUserDataSet     : TVittixUserDataSet;   // FastReport-style bridge
+    FMainDataRegistered: Boolean;
+    FAcceptanceValidationEvidence: string;
+    FMasterDetailRenderCount: Integer;
+    FMasterDetailRenderEvidence: string;
+    FVrtRootPath: string;
+    FVrtRootInitialized: Boolean;
     FReport          : TVittixReport;
     FSQLiteDriverLink: TFDPhysSQLiteDriverLink;
     FDemos           : TList<TReportDemoDef>;
@@ -76,12 +98,17 @@ type
     procedure InitDatabase;
     function  DbFilePath: string;
     function  VrtFolderPath: string;
+    function  DemoSettingsFilePath: string;
+    procedure SaveVrtFolderPath(const APath: string);
+    function  ReportTemplateErrorText(const ADemo: TReportDemoDef): string;
     procedure BuildDemoCatalog;
     procedure PopulateTree;
     function  SelectedDemo(out ADemo: TReportDemoDef): Boolean;
     function  DemoReportPath(const ADemo: TReportDemoDef): string;
     procedure LoadDemoInfo(const ADemo: TReportDemoDef);
     procedure PrepareDataForDemo(const ADemo: TReportDemoDef);
+    procedure ValidateMoneyAcceptanceBinding;
+    procedure RenderMoneyAcceptance(AShowPreview: Boolean);
     procedure PopulateFieldNames(R: TReportModel; const ADemo: TReportDemoDef);
     procedure EnsureReportFileExists(const ADemo: TReportDemoDef);
     function  FindDesignerExe: string;
@@ -123,6 +150,7 @@ end;
 procedure TfrmDemoMain.InitDatabase;
 var
   DBPath: string;
+  RateDef: TFieldDef;
 begin
   DBPath := DbFilePath;
   if not TFile.Exists(DBPath) then
@@ -143,6 +171,16 @@ begin
   FMainQuery := TFDQuery.Create(Self);
   FMainQuery.Connection := FConn;
 
+  // Dedicated acceptance fixture: keep Rate in an exact-decimal field rather
+  // than sourcing it from SQLite's floating-point numeric representation.
+  FMoneyAcceptanceDataSet := TFDMemTable.Create(Self);
+  FMoneyAcceptanceDataSet.FieldDefs.Add('Qty', ftInteger);
+  RateDef := FMoneyAcceptanceDataSet.FieldDefs.AddFieldDef;
+  RateDef.Name := 'Rate';
+  RateDef.DataType := ftFMTBCD;
+  RateDef.Precision := 18;
+  RateDef.Size := 3;
+
   // FastReport-style UserDataSet: wraps the query, registered with the report.
   // The engine resolves it by component Name (here 'MainData') or as primary.
   FUserDataSet         := TVittixUserDataSet.Create(Self);
@@ -151,6 +189,7 @@ begin
 
   FReport := TVittixReport.Create(Self);
   FReport.RegisterUserDataSet(FUserDataSet);
+  FMainDataRegistered := True;
 end;
 
 function TfrmDemoMain.DbFilePath: string;
@@ -164,8 +203,26 @@ const
     '..\..\..\demo\db\' + DB_NAME
   );
 var
-  BaseDir, Candidate, Rel: string;
+  BaseDir, Candidate, Rel, ConfiguredPath: string;
+  Ini: TIniFile;
 begin
+  Ini := TIniFile.Create(DemoSettingsFilePath);
+  try
+    ConfiguredPath := Trim(Ini.ReadString('Database', 'NorthwindPath', ''));
+  finally
+    Ini.Free;
+  end;
+  if ConfiguredPath <> '' then
+  begin
+    Result := TPath.GetFullPath(ConfiguredPath);
+    if not TFile.Exists(Result) then
+      raise EFileNotFoundException.CreateFmt(
+        'Configured Northwind database not found:%s%s%s%s' +
+        'Update [Database] NorthwindPath in %s.',
+        [sLineBreak, Result, sLineBreak, sLineBreak, DemoSettingsFilePath]);
+    Exit;
+  end;
+
   BaseDir := ExtractFilePath(ParamStr(0));
   for Rel in REL_CANDIDATES do
   begin
@@ -177,11 +234,94 @@ begin
 end;
 
 function TfrmDemoMain.VrtFolderPath: string;
+const
+  RELATIVE_CANDIDATES: array[0..2] of string = (
+    'vrt',
+    '..\..\vrt',
+    '..\..\..\demo\vrt'
+  );
+var
+  Ini: TIniFile;
+  ConfiguredPath, Candidate, ExeDir, Rel: string;
 begin
-  Result := TPath.GetFullPath(
-              TPath.Combine(ExtractFilePath(ParamStr(0)), '..\..\vrt'));
-  if not TDirectory.Exists(Result) then
-    ForceDirectories(Result);
+  if FVrtRootInitialized then
+    Exit(FVrtRootPath);
+
+  FVrtRootInitialized := True;
+  Ini := TIniFile.Create(DemoSettingsFilePath);
+  try
+    ConfiguredPath := Trim(Ini.ReadString('Reports', 'VrtPath', ''));
+  finally
+    Ini.Free;
+  end;
+
+  if ConfiguredPath <> '' then
+  begin
+    // An explicit but invalid setting is intentionally preserved as the
+    // selected root; do not hide the problem by silently using another folder.
+    FVrtRootPath := TPath.GetFullPath(ConfiguredPath);
+    Exit(FVrtRootPath);
+  end;
+
+  ExeDir := ExtractFilePath(ParamStr(0));
+  for Rel in RELATIVE_CANDIDATES do
+  begin
+    Candidate := TPath.GetFullPath(TPath.Combine(ExeDir, Rel));
+    if TDirectory.Exists(Candidate) then
+    begin
+      FVrtRootPath := Candidate;
+      Exit(FVrtRootPath);
+    end;
+  end;
+
+  // Return the preferred candidate so any missing-template message names a
+  // concrete path. Do not create the directory or an empty report in it.
+  FVrtRootPath := TPath.GetFullPath(TPath.Combine(ExeDir, 'vrt'));
+  Result := FVrtRootPath;
+end;
+
+function TfrmDemoMain.DemoSettingsFilePath: string;
+var
+  AppData: string;
+begin
+  AppData := GetEnvironmentVariable('APPDATA');
+  if AppData = '' then
+    AppData := TPath.GetHomePath;
+  Result := TPath.Combine(AppData, 'VittixReportDemo\settings.ini');
+end;
+
+procedure TfrmDemoMain.SaveVrtFolderPath(const APath: string);
+var
+  IniPath: string;
+  Ini: TIniFile;
+begin
+  IniPath := DemoSettingsFilePath;
+  TDirectory.CreateDirectory(ExtractFilePath(IniPath));
+  Ini := TIniFile.Create(IniPath);
+  try
+    Ini.WriteString('Reports', 'VrtPath', TPath.GetFullPath(APath));
+    Ini.UpdateFile;
+  finally
+    Ini.Free;
+  end;
+  FVrtRootPath := TPath.GetFullPath(APath);
+  FVrtRootInitialized := True;
+end;
+
+function TfrmDemoMain.ReportTemplateErrorText(
+  const ADemo: TReportDemoDef): string;
+var
+  Root, Path: string;
+begin
+  Root := VrtFolderPath;
+  Path := TPath.Combine(Root, ADemo.ReportFile);
+  Result := Format(
+    'Report template not found:' + sLineBreak + sLineBreak +
+    '%s' + sLineBreak + sLineBreak +
+    'Current template folder:' + sLineBreak +
+    '%s' + sLineBreak + sLineBreak +
+    'Use the Template Folder... button to select the correct folder.',
+    [Path, Root]);
 end;
 
 // ---------------------------------------------------------------------------
@@ -508,6 +648,11 @@ begin
     'JOIN Orders o            ON o.OrderID     = od.OrderID ' +
     'GROUP BY cat.CategoryID, cat.CategoryName ' +
     'ORDER BY TotalRevenue DESC');
+
+  // ── Manual acceptance ─────────────────────────────────────────────────────
+  AddDemo('Acceptance', 'GUI Acceptance - Exact Decimal', 'gui_acceptance_money',
+    'Exact-decimal signed aggregate fixture. Rate is supplied by an in-memory FMTBCD dataset.',
+    'SELECT 1 AS Qty, 0 AS Rate WHERE 1 = 0');
 end;
 
 // ---------------------------------------------------------------------------
@@ -597,16 +742,359 @@ begin
   lblReportFile.Caption := Path;
 
   if TFile.Exists(Path) then
-    StatusBar1.SimpleText := 'Report file found.'
+    StatusBar1.SimpleText := 'Report template found.'
   else
-    StatusBar1.SimpleText := 'Report file not found yet – click Design to create it.';
+    StatusBar1.SimpleText := 'Report template not found under the current VRT folder.';
 end;
 
 procedure TfrmDemoMain.PrepareDataForDemo(const ADemo: TReportDemoDef);
+  procedure AppendMoneyRow(AQty: Integer; const ARate: string);
+  begin
+    FMoneyAcceptanceDataSet.Append;
+    FMoneyAcceptanceDataSet.FieldByName('Qty').AsInteger := AQty;
+    FMoneyAcceptanceDataSet.FieldByName('Rate').AsString := ARate;
+    FMoneyAcceptanceDataSet.Post;
+  end;
 begin
+  if SameText(ADemo.Key, 'gui_acceptance_money') then
+  begin
+    // The UserDataSet aggregate compatibility path cannot evaluate the exact
+    // aggregate expressions in this fixture. Remove the Northwind adapter and
+    // prepare the acceptance table for the explicit named-TDataSet engine path.
+    FMainQuery.Close;
+    if FMainDataRegistered then
+    begin
+      FReport.UnregisterUserDataSet(FUserDataSet);
+      FMainDataRegistered := False;
+    end;
+    FUserDataSet.DataSet := nil;
+    FReport.DataSource := nil;
+    if not FMoneyAcceptanceDataSet.Active then
+      FMoneyAcceptanceDataSet.CreateDataSet
+    else
+      FMoneyAcceptanceDataSet.EmptyDataSet;
+    AppendMoneyRow(1, '0.125');
+    AppendMoneyRow(-2, '0.125');
+    AppendMoneyRow(3, '0.250');
+    FMoneyAcceptanceDataSet.First;
+    Exit;
+  end;
+
+  if not FMainDataRegistered then
+  begin
+    FReport.RegisterUserDataSet(FUserDataSet);
+    FMainDataRegistered := True;
+  end;
+  if FMoneyAcceptanceDataSet.Active then
+    FMoneyAcceptanceDataSet.Close;
+  FUserDataSet.DataSet := FMainQuery;
   FMainQuery.Close;
   FMainQuery.SQL.Text := ADemo.MainSQL;
   FMainQuery.Open;
+end;
+
+procedure TfrmDemoMain.ValidateMoneyAcceptanceBinding;
+var
+  QtyField, RateField: TField;
+  Model: TReportModel;
+  Obj: TReportObject;
+  Band: TReportBand;
+  RowIndex: Integer;
+  ExpectedQty: array[0..2] of Integer;
+  ExpectedRate: array[0..2] of Currency;
+  FoundMaster, FoundSummary: Boolean;
+begin
+  if FMainDataRegistered then
+    raise Exception.Create('Northwind MainData must be unregistered for acceptance preview');
+  if FUserDataSet.DataSet <> nil then
+    raise Exception.Create('Stale MainData dataset pointer remains during acceptance preview');
+  if FMainQuery.Active then
+    raise Exception.Create('Northwind query must be closed for acceptance preview');
+  if Assigned(FReport.DataSource) then
+    raise Exception.Create('Legacy default DataSource must be nil for acceptance preview');
+  if not FMoneyAcceptanceDataSet.Active then
+    raise Exception.Create('AcceptanceData is not active');
+  if FMoneyAcceptanceDataSet.RecordCount <> 3 then
+    raise Exception.CreateFmt('AcceptanceData expected 3 rows, found %d',
+      [FMoneyAcceptanceDataSet.RecordCount]);
+
+  QtyField := FMoneyAcceptanceDataSet.FieldByName('Qty');
+  RateField := FMoneyAcceptanceDataSet.FieldByName('Rate');
+  if QtyField.DataType <> ftInteger then
+    raise Exception.Create('AcceptanceData.Qty must be ftInteger');
+  if RateField.DataType <> ftFMTBCD then
+    raise Exception.Create('AcceptanceData.Rate must be ftFMTBCD');
+  if FMoneyAcceptanceDataSet.FieldDefs.Find('Rate').Precision <> 18 then
+    raise Exception.Create('AcceptanceData.Rate precision must be 18');
+  if RateField.Size <> 3 then
+    raise Exception.CreateFmt('AcceptanceData.Rate scale must be 3, found %d',
+      [RateField.Size]);
+
+  FAcceptanceValidationEvidence := Format(
+    'DataSet=AcceptanceData; Count=%d; Qty=%s; Rate=%s Precision=%d Scale=%d; ',
+    [FMoneyAcceptanceDataSet.RecordCount, GetEnumName(TypeInfo(TFieldType), Ord(QtyField.DataType)),
+     GetEnumName(TypeInfo(TFieldType), Ord(RateField.DataType)),
+     FMoneyAcceptanceDataSet.FieldDefs.Find('Rate').Precision, RateField.Size]);
+
+  ExpectedQty[0] := 1;
+  ExpectedQty[1] := -2;
+  ExpectedQty[2] := 3;
+  ExpectedRate[0] := 0.125;
+  ExpectedRate[1] := 0.125;
+  ExpectedRate[2] := 0.250;
+  FMoneyAcceptanceDataSet.First;
+  for RowIndex := 0 to High(ExpectedQty) do
+  begin
+    if FMoneyAcceptanceDataSet.Eof then
+      raise Exception.CreateFmt('AcceptanceData ended before row %d', [RowIndex + 1]);
+    if (QtyField.AsInteger <> ExpectedQty[RowIndex]) or
+       (RateField.AsCurrency <> ExpectedRate[RowIndex]) then
+      raise Exception.CreateFmt(
+        'AcceptanceData row %d mismatch: Qty=%d Rate=%s',
+        [RowIndex + 1, QtyField.AsInteger, RateField.AsString]);
+    FMoneyAcceptanceDataSet.Next;
+  end;
+  if not FMoneyAcceptanceDataSet.Eof then
+    raise Exception.Create('AcceptanceData contains extra rows');
+  FMoneyAcceptanceDataSet.First;
+
+  Model := FReport.GetModel;
+  try
+    if Model.DataSetNames.IndexOf('AcceptanceData') < 0 then
+      raise Exception.Create('VRT DataSetNames must include AcceptanceData');
+    FoundMaster := False;
+    FoundSummary := False;
+    for Obj in Model.Objects do
+      if Obj is TReportBand then
+      begin
+        Band := TReportBand(Obj);
+        if Band.Name = 'BandMasterData' then
+        begin
+          FoundMaster := True;
+          if Band.DataSetName <> 'AcceptanceData' then
+            raise Exception.Create('VRT detail band must bind to AcceptanceData');
+        end
+        else if Band.Name = 'BandReportSummary' then
+        begin
+          FoundSummary := True;
+          if Band.DataSetName <> 'AcceptanceData' then
+            raise Exception.Create('VRT summary band must bind to AcceptanceData');
+        end;
+      end;
+    if not FoundMaster then
+      raise Exception.Create('VRT AcceptanceData detail band was not found');
+    if not FoundSummary then
+      raise Exception.Create('VRT AcceptanceData summary band was not found');
+  finally
+    Model.Free;
+  end;
+end;
+
+procedure TfrmDemoMain.RenderMoneyAcceptance(AShowPreview: Boolean);
+var
+  Model: TReportModel;
+  NamedDataSets: TDictionary<string, TDataSet>;
+  Engine: TReportEngine;
+  Renderer: TReportRenderer;
+  ExportDoc: TReportExportDocument;
+  Page: TReportExportPage;
+  Cmd: TReportExportCommand;
+  ActualText: string;
+  SignedTotalFound, ComputedTotalFound: Boolean;
+  PreviewForm: TForm;
+  PreviewControl: TVittixReportPreview;
+  Toolbar: TPanel;
+  CloseButton: TButton;
+begin
+  Model := FReport.GetModel;
+  NamedDataSets := TDictionary<string, TDataSet>.Create;
+  try
+    NamedDataSets.Add('AcceptanceData', FMoneyAcceptanceDataSet);
+    ExportDoc := TReportExportDocument.Create;
+    Renderer := TReportRenderer.Create;
+    try
+      Renderer.ExportDocument := ExportDoc;
+      Renderer.TwoPassRendering := FReport.TwoPassRendering;
+      Engine := TReportEngine.Create(Model, FMoneyAcceptanceDataSet,
+        NamedDataSets, nil);
+      try
+        Renderer.Render(Engine, Model.PageSettings.PageWidth,
+          Model.PageSettings.PageHeight);
+      finally
+        Engine.DetachDataSet;
+        Engine.Free;
+      end;
+
+      SignedTotalFound := False;
+      ComputedTotalFound := False;
+      for Page in ExportDoc.Pages do
+        for Cmd in Page.Commands do
+          if Cmd is TReportExportTextCommand then
+          begin
+            ActualText := Trim(TReportExportTextCommand(Cmd).Text);
+            if ActualText = '0.625' then
+              SignedTotalFound := True;
+            if ActualText = '0.725' then
+              ComputedTotalFound := True;
+          end;
+      if not SignedTotalFound then
+        raise Exception.Create('Acceptance render did not produce signed total 0.625');
+      if not ComputedTotalFound then
+        raise Exception.Create('Acceptance render did not produce computed total 0.725');
+
+      if AShowPreview then
+      begin
+        PreviewForm := TForm.Create(nil);
+        try
+          PreviewForm.Caption := Model.Title + ' - Preview';
+          PreviewForm.Width := 900;
+          PreviewForm.Height := 700;
+          PreviewForm.Position := poScreenCenter;
+
+          Toolbar := TPanel.Create(PreviewForm);
+          Toolbar.Parent := PreviewForm;
+          Toolbar.Align := alTop;
+          Toolbar.Height := 40;
+          Toolbar.BevelOuter := bvNone;
+
+          CloseButton := TButton.Create(PreviewForm);
+          CloseButton.Parent := Toolbar;
+          CloseButton.Caption := 'Close';
+          CloseButton.Left := 8;
+          CloseButton.Top := 4;
+          CloseButton.Width := 72;
+          CloseButton.ModalResult := mrOk;
+
+          PreviewControl := TVittixReportPreview.Create(PreviewForm);
+          PreviewControl.Parent := PreviewForm;
+          PreviewControl.Align := alClient;
+          PreviewControl.LoadFromRenderer(Renderer);
+          PreviewControl.SetMargins(Model.PageSettings.Margins);
+          PreviewControl.ZoomPercent := 75;
+          PreviewForm.ShowModal;
+        finally
+          PreviewForm.Free;
+        end;
+      end;
+    finally
+      Renderer.Free;
+      ExportDoc.Free;
+    end;
+  finally
+    NamedDataSets.Free;
+    Model.Free;
+  end;
+end;
+
+procedure TfrmDemoMain.ValidateAcceptanceFixtureForTest;
+var
+  I: Integer;
+  Demo: TReportDemoDef;
+  Found: Boolean;
+  procedure RunNormalDemoHeadless(const AKey: string);
+  var
+    J: Integer;
+    NormalDemo: TReportDemoDef;
+    NormalFound: Boolean;
+    NormalModel: TReportModel;
+    NormalEngine: TReportEngine;
+    NormalRenderer: TReportRenderer;
+    NormalExportDoc: TReportExportDocument;
+    RenderStart, RenderElapsed: UInt64;
+  begin
+    NormalFound := False;
+    for J := 0 to FDemos.Count - 1 do
+      if SameText(FDemos[J].Key, AKey) then
+      begin
+        NormalDemo := FDemos[J];
+        NormalFound := True;
+        Break;
+      end;
+    if not NormalFound then
+      raise Exception.CreateFmt('Demo report "%s" is not registered', [AKey]);
+
+    if not TDirectory.Exists(VrtFolderPath) or
+       not TFile.Exists(DemoReportPath(NormalDemo)) then
+      raise EFileNotFoundException.Create(ReportTemplateErrorText(NormalDemo));
+
+    // Run through the real Northwind query/UserDataSet path without opening
+    // a preview window, then verify the normal provider is active.
+    PrepareDataForDemo(NormalDemo);
+    if not FMainDataRegistered or (FUserDataSet.DataSet <> FMainQuery) or
+       not FMainQuery.Active or FMoneyAcceptanceDataSet.Active then
+      raise Exception.CreateFmt('Northwind dataset state was not active for "%s"', [AKey]);
+    FReport.LoadFromFile(DemoReportPath(NormalDemo));
+    NormalModel := FReport.GetModel;
+    try
+      NormalRenderer := TReportRenderer.Create;
+      NormalExportDoc := TReportExportDocument.Create;
+      try
+        NormalRenderer.ExportDocument := NormalExportDoc;
+        NormalRenderer.TwoPassRendering := FReport.TwoPassRendering;
+        NormalEngine := FReport.CreateEngine(NormalModel);
+        try
+          RenderStart := GetTickCount64;
+          NormalRenderer.Render(NormalEngine, NormalModel.PageSettings.PageWidth,
+            NormalModel.PageSettings.PageHeight);
+          RenderElapsed := GetTickCount64 - RenderStart;
+          if NormalRenderer.Pages.Count = 0 then
+            raise Exception.CreateFmt('Northwind report "%s" prepared without a page', [AKey]);
+          if SameText(AKey, 'master_detail_subdetail') then
+          begin
+            Inc(FMasterDetailRenderCount);
+            if FMasterDetailRenderEvidence <> '' then
+              FMasterDetailRenderEvidence := FMasterDetailRenderEvidence + '; ';
+            FMasterDetailRenderEvidence := FMasterDetailRenderEvidence + Format(
+              'MasterDetailRender%d=PASS rows=%d pages=%d elapsed_ms=%d',
+              [FMasterDetailRenderCount, FMainQuery.RecordCount,
+               NormalRenderer.Pages.Count, RenderElapsed]);
+          end;
+        finally
+          NormalEngine.DetachDataSet;
+          NormalEngine.Free;
+        end;
+      finally
+        NormalRenderer.Free;
+        NormalExportDoc.Free;
+      end;
+    finally
+      NormalModel.Free;
+    end;
+  end;
+begin
+  FMasterDetailRenderCount := 0;
+  FMasterDetailRenderEvidence := '';
+  Found := False;
+  for I := 0 to FDemos.Count - 1 do
+    if SameText(FDemos[I].Key, 'gui_acceptance_money') then
+    begin
+      Demo := FDemos[I];
+      Found := True;
+      Break;
+    end;
+  if not Found then
+    raise Exception.Create('GUI acceptance report is not registered in the demo');
+
+  RunNormalDemoHeadless('simple_list');
+  RunNormalDemoHeadless('master_detail_subdetail');
+  RunNormalDemoHeadless('master_detail_subdetail');
+  RunNormalDemoHeadless('category_sales');
+  EnsureReportFileExists(Demo);
+  PrepareDataForDemo(Demo);
+  FReport.LoadFromFile(DemoReportPath(Demo));
+  ValidateMoneyAcceptanceBinding;
+  RenderMoneyAcceptance(False);
+  RunNormalDemoHeadless('simple_list');
+  FAcceptanceValidationEvidence := FAcceptanceValidationEvidence +
+    'Rows=(1,0.125),(-2,0.125),(3,0.250); ActualTotals=0.625,0.725; ' +
+    'Reports=SimpleList,Master-Detail-SubDetail(x2),CategorySales PASS; ' +
+    'Switching=SimpleList->Acceptance->SimpleList PASS; ' +
+    FMasterDetailRenderEvidence;
+end;
+
+function TfrmDemoMain.AcceptanceValidationEvidence: string;
+begin
+  Result := FAcceptanceValidationEvidence;
 end;
 
 // ---------------------------------------------------------------------------
@@ -643,10 +1131,13 @@ begin
   end;
 end;
 
-procedure PopulateDataSetNames(R: TReportModel);
+procedure PopulateDataSetNames(R: TReportModel; const ADemo: TReportDemoDef);
 begin
   R.DataSetNames.Clear;
-  R.DataSetNames.Add('MainData');
+  if SameText(ADemo.Key, 'gui_acceptance_money') then
+    R.DataSetNames.Add('AcceptanceData')
+  else
+    R.DataSetNames.Add('MainData');
 end;
 
 procedure TfrmDemoMain.EnsureReportFileExists(const ADemo: TReportDemoDef);
@@ -655,37 +1146,18 @@ var
   R: TReportModel;
 begin
   Path := DemoReportPath(ADemo);
+  if not TDirectory.Exists(VrtFolderPath) or not TFile.Exists(Path) then
+    raise EFileNotFoundException.Create(ReportTemplateErrorText(ADemo));
 
-  ForceDirectories(ExtractFilePath(Path));
-
-  if TFile.Exists(Path) then
-  begin
-    // File already exists — reload it, refresh the FieldNames, and re-save
-    // so the designer always has current field metadata even if the SQL
-    // was changed since the file was first created.
-    R := TReportSerializer.LoadFromFile(Path);
-    try
-      PopulateDataSetNames(R);
-      PopulateFieldNames(R, ADemo);
-      TReportSerializer.SaveToFile(R, Path);
-    finally
-      R.Free;
-    end;
-  end
-  else
-  begin
-    // Brand-new skeleton .vrt
-    R := TReportModel.Create;
-    try
-      R.Title       := ADemo.Title;
-      R.Author      := 'VittixReport Northwind Demo';
-      R.Description := ADemo.Description;
-      PopulateDataSetNames(R);
-      PopulateFieldNames(R, ADemo);
-      TReportSerializer.SaveToFile(R, Path);
-    finally
-      R.Free;
-    end;
+  // Existing template only: update its field and dataset metadata, but never
+  // silently manufacture a blank report when the configured root is wrong.
+  R := TReportSerializer.LoadFromFile(Path);
+  try
+    PopulateDataSetNames(R, ADemo);
+    PopulateFieldNames(R, ADemo);
+    TReportSerializer.SaveToFile(R, Path);
+  finally
+    R.Free;
   end;
 end;
 
@@ -777,7 +1249,15 @@ var
 begin
   if not SelectedDemo(D) then Exit;
 
-  EnsureReportFileExists(D);
+  try
+    EnsureReportFileExists(D);
+  except
+    on E: Exception do
+    begin
+      MessageDlg(E.Message, mtError, [mbOK], 0);
+      Exit;
+    end;
+  end;
   DesignerExe := FindDesignerExe;
   if DesignerExe = '' then
     raise Exception.Create('VittixDesigner.exe not found. Build it first.');
@@ -809,12 +1289,26 @@ var
 begin
   if not SelectedDemo(D) then Exit;
 
-  EnsureReportFileExists(D);
+  try
+    EnsureReportFileExists(D);
+  except
+    on E: Exception do
+    begin
+      MessageDlg(E.Message, mtError, [mbOK], 0);
+      Exit;
+    end;
+  end;
   Path := DemoReportPath(D);
 
   PrepareDataForDemo(D);
   FReport.LoadFromFile(Path);
-  FReport.Execute;
+  if SameText(D.Key, 'gui_acceptance_money') then
+  begin
+    ValidateMoneyAcceptanceBinding;
+    RenderMoneyAcceptance(True);
+  end
+  else
+    FReport.Execute;
 end;
 
 procedure TfrmDemoMain.btnOpenFolderClick(Sender: TObject);
@@ -824,11 +1318,56 @@ var
 begin
   if not SelectedDemo(D) then Exit;
 
-  EnsureReportFileExists(D);
+  try
+    EnsureReportFileExists(D);
+  except
+    on E: Exception do
+    begin
+      MessageDlg(E.Message, mtError, [mbOK], 0);
+      Exit;
+    end;
+  end;
   Path := DemoReportPath(D);
 
   ShellExecute(Handle, 'open', PChar('explorer.exe'),
     PChar('/select,"' + Path + '"'), nil, SW_SHOWNORMAL);
+end;
+
+procedure TfrmDemoMain.btnVrtFolderClick(Sender: TObject);
+var
+  CurrentPath, SelectedPath: string;
+  VrtFiles: TArray<string>;
+  D: TReportDemoDef;
+begin
+  CurrentPath := VrtFolderPath;
+  MessageDlg('Current report template folder:' + sLineBreak + CurrentPath +
+    sLineBreak + sLineBreak + 'Select a folder containing the demo .vrt templates.',
+    mtInformation, [mbOK], 0);
+
+  SelectedPath := CurrentPath;
+  if not SelectDirectory('Select Report Template Folder', '', SelectedPath,
+    [sdNewFolder, sdShowEdit]) then
+    Exit;
+
+  SelectedPath := TPath.GetFullPath(SelectedPath);
+  if not TDirectory.Exists(SelectedPath) then
+  begin
+    MessageDlg('The selected report template folder does not exist:' +
+      sLineBreak + SelectedPath, mtError, [mbOK], 0);
+    Exit;
+  end;
+  VrtFiles := TDirectory.GetFiles(SelectedPath, '*.vrt');
+  if Length(VrtFiles) = 0 then
+  begin
+    MessageDlg('The selected folder contains no .vrt report templates:' +
+      sLineBreak + SelectedPath, mtError, [mbOK], 0);
+    Exit;
+  end;
+
+  SaveVrtFolderPath(SelectedPath);
+  if SelectedDemo(D) then
+    LoadDemoInfo(D);
+  StatusBar1.SimpleText := 'Report template folder set to: ' + SelectedPath;
 end;
 
 end.

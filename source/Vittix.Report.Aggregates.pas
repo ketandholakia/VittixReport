@@ -210,11 +210,23 @@ end;
 procedure AlignDecimals(var A, B: TExactDecimal);
 var
   TargetScale: Integer;
+
+  procedure StripLeadingZeros(var ADigits: string);
+  begin
+    while (Length(ADigits) > 1) and (ADigits[1] = '0') do
+      Delete(ADigits, 1, 1);
+  end;
+
 begin
   TargetScale := A.Scale;
   if B.Scale > TargetScale then TargetScale := B.Scale;
   A.Digits := A.Digits + StringOfChar('0', TargetScale - A.Scale);
   B.Digits := B.Digits + StringOfChar('0', TargetScale - B.Scale);
+  // Keep coefficients canonical before signed comparison. Padding zero at
+  // the decimal point must not make a numerically smaller coefficient look
+  // larger by string length (e.g. aligned 0.000 vs 0.250).
+  StripLeadingZeros(A.Digits);
+  StripLeadingZeros(B.Digits);
   A.Scale := TargetScale;
   B.Scale := TargetScale;
 end;
