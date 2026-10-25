@@ -223,15 +223,24 @@ destructor TReportExportDocument.Destroy;
 var
   F: string;
 begin
+  // Best-effort deletes: one locked temp file must not abort cleanup and
+  // leak the owned lists below (nor escape Free with an exception).
   if Assigned(FTempFiles) then
-  begin
     for F in FTempFiles do
-      if TFile.Exists(F) then
-        TFile.Delete(F);
+    begin
+      try
+        if TFile.Exists(F) then
+          TFile.Delete(F);
+      except
+        // Leave the file behind; the OS temp directory reclaims it.
+      end;
+    end;
+  try
     FTempFiles.Free;
+    FPages.Free;
+  finally
+    inherited Destroy;
   end;
-  FPages.Free;
-  inherited;
 end;
 
 procedure TReportExportDocument.AddTempFile(const APath: string);

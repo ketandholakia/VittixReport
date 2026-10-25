@@ -42,6 +42,17 @@ type
       the engine after every store/eviction so tests can assert that
       row-scoped re-evaluations stay bounded. }
     AggregateCacheEntries: Integer;
+    { Silent-failure observability (2026-10-25): four failure classes are
+      swallowed by frozen fallback semantics - band PrintWhen exceptions
+      (band skipped), object PrintWhen exceptions (object skipped),
+      subreport JSON parse failures (object skipped) and aggregate value
+      conversion errors (row skipped).  Counters only: no caching,
+      short-circuit or output change.  A cached subreport parse failure is
+      additionally counted once, not once per master row. }
+    BandPrintWhenExceptions: Integer;
+    ObjectPrintWhenExceptions: Integer;
+    SubReportParseFailures: Integer;
+    AggregateValueErrors: Integer;
   end;
 
   TReportTraversalDiagnostics = class
@@ -65,6 +76,10 @@ type
     class procedure LegacyQualifiedFieldToken; static;
     class procedure LegacyAggregateOverUserDataSet; static;
     class procedure AggregateCacheSize(AValue: Integer); static;
+    class procedure BandPrintWhenException; static;
+    class procedure ObjectPrintWhenException; static;
+    class procedure SubReportParseFailed; static;
+    class procedure AggregateValueError; static;
   end;
 
 implementation
@@ -152,6 +167,26 @@ end;
 class procedure TReportTraversalDiagnostics.AggregateCacheSize(AValue: Integer);
 begin
   FSnapshot.AggregateCacheEntries := AValue;
+end;
+
+class procedure TReportTraversalDiagnostics.BandPrintWhenException;
+begin
+  Inc(FSnapshot.BandPrintWhenExceptions);
+end;
+
+class procedure TReportTraversalDiagnostics.ObjectPrintWhenException;
+begin
+  Inc(FSnapshot.ObjectPrintWhenExceptions);
+end;
+
+class procedure TReportTraversalDiagnostics.SubReportParseFailed;
+begin
+  Inc(FSnapshot.SubReportParseFailures);
+end;
+
+class procedure TReportTraversalDiagnostics.AggregateValueError;
+begin
+  Inc(FSnapshot.AggregateValueErrors);
 end;
 
 end.

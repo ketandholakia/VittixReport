@@ -1060,6 +1060,14 @@ begin
   try
     PWResult := TReportExpression.Evaluate(AObj.PrintWhen, Context);
   except
+    // Frozen fallback: an invalid PrintWhen prints nothing.  Observed via
+    // diagnostics only; output is unchanged.
+    TReportTraversalDiagnostics.ObjectPrintWhenException;
+{$IFDEF DEBUG}
+    OutputDebugString(PChar(Format(
+      'VittixReport: object PrintWhen "%s" raised; the object is skipped (legacy silent fallback)',
+      [AObj.PrintWhen])));
+{$ENDIF}
     Exit(False);
   end;
 

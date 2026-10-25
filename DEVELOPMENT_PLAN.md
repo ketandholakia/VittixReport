@@ -310,10 +310,27 @@ completion remains historical; overall release readiness is blocked by new P1s.
 | 3 | R-03: invalid detail field renders all details | P1 | ✅ done 2026-10-08 | One-time relationship validation; incomplete/missing fields rejected for TDataSet and wrapped UDS; valid/no-match/unlinked paths pinned; full gate 762/762 |
 | 4 | R-04: sparse XLSX rows shift columns | P1 | ✅ done 2026-10-08 | Document-wide X-position column map with five-pixel tolerance; sparse same-page/cross-page addresses pinned; full gate 764/764 |
 | 5 | R-05: XLSX numeric inference strips identifier formatting | P2 | ✅ done 2026-10-08 | Conservative invariant numeric inference; leading-zero/long identifiers, rich text, decimal-comma, currency, and dates remain text; full gate 768/768 plus final focused gate 769/769 |
+| 6 | R-06: aggregates drop rows when Currency and non-Currency values mix | P1 | ✅ done 2026-10-25 | Fold fix in `TReportAggregates` (mid-scan `UseCurrency` flip folds the Double accumulators into the Currency ones); flip driven red→green via the public `IReportRenderHooks` cache surface (`Test.Vittix.Report.AggregatesMixedTypes`); built-in evaluators are all-Double today (probe-verified), characterization suites green; commits `7e3a059`+`83ceb6c` |
+| 7 | R-07: email export breaks on non-ASCII titles and can delete user files | P1 | ✅ done 2026-10-25 | GUID temp folder per export (only its own folder deleted), `SanitizeTitleToAscii` for file name + MAPI subject, `ShowMessage` replaced by a raised MAPI-code exception (`Test.Vittix.Report.Export.Email`); MAPI call untested by design; commits `4abaaff`+`91b5cd4` |
+| 8 | R-08: `TReportExportDocument.Destroy` leaks when a temp-file delete fails | P2 | ✅ done 2026-10-25 | Best-effort deletes, owned lists freed in try/finally; `fmShareExclusive` lock test red (raised + leaked) → green with zero reported leaks (`Test.Vittix.Report.Export.Commands`); commits `f599233`+`ac39ed3` |
+| 9 | R-09: silent failures unobservable (PrintWhen/parse/aggregate swallows; broken subreport JSON re-parsed per master row) | P2 | ✅ done 2026-10-25 | Four DP-36-pattern counters + DEBUG logs at every swallow site; failed subreport parse cached (same owner + JSON, attempted once per report); `Test.Vittix.Report.SilentFailures` per counter; strict 41/41 baselines unchanged (GDI Δ8 / USER Δ0); commits `390e6fd`+`055834a` |
 
 Use the existing red→green→full-gate workflow for each accepted fix. Local ignored
 `build/review-probe/ReviewProbe.dpr` is reproduction evidence only, not permanent
-coverage. Do not mark interactive soak or clean-machine checks complete based on
+coverage.
+
+**R-06–R-09 release chronology:** rows 6–9 were completed AFTER the `v1.0.0`
+release (tagged at `a31dc19`) and are candidates for the next
+maintenance/development release — they are not part of the published tag.
+The commit SHAs cited in those rows are from the pre-reconciliation
+development line; the replay onto the released `main` lives on branch
+`post-v1.0/r06-r09`, where the R-06 fix was re-expressed for the released
+exact-decimal aggregate design (same fold semantics at the `varCurrency`
+flip; see the reconciliation note in `VittixReport_FullCodeAnalysis.md` §5).
+Reconciled-branch validation: DUnitX 900/876 with only the environment-gated
+FirebirdIntegration failures (identical profile on pristine `origin/main`:
+877/853, requires `VITTIX_FB_DATABASE`), 0 leaked; strict 41/41, GDI Δ8 /
+USER Δ0; packages/designer/demo build. Do not mark interactive soak or clean-machine checks complete based on
 this automated run.
 
 **Wave 4 entry baseline (2026-10-02, pre-DP-02):** HEAD `1db0354`, working tree clean; gate 753/753 tests (0 leaked); strict baselines 41/41 matched + 1 pre-existing skip; packaging smoke green; GDI Δ8 / USER Δ0.

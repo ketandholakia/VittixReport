@@ -53,6 +53,9 @@
         <DelphiCompile Include="Test.Vittix.Report.AggregatesCurrency.pas">
             <DCCReference>MainSource</DCCReference>
         </DelphiCompile>
+        <DelphiCompile Include="Test.Vittix.Report.AggregatesMixedTypes.pas">
+            <DCCReference>MainSource</DCCReference>
+        </DelphiCompile>
         <DelphiCompile Include="Test.Vittix.Report.CapabilityGuard.pas">
             <DCCReference>MainSource</DCCReference>
         </DelphiCompile>
@@ -99,6 +102,15 @@
             <DCCReference>MainSource</DCCReference>
         </DelphiCompile>
         <DelphiCompile Include="Test.Vittix.Report.Export.HTML.pas">
+            <DCCReference>MainSource</DCCReference>
+        </DelphiCompile>
+        <DelphiCompile Include="Test.Vittix.Report.Export.Email.pas">
+            <DCCReference>MainSource</DCCReference>
+        </DelphiCompile>
+        <DelphiCompile Include="Test.Vittix.Report.Export.Commands.pas">
+            <DCCReference>MainSource</DCCReference>
+        </DelphiCompile>
+        <DelphiCompile Include="Test.Vittix.Report.SilentFailures.pas">
             <DCCReference>MainSource</DCCReference>
         </DelphiCompile>
         <DelphiCompile Include="Test.Vittix.Report.Export.XLSX.pas">
