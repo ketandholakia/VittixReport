@@ -71,6 +71,7 @@ uses
   Test.Vittix.Report.FirebirdIntegration in 'Test.Vittix.Report.FirebirdIntegration.pas',
   Test.Vittix.Report.Export.HTML in 'Test.Vittix.Report.Export.HTML.pas',
   Test.Vittix.Report.Export.Email in 'Test.Vittix.Report.Export.Email.pas',
+  Test.Vittix.Report.Export.Commands in 'Test.Vittix.Report.Export.Commands.pas',
   Test.Vittix.Report.Export.XLSX in 'Test.Vittix.Report.Export.XLSX.pas',
   Test.Vittix.Report.DesignerLoad in 'Test.Vittix.Report.DesignerLoad.pas',
   Test.Vittix.Report.DesignerZoom in 'Test.Vittix.Report.DesignerZoom.pas',
