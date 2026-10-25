@@ -39,6 +39,9 @@ type
 
 implementation
 
+uses
+  Winapi.Windows;   // OutputDebugString for the DEBUG-only failure log
+
 type
   TExactDecimal = record
     Digits: string;  // unsigned coefficient, without a decimal separator
@@ -810,6 +813,12 @@ begin
                 AccumulateDecimalValue(ValDecimal);
               except
                 // Ignore values that cannot be converted to exact decimal.
+                TReportTraversalDiagnostics.AggregateValueError;
+{$IFDEF DEBUG}
+                OutputDebugString(PChar(Format(
+                  'VittixReport: aggregate "%s": row value is not numeric and was skipped (legacy silent fallback)',
+                  [Expr])));
+{$ENDIF}
               end;
             end
             else
@@ -847,6 +856,12 @@ begin
                 end;
               except
                 // Ignore non-numeric values for math aggregates
+                TReportTraversalDiagnostics.AggregateValueError;
+{$IFDEF DEBUG}
+                OutputDebugString(PChar(Format(
+                  'VittixReport: aggregate "%s": row value is not numeric and was skipped (legacy silent fallback)',
+                  [Expr])));
+{$ENDIF}
               end;
             end;
           end;

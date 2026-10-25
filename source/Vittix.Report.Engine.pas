@@ -2083,6 +2083,14 @@ begin
       PWResult := TReportExpression.Evaluate(ABand.PrintWhen, Ctx0);
       ShouldPrint := ConditionVariantToBool(PWResult);
     except
+      // Frozen fallback: an invalid PrintWhen prints nothing.  Observed via
+      // diagnostics only; output is unchanged.
+      TReportTraversalDiagnostics.BandPrintWhenException;
+{$IFDEF DEBUG}
+      OutputDebugString(PChar(Format(
+        'VittixReport: band PrintWhen "%s" raised; the band is skipped (legacy silent fallback)',
+        [ABand.PrintWhen])));
+{$ENDIF}
       ShouldPrint := False;
     end;
     if not ShouldPrint then Exit;
@@ -3078,7 +3086,23 @@ begin
     try
       Entry.Owner := AObject;
       Entry.JSON := AJSON;
-      Entry.Model := TReportSerializer.LoadFromJSON(AJSON);
+      Entry.Model := nil;
+      try
+        Entry.Model := TReportSerializer.LoadFromJSON(AJSON);
+      except
+        // Frozen fallback: a subreport whose JSON will not parse is
+        // skipped.  The FAILED parse is cached (same owner + same JSON,
+        // Model stays nil) so broken JSON is not re-parsed for every
+        // master row; later rows take the cache-hit path above and also
+        // get nil.  Counted and logged; output is unchanged.
+        TReportTraversalDiagnostics.SubReportParseFailed;
+{$IFDEF DEBUG}
+        OutputDebugString(PChar(
+          'VittixReport: subreport JSON parse failed; the object is skipped ' +
+          'and the failure is cached (same owner + JSON) so it is not ' +
+          're-parsed per master row'));
+{$ENDIF}
+      end;
       FSubReportModelCache.Add(Entry);
       Result := Entry.Model;
     except
