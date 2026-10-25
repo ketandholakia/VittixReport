@@ -95,6 +95,9 @@
         <DelphiCompile Include="Test.Vittix.Report.VectorPDF.JPEG.pas">
             <DCCReference>MainSource</DCCReference>
         </DelphiCompile>
+        <DelphiCompile Include="Test.Vittix.Report.FirebirdIntegration.pas">
+            <DCCReference>MainSource</DCCReference>
+        </DelphiCompile>
         <DelphiCompile Include="Test.Vittix.Report.Export.HTML.pas">
             <DCCReference>MainSource</DCCReference>
         </DelphiCompile>
