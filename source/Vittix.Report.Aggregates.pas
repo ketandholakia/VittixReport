@@ -375,6 +375,16 @@ begin
   Result := VarFMTBcdCreate(B);
 end;
 
+{ Folds a Double-accumulated value into the exact-decimal domain for the
+  mid-scan UseDecimal flip (R-06).  The Double value carries binary rounding
+  from the rows accumulated before the flip; the general 15-significant-digit
+  conversion is the closest faithful representation of what was accumulated. }
+function DoubleToExactDecimal(const AValue: Double): TExactDecimal;
+begin
+  Result := DecimalFromText(
+    FloatToStr(AValue, TFormatSettings.Invariant), TFormatSettings.Invariant);
+end;
+
 { Parses an exact-decimal aggregate inner expression: a sum/difference of
   products of [Field] tokens and numeric literals, e.g.
   [Qty]*[Rate] or [Qty]*[Rate]+[Bonus]*2.  Division, function calls,
@@ -772,7 +782,26 @@ begin
           begin
             // Preserve exact Currency Variants through the decimal
             // accumulator; floating and other numeric values remain Double.
-            if VarType(ValVar) = varCurrency then
+            // A varCurrency value AFTER Double rows were accumulated flips
+            // the scan mid-way: fold the Double accumulators into the
+            // decimal ones first - result selection reads the decimal side
+            // once UseDecimal is set, so the pre-flip rows would silently
+            // vanish - and every later numeric row (Currency or not) then
+            // goes through the decimal path (R-06).
+            if (not UseDecimal) and (VarType(ValVar) = varCurrency) then
+            begin
+              UseDecimal := True;
+              if (Func = 'SUM') or (Func = 'AVG') then
+                SumDecimal := AddDecimals(SumDecimal,
+                  DoubleToExactDecimal(Sum));
+              if not FirstVal then
+              begin
+                MinDecimal := DoubleToExactDecimal(MinVal);
+                MaxDecimal := DoubleToExactDecimal(MaxVal);
+              end;
+            end;
+
+            if UseDecimal then
             begin
               try
                 ValDecimal := DecimalFromText(VarToStr(ValVar),
@@ -788,23 +817,34 @@ begin
               try
                 ValFloat := ValVar;
 
-                if Func = 'SUM' then
-                  Sum := Sum + ValFloat
-                else if Func = 'AVG' then
+                // Post-flip: keep accumulating exactly, so later non-Currency
+                // numeric rows do not land in the Double side that result
+                // selection no longer reads (R-06).
+                if UseDecimal then
                 begin
-                  Sum := Sum + ValFloat;
-                  Inc(Count);
+                  AccumulateDecimalValue(DoubleToExactDecimal(ValFloat));
+                  if Func <> 'COUNT' then FirstVal := False;
                 end
-                else if Func = 'MIN' then
+                else
                 begin
-                  if FirstVal or (ValFloat < MinVal) then MinVal := ValFloat;
-                end
-                else if Func = 'MAX' then
-                begin
-                  if FirstVal or (ValFloat > MaxVal) then MaxVal := ValFloat;
-                end;
+                  if Func = 'SUM' then
+                    Sum := Sum + ValFloat
+                  else if Func = 'AVG' then
+                  begin
+                    Sum := Sum + ValFloat;
+                    Inc(Count);
+                  end
+                  else if Func = 'MIN' then
+                  begin
+                    if FirstVal or (ValFloat < MinVal) then MinVal := ValFloat;
+                  end
+                  else if Func = 'MAX' then
+                  begin
+                    if FirstVal or (ValFloat > MaxVal) then MaxVal := ValFloat;
+                  end;
 
-                if Func <> 'COUNT' then FirstVal := False;
+                  if Func <> 'COUNT' then FirstVal := False;
+                end;
               except
                 // Ignore non-numeric values for math aggregates
               end;

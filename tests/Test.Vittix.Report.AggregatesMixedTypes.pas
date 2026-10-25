@@ -46,7 +46,7 @@ uses
 
 type
   { Serves a varCurrency cached value for the INNER aggregate expression
-    'SUM([C] + 0)' but only from row ID >= AFromId on.  The public
+    'SUM([F] + 0)' but only from row ID >= AFromId on.  The public
     IReportRenderHooks.TryGetAggregateCache contract hands the stored
     Variant straight back in legacy mode, so this makes the outer aggregate
     receive varCurrency rows mid-scan - the mixed-scan defect's entry
@@ -129,7 +129,7 @@ begin
   // Serve only the inner aggregate, only from the flip row on.  The outer
   // aggregate's own cache probe (a different expression text) is declined,
   // as is every probe before the current row reaches FFromId.
-  if (AExpression = 'SUM([C] + 0)') and Assigned(FDataSet) and
+  if (AExpression = 'SUM([F] + 0)') and Assigned(FDataSet) and
      FDataSet.Active and (FDataSet.FieldByName('ID').AsInteger >= FFromId) then
   begin
     AValue := FCachedValue;
@@ -244,10 +244,10 @@ begin
     Ctx := BuildContext(DS);
     Assert.IsTrue(TReportAggregates.TryEvaluate(
       'AVG(IF([ID] > 2, [C], [F]))', Ctx, V), 'AVG must evaluate');
-    // 6.25 / 3 - Count must cover the Double rows too.
+    // 12.75 / 3 - the shared Count must cover the Double rows too.
     Assert.IsTrue(Abs(Double(V) - 6.25 / 3) < 1e-12,
       Format('AVG must divide the full sum by all rows: expected %.15f, got %.15f',
-        [6.25 / 3, Double(V)]));
+        [4.25, Double(V)]));
   finally
     DS.Free;
   end;
@@ -398,9 +398,11 @@ var
   Ctx: TExpressionContext;
   V: Variant;
 begin
-  // Rows 1-2: inner evaluates for real (varDouble 6.25 each).  Row 3: the
-  // hook serves a varCurrency value -> mid-scan flip.  Pre-fix the two
-  // Double rows vanished from the result (0.25); post-fix they fold in.
+  // Rows 1-2: the inner aggregate evaluates for real over the float
+  // column (varDouble 6.25 = full-group sum, both rows).  Row 3: the hook
+  // serves a varCurrency value -> mid-scan flip.  Pre-fix the two Double
+  // rows vanished from the result (SUM 0.25); post-fix they fold in
+  // (12.5 + 0.25 = 12.75).
   SetLength(Rows, 3);
   Rows[0] := [1, 2.50, 2.50];
   Rows[1] := [2, 3.50, 3.50];
@@ -413,7 +415,7 @@ begin
     Ctx.DataSet := DS;
     Ctx.Hooks := TCurrencyCacheHook.Create(DS, 3, 0.25);
     Assert.IsTrue(TReportAggregates.TryEvaluate(
-      'SUM(SUM([C] + 0))', Ctx, V), 'SUM must evaluate');
+      'SUM(SUM([F] + 0))', Ctx, V), 'SUM must evaluate');
     Assert.IsTrue(Double(V) = 12.75,
       Format('flipped SUM must fold the Double rows: expected 12.75, got %.15f',
         [Double(V)]));
@@ -441,7 +443,7 @@ begin
     Ctx.DataSet := DS;
     Ctx.Hooks := TCurrencyCacheHook.Create(DS, 3, 0.25);
     Assert.IsTrue(TReportAggregates.TryEvaluate(
-      'AVG(SUM([C] + 0))', Ctx, V), 'AVG must evaluate');
+      'AVG(SUM([F] + 0))', Ctx, V), 'AVG must evaluate');
     // 12.75 / 3 - the shared Count must cover the Double rows too.
     Assert.IsTrue(Double(V) = 4.25,
       Format('flipped AVG must divide the folded sum by all rows: expected 4.25, got %.15f',
@@ -470,12 +472,12 @@ begin
     Ctx.DataSet := DS;
     Ctx.Hooks := TCurrencyCacheHook.Create(DS, 3, 0.25);
     Assert.IsTrue(TReportAggregates.TryEvaluate(
-      'MIN(SUM([C] + 0))', Ctx, V), 'MIN must evaluate');
+      'MIN(SUM([F] + 0))', Ctx, V), 'MIN must evaluate');
     Assert.IsTrue(Double(V) = 0.25,
       Format('flipped MIN must see the Currency row: expected 0.25, got %.15f',
         [Double(V)]));
     Assert.IsTrue(TReportAggregates.TryEvaluate(
-      'MAX(SUM([C] + 0))', Ctx, V), 'MAX must evaluate');
+      'MAX(SUM([F] + 0))', Ctx, V), 'MAX must evaluate');
     Assert.IsTrue(Double(V) = 6.25,
       Format('flipped MAX must keep the Double rows: expected 6.25, got %.15f',
         [Double(V)]));
