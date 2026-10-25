@@ -317,7 +317,20 @@ completion remains historical; overall release readiness is blocked by new P1s.
 
 Use the existing red→green→full-gate workflow for each accepted fix. Local ignored
 `build/review-probe/ReviewProbe.dpr` is reproduction evidence only, not permanent
-coverage. Do not mark interactive soak or clean-machine checks complete based on
+coverage.
+
+**R-06–R-09 release chronology:** rows 6–9 were completed AFTER the `v1.0.0`
+release (tagged at `a31dc19`) and are candidates for the next
+maintenance/development release — they are not part of the published tag.
+The commit SHAs cited in those rows are from the pre-reconciliation
+development line; the replay onto the released `main` lives on branch
+`post-v1.0/r06-r09`, where the R-06 fix was re-expressed for the released
+exact-decimal aggregate design (same fold semantics at the `varCurrency`
+flip; see the reconciliation note in `VittixReport_FullCodeAnalysis.md` §5).
+Reconciled-branch validation: DUnitX 900/876 with only the environment-gated
+FirebirdIntegration failures (identical profile on pristine `origin/main`:
+877/853, requires `VITTIX_FB_DATABASE`), 0 leaked; strict 41/41, GDI Δ8 /
+USER Δ0; packages/designer/demo build. Do not mark interactive soak or clean-machine checks complete based on
 this automated run.
 
 **Wave 4 entry baseline (2026-10-02, pre-DP-02):** HEAD `1db0354`, working tree clean; gate 753/753 tests (0 leaked); strict baselines 41/41 matched + 1 pre-existing skip; packaging smoke green; GDI Δ8 / USER Δ0.

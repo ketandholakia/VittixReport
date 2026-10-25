@@ -544,6 +544,14 @@ DEVELOPMENT_PLAN soak log.
 
 ### 2026-10-25 soak fixes — four items closed test-first (freeze: [test]+[fix] only)
 
+> **Release chronology:** R-06–R-09 were completed after the v1.0.0 release
+> (tagged at `a31dc19`) and are candidates for the next maintenance/development
+> release. The commit SHAs below (`83ceb6c`, `91b5cd4`, `ac39ed3`, `055834a`)
+> are from the pre-reconciliation development line; the reconciled replay onto
+> the released `main` lives on branch `post-v1.0/r06-r09` (see the
+> reconciliation note at the end of this subsection). Nothing in this
+> subsection shipped in v1.0.0.
+
 All four are frozen-semantics fixes: fallback behavior is unchanged, failures
 are prevented, guarded, or made observable. Every item landed red→green as a
 separate `[test]` and `[fix]` commit.
@@ -565,6 +573,28 @@ Runner stage run manually after the gate script's fail-fast:
 41/41 strict baselines matched, 1 policy skip, GDI Δ8 / USER Δ0 — identical
 to baseline. Uncommitted third-party changes present in the working tree
 were deliberately excluded from all commits (hunk-level staging).
+
+**Reconciliation note (post-v1.0.0):** when replayed onto the released
+`main`, the R-06 fix was re-expressed for the released exact-decimal
+aggregate design — the `UseDecimal`/`SumDecimal` accumulator replaced the
+older `UseCurrency`/`SumC` one this line was written against, and the same
+fold semantics apply at the `varCurrency` flip (Double `Sum` folded into
+`SumDecimal` via the new `DoubleToExactDecimal` helper, `MinDecimal`/
+`MaxDecimal` seeded, later non-Currency numeric rows routed through the
+decimal path). The hook-surface test drives the flip through a float-column
+inner aggregate (`SUM([F] + 0)`), because on the released design `[C] + 0`
+parses as an exact-decimal expression and returns `varCurrency` on every
+row. On the reconciled branch (`post-v1.0/r06-r09`, HEAD `018e82a` at
+reconciliation time): DUnitX 900 found / 876 passed / 12 failed + 12 errored
+/ 0 leaked — all 24 non-passing are the environment-gated
+`Test.Vittix.Report.FirebirdIntegration` tests (they require
+`VITTIX_FB_DATABASE` and a disposable Firebird server; pristine `origin/main`
+at `a31dc19` shows the identical 12+12 profile with 877 found / 853 passed),
+so the replay adds 23 tests, all green, and nothing else changes. Strict
+runner: 41/41 matched, 1 policy skip, GDI Δ8 / USER Δ0; runtime/design
+packages, designer and demo all build. The two subreport-pagination failures
+recorded above at freeze baseline `abab0b2` are FIXED on the released line
+and do not occur there.
 
 ---
 
@@ -685,7 +715,7 @@ Framed for the active **v1.0 freeze**: everything below is `[fix]`-with-failing-
    regression evidence.
 6. Schema: reject `Version > 2`, then introduce real migration hooks when v3 semantics arrive.
 
-**Parked 2026-10-25 (identified during the R-06–R-09 fixes; do NOT start before v1.0.0):**
+**Parked 2026-10-25 (identified during the R-06–R-09 fixes; post-v1.0.0 backlog candidates):**
 1. `TJsonReportDataSource.Active/EOF/First/Next` raise `ENotImplemented`
    (`Vittix.Report.DataSources.pas`): either make `Active` return False so a
    dead data source never crashes a report, or remove the class from the
