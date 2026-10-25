@@ -542,6 +542,30 @@ isolation in `165c31d`, unheld-bookmark probing in `f4e5984`. Gate at `1ca3875`
 matched + 1 policy skip; packaging PASS; GDI Δ8 / USER Δ0 — recorded in the
 DEVELOPMENT_PLAN soak log.
 
+### 2026-10-25 soak fixes — four items closed test-first (freeze: [test]+[fix] only)
+
+All four are frozen-semantics fixes: fallback behavior is unchanged, failures
+are prevented, guarded, or made observable. Every item landed red→green as a
+separate `[test]` and `[fix]` commit.
+
+| ID | Priority | Finding | Resolution |
+|---|---|---|---|
+| R-06 | P1 | `TReportAggregates` split SUM/AVG/MIN/MAX accumulation between Double and Currency accumulators; result selection read only one, so a mid-scan `UseCurrency` flip silently dropped the pre-flip rows and AVG divided a shared Count by the wrong numerator | `83ceb6c`: on flip, the Double `Sum` folds into `SumC` and `MinC`/`MaxC` seed from `MinVal`/`MaxVal`; later rows all take the Currency path. `Test.Vittix.Report.AggregatesMixedTypes` drives the flip through the public `IReportRenderHooks` aggregate cache (legacy mode passes cached Variants straight back): red SUM 0.25 vs 12.75. **Reachability note:** the built-in evaluators flatten every numeric value to `varDouble` today, so the mixed scan is only reachable via the hooks surface (probe-verified); the IF()-based mixed-order tests pin correct totals for per-row field-branch selection. All-Double and bare-BCD-field paths unchanged (`AggregatesCurrency` suite green) |
+| R-07 | P1 | `TReportEmailExporter` wrote the PDF to `%TEMP%\<Title>.pdf` under the raw title (collision + post-send deletion of an unrelated user file), piped non-ASCII titles through `AnsiString` ('?' runs), and blocked on `ShowMessage` in a runtime unit | `91b5cd4`: each export writes into a fresh GUID-named folder under `%TEMP%` (only that folder is deleted, best-effort); `SanitizeTitleToAscii` (public, testable) feeds the file name and MAPI subject with a `'Report'` fallback; MAPI failures raise an exception carrying the code. `Test.Vittix.Report.Export.Email` pins ASCII-only names, path uniqueness, and an untouched `%TEMP%\<Title>.pdf` sentinel; MAPI call untested by design |
+| R-08 | P2 | `TReportExportDocument.Destroy` used an unguarded `TFile.Delete`, so one locked temp file aborted the destructor, leaked `FTempFiles`/`FPages` and escaped `Free` | `ac39ed3`: best-effort deletes (try/except), owned lists freed in try/finally. `Test.Vittix.Report.Export.Commands` holds a temp file `fmShareExclusive`-locked: red raised + leaked, green swallows with zero reported leaks |
+| R-09 | P2 | Four silent failure classes were unobservable: band PrintWhen exceptions, object PrintWhen exceptions, subreport JSON parse failures, aggregate value-conversion errors — and broken subreport JSON was re-parsed for every master row | `055834a`: DP-36-pattern counters (`BandPrintWhenExceptions`, `ObjectPrintWhenExceptions`, `SubReportParseFailures`, `AggregateValueErrors`) plus IFDEF DEBUG logs at every swallow site; `GetSubReportModel` caches the failed parse (same owner + JSON) so it is attempted once per report. `Test.Vittix.Report.SilentFailures` red→green per counter. Output byte-identical: strict 41/41 matched |
+
+**Gate at `055834a`:** 928 tests found, 926 passed, 2 failed / 0 errored — the
+2 failures are the PRE-EXISTING `Test_SubReport_PageBoundary_TwoPassPageCountStable`
+and `Test_NestedSubReport_PageBoundary_CompletesAndRestoresDataSets`
+subreport-pagination failures already present at freeze baseline `abab0b2`
+(reproduced on the untouched baseline before any of these fixes; tracked
+separately, not caused or affected by this work). Zero leaks in every run.
+Runner stage run manually after the gate script's fail-fast:
+41/41 strict baselines matched, 1 policy skip, GDI Δ8 / USER Δ0 — identical
+to baseline. Uncommitted third-party changes present in the working tree
+were deliberately excluded from all commits (hunk-level staging).
+
 ---
 
 ## 6. Memory & Resource Management Findings
@@ -660,6 +684,18 @@ Framed for the active **v1.0 freeze**: everything below is `[fix]`-with-failing-
    do not restore it without a demonstrated performance need and linked/mutation
    regression evidence.
 6. Schema: reject `Version > 2`, then introduce real migration hooks when v3 semantics arrive.
+
+**Parked 2026-10-25 (identified during the R-06–R-09 fixes; do NOT start before v1.0.0):**
+1. `TJsonReportDataSource.Active/EOF/First/Next` raise `ENotImplemented`
+   (`Vittix.Report.DataSources.pas`): either make `Active` return False so a
+   dead data source never crashes a report, or remove the class from the
+   public surface entirely. Same question applies to the CSV stub beside it.
+2. README states the DUnitX suite runs 693 tests; the suite (and this plan's
+   gate records) have moved past that. Refresh the number or reword to avoid
+   pinning a count that drifts every wave.
+3. The exact-decimal aggregate path round-trips `AsString` → `DecimalFromText`
+   for bare BCD fields; consider `AsBCD`/`AsFMTBCD` instead to skip the text
+   hop (perf-only; results are pinned exact by `Test.Vittix.Report.AggregatesCurrency`).
 
 ---
 
