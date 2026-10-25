@@ -57,6 +57,7 @@ uses
   Test.Vittix.Runner.Resources in 'Test.Vittix.Runner.Resources.pas',
   Test.Vittix.Report.Objects in 'Test.Vittix.Report.Objects.pas',
   Test.Vittix.Report.AggregatesCurrency in 'Test.Vittix.Report.AggregatesCurrency.pas',
+  Test.Vittix.Report.AggregatesMixedTypes in 'Test.Vittix.Report.AggregatesMixedTypes.pas',
   Test.Vittix.Report.CapabilityGuard in 'Test.Vittix.Report.CapabilityGuard.pas',
   Test.Vittix.Report.FileSave in 'Test.Vittix.Report.FileSave.pas',
   Test.Vittix.Report.Objects.Barcode in 'Test.Vittix.Report.Objects.Barcode.pas',
