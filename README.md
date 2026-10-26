@@ -3,33 +3,33 @@
   <p><b>A modern reporting framework and standalone visual designer for Delphi VCL applications.</b></p>
 </div>
 
-VittixReport is a comprehensive reporting suite built entirely from the ground up for Delphi. It provides developers with a robust runtime engine, a band-oriented report model, and a full-featured visual designer. 
+VittixReport is a comprehensive reporting suite built entirely from the ground up for Delphi. It provides developers with a robust runtime engine, a band-oriented report model, and a full-featured visual designer.
 
 Unlike legacy reporting tools, the VittixReport runtime relies on the standard Delphi RTL and VCL plus one vendored, MIT-licensed QR-code library (`source/ThirdParty/QRCodeGenLib`). Reports are serialized into a clean, source-control-friendly JSON format (`.vrt`).
 
 <div align="center">
   <img src="images/vittix-designer.png" alt="The standalone Vittix Report Designer: report structure tree, dataset fields, design canvas with bands, and the property inspector" width="960">
   <br>
-  <sub>The standalone visual designer — structure tree, dataset fields, design canvas and property inspector, with a sample report open.</sub>
+  <sub>The standalone visual designer - structure tree, dataset fields, design canvas and property inspector, with a sample report open.</sub>
 </div>
 
 ## Features
 
 * **🎨 Standalone Visual Designer:** A powerful desktop application featuring drag-and-drop object placement, a property inspector, band management, and a live print preview.
-* **⚡ Self-Contained Core:** The core runtime is the standard Delphi 12.2 RTL and VCL plus the vendored, MIT-licensed QR-code generator library (`source/ThirdParty/QRCodeGenLib`) — no external component packs to install. *(Note: the standalone visual designer application additionally requires madExcept and uses the FireDAC/ADO data-access components that ship with RAD Studio; its SVG-sourced icons are compiled to PNG resources, so no external SVG component library is needed.)*
+* **⚡ Self-Contained Core:** The core runtime is the standard Delphi 12.2 RTL and VCL plus the vendored, MIT-licensed QR-code generator library (`source/ThirdParty/QRCodeGenLib`) - no external component packs to install. *(Note: the standalone visual designer application additionally requires madExcept and uses the FireDAC/ADO data-access components that ship with RAD Studio; its SVG-sourced icons are compiled to PNG resources, so no external SVG component library is needed.)*
 * **🔄 Unlimited Undo/Redo:** The designer implements a deep undo/redo stack for *every* action, including complex multi-object alignments, property changes, and band management.
 * **📄 JSON Report Format (`.vrt`):** Say goodbye to binary blobs. Reports are stored in a human-readable, easily diffable JSON format.
 * **🧩 Rich Object Library:** Out-of-the-box support for text labels, data fields, rich text (HTML memos), images, shapes, lines, barcodes (Code 39, Code 128, EAN-13 and QR), tables, charts, crosstabs, and nested sub-reports.
 * **🚀 Runtime Event Scripting:** Hook into the engine's rendering pipeline with `OnBeforePrint` / `OnAfterPrint` events at both the band and object level, driven by your host application's Delphi code.
 * **📊 Band-Oriented Layout:** Supports standard structural bands including Report Title, Page Header/Footer, Group Header/Footer, Master Data (with runtime `TDataSet` binding), Detail bands, and Report Summary.
-* **🖨️ Print & Export:** Built-in **Vector PDF** export (the default — no printer driver required), a printer-based PDF compatibility path, HTML, XLSX and text export, and native system printing capabilities.
+* **🖨️ Print & Export:** Built-in **Vector PDF** export (the default - no printer driver required), a printer-based PDF compatibility path, HTML, XLSX and text export, and native system printing capabilities. The Designer and component preview provide **Save PDF...** with a user-selected destination and atomic replace; direct Simple MAPI email export has been retired.
 
 ## Project Structure
 
-* `source/` — The core framework (engine, object model, serializer, components, and designer UI controls).
-* `vittixdesigner/` — The standalone Windows report designer application.
-* `packages/` — Delphi runtime and design-time package files (`.dpk`).
-* `docs/` — Additional technical documentation (e.g., Event Scripting Rules).
+* `source/` - The core framework (engine, object model, serializer, components, and designer UI controls).
+* `vittixdesigner/` - The standalone Windows report designer application.
+* `packages/` - Delphi runtime and design-time package files (`.dpk`).
+* `docs/` - Additional technical documentation (e.g., Event Scripting Rules).
 
 ## Requirements
 * Delphi 12.2 or later
@@ -42,10 +42,10 @@ Unlike legacy reporting tools, the VittixReport runtime relies on the standard D
 ## Getting Started
 
 ### Building and testing from the command line
-- `build.bat` — builds the packages and the designer
-- `tools\ci_gate.ps1` (PowerShell) — the full quality gate: builds and runs the DUnitX suite (693 tests, leak-checked), runs the `VittixRunner --strict` pagination baseline (41 reports), enforces USER/GDI handle budgets, and optionally (`-IncludePackages`) builds both packages and the designer
-- `TESTING.md` — the gate contract and the manual test checklists
-- `reports/` — 45 `.vrt` regression fixtures with pinned page-count baselines
+- `build.bat` - builds the packages and the designer
+- `tools\ci_gate.ps1` (PowerShell) - the full quality gate. On the uncommitted v1.0.1 candidate working tree based on `c33b7e97b0346de83fca6bbf785c75f468d1e95a`, `ci_gate.ps1 -IncludePackages` exited 0: DUnitX 899/899 passed (including 12/12 Firebird tests), with 0 failed, 0 errored, and 0 leaked; the strict runner matched 41/41 reports with one intentional policy skip; USER delta 0 and GDI delta +8; runtime/design packages, Designer, and Demo built successfully. These results apply to the candidate working tree, not the base commit alone. See `docs/release-notes-v1.0.1.md` for evidence paths and details.
+- `TESTING.md` - the gate contract and the manual test checklists
+- `reports/` - 45 `.vrt` regression fixtures with pinned page-count baselines
 - See `DEVELOPMENT_PLAN.md` for the current work programme
 
 ### Building the Standalone Designer
@@ -126,10 +126,10 @@ See [LICENSE](LICENSE).
 ## Documentation
 
 ### Development plan (source of truth)
-- **`VittixReport_FullCodeAnalysis.md`** — the full code-analysis report and the single
+- **`VittixReport_FullCodeAnalysis.md`** - the full code-analysis report and the single
   source of truth for development planning: §5 (Issues by Severity) is the working bug
   queue, §12 (Refactoring Plan) is the backlog of parked work.
-- **`DEVELOPMENT_PLAN.md`** — the execution schedule derived from the report: work items
+- **`DEVELOPMENT_PLAN.md`** - the execution schedule derived from the report: work items
   (DP-xx) in waves, each with fix approach, test plan and completion status.
 - Superseded planning documents are archived under `docs/archive/` (historical record only).
 
