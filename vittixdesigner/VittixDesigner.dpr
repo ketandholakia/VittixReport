@@ -69,7 +69,6 @@ uses
   Vittix.Report.Export.VectorPDF.SVG in '..\source\Vittix.Report.Export.VectorPDF.SVG.pas',
   Vittix.Report.Export.VectorPDF.EMF in '..\source\Vittix.Report.Export.VectorPDF.EMF.pas',
   Vittix.Report.Export.PDF in '..\source\Vittix.Report.Export.PDF.pas',
-  Vittix.Report.Export.Email in '..\source\Vittix.Report.Export.Email.pas',
   Vittix.Report.Export.Text in '..\source\Vittix.Report.Export.Text.pas';
 
 {$R *.res}

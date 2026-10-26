@@ -74,7 +74,7 @@ const
   ProductName     = 'Vittix Report Designer';
   ProductTagline  = 'A Delphi VCL reporting engine with a visual designer, ' +
                     'live preview, printing and PDF / Excel export.';
-  FallbackVersion = '1.0.0.0';
+  FallbackVersion = '1.0.1.0';
   Grey            = $00808080;
 
 { ================= Executable facts ================= }
