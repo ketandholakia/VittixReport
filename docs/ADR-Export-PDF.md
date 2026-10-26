@@ -1,12 +1,12 @@
 # ADR: Export PDF Path (Baseline & Decision)
 
-Status: **Accepted — C-4a: Vector PDF is the default PDF export** (implemented 2026-09-19)
+Status: **Accepted - C-4a: Vector PDF is the default PDF export** (implemented 2026-09-19)
 Date: 2026-09-19
-Scope: `E0 — Export Baseline & PDF Decision` (see [Export roadmap](archive/Export-Roadmap.md) — archived)
+Scope: `E0 - Export Baseline & PDF Decision` (see [Export roadmap](archive/Export-Roadmap.md) - archived)
 Deciders: project owner
 
 **Update 2026-09-19 (after the baseline):** the blocking defect in §3.3 has
-been fixed and the smoke check hardened (§6.1–6.2). Vector PDF now renders:
+been fixed and the smoke check hardened (§6.1-6.2). Vector PDF now renders:
 **all 41 corpus PDFs contain real page content.** The last blank report
 (`43_memo_html`) turned out to be a *fixture* problem, not a rich-text gap: the
 file used a legacy top-level `"Bands"` block the serialiser does not read, so
@@ -97,7 +97,11 @@ Observed properties:
 
 ---
 
-## 3. Baseline evidence (measured on this machine)
+## 3. Historical baseline evidence (measured on this machine)
+
+Sections 3.3-3.4 record the pre-fix 2026-09-19 defect and why the original
+smoke test missed it. They are historical, not a statement of current output;
+the fix and subsequent verification are recorded in §6.1-§6.2.
 
 ### 3.1 Printer path
 
@@ -105,7 +109,7 @@ Observed properties:
   `Microsoft Print To PDF`), so the path is functional here. It is *not*
   guaranteed on other machines (the dependency is the whole risk).
 
-### 3.2 Vector path — Unicode font embedding actually happens
+### 3.2 Vector path - Unicode font embedding actually happens
 
 A synthetic document with one Latin-1 command and one Devanagari command was
 exported to PDF and the raw bytes inspected:
@@ -116,10 +120,10 @@ header %PDF-: 1      /Type0: 1        /CIDFontType2: 1
 ```
 
 The Devanagari line is emitted as glyph IDs under the embedded `/UF1` font
-(`<010B> Tj`, …) with **no rasterisation** — so font embedding / Unicode text is
+(`<010B> Tj`, ...) with **no rasterisation** - so font embedding / Unicode text is
 implemented in the source, contradicting the "Latin-text-only beta" labels.
 
-### 3.3 Vector path — **output is structurally invalid (blank pages)**
+### 3.3 Vector path - **output is structurally invalid (blank pages)**
 
 The writer's page object is mis-nested. For a synthetic document *and* for all
 41 PDFs produced by the regression runner:
@@ -136,14 +140,14 @@ As a consequence the page has no `/Contents`, and renderers produce nothing:
 ```
 
 Additional consequence of the same nesting error: the Unicode font resources
-(`/UF1 …`) are emitted as siblings of `/Font` **inside `/Resources`** instead of
-inside `/Resources /Font` (`get_fonts()` lists only `F1`–`F4`), and `/XObject`
+(`/UF1 ...`) are emitted as siblings of `/Font` **inside `/Resources`** instead of
+inside `/Resources /Font` (`get_fonts()` lists only `F1`-`F4`), and `/XObject`
 entries are placed one level too shallow.
 
 The root cause is in the page-dictionary assembly
-(`Vittix.Report.Export.VectorPDF.pas`, the `<< /Type /Page …` emitter): the
+(`Vittix.Report.Export.VectorPDF.pas`, the `<< /Type /Page ...` emitter): the
 `/Resources /Font` dictionary is closed before the `UF*` entries, and the final
-literal emits `' >> /Contents … >>'`, closing the page object before
+literal emits `' >> /Contents ... >>'`, closing the page object before
 `/Contents`.
 
 ### 3.4 Why this was not caught: the smoke test is string-based
@@ -162,46 +166,45 @@ the smoke test cannot fail on this class of defect.
 | Produces viewable output today | Yes (driver-dependent) | **Yes** (since the page-object fix) |
 | Environment dependency | `Microsoft Print to PDF` required | None |
 | Silent / no-dialog export | Not guaranteed | Yes (stream overload) |
-| Server / non-interactive | Fragile (may show Save dialog) | Yes |
-| Vector (selectable) text | Driver-dependent, usually raster | Intended yes (blocked by §3.3) |
+| Server / non-interactive | Fragile (may show Save dialog) | Non-interactive stream export avoids the printer dependency; server-deployment support is not established |
+| Vector (selectable) text | Driver-dependent, usually raster | Yes for supported text; extraction limitations are listed in §6.2 |
 | Unicode / non-Latin-1 text | Via the print driver | Embedded TrueType (Type0/CIDFontType2) + Uniscribe shaping; raster/skip fallback |
 | Multi-page | Yes | Yes (page tree emitted) |
 | Images (JPEG/PNG) | Via driver | JPEG/PNG XObjects (+ PNG `/SMask`) |
-| EMF/WMF/SVG images | Via driver | Partial — sub-backends attempt conversion, skip gracefully (beta; not verified here) |
-| Font subsetting | n/a | **Yes** — retain-GID sparse subset, ~52 KB vs a 5.3 MB font |
+| EMF/WMF/SVG images | Via driver | Partial - sub-backends attempt conversion, skip gracefully (beta; not verified here) |
+| Font subsetting | n/a | **Yes** - retain-GID sparse subset, ~52 KB vs a 5.3 MB font |
 | Deterministic bytes | No | Yes |
-| Test coverage | Print-path/GAP-005 tests | Runner smoke only (structural strings) |
+| Test coverage | Print-path/GAP-005 tests | Structural checks, unit tests, corpus rendering and text checks; see §6.2 and §6.4 |
 
 ---
 
 ## 5. Options considered
 
-* **Option A — Vector PDF is the supported path now.**
-  Rejected *as-is*: it cannot be the supported path while it produces blank
-  pages. The architecture is right; the writer has a blocking defect.
-* **Option B — Printer PDF is the supported path permanently.**
+* **Option A - Vector PDF is the supported path now.**
+  Initially rejected while the page-object defect recorded in §3.3 remained;
+  that defect was subsequently fixed and verified as recorded in §6.
+* **Option B - Printer PDF is the supported path permanently.**
   Rejected as a destination: it keeps a hard environment dependency and cannot
-  guarantee silent, path-targeted output — poor for servers/CI.
-* **Option C (recommended) — Fix the vector writer, then migrate.**
-  Keep the printer path as the supported default *only until* the vector writer
-  is repaired and verified; then make vector PDF the default and demote the
-  printer path to an optional compatibility fallback. Do not retire the printer
-  path in this cycle (the vector path is not yet proven end-to-end).
+  guarantee silent, path-targeted output - poor for servers/CI.
+* **Option C (recommended) - Fix the vector writer, then migrate.**
+  This was the selected migration strategy. The vector writer was repaired and
+  verified, the default was migrated, and the printer path was retained as a
+  non-deprecated compatibility path (§6.3-§6.4).
 
-## 6. Decision (accepted — C-4a)
+## 6. Decision (accepted - C-4a)
 
 **Adopt Option C.**
 
 ### 6.1 Completed since the baseline (2026-09-19)
 
-1. ~~Fix the vector page object~~ — **done**: `/Contents` is emitted inside the
+1. ~~Fix the vector page object~~ - **done**: `/Contents` is emitted inside the
    page dictionary, resource entries nest correctly.
-2. ~~Replace the string-marker smoke check~~ — **done**:
+2. ~~Replace the string-marker smoke check~~ - **done**:
    `VectorPdfPageObjectsWellFormed` parses each page object.
-3. ~~Keep the printer path as the default until (1)+(2) ship~~ — **satisfied**:
-   the default is still `ExportToPDF`.
-4. **Migrate the default to Vector PDF** — **open (this decision)**.
-5. ~~Unicode work (was M5.6)~~ — **done**: Uniscribe shaping + embedded
+3. ~~Keep the printer path as the default until (1)+(2) ship~~ - **completed**:
+   it remained the default until the vector fix and structural check were ready.
+4. ~~Migrate the default to Vector PDF~~ - **done**, as detailed in §6.3-§6.4.
+5. ~~Unicode work (was M5.6)~~ - **done**: Uniscribe shaping + embedded
    TrueType, glyph **subsetting** (`SubsetTrueTypeFont`, glyph ids preserved),
    and Hindi/Gujarati fixtures verified end-to-end.  Not open.
 
@@ -221,16 +224,16 @@ the smoke test cannot fail on this class of defect.
 | Page-object structure | ✅ | structural check + unit tests |
 | Deterministic bytes; no printer dependency | ✅ | pure RTL/GDI writer; stream overload |
 | SVG / EMF / WMF image content | ⚠️ partial | dedicated sub-backends (`TryDrawSVGToPDFCommands`, `TryDrawEMFToPDFCommands`) attempt conversion and skip gracefully on failure; **not independently verified in this pass** |
-| Shaping tables (`GSUB`/`GPOS`/`GDEF`) | ⚠️ by design | **dropped by subsetting** — text is pre-shaped into glyph ids, so a viewer does not need them; the embedded font is not reusable as a shaping source |
+| Shaping tables (`GSUB`/`GPOS`/`GDEF`) | ⚠️ by design | **dropped by subsetting** - text is pre-shaped into glyph ids, so a viewer does not need them; the embedded font is not reusable as a shaping source |
 | Indic text *extraction* | ⚠️ approximate | glyph-level `/ToUnicode`, not cluster-level; rendered glyphs are correct but copy/search of Indic clusters is imperfect |
 | Progressive / CMYK JPEG | ⚠️ | not distinguished from baseline JPEG (pre-existing) |
 | PNG transparency | ⚠️ | flattened to white (no alpha) |
 | PDF/A, tagged PDF | ❌ | not implemented |
-| Printer-based exporter | — | retained as the **compatibility** path (`ExportToPrinterPDF`) |
+| Printer-based exporter | - | retained as the **compatibility** path (`ExportToPrinterPDF`) |
 
 ### 6.3 Decision (accepted 2026-09-19)
 
-**C-4a — adopt Vector PDF as the default PDF export; keep the printer-based
+**C-4a - adopt Vector PDF as the default PDF export; keep the printer-based
 exporter as a compatibility path (not deprecated).**
 
 Contract:
@@ -262,8 +265,10 @@ PNG alpha unsupported; SVG/EMF/WMF conversion stays beta.
 | Printer path removed | ❌ not removed |
 | Printer path marked deprecated | ❌ not deprecated (compatibility evidence to be collected first) |
 
-Verification: 680/680 DUnitX pass (0 leaked); runtime, design and designer
-builds pass; MkDocs builds.
+Historical C-4a migration verification (recorded 2026-09-19 in commit
+`0e30dbb`): 680/680 DUnitX passed (0 leaked); runtime, design and designer
+builds passed; MkDocs built. This is the result for that migration snapshot,
+not the current suite count.
 
 The printer path's *actual print* is not exercised by the suite because it
 requires the `Microsoft Print to PDF` device and may present a save dialog;
@@ -273,29 +278,30 @@ only its preserved public surface is asserted.
 
 ## 7. Consequences
 
-* Choosing Option C needs a **small, contained fix** before PDF can be called
-  "done" on either path — it does not require an architectural change.
-* The `docs/index.md` "Latin-text-only beta" wording and the designer's
-  "Full Unicode/font embedding is still pending" message are **stale** and must
-  be corrected once (5) is settled (see §8).
-* Silent/server PDF export becomes possible without third-party libraries,
-  satisfying the dependency policy in the [Export roadmap](archive/Export-Roadmap.md) (archived).
+* The vector page-object defect was fixed without an architectural change; the
+  vector writer is the default and the printer implementation remains available
+  through explicit compatibility APIs and UI (§6.3-§6.4).
+* Unicode shaping and font embedding are implemented, subject to the extraction
+  and font-subsetting limitations in §6.2.
+* Vector stream export avoids the printer dependency and can be used without a
+  printer dialog; desktop email remains interactive because it uses MAPI with
+  `MAPI_DIALOG` (§10.1).
 
-## 8. Documentation drift found (to correct)
+## 8. Historical documentation drift found
+
+The following items were identified during the original baseline review. Their
+current disposition is noted here; this is not a list of outstanding work.
 
 | Location | Claim | Reality |
 | --- | --- | --- |
-| `VectorPDF_DevelopmentPlan.md` (M5.5 "Known limitations", M5.6 "Pending") | "No font embedding… non-Latin-1 will not render correctly" | Embedding + shaping implemented (§3.2) |
-| `docs/index.md` (Export) | "Latin-text-only beta" | Unicode path implemented (blocked by §3.3, not by font support) |
-| `vittixdesigner/Frm.Main.pas` (export message) | "Full Unicode/font embedding is still pending" | Same |
-| `docs/Export-Roadmap.md` | "Latin-only text support" | Same |
+| Historical Vector PDF planning text | "No font embedding... non-Latin-1 will not render correctly" | Embedding + shaping implemented; see §6.2 |
+| Historical export descriptions | "Latin-text-only beta" / Unicode pending | Unicode path implemented, with limitations in §6.2 |
 
 ## 9. Follow-ups (not done in E0)
 
-* Implement §6.1 and §6.2 (vector writer fix + real smoke check) — the smallest
-  next change; belongs to E1/E6, not E0.
-* Correct the documentation drift in §8.
-* Add a Unicode end-to-end test once the writer is fixed.
+* The original implementation follow-ups (writer fix, structural checks,
+  Unicode verification and current-state documentation) were completed and are
+  summarized in §6. They are retained here as historical decision context.
 
 ---
 
@@ -307,18 +313,26 @@ compatibility evidence needed before any future deprecation decision.
 
 | # | Occurrence | Layer | Classification |
 | --- | --- | --- | --- |
-| 1 | `source\Vittix.Report.Component.pas` — `ExportToPrinterPDF` (decl + impl) | Production API | **Intentional compatibility API** |
-| 2 | `source\Vittix.Report.Export.PDF.pas` — `TReportPDFExporter` | Production | **Intentional compatibility implementation** |
-| 3 | `vittixdesigner\Frm.Main.pas` — *Export to PDF (Printer / compatibility)...* | Production UI | **Intentional compatibility UI** |
-| 4 | `vittixdesigner\Frm.Preview.pas` — Preview **Export PDF** | Production UI | **Was an un-migrated default → migrated to Vector PDF in this pass** |
-| 5 | `source\Vittix.Report.Export.Email.pas` — PDF attachment (`SendEmailWithReport`) | Production library | **Resolved in §10.1** — new Vector PDF overload added; printer-backed `Pages` overload retained |
-| 6 | `tests\Test.Vittix.Report.ExportCapture.pas` — `function ExportToPDF(ADoc: TReportExportDocument)` + 7 call sites | Test | **NOT a printer caller** — a test-local helper that calls the **vector** exporter; a name collision only |
-| 7 | `tests\Test.Vittix.Report.Component.pas` — migration tests + printer-surface assertion | Test | Coverage (never prints) |
-| 8 | `README.md`, `docs\index.md`, `DEVELOPER_MANUAL.md`, `docs\ADR-Export-PDF.md`, `VectorPDF_DevelopmentPlan.md`, `vittixdesigner\README.md` | Documentation | Current-state docs — updated where they described the old default |
-| 9 | `docs\GAP-005-*`, `Modernization-Residual-Audit.md`, `VittixReport_CodeReview.md`, `VITTORIX_REPORT_TECHNICAL_EVALUATION.md`, `REPORTING_COMPONENT_ARCHITECTURE_ANALYSIS.md` | Documentation (historical) | **Historical facts — retained, not reclassified as runtime callers** |
-| 10 | Dead / unused production caller | — | **None found** |
+| 1 | `source\Vittix.Report.Component.pas` - `ExportToPrinterPDF` (decl + impl) | Production API | **Intentional compatibility API** |
+| 2 | `source\Vittix.Report.Export.PDF.pas` - `TReportPDFExporter` | Production | **Intentional compatibility implementation** |
+| 3 | `vittixdesigner\Frm.Main.pas` - *Export to PDF (Printer / compatibility)...* | Production UI | **Intentional compatibility UI** |
+| 4 | `vittixdesigner\Frm.Preview.pas` - Preview **Export PDF** | Production UI | **Was an un-migrated default → migrated to Vector PDF in this pass** |
+| 5 | `source\Vittix.Report.Export.Email.pas` - PDF attachment (`SendEmailWithReport`) | Production library | **Resolved in §10.1** - new Vector PDF overload added; printer-backed `Pages` overload retained |
+| 6 | `tests\Test.Vittix.Report.ExportCapture.pas` - `function ExportToPDF(ADoc: TReportExportDocument)` + 7 call sites | Test | **NOT a printer caller** - a test-local helper that calls the **vector** exporter; a name collision only |
+| 7 | `tests\Test.Vittix.Report.Component.pas` - migration tests + printer-surface assertion | Test | Coverage (never prints) |
+| 8 | `README.md`, `docs\index.md`, `DEVELOPER_MANUAL.md`, `docs\ADR-Export-PDF.md`, `VectorPDF_DevelopmentPlan.md`, `vittixdesigner\README.md` | Documentation | Current-state docs - updated where they described the old default |
+| 9 | `docs\GAP-005-*`, `Modernization-Residual-Audit.md`, `VittixReport_CodeReview.md`, `VITTORIX_REPORT_TECHNICAL_EVALUATION.md`, `REPORTING_COMPONENT_ARCHITECTURE_ANALYSIS.md` | Documentation (historical) | **Historical facts - retained, not reclassified as runtime callers** |
+| 10 | Dead / unused production caller | - | **None found** |
 
-### 10.1 Email PDF attachment — resolved (was: deferred)
+### 10.1 Email PDF attachment - resolved (was: deferred)
+
+> **v1.0.1 retirement note (2026-10-26):** Simple MAPI is retired from all
+> user-facing paths. The Designer preview, main-window PDF export, and
+> component preview now use **Save PDF...** with a user-selected destination
+> and atomic replacement. `TReportEmailExporter` remains in the runtime package
+> as a deprecated source-compatibility API for existing Delphi consumers; no
+> shipped UI calls it, and the release workflow no longer requires a MAPI
+> client or manual MAPI GUI acceptance.
 
 `TReportEmailExporter.SendEmailWithReport(Pages: TObjectList<TMetafile>;
 ATitle)` built its PDF attachment with `TReportPDFExporter.ExportToFile`, making
@@ -338,11 +352,11 @@ it structurally printer-backed.  It was the second un-migrated default path.
   component's modal preview can attach a Vector PDF **after** the engine has
   been freed (the engine does not survive `Render`).  `nil` preserves the old
   behaviour exactly.
-* Consumers migrated: the Designer *Send as Email (PDF)...* action and the
-  component preview's *Email PDF* button (which falls back to the metafile
-  overload only if no document was captured).
+* Consumers migrated in the 2026-09-19 pass: the Designer and component preview
+  used the document overload. In v1.0.1 those user-facing email actions were
+  retired; both previews now save the captured Vector PDF to a user-selected file.
 
-**Precise goal — and its limit.**  This change *removes the `Microsoft Print to
+**Precise goal - and its limit.**  This change *removes the `Microsoft Print to
 PDF` dependency from normal "Send as Email (PDF)"*; it does **not** make e-mail
 export server-capable.  MAPI with `MAPI_DIALOG` opens the desktop mail client, so
 the feature remains interactive/desktop-oriented by construction.
@@ -352,14 +366,14 @@ executed during verification: invoking it would open a real mail client via MAPI
 What is proven is the *renderer capture seam* (unit-tested: the assigned
 document is populated during `Render` and exports a Vector PDF) plus source
 guards and compilation for the call sites.  **A source guard is not an
-integration test** — an actual MAPI send remains unverified and should be
+integration test** - an actual MAPI send remains unverified and should be
 smoke-tested manually on a machine with a configured mail client.
 
 ### 10.1a Milestone status
 
 ```text
-C-4a — Vector PDF default                       COMPLETE
-Email Vector PDF migration — Option B           COMPLETE
+C-4a - Vector PDF default                       COMPLETE
+Email Vector PDF migration - Option B           RETIRED FROM UI
 Printer PDF                                     COMPATIBILITY / NOT DEPRECATED
 ```
 
@@ -370,17 +384,11 @@ separate focused commits rather than squashed.
 
 `ExportToPrinterPDF` is **not** deprecated and must not be removed.  After
 §10.1 it is required only by the explicit compatibility surfaces and by the
-retained `SendEmailWithReport(Pages, …)` overload.
-
-### 10.2 Deprecation stance (unchanged)
-
-`ExportToPrinterPDF` is **not** deprecated and must not be removed: the explicit
-compatibility surface above, plus the email deferral, still depend on the printer
-implementation existing.
+retained `SendEmailWithReport(Pages, ...)` overload.
 
 ---
 
-## Appendix — how the baseline was measured
+## Appendix - how the baseline was measured
 
 ```
 # printer availability

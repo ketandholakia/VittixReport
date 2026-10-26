@@ -41,6 +41,7 @@ uses
   Vcl.ExtCtrls, Vcl.Buttons, Vcl.Dialogs, Vcl.ImgList, Vcl.Graphics,
   Data.DB,
   Vittix.Report.Engine,
+  Vittix.Report.Export.Commands,
   Vittix.Report.Model,
   Vittix.Report.Renderer,
   Vittix.Report.Preview;
@@ -126,6 +127,7 @@ type
     FReport      : TReportModel;
     FDataSet     : TDataSet;
     FReportTitle : string;
+    FExportDocument: TReportExportDocument;
 
     procedure ApplyChrome;
     procedure ApplyPendingFit;
@@ -151,7 +153,6 @@ implementation
 uses
   System.UITypes,
   Winapi.Windows,
-  Vittix.Report.Export.Commands,
   Vittix.Report.Export.VectorPDF;
 
 
@@ -188,11 +189,14 @@ begin
   FReport       := nil;
   FDataSet      := nil;
   FReportTitle  := '';
+  FExportDocument := nil;
 
   ApplyChrome;
   SetupIcons;
 
   Preview.Color         := CHROME_DESK;
+  Preview.Hint          := 'Ctrl + mouse wheel to zoom';
+  Preview.ShowHint      := True;
   Preview.OnPageChanged := PreviewPageChanged;
   Preview.OnZoomChanged := PreviewZoomChanged;
   FAutoFit              := True;
@@ -207,6 +211,7 @@ procedure TfrmPreview.FormDestroy(Sender: TObject);
 begin
   // Release copied preview page bitmaps as early as possible.
   Preview.Clear;
+  FreeAndNil(FExportDocument);
 end;
 
 procedure TfrmPreview.FormShow(Sender: TObject);
@@ -262,6 +267,9 @@ begin
 
   pnlMarginsSwitch.Cursor := crHandPoint;
 
+  // TPanel.ParentBackground defaults to True when themes are active, which
+  // would keep painting the toolbar strip and hide the white print glyph.
+  pnlPrintBtn.ParentBackground := False;
   pnlPrintBtn.Color := ACCENT_GREEN;
   btnPrint.Font.Color := clWhite;
 
@@ -492,6 +500,7 @@ var
 begin
   FReport := AReport;
   FDataSet := ADataSet;
+  FreeAndNil(FExportDocument);
   if Assigned(AReport) then
     FReportTitle := AReport.Title
   else
@@ -506,8 +515,11 @@ begin
   try
     Rend := TReportRenderer.Create;
     try
+      FExportDocument := TReportExportDocument.Create;
+      Rend.ExportDocument := FExportDocument;
       Engine := TReportEngine.Create(AReport, ADataSet);
       try
+        Engine.ExportDocument := FExportDocument;
         Engine.Prepare;
         Rend.Render(Engine, AReport.PageSettings.PageWidth, AReport.PageSettings.PageHeight);
       finally
@@ -531,6 +543,7 @@ begin
               mtWarning, [mbYes, mbNo], 0) <> mrYes then
             begin
               Preview.Clear;
+              FreeAndNil(FExportDocument);
               UpdateNav;
               SetStatusText('Preview loading cancelled.');
               Exit;
@@ -741,13 +754,24 @@ begin
   end;
 end;
 
+function SafePdfBaseName(const AText: string): string;
+var
+  C: Char;
+begin
+  Result := '';
+  for C in Trim(AText) do
+    if CharInSet(C, ['A'..'Z', 'a'..'z', '0'..'9', ' ', '-', '_']) then
+      Result := Result + C;
+  Result := Trim(Result);
+  if Result = '' then
+    Result := 'Report';
+end;
+
 procedure TfrmPreview.btnSavePDFClick(Sender: TObject);
 var
   Dlg: TSaveDialog;
-  Eng: TReportEngine;
-  ExportDoc: TReportExportDocument;
 begin
-  if not Assigned(FReport) then
+  if not Assigned(FExportDocument) or (FExportDocument.Pages.Count = 0) then
   begin
     SetStatusText('Nothing to export.');
     Exit;
@@ -757,44 +781,25 @@ begin
   try
     Dlg.Filter     := 'PDF Files (*.pdf)|*.pdf|All Files (*.*)|*.*';
     Dlg.DefaultExt := 'pdf';
-    Dlg.Title      := 'Export Report to PDF';
-    if Trim(FReportTitle) <> '' then
-      Dlg.FileName := Trim(FReportTitle) + '.pdf';
+    Dlg.Title      := 'Save Report as PDF';
+    Dlg.Options    := [ofOverwritePrompt, ofPathMustExist, ofEnableSizing];
+    Dlg.FileName   := SafePdfBaseName(FReportTitle) + '.pdf';
     if not Dlg.Execute then
       Exit;
 
+    Screen.Cursor := crHourGlass;
     try
-      Screen.Cursor := crHourGlass;
-      try
-        // Default PDF export: the native Vector PDF writer (no printer driver).
-        ExportDoc := TReportExportDocument.Create;
-        try
-          Eng := TReportEngine.Create(FReport, FDataSet);
-          try
-            Eng.ExportDocument := ExportDoc;
-            Eng.Prepare;
-            if ExportDoc.Pages.Count = 0 then
-            begin
-              MessageDlg('No pages were generated. Add a MasterData band with objects ' +
-                'and ensure a DataSet is assigned.', mtWarning, [mbOK], 0);
-              Exit;
-            end;
-            TReportVectorPDFExporter.ExportDocument(ExportDoc, Dlg.FileName);
-            SetStatusText('Exported to ' + Dlg.FileName);
-          finally
-            Eng.Free;
-          end;
-        finally
-          ExportDoc.Free;
-        end;
-      finally
-        Screen.Cursor := crDefault;
-      end;
+      // Reuse the export document captured by LoadReport; do not rerun the
+      // engine just to save the PDF.
+      TReportVectorPDFExporter.ExportDocumentAtomic(
+        FExportDocument, Dlg.FileName);
+      SetStatusText('Saved ' + Dlg.FileName);
     except
       on E: Exception do
-        MessageDlg('PDF export error: ' + E.Message, mtError, [mbOK], 0);
+        MessageDlg('PDF save error: ' + E.Message, mtError, [mbOK], 0);
     end;
   finally
+    Screen.Cursor := crDefault;
     Dlg.Free;
   end;
 end;

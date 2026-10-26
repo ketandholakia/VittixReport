@@ -14,7 +14,7 @@ VittixReport provides a visual report designer and runtime engine for Delphi VCL
 
 ## Basic Operations
 - **New/Open/Save**: Create or load `.vrt` report files.
-- **Export to PDF**: Export the current report to PDF (requires Windows 10+).
+- **Save PDF**: Save the current report as a Vector PDF (Windows 10+). The main window's Export to PDF and the preview's Save PDF use a user-selected destination and do not require a mail client.
 - **Undo/Redo**: Unlimited undo/redo for all actions.
 - **Insert Bands**: Add report sections (title, header, footer, master data, summary).
 - **Insert Objects**: Place visual elements in bands.
@@ -47,7 +47,8 @@ VittixReport provides a visual report designer and runtime engine for Delphi VCL
 
 ## Printing and Exporting
 - Use the Preview window to review pages.
-- Print directly or export to PDF.
+- Print directly or choose **Save PDF** from the preview or the File menu.
+- Direct email/MAPI sending is retired from the UI; save the PDF and attach it manually.
 
 ## Expressions and Events
 - Text objects can embed field and variable references such as `[Name]`.
@@ -57,7 +58,7 @@ VittixReport provides a visual report designer and runtime engine for Delphi VCL
 
 ## Troubleshooting
 - Ensure all required bands and objects are placed.
-- For PDF export, "Microsoft Print to PDF" must be available (Windows 10+).
+- Vector PDF saving needs no printer driver. The optional **Export to PDF (Printer / compatibility)** path requires "Microsoft Print to PDF" (Windows 10+).
 
 ## More Help
 - See the README for project structure and integration.

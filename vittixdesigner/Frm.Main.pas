@@ -57,7 +57,6 @@ uses
   Vittix.Report.Export.Commands,
   Vittix.Report.Export.PDF,
   Vittix.Report.Export.VectorPDF,
-  Vittix.Report.Export.Email,
   Vittix.Report.Objects.Barcode,
   Vittix.Report.Objects.Table, Vcl.Grids,  Vcl.CheckLst,
   Vittix.Report.ScriptHost.Adapter,
@@ -290,7 +289,6 @@ type
     procedure mnuSaveAsClick(Sender: TObject);
     procedure mnuExportPDFClick(Sender: TObject);
     procedure mnuExportVectorPDFClick(Sender: TObject);
-    procedure mnuExportEmailClick(Sender: TObject);
     procedure mnuExitClick(Sender: TObject);
 
     { Edit }
@@ -462,7 +460,6 @@ type
     FUpdatingZoomControls: Boolean;
     FRuntimeEventDemoOutput: string;
     // Created dynamically in FormCreate (not streamed from DFM)
-    mnuExportEmail: TMenuItem;
     FDesigner   : TVittixReportDesigner;
     FDataSource1: TDataSource;
     FIconIndex  : TDictionary<string, Integer>;   // icon name -> ImageList1 index
@@ -1144,14 +1141,6 @@ begin
   FDesigner.OnBandInsertRequest := DesignerBandInsertRequest;
   cboZoomToolbar.OnChange      := cboZoomToolbarChange;
 
-  mnuExportEmail := TMenuItem.Create(Self);
-  mnuExportEmail.Caption := 'Send as Email (PDF)...';
-  mnuExportEmail.OnClick := mnuExportEmailClick;
-  if Assigned(mnuExportVectorPDF) and Assigned(mnuExportVectorPDF.Parent) then
-    mnuExportVectorPDF.Parent.Insert(mnuExportVectorPDF.MenuIndex + 1, mnuExportEmail)
-  else
-    mnuFile.Add(mnuExportEmail);
-
   // Connect the shared DataSource so the designer sees whatever dataset
   // is assigned at runtime.
   FDesigner.DataSource := FDataSource1;
@@ -1619,6 +1608,7 @@ begin
     dlgPDF.Filter     := 'PDF Files (*.pdf)|*.pdf|All Files (*.*)|*.*';
     dlgPDF.DefaultExt := 'pdf';
     dlgPDF.Title      := 'Export Report to PDF';
+    dlgPDF.Options    := [ofOverwritePrompt, ofPathMustExist, ofEnableSizing];
     if FCurrentFile <> '' then
       dlgPDF.FileName := ChangeFileExt(FCurrentFile, '.pdf');
     if not dlgPDF.Execute then Exit;
@@ -1652,7 +1642,7 @@ begin
             ShowMessage('No pages were generated. Add a MasterData band with objects and ensure a DataSet is assigned.');
             Exit;
           end;
-          TReportVectorPDFExporter.ExportDocument(ExportDoc, dlgPDF.FileName);
+          TReportVectorPDFExporter.ExportDocumentAtomic(ExportDoc, dlgPDF.FileName);
         finally
           Eng.Free;
         end;
@@ -1680,6 +1670,7 @@ begin
     dlgPDF.Filter     := 'PDF Files (*.pdf)|*.pdf|All Files (*.*)|*.*';
     dlgPDF.DefaultExt := 'pdf';
     dlgPDF.Title      := 'Export Report to PDF (Printer / compatibility)';
+    dlgPDF.Options    := [ofOverwritePrompt, ofPathMustExist, ofEnableSizing];
     if FCurrentFile <> '' then
       dlgPDF.FileName := ChangeFileExt(FCurrentFile, '.printer.pdf');
     if not dlgPDF.Execute then Exit;
@@ -1720,49 +1711,6 @@ begin
     end;
   finally
     dlgPDF.Free;
-  end;
-end;
-
-procedure TfrmMain.mnuExportEmailClick(Sender: TObject);
-var
-  Eng: TReportEngine;
-  DS: TDataSet;
-  ExportDoc: TReportExportDocument;
-begin
-  CommitReportMetadataChanges(True);
-  Screen.Cursor := crHourGlass;
-  try
-    DS := nil;
-    if Assigned(FDataSource1) then
-      DS := FDataSource1.DataSet;
-    if not Assigned(DS) then
-    begin
-      UseSampleDataSet;
-      if Assigned(FDataSource1) then
-        DS := FDataSource1.DataSet;
-    end;
-
-    // Vector PDF attachment: no printer driver required.
-    ExportDoc := TReportExportDocument.Create;
-    try
-      Eng := TReportEngine.Create(FDesigner.Report, DS);
-      try
-        Eng.ExportDocument := ExportDoc;
-        Eng.Prepare;
-        if ExportDoc.Pages.Count = 0 then
-        begin
-          ShowMessage('No pages were generated.');
-          Exit;
-        end;
-        TReportEmailExporter.SendEmailWithReport(ExportDoc, FDesigner.Report.Title);
-      finally
-        Eng.Free;
-      end;
-    finally
-      ExportDoc.Free;
-    end;
-  finally
-    Screen.Cursor := crDefault;
   end;
 end;
 

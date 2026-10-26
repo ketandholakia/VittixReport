@@ -4,6 +4,12 @@ unit Vittix.Report.Export.Email;
   Vittix.Report.Export.Email
   ==========================
 
+  LEGACY / DEPRECATED (v1.0.1): the user-facing Designer and component
+  preview actions no longer call this unit. They save a Vector PDF to a
+  user-selected file instead. This unit remains only for source compatibility
+  with existing Delphi consumers; new code should use
+  TReportVectorPDFExporter.ExportDocumentAtomic and its own Save dialog.
+
   Attaches a rendered report to an outgoing mail message via MAPI (the default
   desktop mail client, e.g. Outlook).
 
@@ -30,10 +36,29 @@ uses
   Vittix.Report.Export.Commands;
 
 type
+  {$IFDEF VITTIX_REPORT_TESTS}
+  TReportEmailExportCallback = procedure(const APdfFile: string) of object;
+  TReportEmailMapiCallback = function(const APdfFile,
+    AReportTitle: string): Cardinal of object;
+  TReportEmailDeleteCallback = procedure(const AFolder: string) of object;
+  {$ENDIF}
+
   TReportEmailExporter = class
   private
+    type
+      TEmailOperation = reference to procedure;
     class procedure SendEmailWithAttachment(const APdfFile: string;
       const AReportTitle: string);
+    class procedure CleanupTempPdf(const APdfFile: string);
+    class procedure ExportAndSend(const APdfFile, AReportTitle: string;
+      const AExport: TEmailOperation);
+    {$IFDEF VITTIX_REPORT_TESTS}
+    class var FTestTempRoot: string;
+    class var FTestPrinterExport: TReportEmailExportCallback;
+    class var FTestVectorExport: TReportEmailExportCallback;
+    class var FTestMapiSend: TReportEmailMapiCallback;
+    class var FTestDeleteFolder: TReportEmailDeleteCallback;
+    {$ENDIF}
   public
     { Reduces a report title to a safe ASCII file-name/subject fragment:
       ASCII letters, digits, spaces, '-' and '_' survive; every non-ASCII
@@ -47,6 +72,16 @@ type
       folder, so two exports never collide and nothing outside the new
       folder is ever written or later deleted. }
     class function TempPdfPath(const AReportTitle: string): string; static;
+
+    {$IFDEF VITTIX_REPORT_TESTS}
+    { Test-build-only dependency seam. Not present in production builds. }
+    class procedure SetTestHooks(const ATempRoot: string;
+      APrinterExport, AVectorExport: TReportEmailExportCallback;
+      AMapiSend: TReportEmailMapiCallback;
+      ADeleteFolder: TReportEmailDeleteCallback); static;
+    class procedure ResetTestHooks; static;
+    class procedure TestCleanupTempPdf(const APdfFile: string); static;
+    {$ENDIF}
   public
     /// <summary>
     ///   Compatibility path: exports the report pages to a temporary PDF file
@@ -97,17 +132,124 @@ end;
 class function TReportEmailExporter.TempPdfPath(
   const AReportTitle: string): string;
 var
-  GuidText, Folder: string;
+  GuidText, Folder, TempRoot: string;
 begin
   // A fresh GUID folder per export: the exporter only ever writes into and
   // deletes from its own directory, never from a path derived directly
   // from the report title (which could collide with a user file in %TEMP%).
   GuidText := TGUID.NewGuid.ToString;
   GuidText := StringReplace(GuidText, '{', '', []).Replace('}', '');
-  Folder := TPath.Combine(TPath.GetTempPath, 'VittixMail-' + GuidText);
+  {$IFDEF VITTIX_REPORT_TESTS}
+  if FTestTempRoot <> '' then
+    TempRoot := FTestTempRoot
+  else
+  {$ENDIF}
+    TempRoot := TPath.GetTempPath;
+  Folder := TPath.Combine(TempRoot, 'VittixMail-' + GuidText);
   TDirectory.CreateDirectory(Folder);
   Result := TPath.Combine(Folder, SanitizeTitleToAscii(AReportTitle) + '.pdf');
 end;
+
+class procedure TReportEmailExporter.CleanupTempPdf(const APdfFile: string);
+var
+  TempPath, FolderPath, FolderName, GuidText: string;
+  CanonicalGuid: string;
+begin
+  FolderPath := ExcludeTrailingPathDelimiter(
+    TPath.GetFullPath(ExtractFilePath(APdfFile)));
+  {$IFDEF VITTIX_REPORT_TESTS}
+  if FTestTempRoot <> '' then
+    TempPath := ExcludeTrailingPathDelimiter(TPath.GetFullPath(FTestTempRoot))
+  else
+  {$ENDIF}
+    TempPath := ExcludeTrailingPathDelimiter(TPath.GetFullPath(TPath.GetTempPath));
+  FolderName := ExtractFileName(FolderPath);
+
+  // Delete only a direct, GUID-named VittixMail child of the system temp
+  // directory. Never trust a path outside the exporter-owned namespace.
+  if not SameText(ExtractFileDir(FolderPath), TempPath) or
+     (Copy(FolderName, 1, Length('VittixMail-')) <> 'VittixMail-') then
+    raise Exception.Create('Refusing to clean a PDF outside its exporter temp folder.');
+
+  GuidText := Copy(FolderName, Length('VittixMail-') + 1, MaxInt);
+  try
+    CanonicalGuid := GUIDToString(StringToGUID('{' + GuidText + '}'));
+  except
+    raise Exception.Create('Refusing to clean an invalid exporter temp folder.');
+  end;
+  if CanonicalGuid = '' then
+    raise Exception.Create('Refusing to clean an invalid exporter temp folder.');
+
+  {$IFDEF VITTIX_REPORT_TESTS}
+  if Assigned(FTestDeleteFolder) then
+  begin
+    FTestDeleteFolder(FolderPath);
+    Exit;
+  end;
+  {$ENDIF}
+
+  if TDirectory.Exists(FolderPath) then
+    TDirectory.Delete(FolderPath, True);
+end;
+
+class procedure TReportEmailExporter.ExportAndSend(const APdfFile,
+  AReportTitle: string; const AExport: TEmailOperation);
+var
+  OperationMessage, CleanupMessage: string;
+begin
+  try
+    AExport();
+    SendEmailWithAttachment(APdfFile, AReportTitle);
+  except
+    on OperationError: Exception do
+    begin
+      OperationMessage := OperationError.Message;
+      try
+        CleanupTempPdf(APdfFile);
+      except
+        on CleanupError: Exception do
+        begin
+          CleanupMessage := CleanupError.Message;
+          raise Exception.CreateFmt(
+            'Email export failed: %s; temporary cleanup also failed: %s',
+            [OperationMessage, CleanupMessage]);
+        end;
+      end;
+      raise;
+    end;
+  end;
+
+  CleanupTempPdf(APdfFile);
+end;
+
+{$IFDEF VITTIX_REPORT_TESTS}
+class procedure TReportEmailExporter.SetTestHooks(const ATempRoot: string;
+  APrinterExport, AVectorExport: TReportEmailExportCallback;
+  AMapiSend: TReportEmailMapiCallback;
+  ADeleteFolder: TReportEmailDeleteCallback);
+begin
+  FTestTempRoot := ATempRoot;
+  FTestPrinterExport := APrinterExport;
+  FTestVectorExport := AVectorExport;
+  FTestMapiSend := AMapiSend;
+  FTestDeleteFolder := ADeleteFolder;
+end;
+
+class procedure TReportEmailExporter.ResetTestHooks;
+begin
+  FTestTempRoot := '';
+  FTestPrinterExport := nil;
+  FTestVectorExport := nil;
+  FTestMapiSend := nil;
+  FTestDeleteFolder := nil;
+end;
+
+class procedure TReportEmailExporter.TestCleanupTempPdf(
+  const APdfFile: string);
+begin
+  CleanupTempPdf(APdfFile);
+end;
+{$ENDIF}
 
 class procedure TReportEmailExporter.SendEmailWithAttachment(
   const APdfFile: string; const AReportTitle: string);
@@ -116,45 +258,39 @@ var
   FileDesc: TMapiFileDesc;
   MapiResult: Cardinal;
 begin
-  try
-    // Prepare the MAPI message.  MAPI fields are ANSI, so the subject is
-    // built from the ASCII-sanitized title (non-ASCII titles such as
-    // Gujarati/Hindi no longer collapse to '?' runs).
-    FillChar(MapiMsg, SizeOf(TMapiMessage), 0);
-    MapiMsg.lpszSubject := PAnsiChar(AnsiString('Report: ' + SanitizeTitleToAscii(AReportTitle)));
-    MapiMsg.lpszNoteText := PAnsiChar(AnsiString('Please find the attached report.'));
+  // Prepare the MAPI message.  MAPI fields are ANSI, so the subject is
+  // built from the ASCII-sanitized title (non-ASCII titles such as
+  // Gujarati/Hindi no longer collapse to '?' runs).
+  FillChar(MapiMsg, SizeOf(TMapiMessage), 0);
+  MapiMsg.lpszSubject := PAnsiChar(AnsiString('Report: ' + SanitizeTitleToAscii(AReportTitle)));
+  MapiMsg.lpszNoteText := PAnsiChar(AnsiString('Please find the attached report.'));
 
-    // Attach the file
-    FillChar(FileDesc, SizeOf(TMapiFileDesc), 0);
-    FileDesc.nPosition := Cardinal($FFFFFFFF);
-    FileDesc.lpszPathName := PAnsiChar(AnsiString(APdfFile));
-    FileDesc.lpszFileName := PAnsiChar(AnsiString(ExtractFileName(APdfFile)));
+  // Attach the file
+  FillChar(FileDesc, SizeOf(TMapiFileDesc), 0);
+  FileDesc.nPosition := Cardinal($FFFFFFFF);
+  FileDesc.lpszPathName := PAnsiChar(AnsiString(APdfFile));
+  FileDesc.lpszFileName := PAnsiChar(AnsiString(ExtractFileName(APdfFile)));
 
-    MapiMsg.nFileCount := 1;
-    MapiMsg.lpFiles := @FileDesc;
+  MapiMsg.nFileCount := 1;
+  MapiMsg.lpFiles := @FileDesc;
 
-    // Send the email, opening the MAPI dialog
+  // MAPI's documented contract copies file attachments into the message
+  // before MAPISendMail returns. MAPI_DIALOG is modal; this does not imply
+  // delivery completion, only that the source file is no longer required.
+  {$IFDEF VITTIX_REPORT_TESTS}
+  if Assigned(FTestMapiSend) then
+    MapiResult := FTestMapiSend(APdfFile, AReportTitle)
+  else
+  {$ENDIF}
     MapiResult := MAPISendMail(0, 0, MapiMsg, MAPI_DIALOG or MAPI_LOGON_UI, 0);
 
-    if (MapiResult <> SUCCESS_SUCCESS) and (MapiResult <> MAPI_USER_ABORT) then
-    begin
-      // A runtime unit must not hang non-interactive callers on a message
-      // box; surface the failure to the caller instead (the VCL shows it
-      // via Application.ShowException when nobody handles it).
-      raise Exception.CreateFmt(
-        'Failed to send email. MAPI error code: %d', [MapiResult]);
-    end;
-
-  finally
-    // MAPI is mostly synchronous if MAPI_DIALOG is used, but some clients
-    // return immediately and process sending in the background. Delete
-    // only this export's own GUID folder (best-effort; a locked PDF inside
-    // it is simply left behind, never a user file).
-    try
-      TDirectory.Delete(ExtractFilePath(APdfFile), True);
-    except
-      // Ignore if locked by the mail client
-    end;
+  if (MapiResult <> SUCCESS_SUCCESS) and (MapiResult <> MAPI_USER_ABORT) then
+  begin
+    // A runtime unit must not hang non-interactive callers on a message
+    // box; surface the failure to the caller instead (the VCL shows it
+    // via Application.ShowException when nobody handles it).
+    raise Exception.CreateFmt(
+      'Failed to send email. MAPI error code: %d', [MapiResult]);
   end;
 end;
 
@@ -169,10 +305,18 @@ begin
 
   TempFile := TempPdfPath(AReportTitle);
 
-  // Compatibility path: printer-based PDF generation.
-  TReportPDFExporter.ExportToFile(Pages, TempFile);
-
-  SendEmailWithAttachment(TempFile, AReportTitle);
+  ExportAndSend(TempFile, AReportTitle,
+    procedure
+    begin
+      {$IFDEF VITTIX_REPORT_TESTS}
+      if Assigned(FTestPrinterExport) then
+      begin
+        FTestPrinterExport(TempFile);
+        Exit;
+      end;
+      {$ENDIF}
+      TReportPDFExporter.ExportToFile(Pages, TempFile);
+    end);
 end;
 
 class procedure TReportEmailExporter.SendEmailWithReport(
@@ -186,10 +330,18 @@ begin
 
   TempFile := TempPdfPath(AReportTitle);
 
-  // Preferred path: native Vector PDF generation (no printer driver).
-  TReportVectorPDFExporter.ExportDocument(ADocument, TempFile);
-
-  SendEmailWithAttachment(TempFile, AReportTitle);
+  ExportAndSend(TempFile, AReportTitle,
+    procedure
+    begin
+      {$IFDEF VITTIX_REPORT_TESTS}
+      if Assigned(FTestVectorExport) then
+      begin
+        FTestVectorExport(TempFile);
+        Exit;
+      end;
+      {$ENDIF}
+      TReportVectorPDFExporter.ExportDocument(ADocument, TempFile);
+    end);
 end;
 
 end.

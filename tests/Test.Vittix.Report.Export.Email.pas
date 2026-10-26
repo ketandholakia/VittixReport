@@ -21,14 +21,30 @@ interface
 
 uses
   DUnitX.TestFramework,
+  System.Generics.Collections,
   System.SysUtils,
   System.IOUtils,
-  Vittix.Report.Export.Email;
+  Vcl.Graphics,
+  Vittix.Report.Export.Email,
+  Vittix.Report.Export.Commands;
 
 type
   [TestFixture]
   TExportEmailTests = class
   private
+    FTempRoot: string;
+    FExportFailureMode: Integer;
+    FMapiResult: Cardinal;
+    FMapiCalled: Boolean;
+    FFailDelete: Boolean;
+    FLastPdfPath: string;
+    procedure StartTestHooks;
+    procedure FinishTestHooks;
+    procedure StubPrinterExport(const APdfFile: string);
+    procedure StubVectorExport(const APdfFile: string);
+    function StubMapiSend(const APdfFile, AReportTitle: string): Cardinal;
+    procedure StubDeleteFolder(const AFolder: string);
+    function CreateTestDocument: TReportExportDocument;
     procedure CleanupFolderOf(const APath: string);
   public
     [Test] procedure Test_Sanitize_GujaratiTitle_FallsBackToReport;
@@ -36,18 +52,119 @@ type
     [Test] procedure Test_Sanitize_EmptyTitle_FallsBackToReport;
     [Test] procedure Test_TempPdfPath_TwoCalls_NeverSamePath;
     [Test] procedure Test_TempPdfPath_LivesInNewGuidFolder_WithAsciiName;
-    [Test] procedure Test_TempPdfPath_NeverTouchesExistingTempTitleFile;
+    [Test] procedure Test_TempPdfPath_DoesNotUseLegacyTitlePath;
+    [Test] procedure Test_ExportFailureBeforeOutput_CleansOwnedFolder;
+    [Test] procedure Test_PrinterExportFailure_CleansOwnedFolder;
+    [Test] procedure Test_ExportFailureAfterPartialOutput_CleansOnlyOwnedFolder;
+    [Test] procedure Test_MapiError_CleansOwnedFolder;
+    [Test] procedure Test_MapiCancel_CleansOwnedFolder;
+    [Test] procedure Test_CleanupFailure_ReportsBothFailuresAndPreservesUnrelatedFile;
+    [Test] procedure Test_CleanupRefusesOutsideAndInvalidGuidFolders;
   end;
 
 implementation
 
-procedure TExportEmailTests.CleanupFolderOf(const APath: string);
+uses
+  Winapi.Mapi;
+
+procedure TExportEmailTests.StartTestHooks;
+begin
+  FTempRoot := TPath.Combine(TPath.GetTempPath,
+    'VittixEmailTest-' + StringReplace(TGUID.NewGuid.ToString, '-', '', [rfReplaceAll]));
+  TDirectory.CreateDirectory(FTempRoot);
+  FExportFailureMode := 0;
+  FMapiResult := SUCCESS_SUCCESS;
+  FMapiCalled := False;
+  FFailDelete := False;
+  FLastPdfPath := '';
+  TReportEmailExporter.SetTestHooks(FTempRoot, nil, StubVectorExport,
+    StubMapiSend, StubDeleteFolder);
+end;
+
+procedure TExportEmailTests.StubPrinterExport(const APdfFile: string);
+begin
+  StubVectorExport(APdfFile);
+end;
+
+procedure TExportEmailTests.FinishTestHooks;
+begin
+  TReportEmailExporter.ResetTestHooks;
+  if (FTempRoot <> '') and TDirectory.Exists(FTempRoot) then
+    TDirectory.Delete(FTempRoot, True);
+  FTempRoot := '';
+end;
+
+procedure TExportEmailTests.StubVectorExport(const APdfFile: string);
+begin
+  FLastPdfPath := APdfFile;
+  if FExportFailureMode = 1 then
+    raise Exception.Create('simulated export failure before output');
+  if FExportFailureMode = 2 then
+  begin
+    TFile.WriteAllText(APdfFile, 'partial PDF');
+    raise Exception.Create('simulated export failure after partial output');
+  end;
+end;
+
+function TExportEmailTests.StubMapiSend(const APdfFile,
+  AReportTitle: string): Cardinal;
+begin
+  FMapiCalled := True;
+  Assert.AreEqual(FLastPdfPath, APdfFile);
+  Assert.AreEqual('Failure-path report', AReportTitle);
+  Result := FMapiResult;
+end;
+
+procedure TExportEmailTests.StubDeleteFolder(const AFolder: string);
+begin
+  if FFailDelete then
+    raise Exception.Create('simulated cleanup failure');
+  if TDirectory.Exists(AFolder) then
+    TDirectory.Delete(AFolder, True);
+end;
+
+function TExportEmailTests.CreateTestDocument: TReportExportDocument;
+begin
+  Result := TReportExportDocument.Create;
+  Result.AddPage(100, 100);
+end;
+
+function IsValidGuidText(const AValue: string): Boolean;
 begin
   try
-    if TDirectory.Exists(ExtractFilePath(APath)) then
-      TDirectory.Delete(ExtractFilePath(APath), True);
+    Result := GUIDToString(StringToGUID('{' + AValue + '}')) <> '';
   except
-    // best-effort test cleanup
+    Result := False;
+  end;
+end;
+
+procedure TExportEmailTests.CleanupFolderOf(const APath: string);
+var
+  TempPath, FolderPath, FolderName, GuidText: string;
+begin
+  try
+    if APath = '' then
+      Exit;
+
+    if FTempRoot <> '' then
+      TempPath := ExcludeTrailingPathDelimiter(TPath.GetFullPath(FTempRoot))
+    else
+      TempPath := ExcludeTrailingPathDelimiter(TPath.GetFullPath(TPath.GetTempPath));
+    FolderPath := ExcludeTrailingPathDelimiter(
+      TPath.GetFullPath(ExtractFilePath(APath)));
+    FolderName := ExtractFileName(FolderPath);
+    if not SameText(ExtractFileDir(FolderPath), TempPath) or
+       (Copy(FolderName, 1, Length('VittixMail-')) <> 'VittixMail-') then
+      Exit;
+
+    GuidText := Copy(FolderName, Length('VittixMail-') + 1, MaxInt);
+    if not IsValidGuidText(GuidText) then
+      Exit;
+
+    if TDirectory.Exists(FolderPath) then
+      TDirectory.Delete(FolderPath, True);
+  except
+    // Best effort; if validation or deletion fails, leave the directory alone.
   end;
 end;
 
@@ -118,26 +235,221 @@ begin
   end;
 end;
 
-procedure TExportEmailTests.Test_TempPdfPath_NeverTouchesExistingTempTitleFile;
+procedure TExportEmailTests.Test_TempPdfPath_DoesNotUseLegacyTitlePath;
 var
-  Sentinel, P: string;
+  P, LegacyPath, FolderPath, FolderName: string;
 begin
-  // A user file squatting on the OLD naming scheme (%TEMP%\<Title>.pdf)
-  // must never be overwritten or deleted by the exporter's temp handling.
-  Sentinel := TPath.Combine(TPath.GetTempPath, 'Sales Report.pdf');
-  TFile.WriteAllText(Sentinel, 'user data');
+  P := '';
+  LegacyPath := TPath.GetFullPath(
+    TPath.Combine(TPath.GetTempPath, 'Sales Report.pdf'));
   try
     P := TReportEmailExporter.TempPdfPath('Sales Report');
-    try
-      Assert.AreNotEqual(Sentinel, P,
-        'the export path must not be the legacy %TEMP%\<Title>.pdf path');
-      Assert.IsTrue(TFile.Exists(Sentinel),
-        'the pre-existing file at the legacy path must still be there');
-    finally
+    FolderPath := ExcludeTrailingPathDelimiter(
+      TPath.GetFullPath(ExtractFilePath(P)));
+    FolderName := ExtractFileName(FolderPath);
+
+    Assert.AreNotEqual(LegacyPath, TPath.GetFullPath(P),
+      'the export path must not use the legacy title-based path');
+    Assert.IsTrue(SameText(ExtractFileDir(FolderPath),
+      ExcludeTrailingPathDelimiter(TPath.GetFullPath(TPath.GetTempPath))),
+      'the export folder must be directly under the system temp directory');
+    Assert.AreEqual('VittixMail-', Copy(FolderName, 1, Length('VittixMail-')),
+      'the export folder must use the dedicated VittixMail- prefix');
+    Assert.IsTrue(IsValidGuidText(Copy(FolderName,
+      Length('VittixMail-') + 1, MaxInt)),
+      'the export folder suffix must be a GUID');
+    Assert.IsTrue(not TFile.Exists(P),
+      'TempPdfPath should return a path without creating the PDF itself');
+  finally
+    if P <> '' then
       CleanupFolderOf(P);
+  end;
+end;
+
+procedure TExportEmailTests.Test_ExportFailureBeforeOutput_CleansOwnedFolder;
+var
+  Doc: TReportExportDocument;
+begin
+  StartTestHooks;
+  Doc := CreateTestDocument;
+  try
+    FExportFailureMode := 1;
+    try
+      TReportEmailExporter.SendEmailWithReport(Doc, 'Failure-path report');
+      Assert.Fail('expected export failure');
+    except
+      on E: Exception do
+        Assert.AreEqual('simulated export failure before output', E.Message);
+    end;
+    Assert.IsFalse(FMapiCalled, 'MAPI must not run when PDF export fails');
+    Assert.IsFalse(TDirectory.Exists(ExtractFilePath(FLastPdfPath)));
+  finally
+    Doc.Free;
+    FinishTestHooks;
+  end;
+end;
+
+procedure TExportEmailTests.Test_PrinterExportFailure_CleansOwnedFolder;
+var
+  Pages: TObjectList<TMetafile>;
+begin
+  StartTestHooks;
+  TReportEmailExporter.SetTestHooks(FTempRoot, StubPrinterExport,
+    StubVectorExport, StubMapiSend, StubDeleteFolder);
+  Pages := TObjectList<TMetafile>.Create(True);
+  Pages.Add(TMetafile.Create);
+  try
+    FExportFailureMode := 1;
+    try
+      TReportEmailExporter.SendEmailWithReport(Pages, 'Failure-path report');
+      Assert.Fail('expected printer-path export failure');
+    except
+      on E: Exception do
+        Assert.AreEqual('simulated export failure before output', E.Message);
+    end;
+    Assert.IsFalse(FMapiCalled, 'MAPI must not run when PDF export fails');
+    Assert.IsFalse(TDirectory.Exists(ExtractFilePath(FLastPdfPath)));
+  finally
+    Pages.Free;
+    FinishTestHooks;
+  end;
+end;
+
+procedure TExportEmailTests.Test_ExportFailureAfterPartialOutput_CleansOnlyOwnedFolder;
+var
+  Doc: TReportExportDocument;
+  Sentinel: string;
+begin
+  StartTestHooks;
+  Doc := CreateTestDocument;
+  Sentinel := TPath.Combine(FTempRoot, 'unrelated-sentinel.txt');
+  TFile.WriteAllText(Sentinel, 'preserve');
+  try
+    FExportFailureMode := 2;
+    try
+      TReportEmailExporter.SendEmailWithReport(Doc, 'Failure-path report');
+      Assert.Fail('expected export failure');
+    except
+      on E: Exception do
+        Assert.AreEqual('simulated export failure after partial output', E.Message);
+    end;
+    Assert.IsFalse(TDirectory.Exists(ExtractFilePath(FLastPdfPath)));
+    Assert.IsTrue(TFile.Exists(Sentinel), 'cleanup must not remove sibling files');
+  finally
+    Doc.Free;
+    FinishTestHooks;
+  end;
+end;
+
+procedure TExportEmailTests.Test_MapiError_CleansOwnedFolder;
+var
+  Doc: TReportExportDocument;
+begin
+  StartTestHooks;
+  Doc := CreateTestDocument;
+  try
+    FMapiResult := 77;
+    try
+      TReportEmailExporter.SendEmailWithReport(Doc, 'Failure-path report');
+      Assert.Fail('expected MAPI error');
+    except
+      on E: Exception do
+        Assert.IsTrue(Pos('MAPI error code: 77', E.Message) > 0, E.Message);
+    end;
+    Assert.IsTrue(FMapiCalled);
+    Assert.IsFalse(TDirectory.Exists(ExtractFilePath(FLastPdfPath)));
+  finally
+    Doc.Free;
+    FinishTestHooks;
+  end;
+end;
+
+procedure TExportEmailTests.Test_MapiCancel_CleansOwnedFolder;
+var
+  Doc: TReportExportDocument;
+begin
+  StartTestHooks;
+  Doc := CreateTestDocument;
+  try
+    FMapiResult := MAPI_USER_ABORT;
+    TReportEmailExporter.SendEmailWithReport(Doc, 'Failure-path report');
+    Assert.IsTrue(FMapiCalled);
+    Assert.IsFalse(TDirectory.Exists(ExtractFilePath(FLastPdfPath)));
+  finally
+    Doc.Free;
+    FinishTestHooks;
+  end;
+end;
+
+procedure TExportEmailTests.Test_CleanupFailure_ReportsBothFailuresAndPreservesUnrelatedFile;
+var
+  Doc: TReportExportDocument;
+  Sentinel: string;
+begin
+  StartTestHooks;
+  Doc := CreateTestDocument;
+  Sentinel := TPath.Combine(FTempRoot, 'unrelated-sentinel.txt');
+  TFile.WriteAllText(Sentinel, 'preserve');
+  try
+    FExportFailureMode := 1;
+    FFailDelete := True;
+    try
+      TReportEmailExporter.SendEmailWithReport(Doc, 'Failure-path report');
+      Assert.Fail('expected combined export and cleanup failure');
+    except
+      on E: Exception do
+      begin
+        Assert.IsTrue(Pos('simulated export failure before output', E.Message) > 0, E.Message);
+        Assert.IsTrue(Pos('simulated cleanup failure', E.Message) > 0, E.Message);
+      end;
+    end;
+    Assert.IsTrue(TDirectory.Exists(ExtractFilePath(FLastPdfPath)),
+      'failed cleanup must leave the owned folder for diagnosis/recovery');
+    Assert.IsTrue(TFile.Exists(Sentinel), 'cleanup must not touch sibling files');
+  finally
+    Doc.Free;
+    FinishTestHooks;
+  end;
+end;
+
+procedure TExportEmailTests.Test_CleanupRefusesOutsideAndInvalidGuidFolders;
+var
+  OutsideFolder, InvalidFolder: string;
+begin
+  StartTestHooks;
+  try
+    OutsideFolder := TPath.Combine(TPath.Combine(FTempRoot, 'nested'),
+      'VittixMail-' + StringReplace(TGUID.NewGuid.ToString, '-', '', [rfReplaceAll]));
+    TDirectory.CreateDirectory(OutsideFolder);
+    try
+      try
+        TReportEmailExporter.TestCleanupTempPdf(TPath.Combine(OutsideFolder, 'x.pdf'));
+        Assert.Fail('expected refusal of a nested/outside path');
+      except
+        on E: Exception do
+          Assert.IsTrue(Pos('Refusing to clean', E.Message) > 0, E.Message);
+      end;
+      Assert.IsTrue(TDirectory.Exists(OutsideFolder));
+    finally
+      TDirectory.Delete(TPath.Combine(FTempRoot, 'nested'), True);
+    end;
+
+    InvalidFolder := TPath.Combine(FTempRoot, 'VittixMail-not-a-guid');
+    TDirectory.CreateDirectory(InvalidFolder);
+    try
+      try
+        TReportEmailExporter.TestCleanupTempPdf(TPath.Combine(InvalidFolder, 'x.pdf'));
+        Assert.Fail('expected refusal of an invalid GUID folder');
+      except
+        on E: Exception do
+          Assert.IsTrue(Pos('invalid exporter temp folder', E.Message) > 0, E.Message);
+      end;
+      Assert.IsTrue(TDirectory.Exists(InvalidFolder));
+    finally
+      TDirectory.Delete(InvalidFolder, True);
     end;
   finally
-    TFile.Delete(Sentinel);
+    FinishTestHooks;
   end;
 end;
 

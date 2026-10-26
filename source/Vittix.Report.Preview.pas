@@ -453,7 +453,13 @@ function TVittixReportPreview.DoMouseWheel(Shift: TShiftState; WheelDelta: Integ
   MousePos: TPoint): Boolean;
 begin
   if ssCtrl in Shift then
-    Result := inherited DoMouseWheel(Shift, WheelDelta, MousePos)
+  begin
+    if WheelDelta > 0 then
+      ZoomIn
+    else if WheelDelta < 0 then
+      ZoomOut;
+    Result := True;
+  end
   else
   begin
     SetScrollOffset(FScrollX, FScrollY - WheelDelta div 3);

@@ -81,7 +81,19 @@ type
 
   TPdfUnicodeFontResourceArray = TArray<TPdfUnicodeFontResource>;
 
+{$IFDEF VITTIX_REPORT_TESTS}
+  TReportPdfWriteHook = procedure(AStream: TStream);
+  TReportPdfCommitHook = procedure(const ATarget, ATemp: string;
+    AReplaceExisting: Boolean);
+  TReportPdfTempReadyHook = procedure(const ATemp: string);
+{$ENDIF}
+
   TReportVectorPDFExporter = class
+  private
+    { Internal commit step for ExportDocumentAtomic. }
+    class procedure CommitFileAtomic(
+      const ATempFile, AFileName, ABackupFile: string;
+      AReplaceExisting: Boolean); static;
   public
     class procedure ExportDocument(
       ADocument: TReportExportDocument;
@@ -89,12 +101,40 @@ type
     class procedure ExportDocument(
       ADocument: TReportExportDocument;
       AStream: TStream); overload; static;
+    { Saves to a temporary file in the destination directory, then replaces
+      AFileName only after the export has completed successfully. The caller
+      is responsible for any overwrite confirmation. }
+    class procedure ExportDocumentAtomic(
+      ADocument: TReportExportDocument;
+      const AFileName: string); static;
   end;
+
+{$IFDEF VITTIX_REPORT_TESTS}
+procedure SetReportVectorPdfTestHooks(AWriteHook: TReportPdfWriteHook;
+  ACommitHook: TReportPdfCommitHook; ATempReadyHook: TReportPdfTempReadyHook);
+{$ENDIF}
 
 implementation
 
 uses
+  Winapi.AclAPI,
+  Winapi.AccCtrl,
   Vittix.Report.Utils;
+
+{$IFDEF VITTIX_REPORT_TESTS}
+var
+  GPdfWriteHook: TReportPdfWriteHook;
+  GPdfCommitHook: TReportPdfCommitHook;
+  GPdfTempReadyHook: TReportPdfTempReadyHook;
+
+procedure SetReportVectorPdfTestHooks(AWriteHook: TReportPdfWriteHook;
+  ACommitHook: TReportPdfCommitHook; ATempReadyHook: TReportPdfTempReadyHook);
+begin
+  GPdfWriteHook := AWriteHook;
+  GPdfCommitHook := ACommitHook;
+  GPdfTempReadyHook := ATempReadyHook;
+end;
+{$ENDIF}
 
 function ScriptItemize(pwcInChars: PWideChar; cInChars: Integer; cMaxItems: Integer;
   const psControl: Pointer; const psState: Pointer; pItems: PScriptItem;
@@ -113,6 +153,9 @@ const
   PDF_POINTS_PER_PIXEL = 72 / 96;
   PDF_XREF_EOL = #13#10;
   SCRIPT_ANALYSIS_RTL = $0400;
+  ERROR_UNABLE_TO_MOVE_REPLACEMENT = 1176;
+  ERROR_UNABLE_TO_MOVE_REPLACEMENT_2 = 1177;
+  PROTECTED_DACL_SECURITY_INFORMATION = $80000000;
 
 type
   // One embedded raster image, written as a PDF Image XObject (not an
@@ -153,6 +196,168 @@ begin
     ExportDocument(ADocument, Stream);
   finally
     Stream.Free;
+  end;
+end;
+
+class procedure TReportVectorPDFExporter.CommitFileAtomic(
+  const ATempFile, AFileName, ABackupFile: string;
+  AReplaceExisting: Boolean);
+var
+  ErrorCode: DWORD;
+begin
+  if not TFile.Exists(ATempFile) then
+    raise EFileNotFoundException.Create('Temporary PDF not found: ' + ATempFile);
+  if Trim(AFileName) = '' then
+    raise EArgumentException.Create('AFileName is required');
+
+{$IFDEF VITTIX_REPORT_TESTS}
+  if Assigned(GPdfCommitHook) then
+    GPdfCommitHook(AFileName, ATempFile, AReplaceExisting);
+{$ENDIF}
+  if AReplaceExisting then
+  begin
+    { ReplaceFile preserves the existing destination security descriptor.
+      Do not ignore ACL merge errors. Keep a sibling backup for documented
+      partial replacement recovery. }
+    if not ReplaceFile(PChar(AFileName), PChar(ATempFile),
+      PChar(ABackupFile), 0, nil, nil) then
+    begin
+      ErrorCode := GetLastError;
+      if (ErrorCode = ERROR_UNABLE_TO_MOVE_REPLACEMENT_2) and
+         TFile.Exists(ABackupFile) and not TFile.Exists(AFileName) then
+        if not MoveFileEx(PChar(ABackupFile), PChar(AFileName), 0) then
+          raise EOSError.CreateFmt(
+            'PDF replacement failed (%d); original remains at "%s" but restoration to "%s" failed.',
+            [ErrorCode, ABackupFile, AFileName]);
+      RaiseLastOSError(ErrorCode);
+    end;
+  end
+  else if not MoveFileEx(PChar(ATempFile), PChar(AFileName), 0) then
+    { No REPLACE_EXISTING: do not overwrite a concurrently created file. }
+    RaiseLastOSError;
+end;
+
+class procedure TReportVectorPDFExporter.ExportDocumentAtomic(
+  ADocument: TReportExportDocument;
+  const AFileName: string);
+var
+  DestFile, DestDir, TempFile, BackupFile: string;
+  Guid: TGUID;
+  TempHandle: THandle;
+  TempStream: THandleStream;
+  DestDacl: PACL;
+  SecurityDescriptor: PSECURITY_DESCRIPTOR;
+  SecurityError: DWORD;
+  ReplaceExisting, KeepRecoveryFiles: Boolean;
+begin
+  if not Assigned(ADocument) then
+    raise EArgumentNilException.Create('ADocument');
+  if ADocument.Pages.Count = 0 then
+    raise EArgumentException.Create('ADocument has no pages');
+  if Trim(AFileName) = '' then
+    raise EArgumentException.Create('AFileName is required');
+
+  DestFile := TPath.GetFullPath(AFileName);
+  DestDir := TPath.GetDirectoryName(DestFile);
+  if not TDirectory.Exists(DestDir) then
+    raise EArgumentException.Create(
+      'Destination directory does not exist: ' + DestDir);
+
+  ReplaceExisting := TFile.Exists(DestFile);
+  KeepRecoveryFiles := False;
+  repeat
+    CreateGUID(Guid);
+    TempFile := TPath.Combine(DestDir,
+      '.' + TPath.GetFileName(DestFile) + '.' + GUIDToString(Guid) + '.tmp');
+    BackupFile := TempFile + '.bak';
+    TempHandle := CreateFile(PChar(TempFile), GENERIC_WRITE or WRITE_DAC, 0,
+      nil, CREATE_NEW, FILE_ATTRIBUTE_TEMPORARY, 0);
+    if TempHandle = INVALID_HANDLE_VALUE then
+    begin
+      SecurityError := GetLastError;
+      if SecurityError <> ERROR_FILE_EXISTS then
+        RaiseLastOSError(SecurityError);
+    end;
+  until TempHandle <> INVALID_HANDLE_VALUE;
+
+  DestDacl := nil;
+  SecurityDescriptor := nil;
+  try
+    try
+      if ReplaceExisting then
+      begin
+        SecurityError := GetNamedSecurityInfo(PChar(DestFile), SE_FILE_OBJECT,
+          DACL_SECURITY_INFORMATION, nil, nil, @DestDacl, nil,
+          @SecurityDescriptor);
+        if SecurityError <> ERROR_SUCCESS then
+          RaiseLastOSError(SecurityError);
+        { Apply the protected destination DACL while the sibling temp is
+          empty and exclusively held, before writing any report content. }
+        SecurityError := SetSecurityInfo(TempHandle, SE_FILE_OBJECT,
+          DACL_SECURITY_INFORMATION or PROTECTED_DACL_SECURITY_INFORMATION,
+          nil, nil, DestDacl, nil);
+        if SecurityError <> ERROR_SUCCESS then
+          RaiseLastOSError(SecurityError);
+      end;
+
+{$IFDEF VITTIX_REPORT_TESTS}
+      if Assigned(GPdfTempReadyHook) then GPdfTempReadyHook(TempFile);
+{$ENDIF}
+      TempStream := THandleStream.Create(TempHandle);
+      try
+{$IFDEF VITTIX_REPORT_TESTS}
+        if Assigned(GPdfWriteHook) then
+          GPdfWriteHook(TempStream)
+        else
+{$ENDIF}
+          ExportDocument(ADocument, TempStream);
+        if not FlushFileBuffers(TempHandle) then
+          RaiseLastOSError;
+      finally
+        TempStream.Free;
+        CloseHandle(TempHandle);
+        TempHandle := INVALID_HANDLE_VALUE;
+      end;
+
+      CommitFileAtomic(TempFile, DestFile, BackupFile, ReplaceExisting);
+      if TFile.Exists(BackupFile) then
+        try
+          TFile.Delete(BackupFile);
+        except
+          { Retained backup has the original destination DACL. }
+        end;
+    except
+      on E: Exception do
+      begin
+        if TempHandle <> INVALID_HANDLE_VALUE then
+        begin
+          CloseHandle(TempHandle);
+          TempHandle := INVALID_HANDLE_VALUE;
+        end;
+        KeepRecoveryFiles := (E is EOSError) and
+          ((EOSError(E).ErrorCode = ERROR_UNABLE_TO_MOVE_REPLACEMENT) or
+           (EOSError(E).ErrorCode = ERROR_UNABLE_TO_MOVE_REPLACEMENT_2));
+        if not KeepRecoveryFiles then
+        begin
+          if TFile.Exists(TempFile) then
+            try
+              TFile.Delete(TempFile);
+            except
+              // Do not hide the export/replacement failure.
+            end;
+          if TFile.Exists(BackupFile) then
+            try
+              TFile.Delete(BackupFile);
+            except
+              // The backup retains the original destination security.
+            end;
+        end;
+        raise;
+      end;
+    end;
+  finally
+    if SecurityDescriptor <> nil then
+      LocalFree(HLOCAL(SecurityDescriptor));
   end;
 end;
 
