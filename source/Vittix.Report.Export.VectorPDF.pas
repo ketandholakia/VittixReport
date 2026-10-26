@@ -82,6 +82,10 @@ type
   TPdfUnicodeFontResourceArray = TArray<TPdfUnicodeFontResource>;
 
   TReportVectorPDFExporter = class
+  private
+    { Internal commit step for ExportDocumentAtomic. }
+    class procedure CommitFileAtomic(
+      const ATempFile, AFileName: string); static;
   public
     class procedure ExportDocument(
       ADocument: TReportExportDocument;
@@ -89,6 +93,12 @@ type
     class procedure ExportDocument(
       ADocument: TReportExportDocument;
       AStream: TStream); overload; static;
+    { Saves to a temporary file in the destination directory, then replaces
+      AFileName only after the export has completed successfully. The caller
+      is responsible for any overwrite confirmation. }
+    class procedure ExportDocumentAtomic(
+      ADocument: TReportExportDocument;
+      const AFileName: string); static;
   end;
 
 implementation
@@ -153,6 +163,56 @@ begin
     ExportDocument(ADocument, Stream);
   finally
     Stream.Free;
+  end;
+end;
+
+class procedure TReportVectorPDFExporter.CommitFileAtomic(
+  const ATempFile, AFileName: string);
+begin
+  if not TFile.Exists(ATempFile) then
+    raise EFileNotFoundException.Create('Temporary PDF not found: ' + ATempFile);
+  if Trim(AFileName) = '' then
+    raise EArgumentException.Create('AFileName is required');
+
+  if not MoveFileEx(PChar(ATempFile), PChar(AFileName),
+    MOVEFILE_REPLACE_EXISTING or MOVEFILE_WRITE_THROUGH) then
+    RaiseLastOSError;
+end;
+
+class procedure TReportVectorPDFExporter.ExportDocumentAtomic(
+  ADocument: TReportExportDocument;
+  const AFileName: string);
+var
+  DestFile, DestDir, TempFile: string;
+  Guid: TGUID;
+begin
+  if not Assigned(ADocument) then
+    raise EArgumentNilException.Create('ADocument');
+  if ADocument.Pages.Count = 0 then
+    raise EArgumentException.Create('ADocument has no pages');
+  if Trim(AFileName) = '' then
+    raise EArgumentException.Create('AFileName is required');
+
+  DestFile := TPath.GetFullPath(AFileName);
+  DestDir := TPath.GetDirectoryName(DestFile);
+  if not TDirectory.Exists(DestDir) then
+    raise EArgumentException.Create(
+      'Destination directory does not exist: ' + DestDir);
+
+  CreateGUID(Guid);
+  TempFile := TPath.Combine(DestDir,
+    '.' + TPath.GetFileName(DestFile) + '.' + GUIDToString(Guid) + '.tmp');
+  try
+    ExportDocument(ADocument, TempFile);
+    CommitFileAtomic(TempFile, DestFile);
+  finally
+    if TFile.Exists(TempFile) then
+      try
+        TFile.Delete(TempFile);
+      except
+        // The destination was already committed or the export failed; a
+        // locked temporary file is left for the OS temp/cleanup policy.
+      end;
   end;
 end;
 

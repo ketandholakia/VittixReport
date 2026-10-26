@@ -235,9 +235,9 @@ uses
   Vcl.Controls,
   Vcl.ExtCtrls,
   Vcl.StdCtrls,
+  Vcl.Dialogs,
   Vcl.Graphics,
-  Vittix.Report.Preview,
-  Vittix.Report.Export.Email;
+  Vittix.Report.Preview;
 
 // ---------------------------------------------------------------------------
 //  Constructor / Destructor
@@ -492,7 +492,7 @@ type
     procedure FitWidthClick(Sender: TObject);
     procedure FitPageClick(Sender: TObject);
     procedure ZoomResetClick(Sender: TObject);
-    procedure EmailClick(Sender: TObject);
+    procedure SaveClick(Sender: TObject);
   end;
 
 procedure InvokePreviewAction(APreview: TObject; const AMethodName: string);
@@ -516,30 +516,38 @@ procedure TPreviewNavHelper.FitWidthClick(Sender: TObject); begin Preview.FitWid
 procedure TPreviewNavHelper.FitPageClick(Sender: TObject);  begin InvokePreviewAction(Preview, 'FitPage'); end;
 procedure TPreviewNavHelper.ZoomResetClick(Sender: TObject); begin Preview.ZoomPercent := 100; end;
 
-procedure TPreviewNavHelper.EmailClick(Sender: TObject);
+procedure TPreviewNavHelper.SaveClick(Sender: TObject);
 var
-  Metafiles: TObjectList<TMetafile>;
-  i: Integer;
+  Dlg: TSaveDialog;
 begin
   if not Assigned(Renderer) then
     Exit;
-
-  // Preferred: Vector PDF from the captured export document (no printer driver).
-  if Assigned(Renderer.ExportDocument) and
-     (Renderer.ExportDocument.Pages.Count > 0) then
+  if not Assigned(Renderer.ExportDocument) or
+     (Renderer.ExportDocument.Pages.Count = 0) then
   begin
-    TReportEmailExporter.SendEmailWithReport(Renderer.ExportDocument, 'VittixReport');
+    MessageDlg('No pages were generated. Add a MasterData band with objects ' +
+      'and ensure a DataSet is assigned.', mtWarning, [mbOK], 0);
     Exit;
   end;
 
-  // Compatibility fallback: printer-backed PDF from the retained metafiles.
-  Metafiles := TObjectList<TMetafile>.Create(False);
+  Dlg := TSaveDialog.Create(nil);
   try
-    for i := 0 to Renderer.Pages.Count - 1 do
-      Metafiles.Add(Renderer.Pages[i].Metafile);
-    TReportEmailExporter.SendEmailWithReport(Metafiles, 'VittixReport');
+    Dlg.Filter     := 'PDF Files (*.pdf)|*.pdf|All Files (*.*)|*.*';
+    Dlg.DefaultExt := 'pdf';
+    Dlg.Title      := 'Save Report as PDF';
+    Dlg.Options    := [ofOverwritePrompt, ofPathMustExist, ofEnableSizing];
+    Dlg.FileName   := 'VittixReport.pdf';
+    if not Dlg.Execute then
+      Exit;
+    try
+      TReportVectorPDFExporter.ExportDocumentAtomic(
+        Renderer.ExportDocument, Dlg.FileName);
+    except
+      on E: Exception do
+        MessageDlg('PDF save error: ' + E.Message, mtError, [mbOK], 0);
+    end;
   finally
-    Metafiles.Free;
+    Dlg.Free;
   end;
 end;
 
@@ -564,7 +572,7 @@ var
   Frm      : TForm;
   Preview  : TVittixReportPreview;
   Toolbar  : TPanel;
-  BtnClose, BtnPrev, BtnNext, BtnEmail     : TButton;
+  BtnClose, BtnPrev, BtnNext, BtnSavePDF   : TButton;
   BtnZoomIn, BtnZoomOut, BtnZoom100: TButton;
   BtnFitPage, BtnFitWidth          : TButton;
   NavHelp  : TPreviewNavHelper;
@@ -580,7 +588,7 @@ begin
     Renderer := TReportRenderer.Create;
     try
       // Capture the semantic export document as well, so the preview's
-      // "Email PDF" button can produce a Vector PDF after the engine and
+      // "Save PDF" button can produce a Vector PDF after the engine and
       // renderer - both freed by this method below - are gone.  (Render does
       // NOT free the engine; the caller owns it.)
       ExportDoc := TReportExportDocument.Create;
@@ -626,10 +634,10 @@ begin
           BtnNext.Caption := 'Next >';
           BtnNext.Left    := 172;  BtnNext.Top := 4;  BtnNext.Width := 72;
 
-          BtnEmail         := TButton.Create(Frm);
-          BtnEmail.Parent  := Toolbar;
-          BtnEmail.Caption := 'Email PDF';
-          BtnEmail.Left    := 250; BtnEmail.Top := 4; BtnEmail.Width := 85;
+          BtnSavePDF         := TButton.Create(Frm);
+          BtnSavePDF.Parent  := Toolbar;
+          BtnSavePDF.Caption := 'Save PDF...';
+          BtnSavePDF.Left    := 250; BtnSavePDF.Top := 4; BtnSavePDF.Width := 88;
 
           BtnZoomOut         := TButton.Create(Frm);
           BtnZoomOut.Parent  := Toolbar;
@@ -671,7 +679,7 @@ begin
           BtnFitPage.OnClick   := NavHelp.FitPageClick;
           BtnZoom100.OnClick   := NavHelp.ZoomResetClick;
           BtnFitWidth.OnClick := NavHelp.FitWidthClick;
-          BtnEmail.OnClick   := NavHelp.EmailClick;
+          BtnSavePDF.OnClick  := NavHelp.SaveClick;
 
           Frm.ShowModal;
         finally

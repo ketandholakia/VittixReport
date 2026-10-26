@@ -45,11 +45,11 @@ type
       stay on the Vector PDF writer. }
     [Test] procedure Test_PreviewDefaultExport_UsesVectorPdfOnly;
 
-    { Email PDF: the renderer must be able to carry an export document so the
-      e-mail attachment can be a Vector PDF without re-running the engine, and
-      the Designer must actually use that overload. }
+    { PDF saving: the renderer must carry an export document so the preview
+      can save a Vector PDF without re-running the engine, and the user-facing
+      sources must not retain a Simple MAPI path. }
     [Test] procedure Test_Renderer_ExportDocument_CapturesVectorCommands;
-    [Test] procedure Test_DesignerEmail_UsesVectorDocumentOverload;
+    [Test] procedure Test_UserFacingPdfSave_NoSimpleMapi;
   end;
 
 {
@@ -484,18 +484,28 @@ begin
   end;
 end;
 
-procedure TReportComponentTests.Test_DesignerEmail_UsesVectorDocumentOverload;
+procedure TReportComponentTests.Test_UserFacingPdfSave_NoSimpleMapi;
 var
   Src: string;
 begin
-  { Frm.Main.pas is not linked into the test project, so this is a
-    source-level guard that the Designer's e-mail action attaches a Vector PDF
-    (the document overload) rather than the printer-backed Pages overload. }
+  { The designer forms are not linked into the test project, so these are
+    source-level guards that every user-facing preview/save path uses the
+    captured Vector PDF document and no Simple MAPI entry point remains. }
   Src := TFile.ReadAllText(TPath.Combine(GetCurrentDir, 'vittixdesigner\Frm.Main.pas'));
-  Assert.IsTrue(Pos('SendEmailWithReport(ExportDoc', Src) > 0,
-    'Designer e-mail must attach a Vector PDF export document');
-  Assert.IsFalse(Pos('SendEmailWithReport(Eng.Pages', Src) > 0,
-    'Designer e-mail must not use the printer-backed Pages overload');
+  Assert.IsFalse(Pos('SendEmailWithReport', Src) > 0,
+    'Designer main window must not use the legacy MAPI exporter');
+
+  Src := TFile.ReadAllText(TPath.Combine(GetCurrentDir, 'vittixdesigner\Frm.Preview.pas'));
+  Assert.IsFalse(Pos('SendEmailWithReport', Src) > 0,
+    'Designer preview must not use the legacy MAPI exporter');
+  Assert.IsTrue(Pos('ExportDocumentAtomic', Src) > 0,
+    'Designer preview must save through the atomic Vector PDF path');
+
+  Src := TFile.ReadAllText(TPath.Combine(GetCurrentDir, 'source\Vittix.Report.Component.pas'));
+  Assert.IsFalse(Pos('SendEmailWithReport', Src) > 0,
+    'Component preview must not use the legacy MAPI exporter');
+  Assert.IsTrue(Pos('ExportDocumentAtomic', Src) > 0,
+    'Component preview must save through the atomic Vector PDF path');
 end;
 
 initialization
