@@ -107,6 +107,7 @@ Thumbs.db
 *.log
 /regression_out/
 /stub_qr/
+/installer/tests/__pycache__/
 
 # Test run artifacts
 /tests/dunitx-results*.xml
