@@ -4,9 +4,18 @@
 > publication, or release announcement.
 
 v1.0.0 remains unchanged at tag `v1.0.0` (`a31dc199520eb1079e8617a3d8bd23292a0531ec`).
-v1.0.1 is still proposed; integration and release approval remain separate.
-Installer validation is a separate workstream and is not covered by this
-candidate's automated gate.
+The v1.0.1 source changes were merged by PR #6 at
+`3e7f6ba0293482146313fb5d504de80edaab92f8`. v1.0.1 remains proposed;
+integration and release approval remain separate.
+The owner reports an overall PASS for the latest installer in a disposable
+Windows VM. The VM-side installer hash and itemized scenarios were not supplied,
+so this is owner-reported acceptance, not an independently matched executable
+or per-scenario result. The local candidate is unsigned, 9,448,740 bytes, SHA-256
+`f804f7c1261cdbeee070b8cc8438432512d7039c85b0878181dbaf1b8708f5cc`; the
+compiler manifest verifies 136 application payload files. Installer source,
+native security results, and evidence limitations are in
+`docs/installer-release-audit-v1.0.1.md`. This document remains proposed and
+does not announce a release.
 
 Owner-reported GUI acceptance for the PDF-save and Preview UI changes: **7/7
 PASS** — Designer main-menu Save PDF, Designer preview Save PDF, component
@@ -22,8 +31,12 @@ acceptance, not automated test evidence.
   render; saving does not rerun the report engine.
 - Saving is atomic: the Vector PDF is written to a temporary file in the
   destination directory and only replaces the chosen file after a successful
-  export. A failed export leaves an existing destination untouched; cleanup
-  attempts to remove the temporary file.
+  export. A protected NTFS DACL is applied to the temporary output **before PDF
+  data is written**. Existing destinations use Windows `ReplaceFile`; new
+  destinations use a non-replacing move to avoid clobbering a racing creator.
+  Partial-write and pre-commit failures preserve the destination and attempt
+  temporary-file cleanup. Real Windows `ReplaceFile` partial-failure errors
+  **1176/1177 were not forced**; partial-swap recovery is a documented limitation.
 - The Save dialog uses the standard overwrite confirmation and path-exists
   checks. Existing files are not overwritten without confirmation.
 - Direct Simple MAPI email export is retired from all user-facing paths. PDF
@@ -70,33 +83,67 @@ acceptance, not automated test evidence.
   add public API.
 - Focused tests cover valid PDF output, replacement after successful export,
   preservation of an existing destination when an empty document is rejected,
-  and rejection of a missing destination directory. They do not inject a
-  mid-export write failure or a final replacement failure.
+  rejection of a missing destination directory, protected DACL preservation,
+  partial-write failure injection, and pre-commit failure injection. Tests do
+  not force real Windows `ReplaceFile` partial-failure errors 1176/1177.
+- Filesystem limitations remain: the protected DACL work targets NTFS; this is
+  not a guarantee for non-NTFS/network filesystems, EFS/SACL/owner preservation,
+  all reparse-point races, crash durability, or every Windows sharing/security
+  failure. See `source/Vittix.Report.Export.VectorPDF.pas` for the save contract.
 
 ## Verification evidence
 
-Verification applies to the **uncommitted candidate working-tree snapshot**
-based on HEAD `c33b7e97b0346de83fca6bbf785c75f468d1e95a`, including its PDF-save
-source and test changes. It does not validate that commit alone or any future
-commit. These results were obtained before this documentation-only correction;
-no production or test files changed afterward.
+The merged source is `3e7f6ba0293482146313fb5d504de80edaab92f8` (tree
+`5c4b798620e92f5ea520f50005e4d04e2356cb62`). A fresh release-preparation gate on
+2026-10-27 reports:
 
-- Win32 Release DUnitX: **899/899 passed**, 0 failed, 0 errors, 0 leaks,
-  including **12/12 Firebird integration tests passed**.
-- Strict runner: **41/41 baselines matched**, 0 mismatches, with 1 intentional
-  policy skip; 0 reports failed.
+- Win32 Release DUnitX: **904/904 passed**, 0 failed, 0 errors, 0 leaks.
+- Firebird integration: **12/12 passed**; PDF-save fixture: **9/9 passed**.
+- Strict runner: **41/41 baselines matched**, one intentional policy skip;
+  0 reports failed.
 - Resource checks: USER handle delta **0**; GDI handle delta **+8** (limit 16).
-- Runtime package: **PASS**; design package: **PASS**; Designer: **PASS**;
-  Demo: **PASS**.
-- `tools\ci_gate.ps1 -IncludePackages`: **exit 0** (`All gates passed`).
-- Firebird used a newly created disposable database that was removed after the
-  run. The pre-existing `D:\CI\firebird\vittix_ci.fdb` was preserved and its
-  SHA-256 was unchanged.
-- Evidence artifacts: `build\gate\dunitx-console.txt`,
-  `tests\dunitx-results.xml`, `build\gate\runner-console.txt`, and
-  `build\gate\firebird-pdfsave-3c888caa206c40d380e348fccde2c304.log`. The
-  DUnitX XML records each Firebird case as successful; the gate's final output
-  records the package builds and exit status.
+- Runtime package, design package, Designer and Demo: **PASS**.
+- `tools\ci_gate.ps1 -IncludePackages`: **exit 0**.
+
+The gate used a newly created disposable Firebird database, removed by the
+fixture after the run. These source results do not validate the installer.
+Evidence is preserved in
+`build/release-audit/gate-66c2211748f94ed595eb640880547767/`.
+Installer ownership fixtures pass 27 scenarios, and the lifecycle/policy
+static-model checks pass 8 scenarios. The rebuilt installer has no VM
+acceptance. The fixtures do not execute setup or touch a live IDE hive.
+Full results and limitations are recorded in
+`docs/installer-release-audit-v1.0.1.md`; no earlier gate is represented as
+testing newly changed installer code. A fresh disposable Firebird database is
+required for each gate run; existing databases must never be reused.
+
+## Installer security and acceptance status
+
+- Setup requires administrator privileges, has no per-user privilege override,
+  and uses the fixed `{commonpf}\VittixReport` destination. The directory page is
+  disabled, `/DIR` overrides are rejected, and a remembered alternate path is
+  rejected without migration. Validation occurs after `{app}` initialization and
+  again after files are installed before any Delphi package registration.
+- The security check normalizes the fixed destination, checks existing path
+  ancestors plus the install directory, Bpl directory and design BPL for
+  reparse-point attributes, and uses `GetNamedSecurityInfoW`, a restricted
+  standard-user token and `AccessCheck` for write, delete, child creation,
+  ownership and ACL-change rights. Failures to inspect fail closed. Registry
+  registration remains ownership-aware and transaction rollback is retained.
+- The current installer hash is
+  `f804f7c1261cdbeee070b8cc8438432512d7039c85b0878181dbaf1b8708f5cc`.
+  The 8/8 lifecycle/policy checks are static/model checks; 27/27 ownership
+  scenarios use an in-memory registry fixture. Native Windows tests separately
+  passed TokenUser/TokenGroups/restricted-token checks, 80 AccessCheck decisions,
+  and reparse fixtures. They exercise production-equivalent Windows APIs, not
+  the Pascal Script code inside Setup. No live Delphi IDE registry was modified.
+- The owner reports overall disposable-VM PASS for the latest installer, but
+  did not provide a VM-measured hash or itemized scenarios. Therefore individual
+  elevation, install, IDE integration, reinstall, uninstall, rollback, unsafe
+  path, and launch scenarios remain unverified by this record. The genuine
+  historical v1.0.0 installer was unavailable, so historical upgrade acceptance
+  remains pending. The installer is unsigned; release signing and publication
+  remain undecided.
 
 ## Supported environment
 
