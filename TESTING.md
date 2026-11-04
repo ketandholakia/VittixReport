@@ -67,6 +67,39 @@ only when `<input>` actually loaded. Verify both branches:
   load failure and the output file is UNCHANGED (pre-fix it was overwritten
   with a blank report).
 
+**Component-editor close-time safe-save verification (2026-11-03; branch
+`codex/component-editor-safe-save-20261103`, base `3e7f6ba`):** The owner
+confirmed that the Delphi VCL component editor launches the fixed designer
+and edits persist after closing and reopening. This confirms the successful
+IDE round trip only. Automated evidence: focused file-save tests 9/9; the
+full gate passed 906/906 DUnitX (0 failed/errored/leaked), 41/41 strict
+baselines (one policy skip), and Win32 package/designer/demo builds. A
+temporary negative control that falsely returned success on a save failure
+made `ComponentEditorSave_FailureVetoesCloseAndPreservesEdits` fail (8/9);
+the mutation was removed and the focused suite passed again (9/9).
+**Isolated VCL failure/retry observation (2026-11-04, agent-operated, not
+owner IDE acceptance):** Launched this worktree's built
+`vittixdesigner\VittixDesigner.exe` with disposable input/output copies of
+`reports\01_simple_masterdata.vrt` under `%LOCALAPPDATA%\Temp\opencode`.
+Edited the title to `Safe save retry FINAL 6ac58e1e` (UI Automation observed
+the title and `*` marker), held the output with an exclusive file handle,
+and requested close. The VCL error dialog read `Could not save report:
+System Error. Code: 32. The process cannot access the file because it is
+being used by another process`; the output SHA-256 remained
+`7cd50d335402afa39b0ef929bd13c2c0698994f5a34e4bced1250a8ff36368f6`.
+After dismissing the error the editor was still open, the edited title was
+visible, and the `*` unsaved marker remained. Releasing the lock and closing
+again exited the process; output parsed as JSON with the edited title.
+Reopening that output in a new isolated designer process visibly showed the
+same title. **Deviation discovered and repaired before this final run:**
+the first failure-path run lost the `*` marker because metadata commit had
+cleared its dirty flag; the new regression failed 8/9 against that state,
+then passed 9/9 after preserving the modified flag on failure. The full
+gate was rerun after the repair: 906/906 DUnitX (0 failed/errored/leaked),
+41/41 strict baselines with one policy skip, Win32 runtime/design packages,
+designer and demo builds passed. The existing owner IDE round trip above
+predates this final marker-only correction; it was not rerun in the IDE.
+
 ### 2.2) Atomic save + Save-As/close flow (DP-24)
 No automated designer harness exists; verify manually:
 

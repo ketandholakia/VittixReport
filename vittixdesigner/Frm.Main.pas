@@ -45,6 +45,7 @@ uses
   Vittix.Report.PageSettings,
   Vittix.Report.Serializer,
   Vittix.Report.FileSave,
+  Vittix.Designer.ComponentEditorSave,
   Vittix.Report.DesignerControl,
   Vittix.Report.Toolbox,
   Vittix.Report.PropertyBridge,
@@ -1343,6 +1344,8 @@ begin
 end;
 
 procedure TfrmMain.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+var
+  SaveError: string;
 begin
   CanClose := True;
 
@@ -1361,14 +1364,24 @@ begin
     end;
     try
       CommitReportMetadataChanges(False);
-      // Write JSON (not .vrt format) so the component editor can read it
-      // back directly into TVittixReport.ReportJSON
-      TFile.WriteAllText(FCmdLineOutputFile,
-        TReportSerializer.SaveToJSON(FDesigner.Report),
-        TEncoding.UTF8);
+      // The saver writes the same serializer JSON as before, but replaces
+      // an existing output only after a complete write.
+      CanClose := TrySaveComponentEditorOutput(FDesigner.Report,
+        FCmdLineOutputFile, FModified, SaveError);
+      if not CanClose then
+        ShowMessage('Could not save report: ' + SaveError);
     except
       on E: Exception do
+      begin
+        CanClose := False;
+        FModified := True;
         ShowMessage('Could not save report: ' + E.Message);
+      end;
+    end;
+    if not CanClose then
+    begin
+      UpdateTitleBar;
+      Exit; // preserve report and unsaved state for another attempt
     end;
     SaveDesignerPreferences;
     SaveRecentFiles;
