@@ -40,6 +40,7 @@ uses
   Vittix.Report.Context,
   Vittix.Report.Expression.Mode,
   Vittix.Report.PageSettings,
+  Vittix.Report.PagePlanner,
   Vittix.Report.Scripting,
   Vittix.Report.LayoutCache,
   Vittix.Report.LayoutPagination,
@@ -153,8 +154,46 @@ type
     destructor Destroy; override;
   end;
 
+  { Phase C: engine-owned state for one subreport row stream (one subreport
+    Draw invocation). Phase B kept a single pending state; Phase C keeps a LIFO
+    stack of these so a nested subreport can continue across pages while its
+    parent stream is suspended at the exact row boundary. Created by
+    BeginRowStream, driven through PrepareRowFor (in-Draw fit decisions) and
+    the band-boundary depth-first flush, released at the band boundary
+    (PrintBand finally). }
+  TSubReportStreamState = class
+  public
+    MasterBand: TReportBand;   // subreport's own master band (model-cache owned)
+    DS: TDataSet;              // subreport detail source
+    MasterField: string;
+    DetailField: string;
+    Context: TExpressionContext;  // draw context captured at BeginRowStream
+    AnchorX: Integer;          // page-space viewport origin at Begin (X)
+    AnchorY: Integer;          // page-space viewport origin at Begin (Y)
+    BoundsLeft: Integer;
+    BoundsTop: Integer;
+    BoundsHeight: Integer;     // subreport declared bounds height
+    RowHeight: Integer;        // row height (flat: MasterBand.Height for all)
+    NextRowY: Integer;         // page-space top for the next in-Draw row
+    LastRowTop: Integer;       // page-space top approved by the last PrepareRow
+    EmittedCount: Integer;     // matched rows approved/emitted so far
+    Deferred: Boolean;         // rows remain for the band-boundary flush
+    DrawFinished: Boolean;     // the subreport's Draw loop returned
+    LastRowApproved: Boolean;  // fold nested overflow in at the next decision
+    MatchAll: Boolean;         // link snapshot: every row matches (legacy rule)
+    MasterValue: Variant;      // link snapshot: captured master field value
+    SaveBM: TBookmark;         // logical-stream dataset position (single save)
+    HasSaveBM: Boolean;
+    { Restore points of the approved dataset contract: RestoreDataset is
+      repeatable and keeps the bookmark (EndStream restores before the flush,
+      the band-boundary release restores after it); FreeDatasetBookmark is the
+      single bookmark release, run by that release / BeginPass / destructor. }
+    procedure RestoreDataset;
+    procedure FreeDatasetBookmark;
+  end;
+
   TReportEngine = class(TObject, IInterface, IReportRenderHooks,
-    IReportExportCaptureSink)
+    IReportExportCaptureSink, IReportSubReportRowStream)
   private
     FReport:   TReportModel;
     FDataSet:  TDataSet;
@@ -168,17 +207,18 @@ type
     FSubReportModelCache: TObjectList<TSubReportModelCacheEntry>;
     FPages:    TObjectList<TMetafile>;
     FExportDocument: TReportExportDocument;
-    FCurrentExportPage: TReportExportPage;
+    FPlanner:  TReportPagePlanner;   // Phase A: page-allocation authority
+    FStreamStack: TObjectList<TSubReportStreamState>;  // Phase C: stream stack
+    FStreamBaseCount: Integer;       // stack depth at the current PrintBand entry
+    FInStreamFlush: Boolean;         // a page break is being prepared by the flush
     FExportOriginX: Integer;
     FExportOriginY: Integer;
 
     FCurrentPage: TMetafile;
     FCanvas:      TMetafileCanvas;
-    FCurrentY:    Integer;
     FPageWidth:   Integer;   // cached from PageSettings at Prepare time
     FPageHeight:  Integer;
     FMarginLeft, FMarginTop, FMarginRight, FMarginBottom: Integer;
-    FPageNumber:  Integer;   // 1-based current page counter
     FRowNumber:   Integer;   // 1-based current master row counter
     FReportDate:  TDateTime; // set once when Prepare begins
     FTotalPagesForPass: Integer;
@@ -275,6 +315,28 @@ type
     procedure ClearExecutionCaches;
     function  ExecutePass(ATotalPages: Integer; AReportProgress: Boolean): Integer;
     function  CheckSpace(RequiredHeight: Integer): Boolean;
+    { Phase C: IReportSubReportRowStream implementation (subreport row
+      streaming, nested-capable). BeginRowStream pushes one stream state and
+      returns its session; PrepareRowFor is the planner-owned atomic-row fit
+      decision for one state; EndRowStream marks a Draw loop finished and
+      restores its dataset; FlushPendingStreams is the band-boundary
+      depth-first continuation flush. }
+    function BeginRowStream(const AContext: TExpressionContext;
+      AMasterBand: TObject; ADS: TDataSet; AMasterField, ADetailField: string;
+      AAnchorX, AEntryCursorY, ABoundsLeft, ABoundsTop, ABoundsHeight,
+      ARowHeight: Integer): IReportNestedRowStream;
+    function PrepareRowFor(AState: TSubReportStreamState;
+      ARowHeight: Integer): Boolean;
+    procedure EndRowStream(AState: TSubReportStreamState);
+    procedure AbandonRowStream(AState: TSubReportStreamState);
+    procedure PopStreamState(AIndex: Integer);
+    procedure ReleaseStreamsAbove(ABaseCount: Integer);
+    function FindNextMatchedRow(AState: TSubReportStreamState): Boolean;
+    function StreamLinkMatches(AState: TSubReportStreamState;
+      ADS: TDataSet): Boolean;
+    procedure PaintStreamRow(AState: TSubReportStreamState);
+    procedure FlushPendingStreams(const AContext: TExpressionContext;
+      ABaseCount: Integer; var AFlushRan: Boolean);
 procedure CaptureExportObjectCommand(
       AObject: TReportObject;
       const Context: TExpressionContext);
@@ -294,6 +356,7 @@ procedure CaptureExportObjectCommand(
     procedure StoreAggregateCache(const AExpression: string;
       const AContext: TExpressionContext; const AValue: Variant);
     function GetSubReportModel(AObject: TObject; const AJSON: string): TObject;
+    function GetPageNumber: Integer;   // Phase A: planner-backed PageCount
 
     // IReportExportCaptureSink implementation (DP-31 / M-13)
     procedure AddCommand(const ACommand: TReportExportCommand);
@@ -338,7 +401,7 @@ procedure CaptureExportObjectCommand(
     procedure DetachDataSet;
 
     property Pages:      TObjectList<TMetafile> read FPages;
-    property PageCount:  Integer                read FPageNumber;
+    property PageCount:  Integer                read GetPageNumber;
     property GroupStartBookmark: TBookmark      read FGroupStartBookmark;
     property GroupEndBookmark:   TBookmark      read FGroupEndBookmark;
     property NamedDataSets: TDictionary<string, TDataSet> read FNamedDataSets;
@@ -366,6 +429,26 @@ procedure CaptureExportObjectCommand(
       read FOnBeforeObject write FOnBeforeObject;
     property OnAfterObject: TReportAfterObjectEvent
       read FOnAfterObject write FOnAfterObject;
+  end;
+
+  { Phase C: per-stream session token handed to TReportSubReportObject. The
+    engine owns the TSubReportStreamState; this object is only a refcounted
+    accessor, so states can be released at band boundaries without conflicting
+    with an outstanding interface reference (a session only lives for the
+    duration of one DrawStreamedRows call). EndStream is idempotent; a session
+    destroyed without EndStream restores its dataset through the engine, and
+    the band-boundary cleanup still releases the state. }
+  TSubReportRowStreamSession = class(TInterfacedObject, IReportNestedRowStream)
+  private
+    FEngine: TReportEngine;
+    FState: TSubReportStreamState;
+    FEnded: Boolean;
+  public
+    constructor Create(AEngine: TReportEngine; AState: TSubReportStreamState);
+    destructor Destroy; override;
+    function PrepareRow(ARowHeight: Integer): Boolean;
+    function RowTop: Integer;
+    procedure EndStream;
   end;
 
 implementation
@@ -440,6 +523,11 @@ begin
 end;
 
 const
+  { Phase C: nesting cap. Subreport streams deeper than this fall back to the
+    legacy clipped loop, so a pathological self-nesting model terminates
+    instead of recursing without bound. }
+  MAX_NESTED_STREAM_DEPTH = 16;
+
   { Aggregate call prefixes that force bookmark-based evaluation. }
   CAggregateCallTokens: array[0..4] of string =
     ('SUM(', 'COUNT(', 'AVG(', 'MIN(', 'MAX(');
@@ -582,6 +670,7 @@ begin
   FAggregateCache := TObjectList<TAggregateCacheEntry>.Create(True);
   FDetailKeyIndexes := TObjectList<TDetailBandKeyIndex>.Create(True);
   FSubReportModelCache := TObjectList<TSubReportModelCacheEntry>.Create(True);
+  FStreamStack := TObjectList<TSubReportStreamState>.Create(True);
   if Assigned(ANamedDataSets) then
     for var Pair in ANamedDataSets do
       FNamedDataSets.AddOrSetValue(Pair.Key, Pair.Value);
@@ -601,6 +690,8 @@ begin
   // so StartNewPage can be called safely before Prepare sets them.
   FPageWidth  := 793;
   FPageHeight := 1122;
+  FPlanner := TReportPagePlanner.Create;
+  FPlanner.SetPageMetrics(FPageWidth, FPageHeight);
   FTotalPagesForPass := 0;
   FTwoPassRendering := True;
 end;
@@ -636,6 +727,11 @@ end;
 
 destructor TReportEngine.Destroy;
 begin
+  // Phase C: no stale stream state can outlive the engine (restores held
+  // stream datasets before releasing them).
+  ReleaseStreamsAbove(0);
+  FStreamStack.Free;
+  FPlanner.Free;
   FCanvas.Free;
   FCanvas := nil;
 
@@ -749,9 +845,20 @@ begin
 end;
 
 procedure TReportEngine.ClearExecutionCaches;
+var
+  I: Integer;
 begin
   FAggregateCache.Clear;
-  FSubReportModelCache.Clear;
+  // Phase B: successful subreport models are cleared per pass exactly as
+  // before (a model instance must not be reused across passes - band/text
+  // state carried by the model affects measurement). Cached PARSE FAILURES
+  // survive the pass pair: the same owner+JSON fails deterministically, so
+  // a broken subreport streamed in the count pass is not parsed and counted
+  // again in the render pass (entries with Model = nil are the failure memo;
+  // deleting a success entry frees it because the list owns its objects).
+  for I := FSubReportModelCache.Count - 1 downto 0 do
+    if FSubReportModelCache[I].Model <> nil then
+      FSubReportModelCache.Delete(I);
   // The detail key index must not survive a pass: detail data can change
   // between passes and bookmarks are only stable while the cursor does.
   FDetailKeyIndexes.Clear;
@@ -802,6 +909,7 @@ begin
   FMarginTop    := ASettings.Margins.Top;
   FMarginRight  := ASettings.Margins.Right;
   FMarginBottom := ASettings.Margins.Bottom;
+  FPlanner.SetPageMetrics(FPageWidth, FPageHeight);
   // Note: changing page settings mid-engine could mess up space tracking if not exactly at top of page,
   // but StartNewPage safely resets these coordinates.
 end;
@@ -810,7 +918,9 @@ procedure TReportEngine.StartNewPage;
 begin
   EndCurrentPage;
 
-  Inc(FPageNumber);
+  // Phase A: the planner owns page numbering, export-page allocation and
+  // the cursor reset.  Canvas/metafile creation below remains engine-owned.
+  FPlanner.BeginPage(FReport.PageSettings.Margins.Top);
 
   FCurrentPage := TMetafile.Create;
   try
@@ -827,11 +937,6 @@ begin
     FCurrentPage := nil;
     raise;
   end;
-  if IsCapturingExportCommands then
-    FCurrentExportPage := FExportDocument.AddPage(FPageWidth, FPageHeight)
-  else
-    FCurrentExportPage := nil;
-  FCurrentY := FReport.PageSettings.Margins.Top;
 end;
 
 procedure TReportEngine.PrintPageHeader(AIncludeColumnHeader: Boolean);
@@ -857,7 +962,7 @@ begin
       { footer forced to bottom }
       if Assigned(FFooterBand) and (FFooterBand.Height > 0) then
       begin
-        FCurrentY := FPageHeight - FReport.PageSettings.Margins.Bottom - FFooterBand.Height;
+        FPlanner.SetCursor(FPageHeight - FReport.PageSettings.Margins.Bottom - FFooterBand.Height);
         FPrintingFooter := True;
         try
           PrintBand(FFooterBand);
@@ -879,7 +984,7 @@ begin
           Ctx2.Hooks := Self;
           Ctx2.DataSet    := FDataSet;
           Ctx2.UserDataSet := FUserDataSet;
-          Ctx2.PageNumber := FPageNumber;
+          Ctx2.PageNumber := FPlanner.PageNumber;
           Ctx2.TotalPages := FTotalPagesForPass;
           Ctx2.RowNumber  := FRowNumber;
           Ctx2.PageBottom := FPageHeight - FReport.PageSettings.Margins.Bottom;
@@ -918,7 +1023,7 @@ begin
         FCurrentPage.Free;
       FCurrentPage := nil;
     end;
-    FCurrentExportPage := nil;
+    FPlanner.ClosePage;
   end;
 end;
 
@@ -950,15 +1055,18 @@ begin
   Ctx.UserDataSet := AUserDataSet;
   Ctx.GroupStart  := FGroupStartBookmark;
   Ctx.GroupEnd    := FGroupEndBookmark;
-  Ctx.PageNumber  := FPageNumber;
+  Ctx.PageNumber  := FPlanner.PageNumber;
   Ctx.TotalPages  := FTotalPagesForPass;
   Ctx.RowNumber   := FRowNumber;
-  Ctx.PageBottom  := FPageHeight - FReport.PageSettings.Margins.Bottom - FCurrentY;
+  Ctx.PageBottom  := FPageHeight - FReport.PageSettings.Margins.Bottom - FPlanner.CursorY;
   Ctx.ReportTitle := FReport.Title;
   Ctx.ReportDate  := FReportDate;
   Ctx.Parameters  := FParameters;
   Ctx.Variables   := FReport.Variables;
   Ctx.IsCountingPass := not FIsRenderingPass;
+  // Phase B: measurement contexts report the subreport's natural reserve
+  // (bounds bottom) instead of stacking all pending rows.
+  Ctx.RowStreaming := True;
 
   MaxBottom := 0;
   for var Child in ABand.Children do
@@ -1006,12 +1114,11 @@ begin
   if Assigned(FFooterBand) then
     FooterH := FFooterBand.Height;
 
-  Result := BandFitsOnPage(
-    FCurrentY,
-    RequiredHeight,
-    FPageHeight,
-    FReport.PageSettings.Margins.Bottom,
-    FooterH);
+  // Phase A: the fit decision is delegated to the planner (same
+  // BandFitsOnPage math, planner-owned cursor and page metrics; the live
+  // model bottom margin is passed through exactly as before).
+  Result := FPlanner.CheckSpace(RequiredHeight,
+    FReport.PageSettings.Margins.Bottom, FooterH);
 end;
 
 procedure TReportEngine.EnsurePageSpaceForBand(
@@ -1029,6 +1136,380 @@ begin
     PrintBandWithSpaceCheck(FColumnHeaderBand, FDataSet);
 end;
 
+{ =========== Phase C: nested subreport row streaming (stack) ============ }
+
+{ Restores the logical-stream dataset position. Repeatable on purpose:
+  EndStream restores before the band-boundary flush, and the flush itself
+  enumerates the dataset, so the final release must restore again. The
+  bookmark stays owned by the state until FreeDatasetBookmark. }
+procedure TSubReportStreamState.RestoreDataset;
+begin
+  if not Assigned(DS) then Exit;
+  if (not HasSaveBM) or (SaveBM = nil) then Exit;
+  if not DS.BookmarkValid(SaveBM) then Exit;
+  DS.DisableControls;
+  try
+    DS.GotoBookmark(SaveBM);
+  finally
+    DS.EnableControls;
+  end;
+end;
+
+{ Single bookmark release (the stream state's final release point). }
+procedure TSubReportStreamState.FreeDatasetBookmark;
+var
+  BM: TBookmark;
+begin
+  BM := SaveBM;
+  SaveBM := nil;
+  HasSaveBM := False;
+  if (BM = nil) or not Assigned(DS) then Exit;
+  DS.DisableControls;
+  try
+    DS.FreeBookmark(BM);
+  finally
+    DS.EnableControls;
+  end;
+end;
+
+{ ===== per-stream session token ===== }
+
+constructor TSubReportRowStreamSession.Create(AEngine: TReportEngine;
+  AState: TSubReportStreamState);
+begin
+  inherited Create;
+  FEngine := AEngine;
+  FState := AState;
+end;
+
+{ A session that is destroyed without an explicit EndStream (unexpected
+  unwinding between BeginRowStream and the DrawStreamedRows finally) restores
+  its dataset; the band-boundary cleanup still releases the state/stack. }
+destructor TSubReportRowStreamSession.Destroy;
+begin
+  if not FEnded then
+  begin
+    FEnded := True;
+    FEngine.AbandonRowStream(FState);
+  end;
+  inherited;
+end;
+
+function TSubReportRowStreamSession.PrepareRow(ARowHeight: Integer): Boolean;
+begin
+  if FEnded then Exit(False);
+  Result := FEngine.PrepareRowFor(FState, ARowHeight);
+end;
+
+function TSubReportRowStreamSession.RowTop: Integer;
+begin
+  Result := FState.LastRowTop;
+end;
+
+procedure TSubReportRowStreamSession.EndStream;
+begin
+  if FEnded then Exit;
+  FEnded := True;
+  FEngine.EndRowStream(FState);
+end;
+
+{ Opens a stream for one subreport Draw invocation and returns its session.
+  Unlike Phase B this does NOT refuse when another stream is active: nested
+  streams are pushed on the engine stack (Phase C). Refused (nil) only when
+  streaming cannot work: depth cap (recursion protection), unusable band,
+  inactive dataset. The dataset position is saved exactly once per stream. }
+function TReportEngine.BeginRowStream(const AContext: TExpressionContext;
+  AMasterBand: TObject; ADS: TDataSet; AMasterField, ADetailField: string;
+  AAnchorX, AEntryCursorY, ABoundsLeft, ABoundsTop, ABoundsHeight,
+  ARowHeight: Integer): IReportNestedRowStream;
+var
+  S: TSubReportStreamState;
+begin
+  Result := nil;
+  if not Assigned(AMasterBand) then Exit;
+  if not Assigned(ADS) or not ADS.Active then Exit;
+  if FStreamStack.Count >= MAX_NESTED_STREAM_DEPTH then Exit;
+
+  // Release finished-and-complete streams left above the band base (normally
+  // already released by EndStream; defensive for abandoned sessions).
+  while (FStreamStack.Count > FStreamBaseCount + 1) and
+        FStreamStack[FStreamStack.Count - 1].DrawFinished and
+        (not FStreamStack[FStreamStack.Count - 1].Deferred) do
+    PopStreamState(FStreamStack.Count - 1);
+
+  S := TSubReportStreamState.Create;
+  S.MasterBand := TReportBand(AMasterBand);
+  S.DS := ADS;
+  S.MasterField := AMasterField;
+  S.DetailField := ADetailField;
+  S.Context := AContext;
+  S.AnchorX := AAnchorX;
+  S.AnchorY := AEntryCursorY;
+  S.BoundsLeft := ABoundsLeft;
+  S.BoundsTop := ABoundsTop;
+  S.BoundsHeight := ABoundsHeight;
+  S.RowHeight := ARowHeight;
+  // Page-space top of the first approved row (legacy first-row inset).
+  S.NextRowY := AEntryCursorY + ABoundsTop + 2;
+  // Link snapshot: deterministic across continuation. A nested stream's parent
+  // dataset advances while its rows are drawn, so the band-boundary flush
+  // must not depend on the live parent position (Phase B flat streams are
+  // unaffected: their master record is the same at Begin and at flush).
+  S.MatchAll := True;
+  if Assigned(AContext.DataSet) and AContext.DataSet.Active and
+     (AMasterField <> '') and (ADetailField <> '') and
+     Assigned(AContext.DataSet.FindField(AMasterField)) and
+     Assigned(ADS.FindField(ADetailField)) then
+  begin
+    S.MatchAll := False;
+    S.MasterValue := AContext.DataSet.FieldByName(AMasterField).Value;
+  end;
+  S.HasSaveBM := DataSetSupportsBookmarks(ADS);
+  if S.HasSaveBM then
+    S.SaveBM := ADS.GetBookmark;
+  FStreamStack.Add(S);
+  Result := TSubReportRowStreamSession.Create(Self, S);
+end;
+
+{ Atomic-row fit decision for one stream. Geometry is page-space
+  (NextRowY .. NextRowY + RowHeight) - the same y where DrawStreamedRows
+  paints the approved row - measured against the usable bottom every band
+  uses (page height - bottom margin - footer reserve), so continued rows can
+  never overlap the footer. A deeper, unfinished stream (a deferred nested
+  child) defers this stream's next row: the parent must not emit further
+  rows until the child has finished (source order at every nesting level). }
+function TReportEngine.PrepareRowFor(AState: TSubReportStreamState;
+  ARowHeight: Integer): Boolean;
+var
+  FitBottom, UsableBottom: Integer;
+begin
+  Result := False;
+  if AState = nil then Exit;
+
+  // Deeper pending stream owns the continuation: defer this row so the
+  // band-boundary flush resumes the child before this parent row.
+  if (FStreamStack.Count > 0) and
+     (FStreamStack[FStreamStack.Count - 1] <> AState) then
+  begin
+    AState.Deferred := True;
+    Exit(False);
+  end;
+
+  // Nested content of the previous row may have pushed the page cursor below
+  // this stream's natural next-row position; never overlap it.
+  if AState.LastRowApproved then
+    AState.NextRowY := Max(AState.NextRowY, FPlanner.CursorY);
+
+  FitBottom := AState.NextRowY + ARowHeight;
+  UsableBottom := FPageHeight - FReport.PageSettings.Margins.Bottom;
+  if Assigned(FFooterBand) then
+    Dec(UsableBottom, FFooterBand.Height);
+
+  if FitBottom <= UsableBottom then
+  begin
+    AState.LastRowTop := AState.NextRowY;
+    AState.LastRowApproved := True;
+    FPlanner.SetCursor(Max(FPlanner.CursorY, FitBottom));
+    Inc(AState.EmittedCount);
+    Result := True;
+  end
+  else
+    AState.Deferred := True;
+end;
+
+{ The subreport's Draw loop returned for this stream. Restore the dataset
+  position (the flush re-enumerates deterministically, so it never depends on
+  the live position) and release the state when nothing is pending. A
+  deferred stream stays on the stack for the band-boundary flush. }
+procedure TReportEngine.EndRowStream(AState: TSubReportStreamState);
+begin
+  if AState = nil then Exit;
+  AState.RestoreDataset;
+  AState.DrawFinished := True;
+  if not AState.Deferred then
+    while (FStreamStack.Count > FStreamBaseCount + 1) and
+          FStreamStack[FStreamStack.Count - 1].DrawFinished and
+          (not FStreamStack[FStreamStack.Count - 1].Deferred) do
+      PopStreamState(FStreamStack.Count - 1);
+end;
+
+{ Session finalization without EndStream (exception path): restore the
+  dataset; the band-boundary cleanup still releases the state. }
+procedure TReportEngine.AbandonRowStream(AState: TSubReportStreamState);
+begin
+  if AState = nil then Exit;
+  AState.RestoreDataset;
+  AState.DrawFinished := True;
+end;
+
+procedure TReportEngine.PopStreamState(AIndex: Integer);
+var
+  S: TSubReportStreamState;
+begin
+  if (AIndex < 0) or (AIndex >= FStreamStack.Count) then Exit;
+  S := FStreamStack[AIndex];
+  S.RestoreDataset;
+  S.FreeDatasetBookmark;
+  FStreamStack.Delete(AIndex);
+end;
+
+{ Releases every stream at or above the band base (restores each dataset
+  position first). Used by the band boundary and by per-pass/destructor
+  cleanup; safe to call repeatedly. }
+procedure TReportEngine.ReleaseStreamsAbove(ABaseCount: Integer);
+begin
+  while FStreamStack.Count > ABaseCount do
+    PopStreamState(FStreamStack.Count - 1);
+end;
+
+{ Link matching for a stream: the captured snapshot is compared with the
+  candidate detail row, replicating the legacy rule (empty/missing field names
+  or unusable master dataset => every row matches). }
+function TReportEngine.StreamLinkMatches(AState: TSubReportStreamState;
+  ADS: TDataSet): Boolean;
+begin
+  Result := True;
+  if AState.MatchAll then Exit;
+  if not Assigned(ADS) then Exit(False);
+  if not Assigned(ADS.FindField(AState.DetailField)) then Exit(True);
+  Result := VarSameValue(AState.MasterValue,
+    ADS.FieldByName(AState.DetailField).Value);
+end;
+
+{ Deterministic enumeration: is there a not-yet-emitted matched row?
+  Always enumerates from First and skips the EmittedCount already matched
+  rows, never the live dataset position (continuation must not depend on it). }
+function TReportEngine.FindNextMatchedRow(AState: TSubReportStreamState): Boolean;
+var
+  Seen: Integer;
+begin
+  Result := False;
+  if (AState = nil) or not Assigned(AState.DS) or not AState.DS.Active then Exit;
+  AState.DS.DisableControls;
+  try
+    Seen := 0;
+    AState.DS.First;
+    while not AState.DS.Eof do
+    begin
+      if StreamLinkMatches(AState, AState.DS) then
+      begin
+        Inc(Seen);
+        if Seen > AState.EmittedCount then Exit(True);
+      end;
+      AState.DS.Next;
+    end;
+  finally
+    AState.DS.EnableControls;
+  end;
+end;
+
+{ Paints the next not-yet-emitted matched row at the continuation position
+  (the page cursor) with the same page-content clip the engine uses for bands.
+  SubCtx keeps RowStream set so a subreport inside a flushed row can continue
+  too; PageNumber is refreshed so [PageNo] is the page the row paints on. }
+procedure TReportEngine.PaintStreamRow(AState: TSubReportStreamState);
+var
+  Seen: Integer;
+  SubCtx: TExpressionContext;
+begin
+  if (AState = nil) or not Assigned(AState.DS) or not AState.DS.Active then Exit;
+  AState.DS.DisableControls;
+  try
+    Seen := 0;
+    AState.DS.First;
+    while not AState.DS.Eof do
+    begin
+      TReportTraversalDiagnostics.SubReportRowVisited;
+      if StreamLinkMatches(AState, AState.DS) then
+      begin
+        Inc(Seen);
+        if Seen > AState.EmittedCount then
+        begin
+          SubCtx := AState.Context;
+          SubCtx.DataSet := AState.DS;
+          SubCtx.RowStream := Self;   // nested continuation inside flushed rows
+          SubCtx.RowStreaming := False;
+          SubCtx.PageNumber := FPlanner.PageNumber;
+          SaveDC(FCanvas.Handle);
+          try
+            SetViewportOrgEx(FCanvas.Handle,
+              AState.AnchorX + AState.BoundsLeft + 2,
+              FPlanner.CursorY, nil);
+            IntersectClipRect(FCanvas.Handle, 0, 0,
+              FPageWidth - FReport.PageSettings.Margins.Left -
+              FReport.PageSettings.Margins.Right,
+              FPageHeight);
+            AState.MasterBand.Draw(FCanvas, SubCtx);
+          finally
+            RestoreDC(FCanvas.Handle, -1);
+          end;
+          Exit;
+        end;
+      end;
+      AState.DS.Next;
+    end;
+  finally
+    AState.DS.EnableControls;
+  end;
+end;
+
+{ Band-boundary continuation flush, depth-first: the deepest deferred stream
+  emits first, so a child finishes before its parent's next row. Each row is
+  one complete atomic unit; the page check is the existing band policy (one
+  break + page/column-header re-emission on failure) and the cursor never
+  moves backwards. The band's base stream is kept (never popped here) so
+  PrintBand can apply the end-of-band rule. A row painted here may push a
+  deeper stream; the next iteration flushes that child first. }
+procedure TReportEngine.FlushPendingStreams(const AContext: TExpressionContext;
+  ABaseCount: Integer; var AFlushRan: Boolean);
+var
+  S: TSubReportStreamState;
+  RowTop: Integer;
+begin
+  AFlushRan := False;
+  while FStreamStack.Count > ABaseCount do
+  begin
+    S := FStreamStack[FStreamStack.Count - 1];
+    if S.DrawFinished and not S.Deferred then
+    begin
+      if FStreamStack.Count - 1 > ABaseCount then
+        PopStreamState(FStreamStack.Count - 1)
+      else
+        Break;
+      Continue;
+    end;
+
+    if Assigned(FProgress) and FProgress.IsCancelled then
+      Break;
+
+    if not FindNextMatchedRow(S) then
+    begin
+      S.Deferred := False;
+      S.DrawFinished := True;
+      if FStreamStack.Count - 1 > ABaseCount then
+        PopStreamState(FStreamStack.Count - 1)
+      else
+        Break;
+      Continue;
+    end;
+
+    // A page break may only happen here, at the band boundary: page headers
+    // printed from it must neither start nor flush streams (FInStreamFlush).
+    FInStreamFlush := True;
+    try
+      EnsurePageSpaceForBand(nil, S.RowHeight, True);
+    finally
+      FInStreamFlush := False;
+    end;
+
+    RowTop := FPlanner.CursorY;
+    PaintStreamRow(S);
+    FPlanner.SetCursor(Max(FPlanner.CursorY, RowTop + S.RowHeight));
+    Inc(S.EmittedCount);
+    AFlushRan := True;
+  end;
+end;
+
 procedure TReportEngine.BeginPass(
   ATotalPages: Integer; AReportProgress: Boolean; out ATotalRows, ARowNumber: Integer);
 var
@@ -1039,11 +1520,20 @@ begin
   if AReportProgress and Assigned(FExportDocument) then
     FExportDocument.Pages.Clear;
   FPageNumber := 0;
+  FPlanner.ResetSession;
+  // Phase C: never leak stream state into the next pass/report.
+  ReleaseStreamsAbove(0);
   FRowNumber := 0;
   FTotalPagesForPass := ATotalPages;
 
   FPageWidth := FReport.PageSettings.PageWidth;
   FPageHeight := FReport.PageSettings.PageHeight;
+  FPlanner.SetPageMetrics(FPageWidth, FPageHeight);
+  if FIsRenderingPass then
+    FPlanner.SetMode(ppmRender)
+  else
+    FPlanner.SetMode(ppmCount);
+  FPlanner.SetDocument(FExportDocument);
 
   CacheBands;
   ResetObjectCaches(FReport.Objects);
@@ -1971,9 +2461,9 @@ begin
     if Assigned(FColumnHeaderBand) then
     begin
       ColumnHeaderH := ComputeEffectiveBandHeight(FColumnHeaderBand, FDataSet);
-      PageBeforeColumnHeader := FPageNumber;
+      PageBeforeColumnHeader := FPlanner.PageNumber;
       EnsurePageSpaceForBand(FColumnHeaderBand, ColumnHeaderH, True);
-      if FPageNumber = PageBeforeColumnHeader then
+      if FPlanner.PageNumber = PageBeforeColumnHeader then
         PrintBand(FColumnHeaderBand, FDataSet, ColumnHeaderH);
     end;
 
@@ -2023,7 +2513,7 @@ begin
   CloseRemainingGroups(AActiveGroupHeader, AHasAnyActiveGroup, AHasOpenedGroups);
   PrintSummaryWithSpaceCheck;
   EndCurrentPage;
-  Result := FPageNumber;
+  Result := FPlanner.PageNumber;
 end;
 
 { ================= Band Printing ================= }
@@ -2037,6 +2527,7 @@ var
   AdjustedCount: Integer;
   EffectiveH: Integer;
   GroupLevel: Integer;
+  BaseCount: Integer;
 begin
   if not Assigned(ADataSet) then
     ADataSet := FDataSet;
@@ -2047,11 +2538,16 @@ begin
   if not Assigned(FCanvas) then Exit;
   if ABand.Height <= 0 then Exit;
 
+  // Phase C: streams created while this band draws belong to this band. A
+  // re-entrant PrintBand (page/column header during a continuation flush)
+  // records its own base and never touches the enclosing band's streams.
+  BaseCount := FStreamStack.Count;
+
   // Respect Visible flag
   if not ABand.Visible then Exit;
 
   if (ABand.StartNewPage or BandHasChildPageBreak(ABand, True)) and
-     (FCurrentY > FReport.PageSettings.Margins.Top) and
+     (FPlanner.CursorY > FReport.PageSettings.Margins.Top) and
      not FPrintingFooter then
   begin
     if ABand.OverridePageSettings then
@@ -2068,10 +2564,10 @@ begin
     Ctx0.Hooks := Self;
     Ctx0.DataSet     := ADataSet;
     Ctx0.UserDataSet := AUserDataSet;
-    Ctx0.PageNumber := FPageNumber;
+    Ctx0.PageNumber := FPlanner.PageNumber;
     Ctx0.TotalPages := FTotalPagesForPass;
     Ctx0.RowNumber := FRowNumber;
-    Ctx0.PageBottom := FPageHeight - FReport.PageSettings.Margins.Bottom - FCurrentY;
+    Ctx0.PageBottom := FPageHeight - FReport.PageSettings.Margins.Bottom - FPlanner.CursorY;
     Ctx0.ReportTitle := FReport.Title;
     Ctx0.ReportDate  := FReportDate;
     Ctx0.Parameters  := FParameters;
@@ -2114,15 +2610,23 @@ begin
        FHasGroupEndBookmarks[GroupLevel] then
       Ctx.GroupEnd := FGroupEndBookmarks[GroupLevel];
   end;
-  Ctx.PageNumber  := FPageNumber;
+  Ctx.PageNumber  := FPlanner.PageNumber;
   Ctx.TotalPages  := FTotalPagesForPass;
   Ctx.RowNumber   := FRowNumber;
-  Ctx.PageBottom  := FPageHeight - FReport.PageSettings.Margins.Bottom - FCurrentY;
+  Ctx.PageBottom  := FPageHeight - FReport.PageSettings.Margins.Bottom - FPlanner.CursorY;
   Ctx.ReportTitle := FReport.Title;
   Ctx.ReportDate  := FReportDate;
   Ctx.Parameters  := FParameters;
   Ctx.Variables   := FReport.Variables;
   Ctx.IsCountingPass := not FIsRenderingPass;
+  // Phase C: streaming coordination. RowStreaming switches MeasuredBottom to
+  // the natural reserve during measurement below; RowStream hands Draw the
+  // engine's stream accessor. A band printed from a continuation flush (page
+  // header / column header) must not start or flush streams, so it gets nil.
+  Ctx.RowStreaming := True;
+  if (FStreamStack.Count = 0) and (not FPrintingFooter) and
+     (not FInStreamFlush) then
+    Ctx.RowStream := Self;
   var CanPrintBand := True;
   if FIsRenderingPass and Assigned(FOnBeforeBand) then
     FOnBeforeBand(Self, Self, ABand, Ctx, CanPrintBand);
@@ -2181,36 +2685,75 @@ begin
   end;
 
   // Translate the DC to the printable content origin.
-  // The top margin is tracked via FCurrentY; the left margin applies to all bands.
-  SaveDC(FCanvas.Handle);
+  // The top margin is tracked by the planner cursor; the left margin applies to all bands.
+  // Phase B: the outer try/finally guarantees stream cleanup and a dataset
+  // restore on every band exit path (completion, cancellation, exception).
   try
-    FExportOriginX := FReport.PageSettings.Margins.Left;
-    FExportOriginY := FCurrentY;
-    SetViewportOrgEx(
-      FCanvas.Handle,
-      FReport.PageSettings.Margins.Left,
-      FCurrentY,
-      nil);
-    IntersectClipRect(
-      FCanvas.Handle,
-      0,
-      0,
-      FPageWidth - FReport.PageSettings.Margins.Left - FReport.PageSettings.Margins.Right,
-      FPageHeight);
-    ABand.Draw(FCanvas, Ctx);
-    if FIsRenderingPass and Assigned(FOnAfterBand) then
-      FOnAfterBand(Self, Self, ABand, Ctx);
-    if (ABand.OnAfterPrint <> '') and Assigned(FScriptEngine) then
-      FScriptEngine.ExecuteAfterPrint(ABand.OnAfterPrint, Ctx);
-  finally
-    FExportOriginX := 0;
-    FExportOriginY := 0;
-    for var I := AdjustedCount - 1 downto 0 do
-      AdjustedObjs[I].Bounds := OriginalBounds[I];
-    RestoreDC(FCanvas.Handle, -1);
-  end;
+    SaveDC(FCanvas.Handle);
+    try
+      FExportOriginX := FReport.PageSettings.Margins.Left;
+      FExportOriginY := FPlanner.CursorY;
+      SetViewportOrgEx(
+        FCanvas.Handle,
+        FReport.PageSettings.Margins.Left,
+        FPlanner.CursorY,
+        nil);
+      IntersectClipRect(
+        FCanvas.Handle,
+        0,
+        0,
+        FPageWidth - FReport.PageSettings.Margins.Left - FReport.PageSettings.Margins.Right,
+        FPageHeight);
+      ABand.Draw(FCanvas, Ctx);
+      if FIsRenderingPass and Assigned(FOnAfterBand) then
+        FOnAfterBand(Self, Self, ABand, Ctx);
+      if (ABand.OnAfterPrint <> '') and Assigned(FScriptEngine) then
+        FScriptEngine.ExecuteAfterPrint(ABand.OnAfterPrint, Ctx);
+    finally
+      FExportOriginX := 0;
+      FExportOriginY := 0;
+      for var I := AdjustedCount - 1 downto 0 do
+        AdjustedObjs[I].Bounds := OriginalBounds[I];
+      RestoreDC(FCanvas.Handle, -1);
+    end;
 
-  Inc(FCurrentY, EffectiveH);
+    // Phase C: continuation is owned by the engine stream stack and flushed
+    // only here, at the band boundary (a page break must never happen inside a
+    // band draw). Depth-first: a deferred nested child finishes before its
+    // parent's next row. No-defer + no-flush keeps the Phase B end-of-band
+    // rule, evaluated on this band's base stream; otherwise the flush already
+    // positioned the cursor at the last continued row.
+    if (FStreamStack.Count > BaseCount) and (not FInStreamFlush) then
+    begin
+      var FlushRan := False;
+      try
+        FlushPendingStreams(Ctx, BaseCount, FlushRan);
+        if (not FlushRan) and (FStreamStack.Count > BaseCount) and
+           (not FStreamStack[BaseCount].Deferred) then
+        begin
+          var S0 := FStreamStack[BaseCount];
+          var NaturalEnd := S0.AnchorY + S0.BoundsTop + S0.BoundsHeight;
+          var StackEnd := S0.AnchorY + S0.BoundsTop +
+            (4 + S0.EmittedCount * S0.RowHeight) + 4;
+          var LegacyEnd := S0.AnchorY + EffectiveH;
+          var NewEnd := LegacyEnd;
+          if StackEnd > NewEnd then NewEnd := StackEnd;
+          if NaturalEnd > NewEnd then NewEnd := NaturalEnd;
+          if FPlanner.CursorY > NewEnd then NewEnd := FPlanner.CursorY;
+          FPlanner.SetCursor(NewEnd);
+        end;
+      finally
+        ReleaseStreamsAbove(BaseCount);
+      end;
+    end
+    else
+      FPlanner.AdvanceCursor(EffectiveH);
+  finally
+    // Every band exit path (completion, cancellation, exception during the
+    // draw or the flush) restores and releases the streams this band created.
+    if FStreamStack.Count > BaseCount then
+      ReleaseStreamsAbove(BaseCount);
+  end;
 
   if BandHasChildPageBreak(ABand, False) and not FPrintingFooter then
   begin
@@ -2798,10 +3341,14 @@ begin
     if CancelPrint then
     begin
       FPages.Clear;
-      FPageNumber := 0;
+      FPlanner.ResetSession;
       Exit;
     end;
 
+    // Phase B: one subreport-cache lifetime per report execution - a new
+    // Prepare never inherits the previous execution's cache (including the
+    // failure memo kept across the pass pair by ClearExecutionCaches).
+    FSubReportModelCache.Clear;
     if FTwoPassRendering then
     begin
       // Pass 1: count pages with TotalPages unresolved.
@@ -2882,8 +3429,8 @@ end;
 
 procedure TReportEngine.AddCommand(const ACommand: TReportExportCommand);
 begin
-  if (ACommand <> nil) and Assigned(FCurrentExportPage) then
-    FCurrentExportPage.Commands.Add(ACommand);
+  if (ACommand <> nil) and Assigned(FPlanner.CurrentExportPage) then
+    FPlanner.CurrentExportPage.Commands.Add(ACommand);
 end;
 
 function TReportEngine.GetCaptureOrigin: TPoint;
@@ -2893,9 +3440,14 @@ begin
     GetViewportOrgEx(FCanvas.Handle, Result);
 end;
 
-procedure TReportEngine.RegisterTempFile(const AFileName: string);
+function TReportEngine.GetPageNumber: Integer;
 begin
-  if Assigned(FExportDocument) then
+  // Phase A: the planner is the authoritative page counter.
+  Result := FPlanner.PageNumber;
+end;
+
+procedure TReportEngine.RegisterTempFile(const AFileName: string);
+begin  if Assigned(FExportDocument) then
     FExportDocument.AddTempFile(AFileName);
 end;
 
@@ -2915,7 +3467,7 @@ var
   SavedOrg: TPoint;
   Origin: TPoint;
 begin
-  if (AObject = nil) or not Assigned(FCurrentExportPage) then
+  if (AObject = nil) or not Assigned(FPlanner.CurrentExportPage) then
     Exit;
 
   Origin := GetCaptureOrigin;
@@ -2956,7 +3508,7 @@ begin
     ImgCmd.Bounds := R;
     ImgCmd.Source := TempFile;
     ImgCmd.Stretch := True;
-    FCurrentExportPage.Commands.Add(ImgCmd);
+    FPlanner.CurrentExportPage.Commands.Add(ImgCmd);
     if Assigned(FExportDocument) then
       FExportDocument.AddTempFile(TempFile);
   finally
@@ -2968,7 +3520,7 @@ procedure TReportEngine.CaptureExportObjectCommand(
   AObject: TReportObject;
   const Context: TExpressionContext);
 begin
-  if not IsCapturingExportCommands or not Assigned(FCurrentExportPage) or
+  if not IsCapturingExportCommands or not Assigned(FPlanner.CurrentExportPage) or
      not Assigned(AObject) then
     Exit;
 

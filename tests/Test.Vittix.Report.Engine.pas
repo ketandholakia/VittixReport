@@ -73,6 +73,9 @@ type
     [Test]
     procedure Test_SubReport_MeasuresDuringCountingPass;
     [Test]
+    procedure Test_SubReport_PageBoundary_TwoPassPageCountStable;
+    [Test]
+    procedure Test_NestedSubReport_PageBoundary_CompletesAndRestoresDataSets;
     procedure Test_SubReport_FlatRowsContinueAcrossOrdinaryPages;
     [Test]
     procedure Test_SubReport_FlatContinuation_CancelAfterBoundaryThenPrepare;
@@ -1059,6 +1062,201 @@ begin
     end;
   finally
     DS.Free;
+  end;
+end;
+
+procedure TTestReportEngine.Test_SubReport_PageBoundary_TwoPassPageCountStable;
+var
+  MasterDS, DetailDS: TClientDataSet;
+  NamedDataSets: TDictionary<string, TDataSet>;
+  Model, SubModel: TReportModel;
+  MasterBand, SubBand: TReportBand;
+  SubReport, Marker: TReportObject;
+  Engine: TReportEngine;
+  ExportDoc: TReportExportDocument;
+  I: Integer;
+  MasterRecNo, DetailRecNo: Integer;
+  Page: TReportExportPage;
+begin
+  MasterDS := TClientDataSet.Create(nil);
+  DetailDS := TClientDataSet.Create(nil);
+  NamedDataSets := TDictionary<string, TDataSet>.Create;
+  Model := TReportModel.Create;
+  SubModel := TReportModel.Create;
+  ExportDoc := TReportExportDocument.Create;
+  try
+    MasterDS.FieldDefs.Add('ID', ftInteger);
+    MasterDS.CreateDataSet;
+    MasterDS.AppendRecord([1]);
+    MasterDS.First;
+    MasterRecNo := MasterDS.RecNo;
+
+    DetailDS.FieldDefs.Add('ID', ftInteger);
+    DetailDS.FieldDefs.Add('Marker', ftString, 40);
+    DetailDS.CreateDataSet;
+    for I := 1 to 30 do
+      DetailDS.AppendRecord([I, Format('detail-%d', [I])]);
+    DetailDS.First;
+    DetailRecNo := DetailDS.RecNo;
+    NamedDataSets.Add('DetailRows', DetailDS);
+
+    MasterBand := TReportBand.Create;
+    MasterBand.BandType := btMasterData;
+    MasterBand.Height := 40;
+    MasterBand.CanGrow := True;
+    Model.Objects.Add(MasterBand);
+    Model.PageSettings.PaperSize := psCustom;
+    Model.PageSettings.CustomWidth := 400;
+    Model.PageSettings.CustomHeight := 500;
+    Model.PageSettings.Margins := TReportMargins.Default;
+
+    SubBand := TReportBand.Create;
+    SubBand.BandType := btMasterData;
+    SubBand.Height := 30;
+    Marker := TReportTextObject.Create;
+    TReportTextObject(Marker).Text := '[Marker]';
+    TReportTextObject(Marker).DataField := 'Marker';
+    TReportTextObject(Marker).Bounds := Rect(4, 4, 180, 26);
+    SubBand.Children.Add(Marker);
+    SubModel.Objects.Add(SubBand);
+
+    SubReport := TReportSubReportObject.Create;
+    TReportSubReportObject(SubReport).ReportJSON :=
+      TReportSerializer.SaveToJSON(SubModel);
+    TReportSubReportObject(SubReport).DataSetName := 'DetailRows';
+    TReportSubReportObject(SubReport).Bounds := Rect(5, 2, 260, 170);
+    MasterBand.Children.Add(SubReport);
+
+    Engine := TReportEngine.Create(Model, MasterDS, NamedDataSets, nil);
+    try
+      Engine.ExportDocument := ExportDoc;
+      Engine.Prepare;
+
+      Assert.IsTrue(Engine.PageCount > 1,
+        'a tall subreport must force more than one page');
+      Assert.AreEqual(Engine.PageCount, ExportDoc.Pages.Count,
+        'counting and rendering passes must produce the same page count');
+      for Page in ExportDoc.Pages do
+        Assert.IsTrue(Page.Commands.Count > 0,
+          'subreport pagination must not introduce a blank page');
+      Assert.AreEqual(MasterRecNo, MasterDS.RecNo,
+        'parent dataset position must be restored');
+      Assert.AreEqual(DetailRecNo, DetailDS.RecNo,
+        'subreport dataset position must be restored');
+    finally
+      Engine.Free;
+    end;
+  finally
+    ExportDoc.Free;
+    SubModel.Free;
+    Model.Free;
+    NamedDataSets.Free;
+    DetailDS.Free;
+    MasterDS.Free;
+  end;
+end;
+
+procedure TTestReportEngine.Test_NestedSubReport_PageBoundary_CompletesAndRestoresDataSets;
+var
+  MasterDS, DetailDS: TClientDataSet;
+  NamedDataSets: TDictionary<string, TDataSet>;
+  Model, OuterModel, InnerModel: TReportModel;
+  MasterBand, OuterBand, InnerBand: TReportBand;
+  OuterSubReport, InnerSubReport: TReportSubReportObject;
+  OuterMarker, InnerMarker: TReportTextObject;
+  Engine: TReportEngine;
+  ExportDoc: TReportExportDocument;
+  I: Integer;
+  MasterRecNo, DetailRecNo: Integer;
+  Page: TReportExportPage;
+begin
+  MasterDS := TClientDataSet.Create(nil);
+  DetailDS := TClientDataSet.Create(nil);
+  NamedDataSets := TDictionary<string, TDataSet>.Create;
+  Model := TReportModel.Create;
+  OuterModel := TReportModel.Create;
+  InnerModel := TReportModel.Create;
+  ExportDoc := TReportExportDocument.Create;
+  try
+    MasterDS.FieldDefs.Add('ID', ftInteger);
+    MasterDS.CreateDataSet;
+    MasterDS.AppendRecord([1]);
+    MasterDS.First;
+    MasterRecNo := MasterDS.RecNo;
+
+    DetailDS.FieldDefs.Add('ID', ftInteger);
+    DetailDS.CreateDataSet;
+    for I := 1 to 24 do
+      DetailDS.AppendRecord([I]);
+    DetailDS.First;
+    DetailRecNo := DetailDS.RecNo;
+    NamedDataSets.Add('NestedRows', DetailDS);
+
+    InnerBand := TReportBand.Create;
+    InnerBand.BandType := btMasterData;
+    InnerBand.Height := 28;
+    InnerMarker := TReportTextObject.Create;
+    InnerMarker.Text := 'inner';
+    InnerMarker.Bounds := Rect(4, 4, 180, 24);
+    InnerBand.Children.Add(InnerMarker);
+    InnerModel.Objects.Add(InnerBand);
+
+    OuterBand := TReportBand.Create;
+    OuterBand.BandType := btMasterData;
+    OuterBand.Height := 35;
+    OuterMarker := TReportTextObject.Create;
+    OuterMarker.Text := 'outer';
+    OuterMarker.Bounds := Rect(4, 4, 180, 24);
+    OuterBand.Children.Add(OuterMarker);
+    InnerSubReport := TReportSubReportObject.Create;
+    InnerSubReport.ReportJSON := TReportSerializer.SaveToJSON(InnerModel);
+    InnerSubReport.DataSetName := 'NestedRows';
+    InnerSubReport.Bounds := Rect(5, 25, 260, 155);
+    OuterBand.Children.Add(InnerSubReport);
+    OuterModel.Objects.Add(OuterBand);
+
+    MasterBand := TReportBand.Create;
+    MasterBand.BandType := btMasterData;
+    MasterBand.Height := 40;
+    MasterBand.CanGrow := True;
+    OuterSubReport := TReportSubReportObject.Create;
+    OuterSubReport.ReportJSON := TReportSerializer.SaveToJSON(OuterModel);
+    OuterSubReport.DataSetName := 'NestedRows';
+    OuterSubReport.Bounds := Rect(5, 2, 260, 180);
+    MasterBand.Children.Add(OuterSubReport);
+    Model.Objects.Add(MasterBand);
+    Model.PageSettings.PaperSize := psCustom;
+    Model.PageSettings.CustomWidth := 400;
+    Model.PageSettings.CustomHeight := 500;
+    Model.PageSettings.Margins := TReportMargins.Default;
+
+    Engine := TReportEngine.Create(Model, MasterDS, NamedDataSets, nil);
+    try
+      Engine.ExportDocument := ExportDoc;
+      Engine.Prepare;
+
+      Assert.IsTrue(Engine.PageCount > 1,
+        'nested subreport fixture must cross a page boundary');
+      Assert.AreEqual(Engine.PageCount, ExportDoc.Pages.Count,
+        'nested subreport counting and rendering page counts must agree');
+      for Page in ExportDoc.Pages do
+        Assert.IsTrue(Page.Commands.Count > 0,
+          'nested subreport pagination must not create blank pages');
+      Assert.AreEqual(MasterRecNo, MasterDS.RecNo,
+        'parent dataset position must be restored');
+      Assert.AreEqual(DetailRecNo, DetailDS.RecNo,
+        'nested subreport dataset position must be restored');
+    finally
+      Engine.Free;
+    end;
+  finally
+    ExportDoc.Free;
+    InnerModel.Free;
+    OuterModel.Free;
+    Model.Free;
+    NamedDataSets.Free;
+    DetailDS.Free;
+    MasterDS.Free;
   end;
 end;
 

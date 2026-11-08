@@ -335,6 +335,16 @@ type
     FBorderVisible: Boolean;
     FBorderColor:   TColor;
     FBorderWidth:   Integer;
+    { Phase B/C: streamed row loop for engine-driven continuation. The engine
+      context carries the row-stream accessor; this method performs the
+      per-row draw at page-space geometry and lets the engine decide the
+      complete-row fit per row. Returns True when the engine accepted the
+      stream (this draw owns the rows); False when streaming is unavailable
+      (depth cap, unusable dataset) and the caller must use the legacy
+      clipped loop. AMasterBand is typed TObject because TReportBand lives
+      in the implementation uses of this unit. }
+    function DrawStreamedRows(ACanvas: TCanvas; const Context: TExpressionContext;
+      AMasterBand: TObject; ADS: TDataSet; const ABounds: TRect): Boolean;
   public
     constructor Create; override;
     procedure Draw(C: TCanvas; const Context: TExpressionContext); override;
@@ -380,6 +390,13 @@ type
     property LineStyle:   TPenStyle        read FLineStyle   write FLineStyle   default psSolid;
     property ExtendToPageBottom: Boolean   read FExtendToPageBottom write FExtendToPageBottom default False;
   end;
+
+{ Phase B: shared subreport row-link matching. The engine-owned flat row
+  stream applies the exact same link test the legacy subreport draw uses;
+  exposed here (single definition) so the deferred-row flush re-emits rows
+  with identical matching semantics. }
+function SubReportRowMatchesLink(AMasterDS, ADetailDS: TDataSet;
+  const AMasterField, ADetailField: string): Boolean;
 
 implementation
 
@@ -2460,7 +2477,10 @@ var
   SubCtx: TExpressionContext;
 begin
   if not ShouldPrintObject(Self, Context) then Exit;
-  if Context.IsCountingPass then Exit;
+  // Phase B: streamed contexts run in both passes (the engine draws bands in
+  // the count pass too; export capture is render-gated), so count/render
+  // parity is preserved. Non-streamed contexts keep the legacy shortcut.
+  if Context.IsCountingPass and (Context.RowStream = nil) then Exit;
 
   R := FBounds;
   if not FTransparent then
@@ -2500,6 +2520,28 @@ begin
 
     DS := ResolveSubReportDataSet(Self, Context);
     if not Assigned(DS) or not DS.Active then Exit;
+
+    { Phase B/C: engine-driven streaming. When the render context carries the
+      engine's stream accessor, the row loop is delegated: the engine owns the
+      complete-row fit decision per row and the deferred remainder is
+      re-emitted at atomic row boundaries after this draw returns. If the
+      engine refuses the stream (nested-depth cap or unusable dataset), the
+      legacy self-contained clipped loop below runs unchanged.
+      Designer/planner-less contexts (RowStream = nil) also keep the legacy
+      loop. }
+    if Context.RowStream <> nil then
+      if DrawStreamedRows(C, Context, MasterBand, DS, R) then
+      begin
+        if FBorderVisible then
+        begin
+          C.Pen.Color := FBorderColor;
+          C.Pen.Width := FBorderWidth;
+          C.Brush.Style := bsClear;
+          C.Rectangle(R);
+        end;
+        if FSelected then DrawSelection(C);
+        Exit;
+      end;
 
     SaveBM := nil;
     HasSaveBM := False;
@@ -2581,6 +2623,85 @@ begin
   end;
 end;
 
+{ Phase B/C: streamed row loop for engine-driven continuation. The engine
+  context carries IReportSubReportRowStream; geometry is taken from the band
+  viewport origin (the caller sets it to the page-space origin of the row /
+  band), which is how the subreport reports AnchorX/AnchorY without any new
+  public API. Each approved row is painted at (viewport.X + Bounds.Left + 2,
+  session.RowTop) with SetViewportOrgEx, which replaces the origin (verified):
+  the legacy loop's band-local coordinates are replaced by correct page-space
+  coordinates. The legacy bounds cap is intentionally dropped for streamed
+  rows - page-space decisions belong to the engine (PrepareRow) and the
+  flushed remainder is clipped by the engine to page content. The row context
+  keeps RowStream set, so a nested subreport inside a row continues too
+  (Phase C); the engine bounds nesting depth. }
+function TReportSubReportObject.DrawStreamedRows(ACanvas: TCanvas;
+  const Context: TExpressionContext; AMasterBand: TObject; ADS: TDataSet;
+  const ABounds: TRect): Boolean;
+var
+  Org: TPoint;
+  RowX: Integer;
+  SubCtx: TExpressionContext;
+  MasterBand: TReportBand;
+  Session: IReportNestedRowStream;
+begin
+  Result := False;
+  if not Assigned(AMasterBand) or not Assigned(ADS) then Exit;
+  if not Assigned(Context.RowStream) then Exit;
+
+  MasterBand := TReportBand(AMasterBand);
+  GetViewportOrgEx(ACanvas.Handle, Org);
+  Session := Context.RowStream.BeginRowStream(Context, AMasterBand, ADS,
+    FMasterField, FDetailField, Org.X, Org.Y, ABounds.Left, ABounds.Top,
+    ABounds.Bottom - ABounds.Top, MasterBand.Height);
+  if Session = nil then Exit;   // engine refused: caller uses the legacy loop
+  Result := True;
+
+  RowX := Org.X + ABounds.Left + 2;
+  try
+    ADS.DisableControls;
+    try
+      TReportTraversalDiagnostics.SubReportTraversalStarted;
+      ADS.First;
+      while not ADS.Eof do
+      begin
+        TReportTraversalDiagnostics.SubReportRowVisited;
+        if SubReportRowMatchesLink(Context.DataSet, ADS, FMasterField, FDetailField) then
+        begin
+          // Atomic-row fit decision, owned by the engine/planner:
+          // True  = row approved for immediate draw on the current page.
+          // False = row stays pending; the engine flush re-emits it (and the
+          //         remaining rows) on continuation pages. No row is ever
+          //         drawn partially and no decision is duplicated here.
+          if not Session.PrepareRow(MasterBand.Height) then
+            Break;
+          // Row-level context. RowStream is inherited so a nested subreport
+          // skips/draws its own stream (Phase C); RowStreaming is cleared
+          // because measurement markers only apply to engine measurement.
+          SubCtx := Context;
+          SubCtx.DataSet := ADS;
+          SubCtx.RowStreaming := False;
+          SaveDC(ACanvas.Handle);
+          try
+            SetViewportOrgEx(ACanvas.Handle, RowX, Session.RowTop, nil);
+            MasterBand.Draw(ACanvas, SubCtx);
+          finally
+            RestoreDC(ACanvas.Handle, -1);
+          end;
+        end;
+        ADS.Next;
+      end;
+    finally
+      ADS.EnableControls;
+    end;
+  finally
+    // Restores the logical-stream dataset position and marks the session
+    // finished; pending rows stay on the engine stack for the band-boundary
+    // flush. Idempotent on the engine side.
+    Session.EndStream;
+  end;
+end;
+
 function TReportSubReportObject.MeasuredBottom(C: TCanvas; const Context: TExpressionContext): Integer;
 var
   Model: TReportModel;
@@ -2595,6 +2716,11 @@ var
   CleanupException: Exception;
 begin
   Result := FBounds.Bottom;
+  // Phase B: engine measurement contexts carry the streaming marker — the
+  // natural reserve is the declared bounds only (page allocation reflects the
+  // rows that actually fit; the engine stream owns the rest). Direct public /
+  // designer callers (no marker) keep the full stacked measurement.
+  if Context.RowStreaming then Exit;
   if not ShouldPrintObject(Self, Context) then Exit;
   if Trim(FReportJSON) = '' then Exit;
 
