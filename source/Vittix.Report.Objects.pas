@@ -348,9 +348,6 @@ type
   public
     constructor Create; override;
     procedure Draw(C: TCanvas; const Context: TExpressionContext); override;
-    procedure DrawPlannedRow(C: TCanvas; ADetailBand: TReportObject;
-      const Context: TExpressionContext; AOriginX, AOriginY,
-      AClipWidth, AClipHeight: Integer);
     function MeasuredBottom(C: TCanvas; const Context: TExpressionContext): Integer; override;
     class function DisplayName: string; override;
   published
@@ -2606,23 +2603,6 @@ begin
   if FSelected then DrawSelection(C);
 end;
 
-procedure TReportSubReportObject.DrawPlannedRow(C: TCanvas;
-  ADetailBand: TReportObject; const Context: TExpressionContext;
-  AOriginX, AOriginY, AClipWidth, AClipHeight: Integer);
-begin
-  if not Assigned(C) or not (ADetailBand is TReportBand) then
-    raise EArgumentException.Create(
-      'A planned subreport row requires a detail band.');
-  SaveDC(C.Handle);
-  try
-    SetViewportOrgEx(C.Handle, AOriginX, AOriginY, nil);
-    IntersectClipRect(C.Handle, 0, 0, AClipWidth, AClipHeight);
-    TReportBand(ADetailBand).Draw(C, Context);
-  finally
-    RestoreDC(C.Handle, -1);
-  end;
-end;
-
 { Phase B/C: streamed row loop for engine-driven continuation. The engine
   context carries IReportSubReportRowStream; geometry is taken from the band
   viewport origin (the caller sets it to the page-space origin of the row /
@@ -2644,6 +2624,7 @@ var
   SubCtx: TExpressionContext;
   MasterBand: TReportBand;
   Session: IReportNestedRowStream;
+  SuppressEvents: Boolean;
 begin
   Result := False;
   if not Assigned(AMasterBand) or not Assigned(ADS) then Exit;
@@ -2653,13 +2634,20 @@ begin
   GetViewportOrgEx(ACanvas.Handle, Org);
   Session := Context.RowStream.BeginRowStream(Context, AMasterBand, ADS,
     FMasterField, FDetailField, Org.X, Org.Y, ABounds.Left, ABounds.Top,
-    ABounds.Bottom - ABounds.Top, MasterBand.Height);
+    ABounds.Bottom - ABounds.Top, ABounds.Right, MasterBand.Height);
   if Session = nil then Exit;   // engine refused: caller uses the legacy loop
   Result := True;
 
   RowX := Org.X + ABounds.Left + 2;
+  // Master-linked details re-range when their parent scrolls; suppressing
+  // dataset events with DisableControls during this loop freezes that view
+  // on a stale subset and silently drops the nested rows of every following
+  // parent row (NestedRows data loss). Only unlinked datasets may suspend
+  // visual event dispatch here.
+  SuppressEvents := not DataSetHasMasterSource(ADS);
   try
-    ADS.DisableControls;
+    if SuppressEvents then
+      ADS.DisableControls;
     try
       TReportTraversalDiagnostics.SubReportTraversalStarted;
       ADS.First;
@@ -2692,7 +2680,8 @@ begin
         ADS.Next;
       end;
     finally
-      ADS.EnableControls;
+      if SuppressEvents then
+        ADS.EnableControls;
     end;
   finally
     // Restores the logical-stream dataset position and marks the session

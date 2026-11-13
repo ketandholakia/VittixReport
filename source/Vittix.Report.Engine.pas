@@ -277,11 +277,6 @@ type
     function InitializeActiveGroupHeaders(out AActiveGroupHeader: TBooleanDynArray): Boolean;
     function DetectGroupBreak(const AActiveGroupHeader: TBooleanDynArray): Integer;
     function ProcessCurrentMasterRecord(AReportProgress: Boolean; var ARowNumber: Integer): Boolean;
-    function TryFlowFlatSubReport(AParentBand: TReportBand): Boolean;
-    function TryFlowNestedSubReport(AParentBand: TReportBand;
-      AOuterSubReport, AInnerSubReport: TReportSubReportObject;
-      AOuterDataSet: TDataSet; AOuterBand: TReportBand): Boolean;
-    procedure RejectUnsupportedSubReportOverflow(AParentBand: TReportBand);
     procedure ProcessMasterDataLoop(const AActiveGroupHeader: TBooleanDynArray; AReportProgress: Boolean; var ARowNumber: Integer; var AHasOpenedGroups: Boolean);
     procedure CaptureGroupStartBookmark(ALevel: Integer = -1);
     procedure CaptureGroupEndBookmark(ALevel: Integer = -1);
@@ -324,13 +319,14 @@ type
     function BeginRowStream(const AContext: TExpressionContext;
       AMasterBand: TObject; ADS: TDataSet; AMasterField, ADetailField: string;
       AAnchorX, AEntryCursorY, ABoundsLeft, ABoundsTop, ABoundsHeight,
-      ARowHeight: Integer): IReportNestedRowStream;
+      ABoundsRight, ARowHeight: Integer): IReportNestedRowStream;
     function PrepareRowFor(AState: TSubReportStreamState;
       ARowHeight: Integer): Boolean;
     procedure EndRowStream(AState: TSubReportStreamState);
     procedure AbandonRowStream(AState: TSubReportStreamState);
     procedure PopStreamState(AIndex: Integer);
     procedure ReleaseStreamsAbove(ABaseCount: Integer);
+    function AlignDetailToSnapshot(AState: TSubReportStreamState): Boolean;
     function FindNextMatchedRow(AState: TSubReportStreamState): Boolean;
     function StreamLinkMatches(AState: TSubReportStreamState;
       ADS: TDataSet): Boolean;
@@ -1221,7 +1217,7 @@ end;
 function TReportEngine.BeginRowStream(const AContext: TExpressionContext;
   AMasterBand: TObject; ADS: TDataSet; AMasterField, ADetailField: string;
   AAnchorX, AEntryCursorY, ABoundsLeft, ABoundsTop, ABoundsHeight,
-  ARowHeight: Integer): IReportNestedRowStream;
+  ABoundsRight, ARowHeight: Integer): IReportNestedRowStream;
 var
   S: TSubReportStreamState;
 begin
@@ -1229,6 +1225,25 @@ begin
   if not Assigned(AMasterBand) then Exit;
   if not Assigned(ADS) or not ADS.Active then Exit;
   if FStreamStack.Count >= MAX_NESTED_STREAM_DEPTH then Exit;
+
+  // Ported from the retired field-based continuation (TryFlowFlatSubReport):
+  // linked traversal with suspended controls is a caller-contract violation -
+  // fail loudly instead of silently corrupting the traversal.
+  if (DataSetMasterSourceDataSet(ADS) = FDataSet) and
+     (ADS.ControlsDisabled or FDataSet.ControlsDisabled) then
+    raise EReportException.Create(
+      'Linked subreport traversal requires master and detail controls enabled.');
+
+  { Geometry validation decision (owner-mandated investigation): the retired
+    field-based path raised on non-positive bounds and on bounds exceeding the
+    printable width. Those checks are NOT ported: ABounds arrive in band-local
+    coordinates, so comparing them against page ContentWidth is a coordinate-
+    space mismatch (22 accepted planner/stream fixtures rely on widths that
+    exceed it), and the planner/stream design intentionally drops the legacy
+    bounds cap - streamed rows are clipped by the canvas page bounds and by
+    the engine's page-space flush, exactly like the legacy clipped loop the
+    old path fell back to. Removing the checks therefore cannot cause more
+    silent clipping than the pre-consolidation behavior. }
 
   // Release finished-and-complete streams left above the band base (normally
   // already released by EndStream; defensive for abandoned sessions).
@@ -1286,6 +1301,15 @@ begin
   Result := False;
   if AState = nil then Exit;
 
+  { Oversized-row decision (owner-mandated investigation): the retired
+    field-based path raised EReportException for a row taller than the
+    printable page area. NOT ported: the accepted planner/stream design
+    already terminates such rows with a single forced break and clips them
+    (Test_FlatStreaming_OversizedRow_SingleForcedBreak_NoLoop,
+    Test_NestedOversizedRow_TerminatesAndClips - bounded page count, rows
+    exactly once, content inside physical pages, datasets restored). Raising
+    here would contradict that accepted contract. }
+
   // Deeper pending stream owns the continuation: defer this row so the
   // band-boundary flush resumes the child before this parent row.
   if (FStreamStack.Count > 0) and
@@ -1313,8 +1337,9 @@ begin
     Inc(AState.EmittedCount);
     Result := True;
   end
-  else
+  else begin
     AState.Deferred := True;
+  end;
 end;
 
 { The subreport's Draw loop returned for this stream. Restore the dataset
@@ -1376,6 +1401,66 @@ begin
     ADS.FieldByName(AState.DetailField).Value);
 end;
 
+{ Restores the snapshot invariant for MasterSource-linked detail datasets:
+  TDataSet.First on a MasterSource-linked detail re-filters the view to the
+  LIVE parent's current row, so flush-time enumeration would silently see a
+  different row universe than the one the stream captured at BeginRowStream
+  (the NestedRows data-loss defect). Re-pointing the parent to the stream's
+  captured link value makes the filtered view match the snapshot again, so
+  First/Next enumeration plus EmittedCount skipping stays deterministic and
+  never depends on the live parent position.
+
+  Raises EReportException when a linked stream's captured parent snapshot
+  cannot be aligned: the live detail view then belongs to a DIFFERENT parent
+  row, and continuing would either substitute unrelated data or silently
+  omit the remaining rows - so the report fails explicitly instead. MatchAll
+  and unlinked streams need no alignment and always return True. Every
+  failure is also counted in TReportTraversalDiagnostics.StreamAlignFailures. }
+function TReportEngine.AlignDetailToSnapshot(AState: TSubReportStreamState): Boolean;
+var
+  ParentDS: TDataSet;
+begin
+  Result := True;
+  if (AState = nil) or AState.MatchAll then Exit;
+  // Distinguish a genuinely unlinked dataset (no MasterSource property
+  // assigned - nothing to align, proceed) from a BROKEN linked dataset
+  // (MasterSource assigned but its parent cannot be resolved - that is a
+  // failure, not an unlinked stream).
+  if not DataSetHasMasterSource(AState.DS) then
+    Exit(True);
+  ParentDS := DataSetMasterSourceDataSet(AState.DS);
+  if not Assigned(ParentDS) then
+  begin
+    TReportTraversalDiagnostics.StreamAlignFailed;
+    raise EReportException.CreateFmt(
+      'Subreport detail snapshot cannot be aligned: the detail dataset has a ' +
+      'MasterSource but its parent dataset cannot be resolved during ' +
+      'pagination continuation. The report is aborted rather than rendering ' +
+      'rows from an unrelated parent view.', []);
+  end;
+  // Linked detail: the parent must still exist with the captured link field,
+  // and the snapshot row must still be locatable on it.
+  if not ParentDS.Active or (AState.MasterField = '') or
+     not Assigned(ParentDS.FindField(AState.MasterField)) then
+  begin
+    TReportTraversalDiagnostics.StreamAlignFailed;
+    raise EReportException.CreateFmt(
+      'Subreport detail snapshot cannot be aligned: the master-linked parent ' +
+      'dataset or its link field "%s" became unavailable during pagination ' +
+      'continuation. The report is aborted rather than rendering rows from ' +
+      'an unrelated parent view.', [AState.MasterField]);
+  end;
+  if not ParentDS.Locate(AState.MasterField, AState.MasterValue, []) then
+  begin
+    TReportTraversalDiagnostics.StreamAlignFailed;
+    raise EReportException.CreateFmt(
+      'Subreport detail snapshot cannot be aligned: the captured master link ' +
+      'value is no longer present in the parent dataset during pagination ' +
+      'continuation. The report is aborted rather than rendering rows from ' +
+      'an unrelated parent view.', []);
+  end;
+end;
+
 { Deterministic enumeration: is there a not-yet-emitted matched row?
   Always enumerates from First and skips the EmittedCount already matched
   rows, never the live dataset position (continuation must not depend on it). }
@@ -1385,6 +1470,7 @@ var
 begin
   Result := False;
   if (AState = nil) or not Assigned(AState.DS) or not AState.DS.Active then Exit;
+  AlignDetailToSnapshot(AState);   // raises on unalignable linked snapshot
   AState.DS.DisableControls;
   try
     Seen := 0;
@@ -1413,6 +1499,7 @@ var
   SubCtx: TExpressionContext;
 begin
   if (AState = nil) or not Assigned(AState.DS) or not AState.DS.Active then Exit;
+  AlignDetailToSnapshot(AState);   // raises on unalignable linked snapshot
   AState.DS.DisableControls;
   try
     Seen := 0;
@@ -1519,7 +1606,6 @@ begin
   FPages.Clear;
   if AReportProgress and Assigned(FExportDocument) then
     FExportDocument.Pages.Clear;
-  FPageNumber := 0;
   FPlanner.ResetSession;
   // Phase C: never leak stream state into the next pass/report.
   ReleaseStreamsAbove(0);
@@ -1664,13 +1750,9 @@ begin
   Inc(ARowNumber);
   FRowNumber := ARowNumber;
 
-  if not TryFlowFlatSubReport(FMasterBand) then
-  begin
-    RejectUnsupportedSubReportOverflow(FMasterBand);
-    EffH := ComputeEffectiveBandHeight(FMasterBand, FDataSet, FUserDataSet);
-    EnsurePageSpaceForBand(FMasterBand, EffH + ComputeFirstDetailRowsHeight, True);
-    PrintBand(FMasterBand, FDataSet, EffH, FUserDataSet);
-  end;
+  EffH := ComputeEffectiveBandHeight(FMasterBand, FDataSet, FUserDataSet);
+  EnsurePageSpaceForBand(FMasterBand, EffH + ComputeFirstDetailRowsHeight, True);
+  PrintBand(FMasterBand, FDataSet, EffH, FUserDataSet);
   PrintDetailBands;
 
   Result := True;
@@ -1681,559 +1763,6 @@ begin
   end;
 end;
 
-function TReportEngine.TryFlowFlatSubReport(
-  AParentBand: TReportBand): Boolean;
-var
-  SubReport: TReportSubReportObject;
-  ChildModel: TReportModel;
-  ChildBand: TReportBand;
-  ChildDataSet: TDataSet;
-  ChildBookmark: TBookmark;
-  HasChildBookmark: Boolean;
-  MatchCount: Integer;
-  RowsDrawn: Integer;
-  FirstOffset: Integer;
-  RowTop: Integer;
-  RowContext: TExpressionContext;
-  ChildOriginX: Integer;
-  ChildOriginY: Integer;
-  ClipWidth: Integer;
-  FooterHeight: Integer;
-  MasterField, DetailField: string;
-  Child: TReportObject;
-  InnerSubReport: TReportSubReportObject;
-  ControlsDisabledByUs: Boolean;
-  function MatchesCurrentMaster: Boolean;
-  var
-    MasterValue, DetailValue: Variant;
-  begin
-    Result := True;
-    if (MasterField = '') or (DetailField = '') or
-       not Assigned(FDataSet.FindField(MasterField)) or
-       not Assigned(ChildDataSet.FindField(DetailField)) then
-      Exit;
-    MasterValue := FDataSet.FieldByName(MasterField).Value;
-    DetailValue := ChildDataSet.FieldByName(DetailField).Value;
-    Result := VarSameValue(MasterValue, DetailValue);
-  end;
-  function BuildRowContext: TExpressionContext;
-  begin
-    Result := Default(TExpressionContext);
-    Result.ExpressionMode := ReportExpressionMode;
-    Result.Hooks := Self;
-    Result.DataSet := ChildDataSet;
-    Result.UserDataSet := FUserDataSet;
-    Result.GroupStart := FGroupStartBookmark;
-    Result.GroupEnd := FGroupEndBookmark;
-    Result.PageNumber := FPageNumber;
-    Result.TotalPages := FTotalPagesForPass;
-    Result.RowNumber := FRowNumber;
-    Result.PageBottom := FPageHeight -
-      FReport.PageSettings.Margins.Bottom - FCurrentY;
-    Result.ReportTitle := FReport.Title;
-    Result.ReportDate := FReportDate;
-    Result.Parameters := FParameters;
-    Result.Variables := FReport.Variables;
-    Result.IsCountingPass := not FIsRenderingPass;
-  end;
-begin
-  Result := False;
-  if not Assigned(AParentBand) or not AParentBand.Visible or
-     (AParentBand.BandType <> btMasterData) or
-     (AParentBand.Children.Count <> 1) or
-     not (AParentBand.Children[0] is TReportSubReportObject) or
-     not AParentBand.CanGrow or
-     (AParentBand.PrintWhen <> '') or AParentBand.StartNewPage or
-     AParentBand.PageBreakBefore or AParentBand.PageBreakAfter or
-     AParentBand.OverridePageSettings or AParentBand.CanShrink or
-     not AParentBand.BackColorTransparent or
-     (AParentBand.BackColorCondition <> '') or
-     (AParentBand.OnBeforePrint <> '') or (AParentBand.OnAfterPrint <> '') or
-     (FDetailBands.Count <> 0) or (FGroupHeaders.Count <> 0) or
-     (FGroupFooters.Count <> 0) or Assigned(FOnBeforeBand) or
-     Assigned(FOnAfterBand) or Assigned(FOnBeforeObject) or
-     Assigned(FOnAfterObject) then
-    Exit;
-
-  SubReport := TReportSubReportObject(AParentBand.Children[0]);
-  if not SubReport.Visible or (SubReport.PrintWhen <> '') or
-     (SubReport.OnBeforePrint <> '') or (SubReport.OnAfterPrint <> '') or
-     SubReport.PageBreakBefore or SubReport.PageBreakAfter or
-     not SubReport.Transparent or SubReport.BorderVisible or
-     (Trim(SubReport.ReportJSON) = '') then
-    Exit;
-
-  ChildDataSet := FDataSet;
-  if Trim(SubReport.DataSetName) <> '' then
-  begin
-    if not Assigned(FNamedDataSets) or
-       not FNamedDataSets.TryGetValue(SubReport.DataSetName, ChildDataSet) then
-      Exit;
-  end;
-  if not Assigned(ChildDataSet) or not ChildDataSet.Active then
-    Exit;
-
-  ChildModel := TReportModel(GetSubReportModel(SubReport, SubReport.ReportJSON));
-  if not Assigned(ChildModel) or (ChildModel.Objects.Count <> 1) or
-     not (ChildModel.Objects[0] is TReportBand) then
-    Exit;
-  ChildBand := TReportBand(ChildModel.Objects[0]);
-  if not ChildBand.Visible or (ChildBand.BandType <> btMasterData) or
-     (ChildBand.Height <= 0) or ChildBand.CanGrow or ChildBand.CanShrink or
-     (ChildBand.PrintWhen <> '') or ChildBand.StartNewPage or
-     ChildBand.PageBreakBefore or ChildBand.PageBreakAfter or
-     ChildBand.OverridePageSettings or (ChildBand.OnBeforePrint <> '') or
-     (ChildBand.OnAfterPrint <> '') then
-    Exit;
-  if (ChildBand.Children.Count = 1) and
-     (ChildBand.Children[0] is TReportSubReportObject) then
-  begin
-    InnerSubReport := TReportSubReportObject(ChildBand.Children[0]);
-    if not InnerSubReport.Visible or (InnerSubReport.PrintWhen <> '') or
-       (InnerSubReport.OnBeforePrint <> '') or
-       (InnerSubReport.OnAfterPrint <> '') or
-       InnerSubReport.PageBreakBefore or InnerSubReport.PageBreakAfter or
-       not InnerSubReport.Transparent or InnerSubReport.BorderVisible then
-      Exit;
-    Result := TryFlowNestedSubReport(AParentBand, SubReport, InnerSubReport,
-      ChildDataSet, ChildBand);
-    Exit;
-  end;
-  for Child in ChildBand.Children do
-    if Child.PageBreakBefore or Child.PageBreakAfter or
-       (Child is TReportSubReportObject) then
-      Exit;
-
-  MasterField := Trim(SubReport.MasterField);
-  DetailField := Trim(SubReport.DetailField);
-  if (MasterField = '') xor (DetailField = '') then
-    Exit;
-
-  HasChildBookmark := Vittix.Report.LayoutBookmarks.CaptureDataSetBookmark(
-    ChildDataSet, ChildBookmark);
-  MatchCount := 0;
-  if (DataSetMasterSourceDataSet(ChildDataSet) = FDataSet) and
-     (ChildDataSet.ControlsDisabled or FDataSet.ControlsDisabled) then
-    raise EReportException.Create(
-      'Linked subreport traversal requires master and detail controls enabled.');
-  ControlsDisabledByUs := not ChildDataSet.ControlsDisabled and
-    (DataSetMasterSourceDataSet(ChildDataSet) <> FDataSet);
-  if ControlsDisabledByUs then
-    ChildDataSet.DisableControls;
-  try
-    ChildDataSet.First;
-    while not ChildDataSet.Eof do
-    begin
-      if MatchesCurrentMaster then
-        Inc(MatchCount);
-      ChildDataSet.Next;
-    end;
-  finally
-    if ControlsDisabledByUs then
-      ChildDataSet.EnableControls;
-    if HasChildBookmark then
-    begin
-      Vittix.Report.LayoutBookmarks.RestoreDataSetBookmark(
-        ChildDataSet, ChildBookmark, HasChildBookmark);
-    end;
-  end;
-
-  if MatchCount = 0 then
-    Exit;
-  if (Int64(MatchCount) * ChildBand.Height + 2) <=
-     (SubReport.Bounds.Bottom - SubReport.Bounds.Top) then
-    Exit;
-
-  Result := True;
-  FooterHeight := 0;
-  if Assigned(FFooterBand) then
-    FooterHeight := FFooterBand.Height;
-  if ChildBand.Height > (FPageHeight -
-      FReport.PageSettings.Margins.Top -
-      FReport.PageSettings.Margins.Bottom - FooterHeight) then
-    raise EReportException.Create(
-      'A flat subreport detail row is taller than the printable page area.');
-
-  if (SubReport.Bounds.Top < 0) or
-     ((SubReport.Bounds.Bottom - SubReport.Bounds.Top) <= 0) then
-    raise EReportException.Create(
-      'A flat subreport must have positive bounds within its parent band.');
-  FirstOffset := SubReport.Bounds.Top + 2;
-  ClipWidth := SubReport.Bounds.Right - SubReport.Bounds.Left - 2;
-  if (ClipWidth <= 0) or (SubReport.Bounds.Left < 0) or
-     (SubReport.Bounds.Right > FReport.PageSettings.ContentWidth) then
-    raise EReportException.Create(
-      'A flat subreport must fit within the printable page width.');
-
-  HasChildBookmark := Vittix.Report.LayoutBookmarks.CaptureDataSetBookmark(
-    ChildDataSet, ChildBookmark);
-  ControlsDisabledByUs := not ChildDataSet.ControlsDisabled;
-  if ControlsDisabledByUs then
-    ChildDataSet.DisableControls;
-  try
-    ChildDataSet.First;
-    RowsDrawn := 0;
-    while not ChildDataSet.Eof do
-    begin
-      if MatchesCurrentMaster then
-      begin
-        RowTop := 0;
-        if RowsDrawn = 0 then
-          RowTop := FirstOffset;
-        if not CheckSpace(RowTop + ChildBand.Height) then
-        begin
-          StartNewPage;
-          PrintPageHeader(True);
-          RowTop := 0;
-        end;
-        if not CheckSpace(RowTop + ChildBand.Height) then
-          raise EReportException.Create(
-            'A flat subreport detail row does not fit below the repeated page headers.');
-
-        ChildOriginX := FReport.PageSettings.Margins.Left +
-          SubReport.Bounds.Left + 2;
-        ChildOriginY := FCurrentY + RowTop;
-        RowContext := BuildRowContext;
-        RowContext.PageNumber := FPageNumber;
-        RowContext.PageBottom := FPageHeight -
-          FReport.PageSettings.Margins.Bottom - ChildOriginY;
-
-        if FIsRenderingPass then
-          SubReport.DrawPlannedRow(FCanvas, ChildBand, RowContext,
-            ChildOriginX, ChildOriginY, ClipWidth,
-            FPageHeight - FReport.PageSettings.Margins.Bottom - ChildOriginY);
-        Inc(FCurrentY, RowTop + ChildBand.Height);
-        Inc(RowsDrawn);
-      end;
-      ChildDataSet.Next;
-    end;
-  finally
-    if ControlsDisabledByUs then
-      ChildDataSet.EnableControls;
-    if HasChildBookmark then
-    begin
-      Vittix.Report.LayoutBookmarks.RestoreDataSetBookmark(
-        ChildDataSet, ChildBookmark, HasChildBookmark);
-    end;
-  end;
-end;
-
-function TReportEngine.TryFlowNestedSubReport(AParentBand: TReportBand;
-  AOuterSubReport, AInnerSubReport: TReportSubReportObject;
-  AOuterDataSet: TDataSet; AOuterBand: TReportBand): Boolean;
-var
-  OuterModel, InnerModel: TReportModel;
-  InnerBand: TReportBand;
-  InnerDataSet: TDataSet;
-  OuterBookmark, InnerBookmark: TBookmark;
-  HasOuterBookmark, HasInnerBookmark: Boolean;
-  OuterMasterField, OuterDetailField: string;
-  InnerMasterField, InnerDetailField: string;
-  OuterMatchCount, RowCount, RowsDrawn: Integer;
-  FirstOffset, RowTop, OriginX, OriginY, ClipWidth, FooterHeight: Integer;
-  Obj: TReportObject;
-  RowContext: TExpressionContext;
-  OuterControlsDisabledByUs, InnerControlsDisabledByUs: Boolean;
-  InnerMasterSourceDataSet: TDataSet;
-  function OuterMatchesMaster: Boolean;
-  var
-    MasterValue, DetailValue: Variant;
-  begin
-    Result := True;
-    if (OuterMasterField = '') or (OuterDetailField = '') then
-      Exit;
-    if not Assigned(FDataSet.FindField(OuterMasterField)) or
-       not Assigned(AOuterDataSet.FindField(OuterDetailField)) then
-      Exit(False);
-    MasterValue := FDataSet.FieldByName(OuterMasterField).Value;
-    DetailValue := AOuterDataSet.FieldByName(OuterDetailField).Value;
-    Result := VarSameValue(MasterValue, DetailValue);
-  end;
-  function InnerMatchesOuter: Boolean;
-  var
-    MasterValue, DetailValue: Variant;
-  begin
-    Result := True;
-    if (InnerMasterField = '') or (InnerDetailField = '') then
-      Exit;
-    if not Assigned(AOuterDataSet.FindField(InnerMasterField)) or
-       not Assigned(InnerDataSet.FindField(InnerDetailField)) then
-      Exit(False);
-    MasterValue := AOuterDataSet.FieldByName(InnerMasterField).Value;
-    DetailValue := InnerDataSet.FieldByName(InnerDetailField).Value;
-    Result := VarSameValue(MasterValue, DetailValue);
-  end;
-  procedure BuildRowContext;
-  begin
-    RowContext := Default(TExpressionContext);
-    RowContext.ExpressionMode := ReportExpressionMode;
-    RowContext.Hooks := Self;
-    RowContext.DataSet := InnerDataSet;
-    RowContext.UserDataSet := FUserDataSet;
-    RowContext.GroupStart := FGroupStartBookmark;
-    RowContext.GroupEnd := FGroupEndBookmark;
-    RowContext.PageNumber := FPageNumber;
-    RowContext.TotalPages := FTotalPagesForPass;
-    RowContext.RowNumber := FRowNumber;
-    RowContext.PageBottom := FPageHeight -
-      FReport.PageSettings.Margins.Bottom - FCurrentY;
-    RowContext.ReportTitle := FReport.Title;
-    RowContext.ReportDate := FReportDate;
-    RowContext.Parameters := FParameters;
-    RowContext.Variables := FReport.Variables;
-    RowContext.IsCountingPass := not FIsRenderingPass;
-  end;
-begin
-  Result := False;
-  if not Assigned(AParentBand) or not Assigned(AOuterSubReport) or
-     not Assigned(AInnerSubReport) or not Assigned(AOuterDataSet) or
-     not AOuterDataSet.Active or not Assigned(AOuterBand) or
-     (AOuterBand.Children.Count <> 1) or
-     (AOuterBand.Children[0] <> AInnerSubReport) or
-     (Trim(AInnerSubReport.ReportJSON) = '') then
-    Exit;
-
-  InnerDataSet := FDataSet;
-  if Trim(AInnerSubReport.DataSetName) <> '' then
-  begin
-    if not Assigned(FNamedDataSets) or
-       not FNamedDataSets.TryGetValue(AInnerSubReport.DataSetName, InnerDataSet) then
-      Exit;
-  end;
-  if not Assigned(InnerDataSet) or not InnerDataSet.Active or
-     (InnerDataSet = AOuterDataSet) or (InnerDataSet = FDataSet) or
-     not DataSetSupportsBookmarks(AOuterDataSet) or
-     not DataSetSupportsBookmarks(InnerDataSet) then
-    Exit;
-
-  InnerModel := TReportModel(GetSubReportModel(AInnerSubReport,
-    AInnerSubReport.ReportJSON));
-  if not Assigned(InnerModel) or (InnerModel.Objects.Count <> 1) or
-     not (InnerModel.Objects[0] is TReportBand) then
-    Exit;
-  InnerBand := TReportBand(InnerModel.Objects[0]);
-  if not InnerBand.Visible or (InnerBand.BandType <> btMasterData) or
-     (InnerBand.Height <= 0) or InnerBand.CanGrow or InnerBand.CanShrink or
-     (InnerBand.PrintWhen <> '') or InnerBand.StartNewPage or
-     InnerBand.PageBreakBefore or InnerBand.PageBreakAfter or
-     InnerBand.OverridePageSettings or (InnerBand.OnBeforePrint <> '') or
-     (InnerBand.OnAfterPrint <> '') then
-    Exit;
-  for Obj in InnerBand.Children do
-    if Obj.PageBreakBefore or Obj.PageBreakAfter or
-       (Obj is TReportSubReportObject) then
-      Exit;
-
-  OuterMasterField := Trim(AOuterSubReport.MasterField);
-  OuterDetailField := Trim(AOuterSubReport.DetailField);
-  InnerMasterField := Trim(AInnerSubReport.MasterField);
-  InnerDetailField := Trim(AInnerSubReport.DetailField);
-  if ((OuterMasterField = '') xor (OuterDetailField = '')) or
-     ((InnerMasterField = '') xor (InnerDetailField = '')) then
-    Exit;
-  if ((OuterMasterField <> '') and
-      (not Assigned(FDataSet.FindField(OuterMasterField)) or
-       not Assigned(AOuterDataSet.FindField(OuterDetailField)))) or
-     ((InnerMasterField <> '') and
-      (not Assigned(AOuterDataSet.FindField(InnerMasterField)) or
-       not Assigned(InnerDataSet.FindField(InnerDetailField)))) then
-    Exit;
-
-  HasOuterBookmark := Vittix.Report.LayoutBookmarks.CaptureDataSetBookmark(
-    AOuterDataSet, OuterBookmark);
-  HasInnerBookmark := Vittix.Report.LayoutBookmarks.CaptureDataSetBookmark(
-    InnerDataSet, InnerBookmark);
-  OuterMatchCount := 0;
-  RowCount := 0;
-  InnerMasterSourceDataSet := DataSetMasterSourceDataSet(InnerDataSet);
-  if (InnerMasterSourceDataSet = AOuterDataSet) and
-     (AOuterDataSet.ControlsDisabled or InnerDataSet.ControlsDisabled) then
-    raise EReportException.Create(
-      'Nested master/detail traversal requires linked dataset controls enabled.');
-  OuterControlsDisabledByUs :=
-    not AOuterDataSet.ControlsDisabled and
-    (InnerMasterSourceDataSet <> AOuterDataSet);
-  InnerControlsDisabledByUs := not InnerDataSet.ControlsDisabled and
-    (InnerMasterSourceDataSet <> AOuterDataSet);
-  if OuterControlsDisabledByUs then
-    AOuterDataSet.DisableControls;
-  if InnerControlsDisabledByUs then
-    InnerDataSet.DisableControls;
-  try
-    AOuterDataSet.First;
-    while not AOuterDataSet.Eof do
-    begin
-      if OuterMatchesMaster then
-      begin
-        Inc(OuterMatchCount);
-        InnerDataSet.First;
-        while not InnerDataSet.Eof do
-        begin
-          if InnerMatchesOuter then
-            Inc(RowCount);
-          InnerDataSet.Next;
-        end;
-      end;
-      AOuterDataSet.Next;
-    end;
-  finally
-    if InnerControlsDisabledByUs then
-      InnerDataSet.EnableControls;
-    if OuterControlsDisabledByUs then
-      AOuterDataSet.EnableControls;
-    if HasInnerBookmark then
-      Vittix.Report.LayoutBookmarks.RestoreDataSetBookmark(
-        InnerDataSet, InnerBookmark, HasInnerBookmark);
-    if HasOuterBookmark then
-      Vittix.Report.LayoutBookmarks.RestoreDataSetBookmark(
-        AOuterDataSet, OuterBookmark, HasOuterBookmark);
-  end;
-
-  if (OuterMatchCount = 0) or (RowCount = 0) then
-    Exit;
-  FirstOffset := AOuterSubReport.Bounds.Top + AInnerSubReport.Bounds.Top + 2;
-  if (Int64(RowCount) * InnerBand.Height + FirstOffset) <=
-     (AOuterSubReport.Bounds.Bottom - AOuterSubReport.Bounds.Top) then
-    Exit;
-  if (AOuterSubReport.Bounds.Top < 0) or (AInnerSubReport.Bounds.Top < 0) or
-     (AInnerSubReport.Bounds.Bottom <= AInnerSubReport.Bounds.Top) then
-    raise EReportException.Create(
-      'Nested flat subreports must have positive bounds within their parent bands.');
-
-  Result := True;
-  FooterHeight := 0;
-  if Assigned(FFooterBand) then
-    FooterHeight := FFooterBand.Height;
-  if InnerBand.Height > (FPageHeight - FReport.PageSettings.Margins.Top -
-      FReport.PageSettings.Margins.Bottom - FooterHeight) then
-    raise EReportException.Create(
-      'A nested subreport detail row is taller than the printable page area.');
-  ClipWidth := AInnerSubReport.Bounds.Right - AInnerSubReport.Bounds.Left - 2;
-  if (ClipWidth <= 0) or (AOuterSubReport.Bounds.Left < 0) or
-     (AOuterSubReport.Bounds.Right > FReport.PageSettings.ContentWidth) or
-     (AInnerSubReport.Bounds.Left < 0) or
-     (AInnerSubReport.Bounds.Right >
-       (AOuterSubReport.Bounds.Right - AOuterSubReport.Bounds.Left)) then
-    raise EReportException.Create(
-      'Nested flat subreports must fit within the printable page width.');
-  OriginX := FReport.PageSettings.Margins.Left +
-    AOuterSubReport.Bounds.Left + AInnerSubReport.Bounds.Left + 2;
-
-  HasOuterBookmark := Vittix.Report.LayoutBookmarks.CaptureDataSetBookmark(
-    AOuterDataSet, OuterBookmark);
-  HasInnerBookmark := Vittix.Report.LayoutBookmarks.CaptureDataSetBookmark(
-    InnerDataSet, InnerBookmark);
-  InnerMasterSourceDataSet := DataSetMasterSourceDataSet(InnerDataSet);
-  if (InnerMasterSourceDataSet = AOuterDataSet) and
-     AOuterDataSet.ControlsDisabled then
-    raise EReportException.Create(
-      'Nested master/detail traversal requires outer dataset controls enabled.');
-  OuterControlsDisabledByUs :=
-    not AOuterDataSet.ControlsDisabled and
-    (InnerMasterSourceDataSet <> AOuterDataSet);
-  InnerControlsDisabledByUs := not InnerDataSet.ControlsDisabled;
-  if OuterControlsDisabledByUs then
-    AOuterDataSet.DisableControls;
-  if InnerControlsDisabledByUs then
-    InnerDataSet.DisableControls;
-  try
-    AOuterDataSet.First;
-    RowsDrawn := 0;
-    while not AOuterDataSet.Eof do
-    begin
-      if OuterMatchesMaster then
-      begin
-        InnerDataSet.First;
-        while not InnerDataSet.Eof do
-        begin
-          if InnerMatchesOuter then
-          begin
-            RowTop := 0;
-            if RowsDrawn = 0 then
-              RowTop := FirstOffset;
-            if not CheckSpace(RowTop + InnerBand.Height) then
-            begin
-              StartNewPage;
-              PrintPageHeader(True);
-              RowTop := 0;
-            end;
-            if not CheckSpace(RowTop + InnerBand.Height) then
-              raise EReportException.Create(
-                'A nested subreport detail row does not fit below the repeated page headers.');
-
-            OriginY := FCurrentY + RowTop;
-            BuildRowContext;
-            RowContext.PageNumber := FPageNumber;
-            RowContext.PageBottom := FPageHeight -
-              FReport.PageSettings.Margins.Bottom - OriginY;
-            if FIsRenderingPass then
-              AInnerSubReport.DrawPlannedRow(FCanvas, InnerBand, RowContext,
-                OriginX, OriginY, ClipWidth,
-                FPageHeight - FReport.PageSettings.Margins.Bottom - OriginY);
-            Inc(FCurrentY, RowTop + InnerBand.Height);
-            Inc(RowsDrawn);
-          end;
-          InnerDataSet.Next;
-        end;
-      end;
-      AOuterDataSet.Next;
-    end;
-  finally
-    if InnerControlsDisabledByUs then
-      InnerDataSet.EnableControls;
-    if OuterControlsDisabledByUs then
-      AOuterDataSet.EnableControls;
-    if HasInnerBookmark then
-      Vittix.Report.LayoutBookmarks.RestoreDataSetBookmark(
-        InnerDataSet, InnerBookmark, HasInnerBookmark);
-    if HasOuterBookmark then
-      Vittix.Report.LayoutBookmarks.RestoreDataSetBookmark(
-        AOuterDataSet, OuterBookmark, HasOuterBookmark);
-  end;
-end;
-
-
-procedure TReportEngine.RejectUnsupportedSubReportOverflow(
-  AParentBand: TReportBand);
-var
-  Child: TReportObject;
-  SubReport: TReportSubReportObject;
-  Context: TExpressionContext;
-begin
-  if not Assigned(AParentBand) or not Assigned(FCanvas) then
-    Exit;
-  Context := Default(TExpressionContext);
-  Context.ExpressionMode := ReportExpressionMode;
-  Context.Hooks := Self;
-  Context.DataSet := FDataSet;
-  Context.UserDataSet := FUserDataSet;
-  Context.GroupStart := FGroupStartBookmark;
-  Context.GroupEnd := FGroupEndBookmark;
-  Context.PageNumber := FPageNumber;
-  Context.TotalPages := FTotalPagesForPass;
-  Context.RowNumber := FRowNumber;
-  Context.PageBottom := FPageHeight -
-    FReport.PageSettings.Margins.Bottom - FCurrentY;
-  Context.ReportTitle := FReport.Title;
-  Context.ReportDate := FReportDate;
-  Context.Parameters := FParameters;
-  Context.Variables := FReport.Variables;
-  Context.IsCountingPass := not FIsRenderingPass;
-
-  for Child in AParentBand.Children do
-    if (Child is TReportSubReportObject) and Child.Visible then
-    begin
-      SubReport := TReportSubReportObject(Child);
-      { Only named or master-linked datasets participate in the continuation
-        contract. Unbound subreports retain their legacy measurement path. }
-      if Trim(SubReport.DataSetName) = '' then
-        Continue;
-      if SubReport.MeasuredBottom(FCanvas, Context) > SubReport.Bounds.Bottom then
-        raise EReportException.Create(
-          'This subreport content exceeds its object bounds, and its layout ' +
-          'does not support flat or nested page continuation.');
-    end;
-end;
 
 procedure TReportEngine.ProcessMasterDataLoop(
   const AActiveGroupHeader: TBooleanDynArray; AReportProgress: Boolean;

@@ -133,7 +133,7 @@ type
     function BeginRowStream(const AContext: TExpressionContext;
       AMasterBand: TObject; ADS: TDataSet; AMasterField, ADetailField: string;
       AAnchorX, AEntryCursorY, ABoundsLeft, ABoundsTop, ABoundsHeight,
-      ARowHeight: Integer): IReportNestedRowStream;
+      ABoundsRight, ARowHeight: Integer): IReportNestedRowStream;
   end;
 
   { Phase C: session token for exactly one stream (one subreport Draw

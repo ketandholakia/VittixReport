@@ -41,6 +41,9 @@ type
     FRaiseOnContinuationRow: Boolean;
     FContinuationFailureRow: Integer;
     class function BitmapsDiffer(const A, B: TBitmap): Boolean;
+    procedure AlignFailureInject(AReport: TReportModel;
+      AObject: TReportObject; const Script: string;
+      var Context: TExpressionContext);
     procedure RaiseOnContinuationObject(AReport: TReportModel;
       AObject: TReportObject; const Script: string;
       var Context: TExpressionContext; var ACanPrint: Boolean);
@@ -87,6 +90,12 @@ type
     procedure Test_SubReport_ThirdLevelUsesLegacyClippedDrawing;
     [Test]
     procedure Test_SubReport_UnsupportedOverflowAndOversizedRowsRaise;
+    [Test]
+    procedure Test_SubReport_LinkedTraversal_RequiresControlsEnabled;
+    [Test]
+    procedure Test_SubReport_FlushAlign_FailsWhenParentSnapshotLost;
+    [Test]
+    procedure Test_SubReport_FlushAlign_FailsWhenLinkParentUnresolvable;
     [Test]
     procedure Test_DP18_CrossTabTallerThanBand_NoBleedIntoNextBand;
     [Test]
@@ -1685,14 +1694,18 @@ begin
     InnerDS.FieldDefs.Add('OuterID', ftInteger);
     InnerDS.FieldDefs.Add('Marker', ftString, 32);
     InnerDS.CreateDataSet;
+    // Grouped insertion + 'OuterID;Marker' index: the detail index needs a
+    // deterministic tie-breaker, because TClientDataSet's master-link view
+    // order within equal OuterID keys is otherwise unspecified (insertion
+    // order is not preserved across master navigation). Same logical data.
     for I := 1 to 10 do
-    begin
       InnerDS.AppendRecord([10, Format('NEST-A%2.2d', [I])]);
+    for I := 1 to 10 do
       InnerDS.AppendRecord([11, Format('NEST-B%2.2d', [I])]);
+    for I := 1 to 10 do
       InnerDS.AppendRecord([20, Format('NEST-C%2.2d', [I])]);
-    end;
     OuterSrc.DataSet := OuterDS;
-    InnerDS.IndexFieldNames := 'OuterID';
+    InnerDS.IndexFieldNames := 'OuterID;Marker';
     InnerDS.MasterFields := 'ID';
     InnerDS.MasterSource := OuterSrc;
     InnerDS.First;
@@ -2081,6 +2094,478 @@ begin
     NamedDataSets.Free;
     ChildModel.Free;
     ChildDS.Free;
+  end;
+end;
+
+procedure TTestReportEngine.Test_SubReport_LinkedTraversal_RequiresControlsEnabled;
+var
+  MasterDS, ChildDS: TClientDataSet;
+  LinkSource: TDataSource;
+  NamedDataSets: TDictionary<string, TDataSet>;
+  Model, ChildModel: TReportModel;
+  MasterBand, ChildBand: TReportBand;
+  SubReport: TReportSubReportObject;
+  Marker: TReportTextObject;
+  Engine: TReportEngine;
+  Raised: Boolean;
+  I: Integer;
+begin
+  MasterDS := TClientDataSet.Create(nil);
+  ChildDS := TClientDataSet.Create(nil);
+  LinkSource := TDataSource.Create(nil);
+  NamedDataSets := TDictionary<string, TDataSet>.Create;
+  Model := TReportModel.Create;
+  ChildModel := TReportModel.Create;
+  try
+    MasterDS.FieldDefs.Add('ID', ftInteger);
+    MasterDS.CreateDataSet;
+    MasterDS.AppendRecord([1]);
+    MasterDS.First;
+
+    ChildDS.FieldDefs.Add('ID', ftInteger);
+    ChildDS.FieldDefs.Add('ParentID', ftInteger);
+    ChildDS.FieldDefs.Add('Label', ftString, 32);
+    ChildDS.CreateDataSet;
+    for I := 1 to 5 do
+      ChildDS.AppendRecord([I, 1, Format('LINKED-%2.2d', [I])]);
+    ChildDS.First;
+
+    // Master-linked child dataset whose controls the host suspended: the
+    // engine must reject the traversal contract loudly instead of silently
+    // re-enabling controls it did not disable.
+    LinkSource.DataSet := MasterDS;
+    ChildDS.MasterSource := LinkSource;
+    ChildDS.IndexFieldNames := 'ParentID';
+    ChildDS.DisableControls;
+    NamedDataSets.Add('ChildRows', ChildDS);
+
+    ChildBand := TReportBand.Create;
+    ChildBand.BandType := btMasterData;
+    ChildBand.Height := 30;
+    Marker := TReportTextObject.Create;
+    Marker.DataField := 'Label';
+    Marker.Bounds := Rect(2, 2, 190, 26);
+    ChildBand.Children.Add(Marker);
+    ChildModel.Objects.Add(ChildBand);
+
+    MasterBand := TReportBand.Create;
+    MasterBand.BandType := btMasterData;
+    MasterBand.Height := 40;
+    SubReport := TReportSubReportObject.Create;
+    SubReport.ReportJSON := TReportSerializer.SaveToJSON(ChildModel);
+    SubReport.DataSetName := 'ChildRows';
+    SubReport.MasterField := 'ID';
+    SubReport.DetailField := 'ParentID';
+    SubReport.Bounds := Rect(4, 2, 250, 102);
+    SubReport.Transparent := True;
+    SubReport.BorderVisible := False;
+    MasterBand.Children.Add(SubReport);
+    Model.Objects.Add(MasterBand);
+
+    Engine := TReportEngine.Create(Model, MasterDS, NamedDataSets, nil);
+    try
+      Raised := False;
+      try
+        Engine.Prepare;
+      except
+        on E: EReportException do
+          Raised := Pos('requires master and detail controls enabled',
+            E.Message) > 0;
+      end;
+      Assert.IsTrue(Raised,
+        'linked traversal with suspended dataset controls fails clearly');
+    finally
+      Engine.Free;
+    end;
+  finally
+    NamedDataSets.Free;
+    ChildModel.Free;
+    Model.Free;
+    LinkSource.Free;
+    ChildDS.Free;
+    MasterDS.Free;
+  end;
+end;
+
+procedure TTestReportEngine.AlignFailureInject(AReport: TReportModel;
+  AObject: TReportObject; const Script: string;
+  var Context: TExpressionContext);
+var
+  ParentDS: TDataSet;
+begin
+  if (not Context.IsCountingPass) and (Context.DataSet <> nil) and
+     (Context.DataSet <> FDataSet) and
+     (Context.DataSet.FieldByName('Marker').AsString = 'NEST-B07') then
+  begin
+    // NEST-B07 is the first flush-painted row of outer row 2's deferred
+    // stream. Mutating its parent link value AFTER that row painted makes
+    // the stream's captured snapshot (MasterValue = 11) unalignable for the
+    // NEXT flush alignment: the flush must refuse to render the unrelated
+    // live view (counted via StreamAlignFailures) instead of substituting
+    // another parent row's data.
+    ParentDS := (Context.DataSet as TClientDataSet).MasterSource.DataSet;
+    ParentDS.Edit;
+    ParentDS.FieldByName('ID').AsInteger := 99;
+    ParentDS.Post;
+  end;
+end;
+
+procedure TTestReportEngine.Test_SubReport_FlushAlign_FailsWhenParentSnapshotLost;
+var
+  MasterDS, OuterDS, InnerDS: TClientDataSet;
+  MasterSrc, OuterSrc: TDataSource;
+  NamedDataSets: TDictionary<string, TDataSet>;
+  Model, OuterModel, InnerModel: TReportModel;
+  MasterBand, OuterBand, InnerBand: TReportBand;
+  OuterSubReport, InnerSubReport: TReportSubReportObject;
+  Marker: TReportTextObject;
+  Engine: TReportEngine;
+  ExportDoc: TReportExportDocument;
+  Page: TReportExportPage;
+  Command: TReportExportCommand;
+  TextCommand: TReportExportTextCommand;
+  Counts: TDictionary<string, Integer>;
+  ExpectedMarker: string;
+  Raised: Boolean;
+  V: Integer;
+  I: Integer;
+begin
+  MasterDS := TClientDataSet.Create(nil);
+  OuterDS := TClientDataSet.Create(nil);
+  InnerDS := TClientDataSet.Create(nil);
+  MasterSrc := TDataSource.Create(nil);
+  OuterSrc := TDataSource.Create(nil);
+  NamedDataSets := TDictionary<string, TDataSet>.Create;
+  Model := TReportModel.Create;
+  OuterModel := TReportModel.Create;
+  InnerModel := TReportModel.Create;
+  ExportDoc := TReportExportDocument.Create;
+  try
+    MasterDS.FieldDefs.Add('ID', ftInteger);
+    MasterDS.CreateDataSet;
+    MasterDS.AppendRecord([1]);
+    MasterDS.First;
+
+    OuterDS.FieldDefs.Add('ID', ftInteger);
+    OuterDS.FieldDefs.Add('MasterID', ftInteger);
+    OuterDS.CreateDataSet;
+    OuterDS.AppendRecord([10, 1]);
+    OuterDS.AppendRecord([11, 1]);
+    OuterDS.AppendRecord([20, 1]);
+    MasterSrc.DataSet := MasterDS;
+    OuterDS.IndexFieldNames := 'MasterID';
+    OuterDS.MasterFields := 'ID';
+    OuterDS.MasterSource := MasterSrc;
+    OuterDS.First;
+    NamedDataSets.Add('OuterRows', OuterDS);
+
+    InnerDS.FieldDefs.Add('OuterID', ftInteger);
+    InnerDS.FieldDefs.Add('Marker', ftString, 32);
+    InnerDS.CreateDataSet;
+    for I := 1 to 10 do
+      InnerDS.AppendRecord([10, Format('NEST-A%2.2d', [I])]);
+    for I := 1 to 10 do
+      InnerDS.AppendRecord([11, Format('NEST-B%2.2d', [I])]);
+    for I := 1 to 10 do
+      InnerDS.AppendRecord([20, Format('NEST-C%2.2d', [I])]);
+    OuterSrc.DataSet := OuterDS;
+    InnerDS.IndexFieldNames := 'OuterID;Marker';
+    InnerDS.MasterFields := 'ID';
+    InnerDS.MasterSource := OuterSrc;
+    InnerDS.First;
+    NamedDataSets.Add('InnerRows', InnerDS);
+
+    InnerBand := TReportBand.Create;
+    InnerBand.BandType := btMasterData;
+    InnerBand.Height := 60;   // tall rows: the inner stream defers mid-group,
+    Marker := TReportTextObject.Create;   // so the band-boundary flush runs
+    Marker.DataField := 'Marker';
+    Marker.Bounds := Rect(4, 4, 180, 26);
+    Marker.OnAfterPrint := 'align-inject';   // fires after the row captured its command
+    InnerBand.Children.Add(Marker);
+    InnerModel.Objects.Add(InnerBand);
+
+    OuterBand := TReportBand.Create;
+    OuterBand.BandType := btMasterData;
+    OuterBand.Height := 40;
+    InnerSubReport := TReportSubReportObject.Create;
+    InnerSubReport.ReportJSON := TReportSerializer.SaveToJSON(InnerModel);
+    InnerSubReport.DataSetName := 'InnerRows';
+    InnerSubReport.MasterField := 'ID';
+    InnerSubReport.DetailField := 'OuterID';
+    InnerSubReport.Bounds := Rect(5, 2, 250, 170);
+    InnerSubReport.Transparent := True;
+    InnerSubReport.BorderVisible := False;
+    OuterBand.Children.Add(InnerSubReport);
+    OuterModel.Objects.Add(OuterBand);
+
+    MasterBand := TReportBand.Create;
+    MasterBand.BandType := btMasterData;
+    MasterBand.Height := 40;
+    MasterBand.CanGrow := True;
+    OuterSubReport := TReportSubReportObject.Create;
+    OuterSubReport.ReportJSON := TReportSerializer.SaveToJSON(OuterModel);
+    OuterSubReport.DataSetName := 'OuterRows';
+    OuterSubReport.MasterField := 'ID';
+    OuterSubReport.DetailField := 'MasterID';
+    OuterSubReport.Bounds := Rect(5, 2, 260, 170);
+    OuterSubReport.Transparent := True;
+    OuterSubReport.BorderVisible := False;
+    MasterBand.Children.Add(OuterSubReport);
+    Model.Objects.Add(MasterBand);
+    Model.PageSettings.PaperSize := psCustom;
+    Model.PageSettings.CustomWidth := 400;
+    Model.PageSettings.CustomHeight := 500;
+    Model.PageSettings.Margins := TReportMargins.Default;
+
+    TReportTraversalDiagnostics.Reset;
+    Engine := TReportEngine.Create(Model, MasterDS, NamedDataSets, nil);
+    try
+      Engine.ExportDocument := ExportDoc;
+      Engine.ScriptEngine.OnObjectAfterPrint := AlignFailureInject;
+
+      // The flush aligned outer row 2's inner stream, painted NEST-B07, and
+      // the injected after-print handler changed that parent row's link
+      // value; the NEXT flush alignment cannot locate the captured snapshot
+      // and must FAIL the report explicitly instead of silently omitting
+      // rows or rendering the unrelated live view (whose rows belong to
+      // outer row 3).
+      Raised := False;
+      try
+        Engine.Prepare;
+      except
+        on E: EReportException do
+          Raised := Pos('snapshot cannot be aligned', E.Message) > 0;
+      end;
+      Assert.IsTrue(Raised,
+        'unalignable snapshot must fail the report explicitly with a ' +
+        'snapshot-alignment diagnostic');
+
+      Assert.AreEqual(1, TReportTraversalDiagnostics.Snapshot.StreamAlignFailures,
+        'the alignment failure must also be counted');
+
+      Counts := TDictionary<string, Integer>.Create;
+      try
+        for Page in ExportDoc.Pages do
+          for Command in Page.Commands do
+            if Command is TReportExportTextCommand then
+            begin
+              TextCommand := TReportExportTextCommand(Command);
+              if Pos('NEST-', TextCommand.Text) > 0 then
+              begin
+                if not Counts.TryGetValue(TextCommand.Text, V) then
+                  V := 0;
+                Counts.AddOrSetValue(TextCommand.Text, V + 1);
+              end;
+            end;
+        // No duplicates anywhere.
+        for ExpectedMarker in Counts.Keys do
+        begin
+          Counts.TryGetValue(ExpectedMarker, V);
+          Assert.AreEqual(1, V,
+            Format('%s must not be rendered more than once', [ExpectedMarker]));
+        end;
+        // Rows painted before the failure render exactly once.
+        for I := 1 to 10 do
+        begin
+          ExpectedMarker := Format('NEST-A%2.2d', [I]);
+          Assert.IsTrue(Counts.TryGetValue(ExpectedMarker, V) and (V = 1),
+            Format('%s must render exactly once before the failure', [ExpectedMarker]));
+        end;
+        for I := 1 to 7 do
+        begin
+          ExpectedMarker := Format('NEST-B%2.2d', [I]);
+          Assert.IsTrue(Counts.TryGetValue(ExpectedMarker, V) and (V = 1),
+            Format('%s must render exactly once before the failure', [ExpectedMarker]));
+        end;
+        // NEST-B08..B10 (unalignable stream) and all outer row 3 rows are
+        // intentionally absent: rendering them from the unrelated live view
+        // is exactly what the fail-fast contract forbids.
+        for I := 8 to 10 do
+        begin
+          ExpectedMarker := Format('NEST-B%2.2d', [I]);
+          Assert.IsFalse(Counts.TryGetValue(ExpectedMarker, V) and (V > 0),
+            Format('%s must not be rendered from an unrelated parent view', [ExpectedMarker]));
+        end;
+        for I := 1 to 10 do
+        begin
+          ExpectedMarker := Format('NEST-C%2.2d', [I]);
+          Assert.IsFalse(Counts.TryGetValue(ExpectedMarker, V) and (V > 0),
+            Format('%s (next parent row) must not be rendered after the abort', [ExpectedMarker]));
+        end;
+      finally
+        Counts.Free;
+      end;
+
+      // Exception-safe stream release: PrintBand's finally released the
+      // streams (bookmarks freed, dataset positions restored, controls
+      // re-enabled) before the exception reached the caller.
+      Assert.IsFalse(MasterDS.ControlsDisabled,
+        'stream release must leave the master controls enabled');
+      Assert.IsFalse(OuterDS.ControlsDisabled,
+        'stream release must re-enable the linked parent controls');
+      Assert.IsFalse(InnerDS.ControlsDisabled,
+        'stream release must re-enable detail controls');
+      Assert.AreEqual(1, MasterDS.RecNo, 'master dataset position restored');
+      Assert.AreEqual(1, OuterDS.RecNo, 'linked parent dataset position restored');
+      Assert.AreEqual(1, InnerDS.RecNo, 'inner dataset position restored');
+    finally
+      Engine.Free;
+    end;
+  finally
+    ExportDoc.Free;
+    Model.Free;
+    OuterModel.Free;
+    InnerModel.Free;
+    NamedDataSets.Free;
+    OuterSrc.Free;
+    MasterSrc.Free;
+    InnerDS.Free;
+    OuterDS.Free;
+    MasterDS.Free;
+  end;
+end;
+
+procedure TTestReportEngine.Test_SubReport_FlushAlign_FailsWhenLinkParentUnresolvable;
+var
+  MasterDS, OuterDS, InnerDS: TClientDataSet;
+  MasterSrc, OuterSrc: TDataSource;
+  NamedDataSets: TDictionary<string, TDataSet>;
+  Model, OuterModel, InnerModel: TReportModel;
+  MasterBand, OuterBand, InnerBand: TReportBand;
+  OuterSubReport, InnerSubReport: TReportSubReportObject;
+  Marker: TReportTextObject;
+  Engine: TReportEngine;
+  ExportDoc: TReportExportDocument;
+  Raised: Boolean;
+  I: Integer;
+begin
+  // A dataset with an ASSIGNED MasterSource whose parent cannot be resolved
+  // is a broken linked stream, not an unlinked one: the flush must fail the
+  // report instead of silently proceeding as if no alignment were needed.
+  MasterDS := TClientDataSet.Create(nil);
+  OuterDS := TClientDataSet.Create(nil);
+  InnerDS := TClientDataSet.Create(nil);
+  MasterSrc := TDataSource.Create(nil);
+  OuterSrc := TDataSource.Create(nil);
+  NamedDataSets := TDictionary<string, TDataSet>.Create;
+  Model := TReportModel.Create;
+  OuterModel := TReportModel.Create;
+  InnerModel := TReportModel.Create;
+  ExportDoc := TReportExportDocument.Create;
+  try
+    MasterDS.FieldDefs.Add('ID', ftInteger);
+    MasterDS.CreateDataSet;
+    MasterDS.AppendRecord([1]);
+    MasterDS.First;
+
+    OuterDS.FieldDefs.Add('ID', ftInteger);
+    OuterDS.FieldDefs.Add('MasterID', ftInteger);
+    OuterDS.CreateDataSet;
+    OuterDS.AppendRecord([10, 1]);
+    OuterDS.AppendRecord([11, 1]);
+    OuterDS.AppendRecord([20, 1]);
+    MasterSrc.DataSet := MasterDS;
+    OuterDS.IndexFieldNames := 'MasterID';
+    OuterDS.MasterFields := 'ID';
+    OuterDS.MasterSource := MasterSrc;
+    OuterDS.First;
+    NamedDataSets.Add('OuterRows', OuterDS);
+
+    InnerDS.FieldDefs.Add('OuterID', ftInteger);
+    InnerDS.FieldDefs.Add('Marker', ftString, 32);
+    InnerDS.CreateDataSet;
+    for I := 1 to 10 do
+      InnerDS.AppendRecord([10, Format('NEST-A%2.2d', [I])]);
+    for I := 1 to 10 do
+      InnerDS.AppendRecord([11, Format('NEST-B%2.2d', [I])]);
+    for I := 1 to 10 do
+      InnerDS.AppendRecord([20, Format('NEST-C%2.2d', [I])]);
+    OuterSrc.DataSet := OuterDS;
+    InnerDS.IndexFieldNames := 'OuterID;Marker';
+    InnerDS.MasterFields := 'ID';
+    InnerDS.MasterSource := OuterSrc;
+    InnerDS.First;
+    NamedDataSets.Add('InnerRows', InnerDS);
+
+    // BREAK the link after both datasets are set up: the MasterSource stays
+    // assigned, but its parent dataset reference is cleared.
+    OuterSrc.DataSet := nil;
+
+    InnerBand := TReportBand.Create;
+    InnerBand.BandType := btMasterData;
+    InnerBand.Height := 60;   // tall rows: the inner stream defers and the
+    Marker := TReportTextObject.Create;   // band-boundary flush runs
+    Marker.DataField := 'Marker';
+    Marker.Bounds := Rect(4, 4, 180, 26);
+    InnerBand.Children.Add(Marker);
+    InnerModel.Objects.Add(InnerBand);
+
+    OuterBand := TReportBand.Create;
+    OuterBand.BandType := btMasterData;
+    OuterBand.Height := 40;
+    InnerSubReport := TReportSubReportObject.Create;
+    InnerSubReport.ReportJSON := TReportSerializer.SaveToJSON(InnerModel);
+    InnerSubReport.DataSetName := 'InnerRows';
+    InnerSubReport.MasterField := 'ID';
+    InnerSubReport.DetailField := 'OuterID';
+    InnerSubReport.Bounds := Rect(5, 2, 250, 170);
+    InnerSubReport.Transparent := True;
+    InnerSubReport.BorderVisible := False;
+    OuterBand.Children.Add(InnerSubReport);
+    OuterModel.Objects.Add(OuterBand);
+
+    MasterBand := TReportBand.Create;
+    MasterBand.BandType := btMasterData;
+    MasterBand.Height := 40;
+    MasterBand.CanGrow := True;
+    OuterSubReport := TReportSubReportObject.Create;
+    OuterSubReport.ReportJSON := TReportSerializer.SaveToJSON(OuterModel);
+    OuterSubReport.DataSetName := 'OuterRows';
+    OuterSubReport.MasterField := 'ID';
+    OuterSubReport.DetailField := 'MasterID';
+    OuterSubReport.Bounds := Rect(5, 2, 260, 170);
+    OuterSubReport.Transparent := True;
+    OuterSubReport.BorderVisible := False;
+    MasterBand.Children.Add(OuterSubReport);
+    Model.Objects.Add(MasterBand);
+    Model.PageSettings.PaperSize := psCustom;
+    Model.PageSettings.CustomWidth := 400;
+    Model.PageSettings.CustomHeight := 500;
+    Model.PageSettings.Margins := TReportMargins.Default;
+
+    TReportTraversalDiagnostics.Reset;
+    Engine := TReportEngine.Create(Model, MasterDS, NamedDataSets, nil);
+    try
+      Engine.ExportDocument := ExportDoc;
+      Raised := False;
+      try
+        Engine.Prepare;
+      except
+        on E: EReportException do
+          Raised := Pos('snapshot cannot be aligned', E.Message) > 0;
+      end;
+      Assert.IsTrue(Raised,
+        'an assigned-but-unresolvable MasterSource must fail the report, ' +
+        'not proceed as an unlinked stream');
+      Assert.IsTrue(TReportTraversalDiagnostics.Snapshot.StreamAlignFailures >= 1,
+        'the broken-link failure must be counted');
+      Assert.IsFalse(InnerDS.ControlsDisabled,
+        'stream release must re-enable detail controls');
+    finally
+      Engine.Free;
+    end;
+  finally
+    ExportDoc.Free;
+    Model.Free;
+    OuterModel.Free;
+    InnerModel.Free;
+    NamedDataSets.Free;
+    OuterSrc.Free;
+    MasterSrc.Free;
+    InnerDS.Free;
+    OuterDS.Free;
+    MasterDS.Free;
   end;
 end;
 
