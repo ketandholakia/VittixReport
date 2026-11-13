@@ -87,9 +87,9 @@ type
     [Test]
     procedure Test_SubReport_NestedRowsContinueAcrossOrdinaryPages;
     [Test]
-    procedure Test_SubReport_ThirdLevelUsesLegacyClippedDrawing;
+    procedure Test_SubReport_ThreeLevelNesting_StreamsAndRestores;
     [Test]
-    procedure Test_SubReport_UnsupportedOverflowAndOversizedRowsRaise;
+    procedure Test_SubReport_OverflowPagination_AndOversizedRowsForcedBreakClip;
     [Test]
     procedure Test_SubReport_LinkedTraversal_RequiresControlsEnabled;
     [Test]
@@ -1854,7 +1854,7 @@ begin
   end;
 end;
 
-procedure TTestReportEngine.Test_SubReport_ThirdLevelUsesLegacyClippedDrawing;
+procedure TTestReportEngine.Test_SubReport_ThreeLevelNesting_StreamsAndRestores;
 var
   MasterDS, ChildDS, GrandDS, LeafDS: TClientDataSet;
   NamedDataSets: TDictionary<string, TDataSet>;
@@ -1865,7 +1865,9 @@ var
   Engine: TReportEngine;
   ExportDoc: TReportExportDocument;
   Values: TStringList;
+  Page: TReportExportPage;
   Command: TReportExportCommand;
+  TextCommand: TReportExportTextCommand;
   I: Integer;
 begin
   MasterDS := TClientDataSet.Create(nil);
@@ -1968,31 +1970,38 @@ begin
       Engine.ExportDocument := ExportDoc;
       Engine.Prepare;
 
-      Assert.AreEqual(1, Engine.PageCount,
-        'third-level nesting remains on the legacy atomic drawing path');
-      for Command in ExportDoc.Pages[0].Commands do
-        if Command is TReportExportTextCommand then
-          if Copy(TReportExportTextCommand(Command).Text, 1, 7) = 'LEGACY-' then
-            Values.Add(TReportExportTextCommand(Command).Text);
-      Assert.AreEqual(3, Values.Count,
-        'legacy nested drawing stops at the grandchild subreport object bounds');
+      // Approved Phase-2 contract: third-level nesting streams through the
+      // planner/stream architecture (same envelope the accepted suite uses:
+      // bounded page count, every row exactly once, datasets restored).
+      Assert.IsTrue(Engine.PageCount <= 12,
+        'three-level streaming stays within the accepted page-count envelope');
+      for Page in ExportDoc.Pages do
+        for Command in Page.Commands do
+          if Command is TReportExportTextCommand then
+          begin
+            TextCommand := TReportExportTextCommand(Command);
+            if Copy(TextCommand.Text, 1, 7) = 'LEGACY-' then
+              Values.Add(TextCommand.Text);
+          end;
+      Assert.AreEqual(10, Values.Count,
+        'every leaf row is streamed exactly once across all nesting levels');
       for I := 1 to Values.Count do
         Assert.AreEqual(Format('LEGACY-%2.2d', [I]), Values[I - 1],
-          'legacy clipped fallback preserves the visible prefix in dataset order');
+          'streaming preserves the leaf rows in dataset order');
       Assert.AreEqual(1, MasterDS.RecNo,
-        'legacy fallback restores the primary dataset position');
+        'streaming restores the primary dataset position');
       Assert.AreEqual(1, ChildDS.RecNo,
-        'legacy fallback restores the child dataset position');
+        'streaming restores the child dataset position');
       Assert.AreEqual(1, GrandDS.RecNo,
-        'legacy fallback restores the grandchild dataset position');
+        'streaming restores the grandchild dataset position');
       Assert.AreEqual(1, LeafDS.RecNo,
-        'legacy fallback restores the leaf dataset position');
+        'streaming restores the leaf dataset position');
       Assert.IsFalse(ChildDS.ControlsDisabled,
-        'legacy fallback restores child controls');
+        'streaming restores child controls');
       Assert.IsFalse(GrandDS.ControlsDisabled,
-        'legacy fallback restores grandchild controls');
+        'streaming restores grandchild controls');
       Assert.IsFalse(LeafDS.ControlsDisabled,
-        'legacy fallback restores leaf controls');
+        'streaming restores leaf controls');
     finally
       Engine.Free;
     end;
@@ -2012,7 +2021,7 @@ begin
 end;
 
 
-procedure TTestReportEngine.Test_SubReport_UnsupportedOverflowAndOversizedRowsRaise;
+procedure TTestReportEngine.Test_SubReport_OverflowPagination_AndOversizedRowsForcedBreakClip;
 var
   ChildDS: TClientDataSet;
   NamedDataSets: TDictionary<string, TDataSet>;
@@ -2021,16 +2030,24 @@ var
   SubReport: TReportSubReportObject;
   Marker: TReportTextObject;
   Engine: TReportEngine;
-  Raised: Boolean;
+  ExportDoc, ExportDoc2: TReportExportDocument;
+  Page: TReportExportPage;
+  Command: TReportExportCommand;
+  TextCommand: TReportExportTextCommand;
+  MarkerCount: Integer;
+  MarkerCounts: TDictionary<string, Integer>;
+  ExpectedMarker: string;
+  V: Integer;
   I: Integer;
 begin
   ChildDS := TClientDataSet.Create(nil);
   NamedDataSets := TDictionary<string, TDataSet>.Create;
   ChildModel := TReportModel.Create;
+  ExportDoc := TReportExportDocument.Create;
   try
     ChildDS.FieldDefs.Add('Marker', ftString, 32);
     ChildDS.CreateDataSet;
-    for I := 1 to 10 do
+    for I := 1 to 30 do
       ChildDS.AppendRecord([Format('OVERFLOW-%2.2d', [I])]);
     ChildDS.First;
     NamedDataSets.Add('OverflowRows', ChildDS);
@@ -2047,7 +2064,7 @@ begin
     MasterBand := TReportBand.Create;
     MasterBand.BandType := btMasterData;
     MasterBand.Height := 40;
-    MasterBand.CanGrow := False; // makes continuation unsupported
+    MasterBand.CanGrow := False; // layout the field-based continuation declined
     SubReport := TReportSubReportObject.Create;
     SubReport.ReportJSON := TReportSerializer.SaveToJSON(ChildModel);
     SubReport.DataSetName := 'OverflowRows';
@@ -2057,18 +2074,41 @@ begin
     MasterBand.Children.Add(SubReport);
     FReport.Objects.Add(MasterBand);
 
+    // Small custom page so the streamed overflow genuinely crosses page
+    // boundaries (same fixture geometry as the PageBoundary tests).
+    FReport.PageSettings.PaperSize := psCustom;
+    FReport.PageSettings.CustomWidth := 400;
+    FReport.PageSettings.CustomHeight := 500;
+    FReport.PageSettings.Margins := TReportMargins.Default;
+
     Engine := TReportEngine.Create(FReport, FDataSet, NamedDataSets, nil);
     try
-      Raised := False;
-      try
-        Engine.Prepare;
-      except
-        on E: EReportException do
-          Raised := Pos('does not support flat or nested page continuation',
-            E.Message) > 0;
+      Engine.ExportDocument := ExportDoc;
+      Engine.Prepare;
+
+      // Approved contract change (planner/stream architecture): the layout
+      // the field-based continuation declined now streams and paginates.
+      Assert.IsTrue(Engine.PageCount > 1,
+        'overflowing subreport content must paginate instead of raising');
+      Assert.AreEqual(Engine.PageCount, ExportDoc.Pages.Count,
+        'counting and rendering passes must agree on the page count');
+      MarkerCount := 0;
+      for Page in ExportDoc.Pages do
+      begin
+        Assert.IsTrue(Page.Commands.Count > 0,
+          'subreport pagination must not introduce a blank page');
+        for Command in Page.Commands do
+          if Command is TReportExportTextCommand then
+          begin
+            TextCommand := TReportExportTextCommand(Command);
+            if Pos('OVERFLOW-', TextCommand.Text) > 0 then
+              Inc(MarkerCount);
+          end;
       end;
-      Assert.IsTrue(Raised,
-        'overflow in an unsupported parent layout fails clearly instead of clipping rows');
+      Assert.AreEqual(FDataSet.RecordCount * 30, MarkerCount,
+        'every subreport row must be rendered exactly once per master record');
+      Assert.AreEqual(1, ChildDS.RecNo,
+        'subreport dataset position must be restored after streaming');
     finally
       Engine.Free;
     end;
@@ -2076,21 +2116,58 @@ begin
     MasterBand.CanGrow := True;
     ChildBand.Height := 2000;
     SubReport.ReportJSON := TReportSerializer.SaveToJSON(ChildModel);
+    // Accepted planner/stream contract for oversized rows: a row taller than
+    // one printable page is terminated by a single forced break and clipped
+    // (mirrors Test_FlatStreaming_OversizedRow_SingleForcedBreak_NoLoop).
+    // Page-count bound, derived from that lifecycle: every oversized row
+    // consumes at most two pages (one forced-break page + one clipped-paint
+    // page), plus at most one lead page and at most one blank page per
+    // master record. For childRows=30 x masterRows=3 that is
+    // 1 + 2*90 + 3 = 184 - a finite, content-derived bound, not a magic
+    // number. The empirically observed count for this fixture is ~93.
+    ExportDoc2 := TReportExportDocument.Create;
     Engine := TReportEngine.Create(FReport, FDataSet, NamedDataSets, nil);
     try
-      Raised := False;
+      Engine.ExportDocument := ExportDoc2;
+      Engine.Prepare;
+      Assert.IsTrue(Engine.PageCount <= 1 + 2 * (30 * FDataSet.RecordCount) + FDataSet.RecordCount,
+        'oversized rows terminate via forced breaks: bounded, content-derived page count');
+      // Per-marker occurrence counts: each of OVERFLOW-01..OVERFLOW-30 must
+      // appear exactly once per master record. Per-marker counting means a
+      // duplicated marker and a missing marker cannot cancel each other out
+      // inside an aggregate total.
+      MarkerCounts := TDictionary<string, Integer>.Create;
       try
-        Engine.Prepare;
-      except
-        on E: EReportException do
-          Raised := Pos('taller than the printable page area', E.Message) > 0;
+        for Page in ExportDoc2.Pages do
+          for Command in Page.Commands do
+            if Command is TReportExportTextCommand then
+            begin
+              TextCommand := TReportExportTextCommand(Command);
+              if Pos('OVERFLOW-', TextCommand.Text) > 0 then
+              begin
+                if not MarkerCounts.TryGetValue(TextCommand.Text, V) then
+                  V := 0;
+                MarkerCounts.AddOrSetValue(TextCommand.Text, V + 1);
+              end;
+            end;
+        for I := 1 to 30 do
+        begin
+          ExpectedMarker := Format('OVERFLOW-%2.2d', [I]);
+          MarkerCounts.TryGetValue(ExpectedMarker, V);
+          Assert.AreEqual(FDataSet.RecordCount, V,
+            Format('%s must be clipped-painted exactly once per master record', [ExpectedMarker]));
+        end;
+      finally
+        MarkerCounts.Free;
       end;
-      Assert.IsTrue(Raised,
-        'a continuation row taller than one printable page is rejected explicitly');
+      Assert.AreEqual(1, ChildDS.RecNo,
+        'oversized-row streams restore the subreport dataset position');
     finally
       Engine.Free;
+      ExportDoc2.Free;
     end;
   finally
+    ExportDoc.Free;
     NamedDataSets.Free;
     ChildModel.Free;
     ChildDS.Free;
