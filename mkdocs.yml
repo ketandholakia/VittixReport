@@ -129,6 +129,7 @@ nav:
       - User manual: user-manual.md
       - Developer manual: developer-manual.md
       - Testing: testing.md
+      - CI status policy: ci-status-policy.md
   - Reference:
       - Report events: EVENTS.md
       - Designer: designer.md
