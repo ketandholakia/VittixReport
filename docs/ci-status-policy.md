@@ -60,6 +60,15 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\ci_gate.ps1 -IncludePa
 
 ### What a dispatch run is — and is not
 
+- With zero registered runners on the repository, a dispatched run finds no
+  runner matching its `[self-hosted, windows, delphi]` labels and will remain
+  queued indefinitely, executing nothing. Dispatching the workflow is therefore
+  **not equivalent to successful validation**.
+- No Delphi validation is currently executable through GitHub Actions. Delphi
+  evidence can only come from a completed dispatch run after written licensing
+  approval and runner registration — which remains **prohibited until the
+  prerequisites below are satisfied** — or from a completed local gate on a
+  properly licensed developer machine.
 - A dispatch run is a separate `workflow_dispatch` event. It is **not** a pull
   request status check: GitHub will not show it in the PR merge box, and its
   result never gates merging.
