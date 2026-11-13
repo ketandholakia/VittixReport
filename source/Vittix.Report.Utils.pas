@@ -32,6 +32,13 @@ uses
 function DataSetSupportsBookmarks(ADataSet: TDataSet): Boolean;
 
 /// <summary>
+///   True when the dataset is master-linked through a MasterSource property
+///   (TClientDataSet / SQL datasets). Master-linked details re-range when
+///   their parent scrolls, which streamed traversal must not suppress.
+/// </summary>
+function DataSetHasMasterSource(ADataSet: TDataSet): Boolean;
+
+/// <summary>
 ///   Safe wrapper around TDataSet.RecordCount.
 ///   Some datasets (e.g. unidirectional cursors) raise an exception when
 ///   RecordCount is accessed; this function returns 0 in that case.
@@ -136,6 +143,7 @@ implementation
 
 uses
   System.Classes,
+  System.TypInfo,
   Vittix.Report.UserDataSet
 {$IFDEF DEBUG}
   , Winapi.Windows
@@ -191,6 +199,17 @@ end;
 // ---------------------------------------------------------------------------
 // Dataset helpers
 // ---------------------------------------------------------------------------
+
+function DataSetHasMasterSource(ADataSet: TDataSet): Boolean;
+var
+  PropInfo: PPropInfo;
+begin
+  Result := False;
+  if not Assigned(ADataSet) then
+    Exit;
+  PropInfo := GetPropInfo(ADataSet, 'MasterSource');
+  Result := Assigned(PropInfo) and (GetObjectProp(ADataSet, PropInfo) is TDataSource);
+end;
 
 function DataSetSupportsBookmarks(ADataSet: TDataSet): Boolean;
 var
