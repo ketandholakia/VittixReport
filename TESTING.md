@@ -25,7 +25,7 @@ self-hosted Windows runner with RAD Studio installed. The workflow is
 licensed self-hosted runner is currently registered and Delphi
 unattended/build-server licensing is unresolved. A dispatch run is not a PR
 status check; verify the run's commit SHA and record the evidence per the
-[CI status policy](ci-status-policy.md). See
+[CI status policy](docs/ci-status-policy.md). See
 `docs/archive/Phase5-Quality-Benchmark-CI.md` for the gate contract.
 
 **Known hazard — incremental builds (stale binary).** The gate builds with

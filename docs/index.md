@@ -121,9 +121,9 @@ Recorded against `96197c1` (`main`), with the modernization baseline tagged
     licensed self-hosted runner is registered and Delphi unattended/build-server
     licensing is unresolved, so push-triggered Delphi runs would queue forever.
     Licensing-independent checks (hygiene, consistency, documentation) run
-    automatically via `.github/workflows/repo-hygiene.yml` (see **PR #10** if
-    not yet merged). Treat the local gate above as the authoritative Delphi
-    verification, and record it per the
+    automatically via `.github/workflows/repo-hygiene.yml` (merged with
+    **PR #10**). They do not replace Delphi validation. Treat the local gate
+    above as the authoritative Delphi verification, and record it per the
     [CI status policy](ci-status-policy.md) — automatic Delphi triggers may be
     restored only after written licensing approval and runner qualification.
 

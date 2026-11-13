@@ -25,9 +25,10 @@ dependencies:
 | `Consistency (dpr registrations, baselines JSON, YAML config)` | test-project unit registrations resolve to files, `reports/regression_baselines.json` parses, workflow and `mkdocs.yml` YAML parses |
 | `Documentation (mkdocs build)` | the MkDocs documentation site builds |
 
-**Merge dependency:** the hosted workflow lands on `main` through **PR #10**.
-Until PR #10 merges, no automatic checks exist on `main` and PRs will not show
-the three checks above.
+**Availability:** the hosted workflow reached `main` through **PR #10**
+(`5cb9601`). Before that merge no automatic checks existed on `main` and pull
+requests did not show the three checks above; that is historical context only —
+all three run automatically now.
 
 **These checks are not required by branch protection.** As of 2026-11-13 the
 `main` branch protection has no required status checks (the `gate` requirement
@@ -35,6 +36,25 @@ was removed by owner decision on 2026-10-25, see
 [the release status record](Release-Status-Record-2026-10-25.md)). Whether the
 three hosted checks are configured as required checks is a separate owner
 decision; if it is taken, this page must be updated.
+
+### What the hosted checks do not cover
+
+Passing the hosted repository-hygiene checks does **not** replace, and does not
+constitute, Delphi build/test validation. These checks run independently of
+Delphi licensing and verify repository hygiene, consistency and documentation
+only. They do **not**:
+
+- compile Pascal source (runtime package, design package, designer, demo);
+- execute the DUnitX suite or `VittixRunner --strict`;
+- validate package, designer/demo or Firebird integration behaviour.
+
+Delphi compilation, DUnitX, strict-runner, package, designer/demo and — where
+the change class calls for it — Firebird integration evidence must still be
+produced as set out in *Change-class policy* below. That table governs how much
+Delphi evidence a given change needs; this boundary adds no requirement to
+routine changes. A dispatch run that finds no matching runner stays queued and
+is equally not successful validation (see *What a dispatch run is — and is
+not* below).
 
 ## Manual Delphi gate (Build and Test)
 
