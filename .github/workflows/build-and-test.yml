@@ -20,14 +20,22 @@
 # GATES ARE STRUCTURAL: page counts (reports/regression_baselines.json) and
 # traversal counters (TReportTraversalDiagnostics) decide pass/fail. Wall-clock
 # timings are informational only (`build\phase5-benchmark-timings.txt`).
+#
+# TRIGGER POLICY (dispatch-only since 2026-11):
+#   The push/pull_request triggers are intentionally removed. No licensed
+#   self-hosted runner is registered on the repository, and Delphi
+#   unattended/build-server licensing remains UNRESOLVED — do not register a
+#   runner until written Embarcadero licensing confirmation is obtained (see
+#   docs/Release-Status-Record-2026-10-25.md and docs/ci-status-policy.md).
+#   Licensing-independent repository hygiene, consistency and documentation
+#   checks run automatically via .github/workflows/repo-hygiene.yml instead.
+#   Automatic Delphi triggers may be restored only after written licensing
+#   approval and runner/security qualification (external-PR approval, service
+#   account, secrets and workspace-cleanup review).
 
 name: Build and Test
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
   workflow_dispatch:
 
 # One gate at a time: the self-hosted runner owns in-use binaries (exes/BPLs),
@@ -49,7 +57,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Run Phase 5 regression gate
         shell: powershell
@@ -58,7 +66,7 @@ jobs:
 
       - name: Publish DUnitX test results
         if: always()
-        uses: mikepenz/action-junit-report@v4
+        uses: mikepenz/action-junit-report@db71d41eb79864e25ab0337e395c352e84523afe # v4.3.1
         with:
           report_paths: tests/dunitx-results.xml
           require_tests: false
@@ -66,7 +74,7 @@ jobs:
 
       - name: Upload gate artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: phase5-gate-artifacts
           if-no-files-found: warn
