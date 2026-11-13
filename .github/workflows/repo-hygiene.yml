@@ -1,0 +1,83 @@
+# Repository hygiene and consistency CI (compiler-independent).
+#
+# Runs on GitHub-hosted Ubuntu runners only. No Delphi, no self-hosted
+# runner, no licence activation, no secrets. The Delphi quality gate
+# (.github/workflows/build-and-test.yml) remains untouched and continues
+# to be the authoritative check for compilation and behavior; this
+# workflow adds fast, licensing-independent validation of repository
+# hygiene, project consistency and documentation.
+
+name: Repo Hygiene
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repo-hygiene-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  hygiene:
+    name: Hygiene (conflict markers, BOM policy, secrets, scratch paths)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Whitespace check of changed source files
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="origin/${{ github.base_ref }}"
+          else
+            BASE="${{ github.event.before }}"
+            if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+              BASE="HEAD~1"
+            fi
+          fi
+          # Only source-ish files; Markdown double-space hard breaks are legitimate.
+          git diff --check "$BASE" HEAD -- \
+            '*.pas' '*.dpr' '*.inc' '*.dproj' '*.json' '*.yml' '*.py' '*.bat'
+
+      - name: Hygiene scans (conflict markers, BOM policy, secrets, scratch paths)
+        run: python3 tools/ci/hygiene_checks.py
+
+  consistency:
+    name: Consistency (dpr registrations, baselines JSON, YAML config)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Consistency checks
+        run: python3 tools/ci/consistency_checks.py
+
+  docs:
+    name: Documentation (mkdocs build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install mkdocs + material theme
+        run: python -m pip install --disable-pip-version-check mkdocs mkdocs-material
+
+      - name: Build documentation
+        run: python -m mkdocs build
