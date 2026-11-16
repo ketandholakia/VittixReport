@@ -76,8 +76,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install mkdocs + material theme
-        run: python -m pip install --disable-pip-version-check mkdocs mkdocs-material
+      - name: Install documentation dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements-docs.txt
 
       - name: Build documentation
         run: python -m mkdocs build
