@@ -26,7 +26,8 @@ uses
   Vittix.Report.LoadResult,
   Vittix.Report.Objects,
   Vittix.Report.Bands,
-  Vittix.Report.FileSave;
+  Vittix.Report.FileSave,
+  Vittix.Designer.ComponentEditorSave;
 
 type
   [TestFixture]
@@ -48,6 +49,8 @@ type
     [Test] procedure ReplaceFile1176_PreservesOriginalAndReplacement;
     [Test] procedure ReplaceFile1177_PreservesBackupAndReplacement;
     [Test] procedure FailedSave_LeavesModelSavable;
+    [Test] procedure ComponentEditorSave_FailureVetoesCloseAndPreservesEdits;
+    [Test] procedure ComponentEditorSave_SuccessPublishesJSON;
   end;
 
 implementation
@@ -418,6 +421,63 @@ begin
     TReportFileSaver.SaveToPath(M, Salvage);
     Assert.AreEqual('marker-B', LoadTitle(Salvage),
       'the live report must stay savable after the failed attempt');
+  finally
+    M.Free;
+  end;
+end;
+
+procedure TReportFileSaverTests.ComponentEditorSave_FailureVetoesCloseAndPreservesEdits;
+var
+  M: TReportModel;
+  P, ErrorText: string;
+  Lock: TFileStream;
+  Original: TBytes;
+  Modified: Boolean;
+begin
+  P := ReportPath('component-output.vrt');
+  M := MakeReport('before');
+  Modified := False;
+  try
+    Assert.IsTrue(TrySaveComponentEditorOutput(M, P, Modified, ErrorText));
+    Original := TFile.ReadAllBytes(P);
+    M.Title := 'pending edit';
+    Modified := False; // metadata commit may clear its own dirty marker
+    Lock := TFileStream.Create(P, fmOpenRead or fmShareExclusive);
+    try
+      Assert.IsFalse(TrySaveComponentEditorOutput(M, P, Modified, ErrorText),
+        'False must veto close when replacement fails');
+      Assert.IsTrue(ErrorText <> '', 'failure must reach the form error dialog');
+      Assert.IsTrue(Modified, 'failed close must retain an unsaved marker');
+    finally
+      Lock.Free;
+    end;
+    Assert.IsTrue(FilesAreEqual(Original, TFile.ReadAllBytes(P)),
+      'failed close must preserve the existing caller output');
+    Assert.AreEqual('pending edit', M.Title, 'pending model edits must survive');
+    Assert.IsTrue(TrySaveComponentEditorOutput(M, P, Modified, ErrorText),
+      'retry after releasing the lock must succeed');
+    Assert.AreEqual('pending edit', LoadTitle(P));
+  finally
+    M.Free;
+  end;
+end;
+
+procedure TReportFileSaverTests.ComponentEditorSave_SuccessPublishesJSON;
+var
+  M: TReportModel;
+  P, ErrorText: string;
+  Modified: Boolean;
+begin
+  P := ReportPath('component-json.vrt');
+  M := MakeReport('component');
+  Modified := False;
+  try
+    Assert.IsTrue(TrySaveComponentEditorOutput(M, P, Modified, ErrorText));
+    Assert.AreEqual('', ErrorText);
+    Assert.IsFalse(Modified, 'a successful output must not mark the report unsaved');
+    Assert.AreEqual(TReportSerializer.SaveToJSON(M),
+      TFile.ReadAllText(P, TEncoding.UTF8),
+      'caller must receive the same JSON as before');
   finally
     M.Free;
   end;
