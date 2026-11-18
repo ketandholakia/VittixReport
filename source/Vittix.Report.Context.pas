@@ -44,6 +44,13 @@ uses
 
 type
   IReportRenderHooks = interface;
+  // Phase B/C: engine-implemented subreport row-streaming session.
+  // Fully declared after TExpressionContext. It stays forward-declared here so
+  // the record below can carry the accessor; the band parameter is typed
+  // TObject (not TReportBand) to keep this unit leaf-clean.
+  IReportSubReportRowStream = interface;
+  // Phase C: one stream's session token (per subreport Draw invocation).
+  IReportNestedRowStream = interface;
 
   TExpressionContext = record
     { Dataset access }
@@ -68,6 +75,17 @@ type
 
     { Pass metadata }
     IsCountingPass: Boolean; // True only during the engine page-count pass
+
+    { Phase B/C: subreport row streaming. RowStreaming is a measurement
+      marker set by the engine on contexts used with MeasuredBottom: in that
+      state TReportSubReportObject reports only its natural reserve (bounds
+      bottom) instead of stacking all subreport rows. RowStream is the
+      render-time accessor into the engine's row-stream stack; nil in any
+      context that must keep legacy behavior (designer canvases, direct
+      callers, bands printed from a continuation flush). Both fields default
+      to False/nil via Default(TExpressionContext). }
+    RowStreaming: Boolean;
+    RowStream: IReportSubReportRowStream;
 
     { Expression language mode (Phase 4B-2B) }
     // Default(TExpressionContext) yields emLegacy, which is the first enum
@@ -99,6 +117,40 @@ type
     procedure StoreAggregateCache(const AExpression: string;
       const AContext: TExpressionContext; const AValue: Variant);
     function GetSubReportModel(AObject: TObject; const AJSON: string): TObject;
+  end;
+
+  { Phase B: subreport row-streaming accessor, implemented by the report
+    engine (not reference counted on the engine side). BeginRowStream opens a
+    stream for one subreport instance under AMasterBand and returns that
+    stream's session token; nil means streaming is unavailable for this call
+    (depth cap, unusable band/dataset) and the caller must keep the legacy
+    clipped loop. Each session is an independent entry on the engine's stream
+    stack, which is what allows Phase C nested continuation: a subreport
+    drawn inside another stream's row pushes its own session and the engine
+    flushes the stack depth-first at the band boundary. }
+  IReportSubReportRowStream = interface
+    ['{3D9B8A41-6C2E-4F17-9A55-8E21D0F4B7C3}']
+    function BeginRowStream(const AContext: TExpressionContext;
+      AMasterBand: TObject; ADS: TDataSet; AMasterField, ADetailField: string;
+      AAnchorX, AEntryCursorY, ABoundsLeft, ABoundsTop, ABoundsHeight,
+      ABoundsRight, ARowHeight: Integer): IReportNestedRowStream;
+  end;
+
+  { Phase C: session token for exactly one stream (one subreport Draw
+    invocation). PrepareRow is the planner-owned atomic-row fit decision:
+    True = the engine approved the row for immediate draw on the current page;
+    False = the row stays pending and is re-emitted at atomic row boundaries by
+    the engine's depth-first flush (a False caused by a deeper pending stream
+    defers this stream's next row without painting it). RowTop is the
+    page-space Y where the row approved by the last PrepareRow call must be
+    painted. EndStream restores the logical-stream dataset position and marks
+    the session finished; the engine keeps pending rows for the flush and
+    releases the state when the band returns. }
+  IReportNestedRowStream = interface
+    ['{7C1D2E55-4A1B-4C8E-9D63-2F0A8B5E91D1}']
+    function PrepareRow(ARowHeight: Integer): Boolean;
+    function RowTop: Integer;
+    procedure EndStream;
   end;
 
 implementation

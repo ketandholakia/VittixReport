@@ -19,6 +19,10 @@ type
     SubReportCacheHits: Integer;
     SubReportCacheMisses: Integer;
     SubReportTraversals: Integer;
+    { Snapshot alignment refusals: a MasterSource-linked stream whose captured
+      parent row is no longer available at flush time. Enumeration is refused
+      (never render an unrelated live view); the stream ends unemitted. }
+    StreamAlignFailures: Integer;
     SubReportRowsVisited: Integer;
     AggregateEvaluations: Integer;
     AggregateCacheHits: Integer;
@@ -68,6 +72,7 @@ type
     class procedure SubReportCacheMiss; static;
     class procedure SubReportTraversalStarted; static;
     class procedure SubReportRowVisited; static;
+    class procedure StreamAlignFailed; static;
     class procedure AggregateEvaluationStarted; static;
     class procedure AggregateCacheHit; static;
     class procedure AggregateCacheMiss; static;
@@ -177,6 +182,11 @@ end;
 class procedure TReportTraversalDiagnostics.ObjectPrintWhenException;
 begin
   Inc(FSnapshot.ObjectPrintWhenExceptions);
+end;
+
+class procedure TReportTraversalDiagnostics.StreamAlignFailed;
+begin
+  Inc(FSnapshot.StreamAlignFailures);
 end;
 
 class procedure TReportTraversalDiagnostics.SubReportParseFailed;
