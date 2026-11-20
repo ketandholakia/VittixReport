@@ -46,6 +46,10 @@ Unlike legacy reporting tools, the VittixReport runtime relies on the standard D
 - `tools\ci_gate.ps1` (PowerShell) - the full quality gate. On the uncommitted v1.0.1 candidate working tree based on `c33b7e97b0346de83fca6bbf785c75f468d1e95a`, `ci_gate.ps1 -IncludePackages` exited 0: DUnitX 899/899 passed (including 12/12 Firebird tests), with 0 failed, 0 errored, and 0 leaked; the strict runner matched 41/41 reports with one intentional policy skip; USER delta 0 and GDI delta +8; runtime/design packages, Designer, and Demo built successfully. These results apply to the candidate working tree, not the base commit alone. See `docs/release-notes-v1.0.1.md` for evidence paths and details.
 - `TESTING.md` - the gate contract and the manual test checklists
 - `reports/` - 45 `.vrt` regression fixtures with pinned page-count baselines
+- `docs/ci-status-policy.md` - CI status policy. GitHub Actions runs the
+  licensing-independent hygiene/consistency/documentation checks automatically;
+  the Delphi gate (`build-and-test.yml`) is dispatch-only and its results are
+  recorded as evidence, not PR status
 - See `DEVELOPMENT_PLAN.md` for the current work programme
 
 ### Building the Standalone Designer

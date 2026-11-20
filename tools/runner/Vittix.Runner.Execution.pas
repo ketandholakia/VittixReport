@@ -133,12 +133,14 @@ type
     FMemTable: TFDMemTable;
     FScriptAdapter: TReportScriptHostAdapter;
     FLastElapsedMs: Int64;
+    FLastExportDocument: TReportExportDocument;
     procedure FireScriptTrace(const AReport: TReportModel;
       const AConfig: TReportExecutionConfig;
       const ATraceEvent: TScriptTraceEvent);
   public
     constructor Create(AMemTable: TFDMemTable;
       AScriptAdapter: TReportScriptHostAdapter);
+    destructor Destroy; override;
 
     function ExecuteReport(const AConfig: TReportExecutionConfig;
       const ATraceEvent: TScriptTraceEvent = nil): TReportExecutionResult;
@@ -146,6 +148,12 @@ type
     // Milliseconds measured around Engine.Prepare only (legacy timing
     // boundary preserved; used by the console's formatter observation).
     property LastElapsedMs: Int64 read FLastElapsedMs;
+
+    { Measurement-harness accessor (Phase A evidence tooling): the export
+      document produced by the most recent ExecuteReport call. Ownership
+      stays with the executor; the document is released when the next
+      execution starts or the executor is destroyed. }
+    property LastExportDocument: TReportExportDocument read FLastExportDocument;
   end;
 
 implementation
@@ -161,6 +169,12 @@ begin
   FMemTable := AMemTable;
   FScriptAdapter := AScriptAdapter;
   FLastElapsedMs := 0;
+end;
+
+destructor TVittixReportExecutor.Destroy;
+begin
+  FreeAndNil(FLastExportDocument);
+  inherited;
 end;
 
 procedure TVittixReportExecutor.FireScriptTrace(const AReport: TReportModel;
@@ -547,7 +561,11 @@ begin
           Exit;
         end;
       finally
-        ExportDoc.Free;
+        // Measurement harness (Phase A evidence tooling): retain the export
+        // document produced by this execution so tooling can inspect the
+        // command stream; the previously retained document is released.
+        FreeAndNil(FLastExportDocument);
+        FLastExportDocument := ExportDoc;
         Engine.Free;
       end;
     finally

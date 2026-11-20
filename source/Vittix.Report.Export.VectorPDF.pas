@@ -407,6 +407,17 @@ var
       []));
   end;
 
+  function PdfPoints(AValue: Double): AnsiString;
+  begin
+    // AValue is already in typographical points (e.g. font size).
+    // It must NOT receive the pixel-to-point (72/96) scaling.
+    Result := AnsiString(StringReplace(
+      FormatFloat('0.###', AValue),
+      FormatSettings.DecimalSeparator,
+      '.',
+      []));
+  end;
+
   function PdfColorNumber(AValue: Double): AnsiString;
   begin
     // Color operands are already normalized to the PDF range 0..1.  They are
@@ -897,7 +908,7 @@ var
           if GlyphIds[GlyphIndex] = 0 then
             Exit(False);
 
-          Width1000 := MulDiv(Advances[GlyphIndex], 1000, Max(AText.FontSize, 1));
+          Width1000 := MulDiv(Advances[GlyphIndex], 750, Max(AText.FontSize, 1));
           RegisterUnicodeGlyphInfo(AFonts[FontIndex], GlyphIds[GlyphIndex], Width1000, '');
 
           AGlyphs[RunGlyphsStart + GlyphIndex].GlyphId := GlyphIds[GlyphIndex];
@@ -928,7 +939,7 @@ var
             RegisterUnicodeGlyphInfo(
               AFonts[FontIndex],
               GlyphIds[ClusterStartGlyph],
-              MulDiv(Advances[ClusterStartGlyph], 1000, Max(AText.FontSize, 1)),
+              MulDiv(Advances[ClusterStartGlyph], 750, Max(AText.FontSize, 1)),
               UnicodeTextHex(Copy(NormText, RunStart + CharIndex + 1, 1)));
 
           Inc(CharIndex, ClusterCharCount);
@@ -1754,7 +1765,7 @@ var
                         RichGlyphHex := AnsiString(IntToHex(RichGlyph.GlyphId, 4));
                         Result := Result +
                           'BT' + #10 +
-                          '/' + RichFontResourceName + ' ' + PdfNumber(RichTempCmd.FontSize) + ' Tf' + #10 +
+                          '/' + RichFontResourceName + ' ' + PdfPoints(RichTempCmd.FontSize) + ' Tf' + #10 +
                           '1 0 0 1 ' + PdfNumber(RichGlyphX) + ' ' +
                           PdfNumber(PdfY(APage, Integer(Round(LineY + RichGlyph.OffsetYPx)))) + ' Tm' + #10 +
                           '<' + RichGlyphHex + '> Tj' + #10 +
@@ -1773,7 +1784,7 @@ var
                         PdfNumber(RichCursorX) + ' ' + PdfNumber(PdfY(APage, Integer(Round(LineY)))) + ' Td' + #10 +
                         PdfColor(RichWrappedLines[RichLineIndex][RichSegIndex].FontColor) + ' rg' + #10 +
                         PdfFontNameForStyle(RichWrappedLines[RichLineIndex][RichSegIndex].FontStyle) + ' ' +
-                        PdfNumber(RichWrappedLines[RichLineIndex][RichSegIndex].FontSize) + ' Tf' + #10 +
+                        PdfPoints(RichWrappedLines[RichLineIndex][RichSegIndex].FontSize) + ' Tf' + #10 +
                         '(' + PdfText(RichWrappedLines[RichLineIndex][RichSegIndex].Text) + ') Tj' + #10 +
                         'ET' + #10;
                       RichCursorX := RichCursorX + RichSegmentWidth;
@@ -1902,7 +1913,7 @@ var
                   GlyphHex := AnsiString(IntToHex(Glyph.GlyphId, 4));
                   Result := Result +
                     'BT' + #10 +
-                    '/' + UnicodeFontName + ' ' + PdfNumber(TextCmd.FontSize) + ' Tf' + #10 +
+                    '/' + UnicodeFontName + ' ' + PdfPoints(TextCmd.FontSize) + ' Tf' + #10 +
                     '1 0 0 1 ' + PdfNumber(GlyphX) + ' ' +
                     PdfNumber(PdfY(APage, GlyphY)) + ' Tm' + #10 +
                     '<' + GlyphHex + '> Tj' + #10 +
@@ -1919,7 +1930,7 @@ var
                 Result := Result +
                   'q' + #10 +
                   PdfColor(TextCmd.FontColor) + ' rg' + #10 +
-                  PdfFontName(TextCmd) + ' ' + PdfNumber(TextCmd.FontSize) + ' Tf' + #10 +
+                  PdfFontName(TextCmd) + ' ' + PdfPoints(TextCmd.FontSize) + ' Tf' + #10 +
                   'BT' + #10 +
                   PdfNumber(PdfTextX(TextCmd, Lines[LineIndex])) + ' ' +
                   PdfNumber(PdfY(APage, LineY)) + ' Td' + #10 +
@@ -2361,10 +2372,17 @@ begin
       EndObject;
 
       BeginObject(UnicodeFonts[I].FontFileObjectNo);
-      // Embed only the glyphs actually used (glyph ids preserved, whole-font
-      // fallback if the font cannot be subset).
-      SubsetFontBytes := SubsetTrueTypeFont(UnicodeFonts[I].FontFileBytes,
-        UnicodeFonts[I].UsedGlyphIds);
+      // Embed only the glyphs actually used.  TTC-aware: GDI GetFontData can
+      // return TrueType Collection bytes (whole 'ttcf' container, or the file
+      // with its TTC header stripped, leaving collection-absolute offsets);
+      // the font's family name and style select the matching face for
+      // subsetting.  The whole-font fallback is retained when no face matches
+      // or parsing fails.
+      SubsetFontBytes := SubsetTrueTypeFontForFamily(UnicodeFonts[I].FontFileBytes,
+        UnicodeFonts[I].UsedGlyphIds,
+        UnicodeFonts[I].FontName,
+        fsBold in UnicodeFonts[I].FontStyle,
+        fsItalic in UnicodeFonts[I].FontStyle);
       WriteAnsi('<< /Length ' + AnsiString(IntToStr(Length(SubsetFontBytes))) +
         ' /Length1 ' + AnsiString(IntToStr(Length(SubsetFontBytes))) + ' >>' + #10);
       WriteAnsi('stream' + #10);

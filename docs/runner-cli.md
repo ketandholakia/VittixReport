@@ -105,14 +105,30 @@ VittixRunner --format json > result.json
 
 ## CI usage
 
-`.github/workflows/build-and-test.yml` runs `tools\ci_gate.ps1
--IncludePackages` on a self-hosted Windows + Delphi runner. Gate step 4/4 runs
+`.github/workflows/build-and-test.yml` is **dispatch-only** (no push/pull_request
+triggers): no licensed self-hosted runner is registered and Delphi
+unattended/build-server licensing is unresolved, so the workflow runs only when
+manually dispatched:
+
+```powershell
+gh workflow run "Build and Test" --ref <branch>
+```
+
+The dispatch run executes `tools\ci_gate.ps1 -IncludePackages` on a
+self-hosted Windows + Delphi runner. Gate step 4/4 runs
 the freshly built executable as `VittixRunner --strict --keep-vector-pdf
 --output <gate-dir>` and requires exit 0, then applies the USER/GDI handle
 thresholds to the output.
 
+A dispatch run is a separate `workflow_dispatch` event, not a PR status check.
+Verify the run's commit SHA against the commit you want validated — a later
+commit invalidates the result — and record the run URL and SHA in the PR or
+release record. See the [CI status policy](ci-status-policy.md) for the full
+procedure and evidence-record format.
+
 ## Related documentation
 
 - [Testing](testing.md) — the automated gate and the manual checklists that use these commands.
+- [CI status policy](ci-status-policy.md) — what the GitHub checks mean and how Delphi validation is recorded.
 - [Regression fixtures](regression-fixtures.md) — the 42 fixtures and the baseline file this tool checks.
 - [Phase 5 - quality, benchmarking & CI](archive/Phase5-Quality-Benchmark-CI.md) — the gate contract this tool implements (archived).

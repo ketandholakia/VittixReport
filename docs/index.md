@@ -116,11 +116,16 @@ Recorded against `96197c1` (`main`), with the modernization baseline tagged
 | Resource thresholds | USER handle delta 0, GDI handle delta 8 (limit 16) |
 | Build from a clean clone | All targets build: runtime package, design package, designer, demo, tests, runner |
 
-!!! warning "Continuous integration is not yet a usable signal"
-    `.github/workflows/build-and-test.yml` requires a self-hosted
-    `windows` + `delphi` runner, and none is registered on the repository, so
-    push-triggered runs queue and never execute. Treat the local gate above as
-    the authoritative verification until a runner exists.
+!!! warning "Delphi CI is dispatch-only; automated checks cover hygiene, consistency and docs"
+    `.github/workflows/build-and-test.yml` is now `workflow_dispatch`-only: no
+    licensed self-hosted runner is registered and Delphi unattended/build-server
+    licensing is unresolved, so push-triggered Delphi runs would queue forever.
+    Licensing-independent checks (hygiene, consistency, documentation) run
+    automatically via `.github/workflows/repo-hygiene.yml` (merged with
+    **PR #10**). They do not replace Delphi validation. Treat the local gate
+    above as the authoritative Delphi verification, and record it per the
+    [CI status policy](ci-status-policy.md) — automatic Delphi triggers may be
+    restored only after written licensing approval and runner qualification.
 
 ## Requirements
 
