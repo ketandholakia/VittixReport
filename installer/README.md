@@ -54,6 +54,14 @@ Inno compilation enforces >=6.1 and emits its own payload manifest. The build
 verifier compares all compiler-compressed inputs with the staged allowlist and
 checks that the stage did not change during compilation.
 
+Northwind verification retains the original audited SHA-256 and also accepts
+bytes independently regenerated from the helper's pinned SQL with SQLite 3.45.1
+and 3.50.4. These builds differ only in SQLite's four-byte last-writer version
+(header offsets 96-99), which is normalized for that additional hash check.
+Every other byte remains checked, including unused space; row/schema changes,
+appended data and truncation are rejected. The manifest still records the exact
+raw file SHA-256 and rejects any stage change during compilation.
+
 Output: `build\installer\VittixReport-1.0.1-setup.exe`.
 Evidence: `build\release-audit` (ignored local output, preserve separately).
 

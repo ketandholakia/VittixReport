@@ -77,6 +77,8 @@ try {
   & python demo\db\build_northwind_acceptance.py --output (Join-Path $stage 'demo\db\northwind.db') 1> (Join-Path $out 'northwind-build.log') 2>&1
   if ($LASTEXITCODE -ne 0) { throw 'Pinned Northwind sample build failed' }
   }
+  & python installer\tests\test_northwind_payload.py --database (Join-Path $stage 'demo\db\northwind.db')
+  if ($LASTEXITCODE -ne 0) { throw 'Northwind payload regression failed' }
   & python installer\verify_payload.py $stage
   if ($LASTEXITCODE -ne 0) { throw 'Payload verification failed' }
   & $iscc 'installer\VittixReport.iss' 1> (Join-Path $out 'iscc-build.log') 2>&1

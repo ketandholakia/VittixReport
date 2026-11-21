@@ -7,6 +7,7 @@ from pathlib import Path
 import subprocess
 import sys
 import pefile
+from verify_northwind import verify_northwind
 
 stage = Path(sys.argv[1]).resolve()
 assert (stage/'demo/db/northwind.db').is_file(), 'Demo launch dependency northwind.db missing'
@@ -84,7 +85,7 @@ for entry in sources:
         staged = staged.replace(b'\r\n', b'\n')
     assert staged == blob, ('source differs from merged Git blob', entry['filename'])
     offset = end+size+2
-assert hashlib.sha256((stage/'demo/db/northwind.db').read_bytes()).hexdigest() == '324f1362b2f4fead11ab4f5a5667a57226b61af5a39c22f480011502dc109185', 'Unexpected Northwind sample bytes'
+verify_northwind(stage/'demo/db/northwind.db')
 manifest_path = evidence/'payload-manifest.json'
 if len(sys.argv) > 2:
     assert json.loads(manifest_path.read_text()) == records, 'Stage changed during compilation'
