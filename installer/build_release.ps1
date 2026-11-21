@@ -1,12 +1,20 @@
 [CmdletBinding()]
-param([switch]$CompileOnly)
+param([switch]$CompileOnly, [string]$VerifiedSource = 'origin/main')
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2
 $repo = Split-Path -Parent $PSScriptRoot
 Set-Location $repo
-if ((git rev-parse HEAD) -ne '3e7f6ba0293482146313fb5d504de80edaab92f8') { throw 'Unexpected release base' }
-if ((git branch --show-current) -ne 'release/v1.0.1-preparation') { throw 'Use isolated release-preparation branch' }
-if (git diff HEAD -- source packages vittixdesigner demo tools) { throw 'Product build inputs differ from verified merged source' }
+# Resolve the verified product source rather than pinning the installer HEAD.
+$releaseBase = git rev-parse --verify "$VerifiedSource^{commit}"
+if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve verified release source' }
+git merge-base --is-ancestor $releaseBase HEAD
+if ($LASTEXITCODE -ne 0) { throw 'Verified release source must be an ancestor of HEAD' }
+$releaseBranch = git branch --show-current
+if ($LASTEXITCODE -ne 0 -or $releaseBranch -notin @('release/v1.0.1-preparation', 'main')) {
+  throw 'Use isolated release-preparation branch or merged main'
+}
+git diff --quiet $releaseBase -- source packages vittixdesigner demo tools
+if ($LASTEXITCODE -ne 0) { throw 'Product build inputs differ from verified merged source' }
 $rsvars = 'C:\Program Files (x86)\Embarcadero\Studio\23.0\bin\rsvars.bat'
 $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
 if (!(Test-Path $rsvars) -or !(Test-Path $iscc)) { throw 'Delphi 12 / Inno Setup 6 prerequisite missing' }
