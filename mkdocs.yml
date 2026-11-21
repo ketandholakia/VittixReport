@@ -130,6 +130,7 @@ nav:
       - Developer manual: developer-manual.md
       - Testing: testing.md
       - CI status policy: ci-status-policy.md
+      - Installer release audit: installer-release-audit-v1.0.1.md
   - Reference:
       - Report events: EVENTS.md
       - Designer: designer.md
