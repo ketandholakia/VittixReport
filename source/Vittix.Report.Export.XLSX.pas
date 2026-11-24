@@ -103,9 +103,73 @@ begin
     [GetRValue(AColor), GetGValue(AColor), GetBValue(AColor)]);
 end;
 
+// XML 1.0 permits #x9 (tab), #xA (LF), #xD (CR) and #x20..#xD7FF plus
+// #xE000..#xFFFD. Everything below #32 except tab/LF/CR is invalid, as are
+// UTF-16 surrogate halves (invalid unless they form a valid pair — the pair
+// case is handled by SanitizeXmlText) and #xFFFE/#xFFFF. Characters above
+// #xFFFF cannot occur in a Char.
+function IsInvalidXmlChar(const C: Char): Boolean;
+begin
+  Result := ((C < #32) and (C <> #9) and (C <> #10) and (C <> #13)) or
+    ((C >= #$D800) and (C <= #$DFFF)) or
+    (C >= #$FFFE);
+end;
+
+{ Strips characters that are invalid in XML 1.0 from text destined for a
+  worksheet cell (or attribute). Data pasted from Word or sourced from binary
+  fields routinely carries control characters such as #0, #1, #11 or #12;
+  writing them raw produces sheet XML Excel refuses to open without a repair
+  pass. Returns the input unchanged on the (overwhelmingly common) clean fast
+  path. Tab, LF, CR and valid surrogate pairs are preserved. }
+function SanitizeXmlText(const S: string): string;
+var
+  I: Integer;
+  HasInvalid: Boolean;
+  SB: TStringBuilder;
+begin
+  Result := S;
+  HasInvalid := False;
+  for I := 1 to Length(S) do
+    if IsInvalidXmlChar(S[I]) then
+    begin
+      HasInvalid := True;
+      Break;
+    end;
+  if not HasInvalid then
+    Exit;
+
+  SB := TStringBuilder.Create(Length(S));
+  try
+    I := 1;
+    while I <= Length(S) do
+    begin
+      // A high surrogate followed by a low surrogate is a valid character
+      // even though each half alone falls inside the invalid range.
+      if (I < Length(S)) and
+         (S[I] >= #$D800) and (S[I] <= #$DBFF) and
+         (S[I + 1] >= #$DC00) and (S[I + 1] <= #$DFFF) then
+      begin
+        SB.Append(S, I, 2);
+        Inc(I, 2);
+        Continue;
+      end;
+      if not IsInvalidXmlChar(S[I]) then
+        SB.Append(S[I]);
+      Inc(I);
+    end;
+    Result := SB.ToString;
+  finally
+    SB.Free;
+  end;
+end;
+
 function EscapeXMLAttr(const S: string): string;
 begin
-  Result := StringReplace(S, '&', '&amp;', [rfReplaceAll]);
+  // Sanitize first so an invalid control character can never reach the
+  // attribute value either (attribute text is subject to the same XML 1.0
+  // character rules as element text).
+  Result := SanitizeXmlText(S);
+  Result := StringReplace(Result, '&', '&amp;', [rfReplaceAll]);
   Result := StringReplace(Result, '<', '&lt;', [rfReplaceAll]);
   Result := StringReplace(Result, '>', '&gt;', [rfReplaceAll]);
   Result := StringReplace(Result, '"', '&quot;', [rfReplaceAll]);
@@ -283,8 +347,6 @@ var
   ColumnPositions: TList<Integer>;
   FillOrder, BorderOrder: TList<Integer>;  // deterministic creation order
   XfOrder: TList<string>;
-const
-  CApos = '&apos;';
 begin
   AllCells := TList<TXLSXCell>.Create;
   ColWidths := TDictionary<Integer, Integer>.Create;
@@ -620,13 +682,9 @@ begin
           SheetXml := SheetXml + '<row r="' + IntToStr(CurrentRow) + '">';
         end;
 
-        // Escape XML chars
-        EscapedText := Cell.Text;
-        EscapedText := StringReplace(EscapedText, '&', '&amp;', [rfReplaceAll]);
-        EscapedText := StringReplace(EscapedText, '<', '&lt;', [rfReplaceAll]);
-        EscapedText := StringReplace(EscapedText, '>', '&gt;', [rfReplaceAll]);
-        EscapedText := StringReplace(EscapedText, '"', '&quot;', [rfReplaceAll]);
-        EscapedText := StringReplace(EscapedText, #39, CApos, [rfReplaceAll]);
+        // Escape XML chars (EscapeXMLAttr also strips XML-invalid control
+        // characters so the sheet stays parseable; R-10)
+        EscapedText := EscapeXMLAttr(Cell.Text);
 
         // Resolved cellXf: font-only ids 0..2 match the historical mapping;
         // fill/border variants were appended in the style resolution pass.
@@ -681,12 +739,10 @@ begin
 
             SheetXml := SheetXml + '</rPr>';
 
-            var RunText := Run.Text;
-            RunText := StringReplace(RunText, '&', '&amp;', [rfReplaceAll]);
-            RunText := StringReplace(RunText, '<', '&lt;', [rfReplaceAll]);
-            RunText := StringReplace(RunText, '>', '&gt;', [rfReplaceAll]);
-            RunText := StringReplace(RunText, '"', '&quot;', [rfReplaceAll]);
-            RunText := StringReplace(RunText, #39, CApos, [rfReplaceAll]);
+            // Shared escape (also strips XML-invalid control characters).
+            // NeedsPreserveWhitespace below must test the *unsanitized* run
+            // text so run-level whitespace intent is unchanged.
+            var RunText := EscapeXMLAttr(Run.Text);
 
             if NeedsPreserveWhitespace(Run.Text) then
               SheetXml := SheetXml + Format('<t xml:space="preserve">%s</t></r>', [RunText])
