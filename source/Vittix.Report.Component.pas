@@ -433,16 +433,22 @@ var
   NamedUDS : TDictionary<string, TVittixUserDataSet>;
 begin
   BuildNamedDataSets(Primary, NamedDS);
-  BuildNamedUserDataSets(PrimaryUDS, NamedUDS);
   try
-    // The engine copies both named-dataset maps in its constructor, so the
-    // caller-side dictionaries can be released as soon as it returns.
-    if Assigned(PrimaryUDS) then
-      Result := TReportEngine.Create(AModel, PrimaryUDS, NamedUDS, FProgress)
-    else
-      Result := TReportEngine.Create(AModel, Primary, NamedDS, FProgress);
+    // R-18 hygiene: guard the second builder too so NamedDS cannot leak if
+    // BuildNamedUserDataSets ever raises (it cannot today; the guard makes
+    // that structural rather than incidental).
+    BuildNamedUserDataSets(PrimaryUDS, NamedUDS);
+    try
+      // The engine copies both named-dataset maps in its constructor, so the
+      // caller-side dictionaries can be released as soon as it returns.
+      if Assigned(PrimaryUDS) then
+        Result := TReportEngine.Create(AModel, PrimaryUDS, NamedUDS, FProgress)
+      else
+        Result := TReportEngine.Create(AModel, Primary, NamedDS, FProgress);
+    finally
+      NamedUDS.Free;
+    end;
   finally
-    NamedUDS.Free;
     NamedDS.Free;
   end;
 
