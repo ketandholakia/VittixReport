@@ -62,6 +62,10 @@ type
     [Test] procedure Test_RichMemo_AllowHTML_Path;
     [Test] procedure Test_SparseRow_PreservesColumnByX;
     [Test] procedure Test_ColumnsRemainStableAcrossPages;
+    [Test] procedure Test_ControlCharacters_Sanitized;
+    [Test] procedure Test_ControlCharacters_RichRun_Sanitized;
+    [Test] procedure Test_WhitespaceControls_Preserved;
+    [Test] procedure Test_ControlCharacters_InFontName_Sanitized;
   end;
 
 implementation
@@ -923,6 +927,109 @@ begin
     Assert.Contains(Sheet, '<sz val="12"/>');
     Assert.Contains(Sheet, '<b/></rPr><t>Bold</t>');
     Assert.Contains(Sheet, '<i/></rPr><t>Italic</t>');
+  finally
+    Doc.Free;
+  end;
+end;
+
+procedure TExportXLSXTests.Test_ControlCharacters_Sanitized;
+var
+  Doc: TReportExportDocument;
+  Pkg: TBytes;
+  Sheet: string;
+begin
+  // R-10: data pasted from Word or sourced from binary strings can carry C0
+  // control characters that are invalid in XML 1.0. Writing them raw makes
+  // Excel prompt to repair the file. Tab, LF and CR are legal and survive;
+  // everything else below #32 must be stripped, not written raw.
+  Doc := TReportExportDocument.Create;
+  try
+    Doc.AddPage(793, 1122).Commands.Add(TextCmd(
+      'A' + Chr(1) + 'B' + Chr(11) + 'C' + Chr(12) + 'D' + Chr(31) + 'E',
+      Rect(10, 10, 300, 40)));
+    Pkg := ExportToBytes(Doc);
+    Sheet := ReadZipEntry(Pkg, 'xl/worksheets/sheet1.xml');
+    // The sheet must remain parseable XML (a raw control char makes the
+    // XML parser reject the document).
+    AssertXmlWellFormed(Sheet);
+    Assert.Contains(Sheet, '<t>ABCDE</t>');
+    Assert.DoesNotContain(Sheet, Chr(1));
+    Assert.DoesNotContain(Sheet, Chr(11));
+    Assert.DoesNotContain(Sheet, Chr(12));
+    Assert.DoesNotContain(Sheet, Chr(31));
+  finally
+    Doc.Free;
+  end;
+end;
+
+procedure TExportXLSXTests.Test_ControlCharacters_RichRun_Sanitized;
+var
+  Doc: TReportExportDocument;
+  Pkg: TBytes;
+  Sheet: string;
+begin
+  // R-10: the rich-run path must apply the same sanitization as the plain
+  // cell path — both write run text into <t> elements.
+  Doc := TReportExportDocument.Create;
+  try
+    Doc.AddPage(793, 1122).Commands.Add(TextCmdWithRuns('Dirty run',
+      [MakeRun('A' + Chr(1) + 'B' + Chr(11) + 'C' + Chr(31) + 'D', [fsBold])],
+      Rect(10, 10, 300, 40)));
+    Pkg := ExportToBytes(Doc);
+    Sheet := ReadZipEntry(Pkg, 'xl/worksheets/sheet1.xml');
+    AssertXmlWellFormed(Sheet);
+    Assert.Contains(Sheet, '<t>ABCD</t>');
+    Assert.DoesNotContain(Sheet, Chr(1));
+    Assert.DoesNotContain(Sheet, Chr(11));
+    Assert.DoesNotContain(Sheet, Chr(31));
+  finally
+    Doc.Free;
+  end;
+end;
+
+procedure TExportXLSXTests.Test_WhitespaceControls_Preserved;
+var
+  Doc: TReportExportDocument;
+  Pkg: TBytes;
+  Sheet: string;
+begin
+  // R-10 guard: sanitization may only remove characters that are invalid in
+  // XML 1.0. Tab (#9), LF (#10) and CR (#13) are valid and must survive
+  // byte-for-byte.
+  Doc := TReportExportDocument.Create;
+  try
+    Doc.AddPage(793, 1122).Commands.Add(TextCmd(
+      'A' + Chr(9) + 'B' + Chr(10) + 'C' + Chr(13) + 'D',
+      Rect(10, 10, 300, 40)));
+    Pkg := ExportToBytes(Doc);
+    Sheet := ReadZipEntry(Pkg, 'xl/worksheets/sheet1.xml');
+    AssertXmlWellFormed(Sheet);
+    Assert.Contains(Sheet, 'A' + Chr(9) + 'B');
+    Assert.Contains(Sheet, 'B' + Chr(10) + 'C');
+    Assert.Contains(Sheet, 'C' + Chr(13) + 'D');
+  finally
+    Doc.Free;
+  end;
+end;
+
+procedure TExportXLSXTests.Test_ControlCharacters_InFontName_Sanitized;
+var
+  Doc: TReportExportDocument;
+  Pkg: TBytes;
+  Sheet: string;
+begin
+  // R-10: run font names are attribute values (rFont/@val); control chars
+  // there make the sheet just as unparsable as in element text.
+  Doc := TReportExportDocument.Create;
+  try
+    Doc.AddPage(793, 1122).Commands.Add(TextCmdWithRuns('Styled',
+      [MakeRun('Styled', [fsBold], 'Cal' + Chr(11) + 'ibri')],
+      Rect(10, 10, 300, 40)));
+    Pkg := ExportToBytes(Doc);
+    Sheet := ReadZipEntry(Pkg, 'xl/worksheets/sheet1.xml');
+    AssertXmlWellFormed(Sheet);
+    Assert.Contains(Sheet, '<rFont val="Calibri"/>');
+    Assert.DoesNotContain(Sheet, Chr(11));
   finally
     Doc.Free;
   end;
