@@ -596,6 +596,33 @@ packages, designer and demo all build. The two subreport-pagination failures
 recorded above at freeze baseline `abab0b2` are FIXED on the released line
 and do not occur there.
 
+### 2026-11-24 external static review (zip snapshot) — re-verified against the working tree
+
+A fresh static review of the packaged zip was cross-checked line-by-line against
+the current working tree (zip's flat unit names map to `source/Vittix.Report.*`).
+Confirmed items continue the R-xx scheme:
+
+| ID | Priority | Where | Finding | Suggested fix |
+|---|---|---|---|---|
+| R-10 | P1 | `Export.XLSX.pas:106-113, 692-704` | `EscapeXMLAttr` escapes only `& < > " '`; control characters invalid in XML 1.0 (#0-#8, #11, #12, #14-#31) and lone surrogates are written as-is into cell text — data pasted from Word or containing a stray #0/#11 makes Excel prompt to repair the sheet. No sanitizing pass exists | One `SanitizeXmlText` helper (drop invalid C0 controls, keep #9/#10/#13; drop lone surrogates) applied at every `<t>`/`<v>` write site |
+| R-11 | P2 | `Export.XLSX.pas` | No guards for Excel's 32,767-char cell limit or the 1,048,576-row / 16,384-column limits — oversized text/tables produce repair-prompting files | Clamp/truncate cell text; fail loudly (or split) on limit overflow |
+| R-12 | P3 | `Export.XLSX.pas:618-711` | Sheet XML built by `SheetXml := SheetXml + ...` per cell — O(n²) time and memory on large reports (same pattern class as M-16) | Build with `TStringBuilder` or stream chunks |
+| R-13 | P2 | `Export.HTML.pas:282-283, 303` | `EscapeHTMLAttr` output is written into `font-family:'...'` CSS. Entities are decoded by the browser *before* CSS parsing, so a font name containing `'` still terminates the CSS string and the remainder is injected as CSS. Impact low (CSS context only, source is the .vrt), but the code path claims the case is handled and untrusted .vrt files are realistic | CSS-escape values (`\` → `\\`, `'` → `\27 `, control chars) before attribute-encoding |
+| R-14 | P2 | `Export.HTML/XLSX/Text.pas` | Non-PDF `ExportDocument` writes directly into the target with `fmCreate` — a mid-export failure leaves a half-written file at the user's chosen path. `ExportDocumentAtomic` already exists for PDF | Reuse the atomic helper for HTML, XLSX and text exports |
+| R-15 | P2 | `Objects.pas:1561-1568, 788` | `ResolveImageSource` loads whatever path a data field holds (`FileExists` + load); arbitrary/UNC paths embed local images in exports and can trigger outbound SMB/NTLM | Optional `ImageRootPath`/`OnResolveImagePath` on the component; refuse UNC unless the host opts in (API addition — owner decision) |
+| R-16 | P2 | Engine diagnostics | The R-09 swallow counters (`AggregateValueErrors`, `BandPrintWhenExceptions`, ...) are a process-wide class var nothing outside the engine/test suite reads — data errors stay invisible to host apps and the designer | `OnDiagnostic` event (or Diagnostics list) on `TVittixReport`, plus an optional StrictErrors mode that raises instead of skipping; legacy default unchanged (API addition — owner decision) |
+| R-17 | P3 | `Export.Email.pas` | `TReportEmailExporter` (MAPI) is deprecated but still compiled into the runtime package | Move to a compat package or gate with `{$IFDEF}` |
+| R-18 | P3 | `Component.pas:410-443` | `CreateEngine` calls `BuildNamedUserDataSets` before the try — if it ever raised, `NamedDS` leaks. Not reachable today | One-line move inside the guarded region |
+
+Notes: the aggregate silent-skip claims (SUM/AVG/MIN/MAX skip non-numeric rows)
+and the R-09 swallow counters are already instrumented with
+"legacy silent fallback" diagnostics (`Aggregates.pas:819, 862`) — the gap is
+exposure (R-16), not detection. `Frm.Main.pas` has grown to ~7,648 lines;
+`RunRuntimeEventCallbackDemo` (2075–~4669) is confirmed still in the production
+form and reachable from the shipped menu. Untracked repo-surface items observed
+in the working tree: `VittixReport.zip` (review input) and `installer/`;
+`vittixdesigner/bugreport.txt` is now gitignored.
+
 ---
 
 ## 6. Memory & Resource Management Findings
@@ -726,6 +753,22 @@ Framed for the active **v1.0 freeze**: everything below is `[fix]`-with-failing-
 3. The exact-decimal aggregate path round-trips `AsString` → `DecimalFromText`
    for bare BCD fields; consider `AsBCD`/`AsFMTBCD` instead to skip the text
    hop (perf-only; results are pinned exact by `Test.Vittix.Report.AggregatesCurrency`).
+
+4. Component export dedup (`Component.pas:751-960`): the nine
+   `ExportToPrinterPDF/VectorPDF/HTML/XLSX/Text` (file + stream) methods repeat
+   the same load → create engine → prepare → export → free block; `ExportWith`
+   already has the shared shape. Extract one private prepare-and-run helper
+   (~200 lines saved, consistent error handling). `Execute` also builds the
+   preview form inline (~130 lines, hard-coded pixels, English captions) —
+   reuse `Frm.Preview` or a shared preview-form class when the 125/150%
+   scaling work lands.
+5. R-10/R-11/R-12: XLSX XML sanitization, Excel limit guards and
+   `TStringBuilder` sheet assembly (R-10 is scheduled as the first `[fix]`,
+   see DEVELOPMENT_PLAN.md).
+6. R-13/R-14: HTML CSS-value escaping and atomic HTML/XLSX/text exports.
+7. R-15/R-16: image-path policy hook and `OnDiagnostic`/StrictErrors on
+   `TVittixReport` — both add public API, so both need owner sign-off and a
+   docs pass (`DEVELOPER_MANUAL.md`, `docs/EVENTS.md`).
 
 ---
 

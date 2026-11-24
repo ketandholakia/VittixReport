@@ -382,6 +382,18 @@ From report §12 long-term + unscheduled Lows (each needs its own analysis-first
 - **Designer test harness:** DUnitX coverage for `TCommandManager` + designer command classes (insurance for the undo contract) — could be pulled into Wave 1 if DP-08 lands without it.
 - **Low items not scheduled above:** renderer print stretch mode decision, single-line text ellipsis/clip (`Objects.pas:847-849`), subreport per-draw reparse when `Hooks = nil` (`Objects.pas:1816-1821`), image copy duplication + HALFTONE stretching, `W1050` `CharInSet` cleanup (`Objects.pas:1081`), unused-variable hint sweep (`ScriptHost.Adapter` `Cmd_*` templates), `PropertyBridge` enum/-1 guard.
 
+**2026-11-24 external review intake** (findings re-verified against the working tree; details in report §5, "2026-11-24 external static review"):
+
+- **R-10 `[fix]` — XLSX invalid XML characters (P1, scheduled next):** `EscapeXMLAttr` (`source/Vittix.Report.Export.XLSX.pas:106-113`) handles only `& < > " '`; control characters invalid in XML 1.0 (#0-#8, #11, #12, #14-#31) and lone surrogates reach cell text as-is → Excel prompts to repair the file. Fix: a `SanitizeXmlText` helper (keep #9/#10/#13, drop the rest; drop lone surrogates) applied at every `<t>`/`<v>` write site; red→green via `Test.Vittix.Report.Export.XLSX`.
+- **R-11 `[fix]` — XLSX Excel limit guards (P2):** no 32,767-char cell limit, no 1,048,576-row / 16,384-col guards; oversized data produces repair-prompting files. Clamp or fail loudly.
+- **R-12 `[refactor]` — XLSX sheet assembly O(n²):** `SheetXml := SheetXml + ...` per cell (`:618-711`); switch to `TStringBuilder`/stream chunks.
+- **R-13 `[fix]` — HTML CSS-value escaping (P2):** entity-decoded `'` still terminates the `font-family:'...'` CSS string (`Export.HTML.pas:282-283, 303`); CSS-escape (`\27`) before attribute-encoding.
+- **R-14 `[fix]` — atomic HTML/XLSX/text exports (P2):** non-PDF `ExportDocument` writes in place with `fmCreate`; a mid-export failure leaves a half-written target. Reuse `ExportDocumentAtomic`.
+- **R-15 `[API decision]` — image path policy (P2):** `ResolveImageSource` loads any dataset-supplied path (UNC included). Optional `ImageRootPath`/`OnResolveImagePath` on the component; refuse UNC unless the host opts in. Adds public API → needs owner sign-off + docs.
+- **R-16 `[API decision]` — expose swallow diagnostics (P2):** the R-09 counters are engine/test-only; add `OnDiagnostic` (or a diagnostics list) + optional StrictErrors mode on `TVittixReport`, legacy default unchanged. Adds public API → needs owner sign-off + docs.
+- **R-17 `[chore]` — deprecated MAPI exporter still compiled:** `TReportEmailExporter` gates or moves to a compat package.
+- **R-18 `[fix]` — `CreateEngine` leak guard:** move `BuildNamedUserDataSets` inside the try (`Component.pas:410-443`); not reachable today, one-line hygiene.
+
 ---
 
 ## 8. Open questions that gate items (from report §14)
@@ -433,6 +445,7 @@ From report §12 long-term + unscheduled Lows (each needs its own analysis-first
 | Lows (hygiene, docs, packaging) | DP-01…DP-07 | 0 |
 | Lows (behavioral, unscheduled) | Wave 5 | 5 |
 | §12 long-term program | Wave 5 | 5 |
+| R-10…R-18 (2026-11-24 external review) | Wave 5 intake (R-10 scheduled next as `[fix]`) | 5 |
 
 ---
 
