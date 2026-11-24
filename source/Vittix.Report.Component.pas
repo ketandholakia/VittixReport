@@ -59,6 +59,12 @@ uses
 type
   TReportLargeReportEvent = procedure(Sender: TObject; APageCount: Integer; var AContinue: Boolean) of object;
 
+  { Callbacks for the private prepare-and-run export helpers below. The
+    helpers own the model/engine (and export-document) lifetime so every
+    built-in export entry point shares one guard order and teardown path. }
+  TPreparedEngineProc = reference to procedure(const AEngine: TReportEngine);
+  TPreparedExportDocProc = reference to procedure(const ADoc: TReportExportDocument);
+
   TVittixReport = class(TComponent)
   private
     FDataSource   : TDataSource;
@@ -90,6 +96,18 @@ type
     procedure BuildNamedUserDataSets(
       out APrimary: TVittixUserDataSet;
       out ANamedDS: TDictionary<string, TVittixUserDataSet>);
+
+    // Shared prepare-and-run helpers for the built-in export methods. They
+    // centralise load → engine → prepare → teardown so the guard order,
+    // DetachDataSet/Free discipline and exception behavior are identical in
+    // every export path. See the implementations above ExportToPrinterPDF.
+    procedure RunPreparedEngine(const ARun: TPreparedEngineProc); overload;
+    procedure RunPreparedExportDoc(
+      const ARun: TPreparedExportDocProc); overload;
+    procedure RunPreparedExportDoc(
+      AStream: TStream; const ARun: TPreparedExportDocProc); overload;
+    procedure PreparedExportDocBody(Model: TReportModel;
+      const ARun: TPreparedExportDocProc);
 
   public
     /// <summary>
@@ -745,198 +763,165 @@ begin
 end;
 
 // ---------------------------------------------------------------------------
+//  Shared prepare-and-run export helpers
+// ---------------------------------------------------------------------------
+
+{ Loads the model, prepares a fresh engine and hands it to ARun. The engine
+  is detached and freed even when ARun raises. }
+procedure TVittixReport.RunPreparedEngine(const ARun: TPreparedEngineProc);
+var
+  Model  : TReportModel;
+  Engine : TReportEngine;
+begin
+  if not Assigned(ARun) then
+    raise Exception.Create('Export callback is not assigned.');
+  if FReportJSON = '' then
+    raise Exception.Create('No report design loaded.');
+
+  Model := TReportSerializer.LoadFromJSON(FReportJSON);
+  try
+    Engine := CreateEngine(Model);
+    try
+      Engine.Prepare;
+      ARun(Engine);
+    finally
+      Engine.DetachDataSet;
+      Engine.Free;
+    end;
+  finally
+    Model.Free;
+  end;
+end;
+
+{ Core of the export-document family (Vector PDF / HTML / XLSX): the engine
+  captures into a fresh TReportExportDocument owned here; ARun receives it.
+  Callers must have validated the stream (if any) before calling — the
+  stream overload below enforces the original check order. }
+procedure TVittixReport.PreparedExportDocBody(
+  Model: TReportModel; const ARun: TPreparedExportDocProc);
+var
+  Engine : TReportEngine;
+  ExportDoc: TReportExportDocument;
+begin
+  ExportDoc := TReportExportDocument.Create;
+  try
+    Engine := CreateEngine(Model);
+    try
+      Engine.ExportDocument := ExportDoc;
+      Engine.Prepare;
+      ARun(ExportDoc);
+    finally
+      Engine.DetachDataSet;
+      Engine.Free;
+    end;
+  finally
+    ExportDoc.Free;
+  end;
+end;
+
+procedure TVittixReport.RunPreparedExportDoc(
+  const ARun: TPreparedExportDocProc);
+var
+  Model: TReportModel;
+begin
+  if not Assigned(ARun) then
+    raise Exception.Create('Export callback is not assigned.');
+  if FReportJSON = '' then
+    raise Exception.Create('No report design loaded.');
+
+  Model := TReportSerializer.LoadFromJSON(FReportJSON);
+  try
+    PreparedExportDocBody(Model, ARun);
+  finally
+    Model.Free;
+  end;
+end;
+
+procedure TVittixReport.RunPreparedExportDoc(
+  AStream: TStream; const ARun: TPreparedExportDocProc);
+var
+  Model: TReportModel;
+begin
+  if not Assigned(ARun) then
+    raise Exception.Create('Export callback is not assigned.');
+  if FReportJSON = '' then
+    raise Exception.Create('No report design loaded.');
+  if not Assigned(AStream) then
+    raise EArgumentNilException.Create('AStream');
+
+  Model := TReportSerializer.LoadFromJSON(FReportJSON);
+  try
+    PreparedExportDocBody(Model, ARun);
+  finally
+    Model.Free;
+  end;
+end;
+
+// ---------------------------------------------------------------------------
 //  ExportToPrinterPDF  (legacy / compatibility: Windows printer driver)
 // ---------------------------------------------------------------------------
 
 procedure TVittixReport.ExportToPrinterPDF(const AFileName: string);
-var
-  Model  : TReportModel;
-  Engine : TReportEngine;
 begin
-  if FReportJSON = '' then
-    raise Exception.Create('No report design loaded.');
-
-  Model := TReportSerializer.LoadFromJSON(FReportJSON);
-  try
-    Engine := CreateEngine(Model);
-    try
-      Engine.Prepare;
-      TReportPDFExporter.ExportToFile(Engine.Pages, AFileName);
-    finally
-      Engine.DetachDataSet;
-      Engine.Free;
-    end;
-  finally
-    Model.Free;
-  end;
+  RunPreparedEngine(
+    procedure(const AEngine: TReportEngine)
+    begin
+      TReportPDFExporter.ExportToFile(AEngine.Pages, AFileName);
+    end);
 end;
 
 procedure TVittixReport.ExportToVectorPDF(const AFileName: string);
-var
-  Model  : TReportModel;
-  Engine : TReportEngine;
-  ExportDoc: TReportExportDocument;
 begin
-  if FReportJSON = '' then
-    raise Exception.Create('No report design loaded.');
-
-  Model := TReportSerializer.LoadFromJSON(FReportJSON);
-  ExportDoc := TReportExportDocument.Create;
-  try
-    Engine := CreateEngine(Model);
-    try
-      Engine.ExportDocument := ExportDoc;
-      Engine.Prepare;
-      TReportVectorPDFExporter.ExportDocument(ExportDoc, AFileName);
-    finally
-      Engine.DetachDataSet;
-      Engine.Free;
-    end;
-  finally
-    ExportDoc.Free;
-    Model.Free;
-  end;
+  RunPreparedExportDoc(
+    procedure(const ADoc: TReportExportDocument)
+    begin
+      TReportVectorPDFExporter.ExportDocument(ADoc, AFileName);
+    end);
 end;
 
 procedure TVittixReport.ExportToVectorPDF(AStream: TStream);
-var
-  Model  : TReportModel;
-  Engine : TReportEngine;
-  ExportDoc: TReportExportDocument;
 begin
-  if FReportJSON = '' then
-    raise Exception.Create('No report design loaded.');
-  if not Assigned(AStream) then
-    raise EArgumentNilException.Create('AStream');
-
-  Model := TReportSerializer.LoadFromJSON(FReportJSON);
-  ExportDoc := TReportExportDocument.Create;
-  try
-    Engine := CreateEngine(Model);
-    try
-      Engine.ExportDocument := ExportDoc;
-      Engine.Prepare;
-      TReportVectorPDFExporter.ExportDocument(ExportDoc, AStream);
-    finally
-      Engine.DetachDataSet;
-      Engine.Free;
-    end;
-  finally
-    ExportDoc.Free;
-    Model.Free;
-  end;
+  RunPreparedExportDoc(AStream,
+    procedure(const ADoc: TReportExportDocument)
+    begin
+      TReportVectorPDFExporter.ExportDocument(ADoc, AStream);
+    end);
 end;
 
 procedure TVittixReport.ExportToHTML(const AFileName: string);
-var
-  Model  : TReportModel;
-  Engine : TReportEngine;
-  ExportDoc: TReportExportDocument;
 begin
-  if FReportJSON = '' then
-    raise Exception.Create('No report design loaded.');
-
-  Model := TReportSerializer.LoadFromJSON(FReportJSON);
-  ExportDoc := TReportExportDocument.Create;
-  try
-    Engine := CreateEngine(Model);
-    try
-      Engine.ExportDocument := ExportDoc;
-      Engine.Prepare;
-      TReportHTMLExporter.ExportDocument(ExportDoc, AFileName);
-    finally
-      Engine.DetachDataSet;
-      Engine.Free;
-    end;
-  finally
-    ExportDoc.Free;
-    Model.Free;
-  end;
+  RunPreparedExportDoc(
+    procedure(const ADoc: TReportExportDocument)
+    begin
+      TReportHTMLExporter.ExportDocument(ADoc, AFileName);
+    end);
 end;
 
 procedure TVittixReport.ExportToHTML(AStream: TStream);
-var
-  Model  : TReportModel;
-  Engine : TReportEngine;
-  ExportDoc: TReportExportDocument;
 begin
-  if FReportJSON = '' then
-    raise Exception.Create('No report design loaded.');
-  if not Assigned(AStream) then
-    raise EArgumentNilException.Create('AStream');
-
-  Model := TReportSerializer.LoadFromJSON(FReportJSON);
-  ExportDoc := TReportExportDocument.Create;
-  try
-    Engine := CreateEngine(Model);
-    try
-      Engine.ExportDocument := ExportDoc;
-      Engine.Prepare;
-      TReportHTMLExporter.ExportDocument(ExportDoc, AStream);
-    finally
-      Engine.DetachDataSet;
-      Engine.Free;
-    end;
-  finally
-    ExportDoc.Free;
-    Model.Free;
-  end;
+  RunPreparedExportDoc(AStream,
+    procedure(const ADoc: TReportExportDocument)
+    begin
+      TReportHTMLExporter.ExportDocument(ADoc, AStream);
+    end);
 end;
 
 procedure TVittixReport.ExportToXLSX(const AFileName: string);
-var
-  Model  : TReportModel;
-  Engine : TReportEngine;
-  ExportDoc: TReportExportDocument;
 begin
-  if FReportJSON = '' then
-    raise Exception.Create('No report design loaded.');
-
-  Model := TReportSerializer.LoadFromJSON(FReportJSON);
-  ExportDoc := TReportExportDocument.Create;
-  try
-    Engine := CreateEngine(Model);
-    try
-      Engine.ExportDocument := ExportDoc;
-      Engine.Prepare;
-      TReportXLSXExporter.ExportToFile(ExportDoc.Pages, AFileName);
-    finally
-      Engine.DetachDataSet;
-      Engine.Free;
-    end;
-  finally
-    ExportDoc.Free;
-    Model.Free;
-  end;
+  RunPreparedExportDoc(
+    procedure(const ADoc: TReportExportDocument)
+    begin
+      TReportXLSXExporter.ExportToFile(ADoc.Pages, AFileName);
+    end);
 end;
 
 procedure TVittixReport.ExportToXLSX(AStream: TStream);
-var
-  Model  : TReportModel;
-  Engine : TReportEngine;
-  ExportDoc: TReportExportDocument;
 begin
-  if FReportJSON = '' then
-    raise Exception.Create('No report design loaded.');
-  if not Assigned(AStream) then
-    raise EArgumentNilException.Create('AStream');
-
-  Model := TReportSerializer.LoadFromJSON(FReportJSON);
-  ExportDoc := TReportExportDocument.Create;
-  try
-    Engine := CreateEngine(Model);
-    try
-      Engine.ExportDocument := ExportDoc;
-      Engine.Prepare;
-      TReportXLSXExporter.ExportToStream(ExportDoc.Pages, AStream);
-    finally
-      Engine.DetachDataSet;
-      Engine.Free;
-    end;
-  finally
-    ExportDoc.Free;
-    Model.Free;
-  end;
+  RunPreparedExportDoc(AStream,
+    procedure(const ADoc: TReportExportDocument)
+    begin
+      TReportXLSXExporter.ExportToStream(ADoc.Pages, AStream);
+    end);
 end;
 
 procedure TVittixReport.ExportToText(const AFileName: string);
@@ -960,29 +945,15 @@ end;
 
 procedure TVittixReport.ExportWith(const AExporter: IReportExporter;
   const AFileName: string);
-var
-  Model  : TReportModel;
-  Engine : TReportEngine;
 begin
   if not Assigned(AExporter) then
     raise Exception.Create('Report exporter is not assigned.');
 
-  if FReportJSON = '' then
-    raise Exception.Create('No report design loaded.');
-
-  Model := TReportSerializer.LoadFromJSON(FReportJSON);
-  try
-    Engine := CreateEngine(Model);
-    try
-      Engine.Prepare;
-      AExporter.ExportPages(Engine.Pages, AFileName);
-    finally
-      Engine.DetachDataSet;
-      Engine.Free;
-    end;
-  finally
-    Model.Free;
-  end;
+  RunPreparedEngine(
+    procedure(const AEngine: TReportEngine)
+    begin
+      AExporter.ExportPages(AEngine.Pages, AFileName);
+    end);
 end;
 
 // ---------------------------------------------------------------------------
