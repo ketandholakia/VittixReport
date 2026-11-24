@@ -384,7 +384,7 @@ From report §12 long-term + unscheduled Lows (each needs its own analysis-first
 
 **2026-11-24 external review intake** (findings re-verified against the working tree; details in report §5, "2026-11-24 external static review"):
 
-- **R-10 `[fix]` — XLSX invalid XML characters (P1, scheduled next):** `EscapeXMLAttr` (`source/Vittix.Report.Export.XLSX.pas:106-113`) handles only `& < > " '`; control characters invalid in XML 1.0 (#0-#8, #11, #12, #14-#31) and lone surrogates reach cell text as-is → Excel prompts to repair the file. Fix: a `SanitizeXmlText` helper (keep #9/#10/#13, drop the rest; drop lone surrogates) applied at every `<t>`/`<v>` write site; red→green via `Test.Vittix.Report.Export.XLSX`.
+- **R-10 `[fix]` — XLSX invalid XML characters (P1, ✅ done 2026-11-24):** `EscapeXMLAttr` (`source/Vittix.Report.Export.XLSX.pas:106-113`) handles only `& < > " '`; control characters invalid in XML 1.0 (#0-#8, #11, #12, #14-#31) and lone surrogates reached cell text as-is → Excel prompts to repair the file. Fixed red→green (`9ae752c` test / `564fc2d` fix): `SanitizeXmlText` (fast-path no-op on clean text; keeps tab/LF/CR and valid surrogate pairs) folded into `EscapeXMLAttr` and applied at every cell write site; the two duplicated inline escape blocks now call the shared function. Gate 973 found / 946 passed / 0 leaked at both checkpoints (pre-existing Firebird + PDFSave env failures identical).
 - **R-11 `[fix]` — XLSX Excel limit guards (P2):** no 32,767-char cell limit, no 1,048,576-row / 16,384-col guards; oversized data produces repair-prompting files. Clamp or fail loudly.
 - **R-12 `[refactor]` — XLSX sheet assembly O(n²):** `SheetXml := SheetXml + ...` per cell (`:618-711`); switch to `TStringBuilder`/stream chunks.
 - **R-13 `[fix]` — HTML CSS-value escaping (P2):** entity-decoded `'` still terminates the `font-family:'...'` CSS string (`Export.HTML.pas:282-283, 303`); CSS-escape (`\27`) before attribute-encoding.
@@ -392,7 +392,19 @@ From report §12 long-term + unscheduled Lows (each needs its own analysis-first
 - **R-15 `[API decision]` — image path policy (P2):** `ResolveImageSource` loads any dataset-supplied path (UNC included). Optional `ImageRootPath`/`OnResolveImagePath` on the component; refuse UNC unless the host opts in. Adds public API → needs owner sign-off + docs.
 - **R-16 `[API decision]` — expose swallow diagnostics (P2):** the R-09 counters are engine/test-only; add `OnDiagnostic` (or a diagnostics list) + optional StrictErrors mode on `TVittixReport`, legacy default unchanged. Adds public API → needs owner sign-off + docs.
 - **R-17 `[chore]` — deprecated MAPI exporter still compiled:** `TReportEmailExporter` gates or moves to a compat package.
-- **R-18 `[fix]` — `CreateEngine` leak guard:** move `BuildNamedUserDataSets` inside the try (`Component.pas:410-443`); not reachable today, one-line hygiene.
+- **R-18 `[fix]` — `CreateEngine` leak guard (✅ done 2026-11-24, `2facf3d`):** `BuildNamedUserDataSets` now runs inside the guarded region with its own try/finally for `NamedUDS`; `NamedDS` releases in the outer finally.
+
+**Same-day post-v1.0.0 refactors from the 2026-11-24 review (report §12 items 4 and long-term 2):**
+- Component export dedup — done (`1fec6fa`), see report §12 item 4.
+- `RunRuntimeEventCallbackDemo` (2,610 lines) extracted from `Frm.Main.pas`
+  into `Frm.Main.RuntimeDemoUI.pas` (`cb61819`; form state injected via
+  `TProc`/`TFunc`/`TFunc<string>`/`TNotifyEvent` callbacks, demo output and
+  clipboard handler live in the demo unit; `Frm.Main.pas` 7,648 → 5,058
+  lines). Manual follow-up for the owner: run the shipped "Run Runtime Event
+  Callback Demo" menu item once and confirm the dialog and Copy button behave
+  as before. The remainder of the Frm.Main decomposition (dead
+  `Vittix.Designer.RuntimeDemo.pas` twin, duplicated command classes, the
+  non-compilable `Frm.Main.PropertyEditHelpers.pas`) stays parked in Wave 5.
 
 ---
 
