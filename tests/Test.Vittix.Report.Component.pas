@@ -1,4 +1,4 @@
-unit Test.Vittix.Report.Component;
+﻿unit Test.Vittix.Report.Component;
 
 {
   Phase 4G-3: component-level engine configuration tests.
@@ -25,6 +25,12 @@ type
     FLargeReportCalls: Integer;
     FLargeReportPages: Integer;
     FLargeReportContinue: Boolean;
+    FEventUdsIndex: Integer;
+    procedure EventUdsFirst(Sender: TObject);
+    procedure EventUdsNext(Sender: TObject);
+    procedure EventUdsEof(Sender: TObject; var AEof: Boolean);
+    procedure EventUdsGetValue(Sender: TObject; const AFieldName: string;
+      var AValue: Variant);
     procedure BeforeObjectHandler(Sender: TObject; AEngine: TObject;
       AObject: TReportObject; const Context: TExpressionContext;
       var ACanPrint: Boolean);
@@ -66,6 +72,27 @@ type
     [Test] procedure Test_LargeReport_ThresholdZeroDisablesCheck;
     [Test] procedure Test_LargeReport_Abort_AbortsExportEntryPoints;
     [Test] procedure Test_LargeReport_Abort_ExecuteAndPrint;
+
+    { UserDataSet cursor protection (Issue 2): TVittixUserDataSet wrapping a
+      TDataSet without custom navigation events must preserve cursor and
+      balance DisableControls/EnableControls. }
+    [Test] procedure Test_UserDataSet_DataSet_RestoresCursorAfterExport;
+    [Test] procedure Test_UserDataSet_DataSet_ControlsDisabledBalancedOnSuccessAndException;
+    [Test] procedure Test_UserDataSet_DataSet_SuppressesDataLinkScrollEvents;
+
+    { Named-dataset lookup (Issue 3): case-insensitive lookup and fallback
+      diagnostics counter. }
+    [Test] procedure Test_NamedDataSets_CaseInsensitive_MasterAndDetailBands;
+    [Test] procedure Test_NamedDataSets_FallbackCounter_IncrementsOnlyOnGenuineMiss;
+
+    { Preview Fit Page (Issue 4): MethodAddress('FitPage') is nil because
+      FitPage is public, not published; Component.pas must call Preview.FitPage
+      directly without InvokePreviewAction or duplicate BtnFitWidth.OnClick. }
+    [Test] procedure Test_Preview_FitPage_MethodAddressIsNil_And_ComponentUsesDirectCall;
+
+    { ExportToText event-only UserDataSet (Issue 5): proves ExportToText
+      produces empty master rows for event-only TVittixUserDataSet. }
+    [Test] procedure Test_ExportToText_EventOnlyUserDataSet_RendersRows;
   end;
 
 {
@@ -792,7 +819,6 @@ begin
   end;
 end;
 
-
 { ===================== UserDataSet cursor protection (Issue 2) ============== }
 
 type
@@ -948,7 +974,6 @@ begin
     DS.Free;
   end;
 end;
-
 
 { ===================== Named-dataset lookup (Issue 3) ===================== }
 
@@ -1147,7 +1172,6 @@ begin
   end;
 end;
 
-
 { ===================== Preview Fit Page (Issue 4) ===================== }
 
 procedure TReportComponentTests.Test_Preview_FitPage_MethodAddressIsNil_And_ComponentUsesDirectCall;
@@ -1212,6 +1236,97 @@ begin
     'BtnFitWidth.OnClick must not be assigned twice in Execute');
 end;
 
+{ ===================== ExportToText event-only UDS (Issue 5) ============== }
+
+procedure TReportComponentTests.EventUdsFirst(Sender: TObject);
+begin
+  FEventUdsIndex := 0;
+end;
+
+procedure TReportComponentTests.EventUdsNext(Sender: TObject);
+begin
+  Inc(FEventUdsIndex);
+end;
+
+procedure TReportComponentTests.EventUdsEof(Sender: TObject; var AEof: Boolean);
+begin
+  AEof := FEventUdsIndex >= 2;
+end;
+
+procedure TReportComponentTests.EventUdsGetValue(Sender: TObject;
+  const AFieldName: string; var AValue: Variant);
+begin
+  if SameText(AFieldName, 'Label') then
+  begin
+    if FEventUdsIndex = 0 then
+      AValue := 'Alpha'
+    else
+      AValue := 'Beta';
+  end;
+end;
+
+procedure TReportComponentTests.Test_ExportToText_EventOnlyUserDataSet_RendersRows;
+var
+  UDS: TVittixUserDataSet;
+  Rpt: TVittixReport;
+  Model: TReportModel;
+  TitleBand, MasterBand: TReportBand;
+  TitleTxt, MasterTxt: TReportTextObject;
+  TempFile: string;
+  Content: string;
+  PdfStream: TMemoryStream;
+begin
+  UDS := TVittixUserDataSet.Create(nil);
+  Rpt := TVittixReport.Create(nil);
+  Model := TReportModel.Create;
+  PdfStream := TMemoryStream.Create;
+  TempFile := TPath.Combine(TPath.GetTempPath, 'vittix_text_uds_' + TGUID.NewGuid.ToString + '.txt');
+  try
+    UDS.Name := 'udsEvents';
+    UDS.OnFirst := EventUdsFirst;
+    UDS.OnNext := EventUdsNext;
+    UDS.OnEof := EventUdsEof;
+    UDS.OnGetValue := EventUdsGetValue;
+
+    TitleBand := TReportBand.Create;
+    TitleBand.BandType := btReportTitle;
+    TitleBand.Height := 25;
+    TitleTxt := TReportTextObject.Create;
+    TitleTxt.Text := 'Header';
+    TitleTxt.Bounds := Rect(4, 4, 120, 20);
+    TitleBand.Children.Add(TitleTxt);
+    Model.Objects.Add(TitleBand);
+
+    MasterBand := TReportBand.Create;
+    MasterBand.BandType := btMasterData;
+    MasterBand.Height := 25;
+    MasterTxt := TReportTextObject.Create;
+    MasterTxt.Expression := '[Label]';
+    MasterTxt.Bounds := Rect(4, 4, 120, 20);
+    MasterBand.Children.Add(MasterTxt);
+    Model.Objects.Add(MasterBand);
+
+    Rpt.ReportJSON := TReportSerializer.SaveToJSON(Model);
+    Rpt.RegisterUserDataSet(UDS);
+
+    // Same setup works in the engine path (e.g. ExportToVectorPDF / Execute)
+    Rpt.ExportToVectorPDF(PdfStream);
+    Assert.IsTrue(PdfStream.Size > 200, 'Engine path should render event-only UserDataSet');
+
+    // ExportToText bypasses CreateEngine -> produces empty master rows
+    Rpt.ExportToText(TempFile);
+    Content := TFile.ReadAllText(TempFile, TEncoding.UTF8);
+    Assert.IsTrue(Pos('Alpha', Content) > 0,
+      'ExportToText must render event-only UserDataSet row "Alpha" (got: "' + Trim(Content) + '")');
+  finally
+    if TFile.Exists(TempFile) then
+      TFile.Delete(TempFile);
+    PdfStream.Free;
+    Model.Free;
+    Rpt.Free;
+    UDS.Free;
+  end;
+end;
 
 initialization
   TDUnitX.RegisterTestFixture(TReportComponentTests);
