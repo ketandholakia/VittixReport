@@ -57,6 +57,9 @@ type
     ObjectPrintWhenExceptions: Integer;
     SubReportParseFailures: Integer;
     AggregateValueErrors: Integer;
+    { Band DataSetName was non-empty but not found in NamedDataSets or
+      NamedUserDataSets, causing silent fallback to the primary dataset. }
+    BandDataSetNameFallbacks: Integer;
   end;
 
   TReportTraversalDiagnostics = class
@@ -85,6 +88,7 @@ type
     class procedure ObjectPrintWhenException; static;
     class procedure SubReportParseFailed; static;
     class procedure AggregateValueError; static;
+    class procedure BandDataSetNameFallback; static;
   end;
 
 implementation
@@ -197,6 +201,11 @@ end;
 class procedure TReportTraversalDiagnostics.AggregateValueError;
 begin
   Inc(FSnapshot.AggregateValueErrors);
+end;
+
+class procedure TReportTraversalDiagnostics.BandDataSetNameFallback;
+begin
+  Inc(FSnapshot.BandDataSetNameFallbacks);
 end;
 
 end.

@@ -89,6 +89,7 @@ uses
   Vcl.Graphics,
   Vittix.Report.Engine,
   Vittix.Report.UserDataSet,
+  Vittix.Report.TraversalDiagnostics,
   Vittix.Report.Renderer,
   Vittix.Report.Model,
   Vittix.Report.Bands,
@@ -942,6 +943,204 @@ begin
     Link.Free;
     Src.Free;
     DS.Free;
+  end;
+end;
+
+
+{ ===================== Named-dataset lookup (Issue 3) ===================== }
+
+procedure TReportComponentTests.Test_NamedDataSets_CaseInsensitive_MasterAndDetailBands;
+var
+  CustDS, OrdDS: TClientDataSet;
+  CustUDS, OrdUDS: TVittixUserDataSet;
+  Rpt: TVittixReport;
+  Model: TReportModel;
+  MasterBand, DetailBand: TReportBand;
+  MasterTxt, DetailTxt: TReportTextObject;
+  Engine: TReportEngine;
+  Doc: TReportExportDocument;
+  FoundCust, FoundOrder: Boolean;
+  PIdx, CIdx: Integer;
+  ResolvedDS: TDataSet;
+  Cmd: TReportExportCommand;
+begin
+  CustDS := TClientDataSet.Create(nil);
+  OrdDS := TClientDataSet.Create(nil);
+  CustUDS := TVittixUserDataSet.Create(nil);
+  OrdUDS := TVittixUserDataSet.Create(nil);
+  Rpt := TVittixReport.Create(nil);
+  Model := TReportModel.Create;
+  Doc := TReportExportDocument.Create;
+  try
+    CustDS.FieldDefs.Add('CustName', ftString, 20);
+    CustDS.CreateDataSet;
+    CustDS.AppendRecord(['CustA']);
+    CustDS.First;
+
+    OrdDS.FieldDefs.Add('OrderNo', ftString, 20);
+    OrdDS.CreateDataSet;
+    OrdDS.AppendRecord(['ORD-99']);
+    OrdDS.First;
+
+    CustUDS.Name := 'Customers';
+    CustUDS.DataSet := CustDS;
+    OrdUDS.Name := 'Orders';
+    OrdUDS.DataSet := OrdDS;
+
+    Rpt.RegisterUserDataSet(CustUDS);
+    Rpt.RegisterUserDataSet(OrdUDS);
+
+    MasterBand := TReportBand.Create;
+    MasterBand.BandType := btMasterData;
+    MasterBand.DataSetName := 'customers'; // mixed/lower case
+    MasterBand.Height := 25;
+    MasterTxt := TReportTextObject.Create;
+    MasterTxt.Expression := '[CustName]';
+    MasterTxt.Bounds := Rect(4, 4, 120, 20);
+    MasterBand.Children.Add(MasterTxt);
+    Model.Objects.Add(MasterBand);
+
+    DetailBand := TReportBand.Create;
+    DetailBand.BandType := btDetail;
+    DetailBand.DataSetName := 'oRdErS'; // mixed case
+    DetailBand.Height := 25;
+    DetailTxt := TReportTextObject.Create;
+    DetailTxt.Expression := '[OrderNo]';
+    DetailTxt.Bounds := Rect(10, 4, 150, 20);
+    DetailBand.Children.Add(DetailTxt);
+    Model.Objects.Add(DetailBand);
+
+    Rpt.ReportJSON := TReportSerializer.SaveToJSON(Model);
+
+    TReportTraversalDiagnostics.Reset;
+    Engine := Rpt.CreateEngine(Model);
+    try
+      Engine.ExportDocument := Doc;
+      Engine.Prepare;
+    finally
+      Engine.DetachDataSet;
+      Engine.Free;
+    end;
+
+    // Also verify Engine.NamedDataSets (TDataSet path) is case-insensitive
+    Engine := TReportEngine.Create(Model, CustDS, nil);
+    try
+      Engine.RegisterDataSet('Orders', OrdDS);
+      Assert.IsTrue(Engine.NamedDataSets.TryGetValue('oRdErS', ResolvedDS),
+        'NamedDataSets must match "oRdErS" -> "Orders"');
+      Assert.AreSame(OrdDS, ResolvedDS);
+    finally
+      Engine.Free;
+    end;
+
+    FoundCust := False;
+    FoundOrder := False;
+    for PIdx := 0 to Doc.Pages.Count - 1 do
+      for CIdx := 0 to Doc.Pages[PIdx].Commands.Count - 1 do
+      begin
+        Cmd := Doc.Pages[PIdx].Commands[CIdx];
+        if Cmd is TReportExportTextCommand then
+        begin
+          if Pos('CustA', TReportExportTextCommand(Cmd).Text) > 0 then
+            FoundCust := True;
+          if Pos('ORD-99', TReportExportTextCommand(Cmd).Text) > 0 then
+            FoundOrder := True;
+        end;
+      end;
+
+    Assert.IsTrue(FoundCust, 'Master band must render CustA');
+    Assert.IsTrue(FoundOrder, 'Detail band with DataSetName="oRdErS" must resolve Orders dataset');
+    Assert.AreEqual(0, TReportTraversalDiagnostics.Snapshot.BandDataSetNameFallbacks,
+      'Matched mixed-case DataSetName must not count as a fallback');
+  finally
+    Doc.Free;
+    Model.Free;
+    Rpt.Free;
+    OrdUDS.Free;
+    CustUDS.Free;
+    OrdDS.Free;
+    CustDS.Free;
+  end;
+end;
+
+procedure TReportComponentTests.Test_NamedDataSets_FallbackCounter_IncrementsOnlyOnGenuineMiss;
+var
+  CustDS, OrdDS: TClientDataSet;
+  Model: TReportModel;
+  MasterBand, DetailBand: TReportBand;
+  DetailTxt: TReportTextObject;
+  Engine: TReportEngine;
+begin
+  CustDS := TClientDataSet.Create(nil);
+  OrdDS := TClientDataSet.Create(nil);
+  Model := TReportModel.Create;
+  try
+    CustDS.FieldDefs.Add('CustName', ftString, 20);
+    CustDS.CreateDataSet;
+    CustDS.AppendRecord(['CustA']);
+    CustDS.First;
+
+    OrdDS.FieldDefs.Add('OrderNo', ftString, 20);
+    OrdDS.CreateDataSet;
+    OrdDS.AppendRecord(['ORD-1']);
+    OrdDS.First;
+
+    MasterBand := TReportBand.Create;
+    MasterBand.BandType := btMasterData;
+    MasterBand.Height := 25;
+    Model.Objects.Add(MasterBand);
+
+    DetailBand := TReportBand.Create;
+    DetailBand.BandType := btDetail;
+    DetailBand.Height := 25;
+    DetailTxt := TReportTextObject.Create;
+    DetailTxt.Expression := '[CustName]';
+    DetailTxt.Bounds := Rect(10, 4, 150, 20);
+    DetailBand.Children.Add(DetailTxt);
+    Model.Objects.Add(DetailBand);
+
+    // 1. Empty DataSetName -> no fallback recorded
+    TReportTraversalDiagnostics.Reset;
+    DetailBand.DataSetName := '';
+    Engine := TReportEngine.Create(Model, CustDS, nil);
+    try
+      Engine.RegisterDataSet('Orders', OrdDS);
+      Engine.Prepare;
+    finally
+      Engine.Free;
+    end;
+    Assert.AreEqual(0, TReportTraversalDiagnostics.Snapshot.BandDataSetNameFallbacks,
+      'Empty DataSetName must not increment fallback counter');
+
+    // 2. Mixed-case hit -> no fallback recorded
+    TReportTraversalDiagnostics.Reset;
+    DetailBand.DataSetName := 'orders';
+    Engine := TReportEngine.Create(Model, CustDS, nil);
+    try
+      Engine.RegisterDataSet('Orders', OrdDS);
+      Engine.Prepare;
+    finally
+      Engine.Free;
+    end;
+    Assert.AreEqual(0, TReportTraversalDiagnostics.Snapshot.BandDataSetNameFallbacks,
+      'Case-insensitive hit must not increment fallback counter');
+
+    // 3. Genuine miss -> fallback counter increments
+    TReportTraversalDiagnostics.Reset;
+    DetailBand.DataSetName := 'MissingDataSet';
+    Engine := TReportEngine.Create(Model, CustDS, nil);
+    try
+      Engine.RegisterDataSet('Orders', OrdDS);
+      Engine.Prepare;
+    finally
+      Engine.Free;
+    end;
+    Assert.IsTrue(TReportTraversalDiagnostics.Snapshot.BandDataSetNameFallbacks > 0,
+      'Genuine DataSetName miss must increment fallback counter');
+  finally
+    Model.Free;
+    OrdDS.Free;
+    CustDS.Free;
   end;
 end;
 
