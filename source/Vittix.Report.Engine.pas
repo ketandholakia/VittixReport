@@ -1,4 +1,4 @@
-unit Vittix.Report.Engine;
+﻿unit Vittix.Report.Engine;
 
 {
   Vittix.Report.Engine
@@ -660,8 +660,8 @@ begin
   FReport   := AReport;
   FDataSet  := ADataSet;
   FUserDataSet := AUserDataSet;
-  FNamedDataSets := TDictionary<string, TDataSet>.Create;
-  FNamedUserDataSets := TDictionary<string, TVittixUserDataSet>.Create;
+  FNamedDataSets := TDictionary<string, TDataSet>.Create(TIStringComparer.Ordinal);
+  FNamedUserDataSets := TDictionary<string, TVittixUserDataSet>.Create(TIStringComparer.Ordinal);
   FScriptEngine := TReportScriptEngine.Create(nil);
   FParameters := TStringList.Create;
   FAggregateCache := TObjectList<TAggregateCacheEntry>.Create(True);
@@ -2352,6 +2352,17 @@ begin
      and FNamedDataSets.TryGetValue(ABand.DataSetName, Result) then
     Exit;
 
+  if (FUserDataSet = nil) and
+     (not Assigned(FNamedUserDataSets) or (FNamedUserDataSets.Count = 0)) then
+  begin
+    TReportTraversalDiagnostics.BandDataSetNameFallback;
+    {$IFDEF DEBUG}
+    OutputDebugString(PChar(Format(
+      '[VittixReport] Band DataSetName "%s" not found; fell back to primary dataset.',
+      [ABand.DataSetName])));
+    {$ENDIF}
+  end;
+
   // Fallback to the primary dataset when the band name is not registered.
   // This keeps older templates working even when the named dataset wiring is incomplete.
   Result := FDataSet;
@@ -2370,6 +2381,17 @@ begin
   if Assigned(FNamedUserDataSets) and
      FNamedUserDataSets.TryGetValue(ABand.DataSetName, Result) then
     Exit;
+
+  if (Assigned(FUserDataSet) or (Assigned(FNamedUserDataSets) and (FNamedUserDataSets.Count > 0))) and
+     not (Assigned(FNamedDataSets) and FNamedDataSets.ContainsKey(ABand.DataSetName)) then
+  begin
+    TReportTraversalDiagnostics.BandDataSetNameFallback;
+    {$IFDEF DEBUG}
+    OutputDebugString(PChar(Format(
+      '[VittixReport] Band DataSetName "%s" not found; fell back to primary user dataset.',
+      [ABand.DataSetName])));
+    {$ENDIF}
+  end;
 
   // Fallback to the primary user dataset when the band name is not registered.
   Result := FUserDataSet;

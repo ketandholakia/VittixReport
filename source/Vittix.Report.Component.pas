@@ -42,6 +42,7 @@ uses
   System.Classes,
   System.SysUtils,
   System.Generics.Collections,
+  System.Generics.Defaults,
   Data.DB,
   Vittix.Report.Model,
   Vittix.Report.Serializer,
@@ -375,7 +376,7 @@ var
   UDS: TVittixUserDataSet;
   I  : Integer;
 begin
-  ANamedDS := TDictionary<string, TDataSet>.Create;
+  ANamedDS := TDictionary<string, TDataSet>.Create(TIStringComparer.Ordinal);
 
   if FUserDataSets.Count > 0 then
   begin
@@ -407,7 +408,7 @@ var
   UDS: TVittixUserDataSet;
 begin
   APrimary := nil;
-  ANamedDS := TDictionary<string, TVittixUserDataSet>.Create;
+  ANamedDS := TDictionary<string, TVittixUserDataSet>.Create(TIStringComparer.Ordinal);
 
   if FUserDataSets.Count = 0 then
     Exit;
