@@ -30,6 +30,9 @@ type
       var ACanPrint: Boolean);
     procedure LargeReportHandler(Sender: TObject; APageCount: Integer;
       var AContinue: Boolean);
+    procedure RaiseOnBeforeObjectHandler(Sender: TObject; AEngine: TObject;
+      AObject: TReportObject; const Context: TExpressionContext;
+      var ACanPrint: Boolean);
   public
     [Test] procedure Test_CreateEngine_WiresParameters;
     [Test] procedure Test_CreateEngine_WiresTwoPassRendering;
@@ -85,6 +88,7 @@ uses
   Datasnap.DBClient,
   Vcl.Graphics,
   Vittix.Report.Engine,
+  Vittix.Report.UserDataSet,
   Vittix.Report.Renderer,
   Vittix.Report.Model,
   Vittix.Report.Bands,
@@ -780,6 +784,163 @@ begin
     Assert.AreEqual(2, FLargeReportCalls, 'OnLargeReport should fire in both Execute and Print');
   finally
     Rpt.Free;
+    DS.Free;
+  end;
+end;
+
+
+{ ===================== UserDataSet cursor protection (Issue 2) ============== }
+
+type
+  TTestScrollDataLink = class(TDataLink)
+  public
+    ScrollCalls: Integer;
+    DataSetChangedCalls: Integer;
+  protected
+    procedure DataSetScrolled(Distance: Integer); override;
+    procedure DataSetChanged; override;
+  end;
+
+procedure TTestScrollDataLink.DataSetScrolled(Distance: Integer);
+begin
+  inherited;
+  Inc(ScrollCalls);
+end;
+
+procedure TTestScrollDataLink.DataSetChanged;
+begin
+  inherited;
+  Inc(DataSetChangedCalls);
+end;
+
+procedure TReportComponentTests.RaiseOnBeforeObjectHandler(Sender: TObject;
+  AEngine: TObject; AObject: TReportObject; const Context: TExpressionContext;
+  var ACanPrint: Boolean);
+begin
+  raise Exception.Create('Simulated failure mid-traversal');
+end;
+
+procedure TReportComponentTests.Test_UserDataSet_DataSet_RestoresCursorAfterExport;
+var
+  DS: TClientDataSet;
+  UDS: TVittixUserDataSet;
+  Rpt: TVittixReport;
+  Ms: TMemoryStream;
+  JSON: string;
+begin
+  JSON := BuildMultiPageReportJSON(DS, 10);
+  DS.Locate('ID', 5, []);
+  Assert.AreEqual(5, DS.FieldByName('ID').AsInteger, 'Precondition: cursor at ID=5');
+
+  Rpt := TVittixReport.Create(nil);
+  UDS := TVittixUserDataSet.Create(nil);
+  Ms := TMemoryStream.Create;
+  try
+    UDS.Name := 'udsMaster';
+    UDS.DataSet := DS;
+    Rpt.ReportJSON := JSON;
+    Rpt.RegisterUserDataSet(UDS);
+
+    Rpt.ExportToVectorPDF(Ms);
+
+    Assert.IsFalse(DS.Eof, 'Cursor must not be left at Eof');
+    Assert.AreEqual(5, DS.FieldByName('ID').AsInteger,
+      'Cursor position must be restored to ID=5 after export');
+    Assert.IsFalse(DS.ControlsDisabled, 'ControlsDisabled must be False after export');
+  finally
+    Ms.Free;
+    UDS.Free;
+    Rpt.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TReportComponentTests.Test_UserDataSet_DataSet_ControlsDisabledBalancedOnSuccessAndException;
+var
+  DS: TClientDataSet;
+  UDS: TVittixUserDataSet;
+  Rpt: TVittixReport;
+  Ms: TMemoryStream;
+  JSON: string;
+  Raised: Boolean;
+begin
+  JSON := BuildMultiPageReportJSON(DS, 10);
+  DS.Locate('ID', 4, []);
+
+  Rpt := TVittixReport.Create(nil);
+  UDS := TVittixUserDataSet.Create(nil);
+  Ms := TMemoryStream.Create;
+  try
+    UDS.Name := 'udsMaster';
+    UDS.DataSet := DS;
+    Rpt.ReportJSON := JSON;
+    Rpt.RegisterUserDataSet(UDS);
+
+    // 1. Success path
+    Rpt.ExportToVectorPDF(Ms);
+    Assert.IsFalse(DS.ControlsDisabled, 'ControlsDisabled must be balanced after success');
+    Assert.AreEqual(4, DS.FieldByName('ID').AsInteger);
+
+    // 2. Exception path
+    Rpt.OnBeforeObject := RaiseOnBeforeObjectHandler;
+    Raised := False;
+    try
+      Rpt.ExportToVectorPDF(Ms);
+    except
+      on E: Exception do
+        Raised := Pos('Simulated failure', E.Message) > 0;
+    end;
+    Assert.IsTrue(Raised, 'Expected simulated exception');
+    Assert.IsFalse(DS.ControlsDisabled, 'ControlsDisabled must be balanced after exception');
+    Assert.AreEqual(4, DS.FieldByName('ID').AsInteger,
+      'Cursor position must be restored even after exception');
+  finally
+    Ms.Free;
+    UDS.Free;
+    Rpt.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TReportComponentTests.Test_UserDataSet_DataSet_SuppressesDataLinkScrollEvents;
+var
+  DS: TClientDataSet;
+  Src: TDataSource;
+  Link: TTestScrollDataLink;
+  UDS: TVittixUserDataSet;
+  Rpt: TVittixReport;
+  Ms: TMemoryStream;
+  JSON: string;
+begin
+  JSON := BuildMultiPageReportJSON(DS, 10);
+  DS.Locate('ID', 3, []);
+
+  Src := TDataSource.Create(nil);
+  Link := TTestScrollDataLink.Create;
+  Rpt := TVittixReport.Create(nil);
+  UDS := TVittixUserDataSet.Create(nil);
+  Ms := TMemoryStream.Create;
+  try
+    Src.DataSet := DS;
+    Link.DataSource := Src;
+    Link.ScrollCalls := 0;
+
+    UDS.Name := 'udsMaster';
+    UDS.DataSet := DS;
+    Rpt.ReportJSON := JSON;
+    Rpt.RegisterUserDataSet(UDS);
+
+    Rpt.ExportToVectorPDF(Ms);
+
+    Assert.AreEqual(0, Link.ScrollCalls,
+      'DataLink must not receive scroll events while UserDataSet traverses wrapped DataSet');
+    Assert.AreEqual(3, DS.FieldByName('ID').AsInteger);
+  finally
+    Ms.Free;
+    UDS.Free;
+    Rpt.Free;
+    Link.Free;
+    Src.Free;
     DS.Free;
   end;
 end;
