@@ -1,4 +1,4 @@
-unit Vittix.Report.Component;
+﻿unit Vittix.Report.Component;
 
 {
   Vittix.Report.Component
@@ -925,18 +925,34 @@ end;
 
 procedure TVittixReport.ExportToText(const AFileName: string);
 var
-  Model  : TReportModel;
-  Primary: TDataSet;
-  NamedDS: TDictionary<string, TDataSet>;
+  Model     : TReportModel;
+  Primary   : TDataSet;
+  NamedDS   : TDictionary<string, TDataSet>;
+  PrimaryUDS: TVittixUserDataSet;
+  NamedUDS  : TDictionary<string, TVittixUserDataSet>;
 begin
   if FReportJSON = '' then
     raise Exception.Create('No report design loaded.');
 
-  Model := TReportSerializer.LoadFromJSON(FReportJSON);
-  BuildNamedDataSets(Primary, NamedDS);
+  Model := nil;
+  NamedDS := nil;
+  NamedUDS := nil;
   try
-    TReportTextExporter.ExportToFile(Model, Primary, NamedDS, FParameters, AFileName);
+    Model := TReportSerializer.LoadFromJSON(FReportJSON);
+    if FUserDataSets.Count > 0 then
+    begin
+      BuildNamedUserDataSets(PrimaryUDS, NamedUDS);
+      TReportTextExporter.ExportUserDataSetToFile(
+        Model, PrimaryUDS, NamedUDS, FParameters, AFileName);
+    end
+    else
+    begin
+      BuildNamedDataSets(Primary, NamedDS);
+      TReportTextExporter.ExportToFile(
+        Model, Primary, NamedDS, FParameters, AFileName);
+    end;
   finally
+    NamedUDS.Free;
     NamedDS.Free;
     Model.Free;
   end;

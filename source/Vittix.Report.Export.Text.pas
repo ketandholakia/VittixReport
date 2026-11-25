@@ -6,7 +6,8 @@ uses
   System.Classes,
   System.Generics.Collections,
   Data.DB,
-  Vittix.Report.Model;
+  Vittix.Report.Model,
+  Vittix.Report.UserDataSet;
 
 type
   TReportTextExporter = class
@@ -15,6 +16,12 @@ type
       AReport: TReportModel;
       ADataSet: TDataSet;
       ANamedDataSets: TDictionary<string, TDataSet>;
+      AParameters: TStrings;
+      const AFileName: string);
+    class procedure ExportUserDataSetToFile(
+      AReport: TReportModel;
+      AUserDataSet: TVittixUserDataSet;
+      ANamedUserDataSets: TDictionary<string, TVittixUserDataSet>;
       AParameters: TStrings;
       const AFileName: string);
   end;
@@ -67,9 +74,14 @@ begin
 
   if Trim(AObject.Expression) <> '' then
     Result := VarToStr(TReportExpression.Evaluate(AObject.Expression, AContext))
-  else if (Trim(AObject.DataField) <> '') and Assigned(AContext.DataSet) and
-          AContext.DataSet.Active then
-    Result := SafeFieldAsString(AContext.DataSet, AObject.DataField)
+  else if Trim(AObject.DataField) <> '' then
+  begin
+    if (AContext.UserDataSet is TVittixUserDataSet) and
+       TVittixUserDataSet(AContext.UserDataSet).Active then
+      Result := VarToStr(TVittixUserDataSet(AContext.UserDataSet).GetValue(AObject.DataField))
+    else if Assigned(AContext.DataSet) and AContext.DataSet.Active then
+      Result := SafeFieldAsString(AContext.DataSet, AObject.DataField);
+  end
   else
     Result := AObject.Text;
 end;
@@ -155,20 +167,53 @@ begin
   end;
 end;
 
+function ResolveBandUserDataSet(
+  ABand: TReportBand;
+  APrimary: TVittixUserDataSet;
+  ANamedUserDataSets: TDictionary<string, TVittixUserDataSet>): TVittixUserDataSet;
+begin
+  Result := APrimary;
+  if not Assigned(ABand) or (Trim(ABand.DataSetName) = '') then
+    Exit;
+
+  if Assigned(ANamedUserDataSets) and
+     ANamedUserDataSets.TryGetValue(ABand.DataSetName, Result) then
+    Exit;
+
+  Result := nil;
+end;
+
+function WrappedUserDataSet(AUserDataSet: TVittixUserDataSet): TDataSet;
+begin
+  Result := nil;
+  if Assigned(AUserDataSet) and
+     not Assigned(AUserDataSet.OnFirst) and
+     not Assigned(AUserDataSet.OnNext) and
+     not Assigned(AUserDataSet.OnEof) and
+     Assigned(AUserDataSet.DataSet) and
+     AUserDataSet.DataSet.Active then
+    Result := AUserDataSet.DataSet;
+end;
+
 procedure AppendDetailBands(
   ALines: TStrings;
   AReport: TReportModel;
   APrimary: TDataSet;
   ANamedDataSets: TDictionary<string, TDataSet>;
+  APrimaryUDS: TVittixUserDataSet;
+  ANamedUserDataSets: TDictionary<string, TVittixUserDataSet>;
   const ABaseContext: TExpressionContext);
 var
   Obj: TReportObject;
   Band: TReportBand;
   DetailDS: TDataSet;
+  DetailUDS: TVittixUserDataSet;
+  WrappedDS: TDataSet;
   MasterFld: TField;
   DetailFld: TField;
   MasterValue: Variant;
-  HasMasterField: Boolean;
+  DetailValue: Variant;
+  HasMasterLink: Boolean;
   Ctx: TExpressionContext;
   SaveBM: TBookmark;
   HasSaveBM: Boolean;
@@ -182,6 +227,64 @@ begin
     if Band.BandType <> btDetail then
       Continue;
 
+    DetailUDS := nil;
+    if Assigned(APrimaryUDS) or Assigned(ANamedUserDataSets) then
+      DetailUDS := ResolveBandUserDataSet(Band, APrimaryUDS, ANamedUserDataSets);
+
+    if Assigned(DetailUDS) and DetailUDS.Active then
+    begin
+      WrappedDS := WrappedUserDataSet(DetailUDS);
+      HasSaveBM := False;
+      SaveBM := nil;
+      if Assigned(WrappedDS) then
+      begin
+        HasSaveBM := CaptureBookmark(WrappedDS, SaveBM);
+        WrappedDS.DisableControls;
+      end;
+      try
+        HasMasterLink := (Band.MasterField <> '') and (Band.DetailField <> '');
+        if HasMasterLink then
+        begin
+          if Assigned(APrimaryUDS) and APrimaryUDS.Active then
+            MasterValue := APrimaryUDS.GetValue(Band.MasterField)
+          else if Assigned(APrimary) and APrimary.Active and
+                  TryGetField(APrimary, Band.MasterField, MasterFld) then
+            MasterValue := MasterFld.Value
+          else
+            HasMasterLink := False;
+        end
+        else
+          MasterValue := Null;
+
+        DetailUDS.First;
+        while not DetailUDS.Eof do
+        begin
+          if HasMasterLink then
+            DetailValue := DetailUDS.GetValue(Band.DetailField)
+          else
+            DetailValue := Null;
+
+          if (not HasMasterLink) or
+             (not VarIsNull(MasterValue) and not VarIsNull(DetailValue) and
+              VarSameValue(DetailValue, MasterValue)) then
+          begin
+            Ctx := ABaseContext;
+            Ctx.DataSet := nil;
+            Ctx.UserDataSet := DetailUDS;
+            AppendBandText(ALines, Band, Ctx);
+          end;
+          DetailUDS.Next;
+        end;
+      finally
+        if Assigned(WrappedDS) then
+        begin
+          RestoreBookmark(WrappedDS, SaveBM, HasSaveBM);
+          WrappedDS.EnableControls;
+        end;
+      end;
+      Continue;
+    end;
+
     DetailDS := ResolveBandDataSet(Band, APrimary, ANamedDataSets);
     if not Assigned(DetailDS) or not DetailDS.Active then
       Continue;
@@ -189,13 +292,13 @@ begin
     HasSaveBM := CaptureBookmark(DetailDS, SaveBM);
     DetailDS.DisableControls;
     try
-      HasMasterField :=
+      HasMasterLink :=
         Assigned(APrimary) and APrimary.Active and
         (Band.MasterField <> '') and (Band.DetailField <> '') and
         TryGetField(APrimary, Band.MasterField, MasterFld) and
         TryGetField(DetailDS, Band.DetailField, DetailFld);
 
-      if HasMasterField then
+      if HasMasterLink then
         MasterValue := MasterFld.Value
       else
         MasterValue := Null;
@@ -203,10 +306,11 @@ begin
       DetailDS.First;
       while not DetailDS.Eof do
       begin
-        if (not HasMasterField) or VarSameValue(DetailFld.Value, MasterValue) then
+        if (not HasMasterLink) or VarSameValue(DetailFld.Value, MasterValue) then
         begin
           Ctx := ABaseContext;
           Ctx.DataSet := DetailDS;
+          Ctx.UserDataSet := nil;
           AppendBandText(ALines, Band, Ctx);
         end;
         DetailDS.Next;
@@ -218,10 +322,12 @@ begin
   end;
 end;
 
-class procedure TReportTextExporter.ExportToFile(
+procedure ExportToFileCore(
   AReport: TReportModel;
   ADataSet: TDataSet;
   ANamedDataSets: TDictionary<string, TDataSet>;
+  AUserDataSet: TVittixUserDataSet;
+  ANamedUserDataSets: TDictionary<string, TVittixUserDataSet>;
   AParameters: TStrings;
   const AFileName: string);
 var
@@ -232,6 +338,7 @@ var
   RowNumber: Integer;
   SaveBM: TBookmark;
   HasSaveBM: Boolean;
+  WrappedDS: TDataSet;
 begin
   if not Assigned(AReport) then
     raise Exception.Create('Report model is not assigned.');
@@ -244,6 +351,7 @@ begin
       AReport.ExpressionLanguageVersion, Ctx.ExpressionMode) = False then
       Ctx.ExpressionMode := emLegacy; // unsupported -> safe legacy default
     Ctx.DataSet := ADataSet;
+    Ctx.UserDataSet := AUserDataSet;
     Ctx.PageNumber := 1;
     Ctx.ReportTitle := AReport.Title;
     Ctx.ReportDate := Now;
@@ -254,7 +362,49 @@ begin
          (TReportBand(Obj).BandType in [btReportTitle, btPageHeader, btColumnHeader]) then
         AppendBandText(Lines, TReportBand(Obj), Ctx);
 
-    if Assigned(ADataSet) and ADataSet.Active then
+    if Assigned(AUserDataSet) and AUserDataSet.Active then
+    begin
+      WrappedDS := WrappedUserDataSet(AUserDataSet);
+      HasSaveBM := False;
+      SaveBM := nil;
+      if Assigned(WrappedDS) then
+      begin
+        HasSaveBM := CaptureBookmark(WrappedDS, SaveBM);
+        WrappedDS.DisableControls;
+      end;
+      try
+        RowNumber := 0;
+        AUserDataSet.First;
+        while not AUserDataSet.Eof do
+        begin
+          Inc(RowNumber);
+          Ctx.DataSet := nil;
+          Ctx.UserDataSet := AUserDataSet;
+          Ctx.RowNumber := RowNumber;
+
+          for Obj in AReport.Objects do
+            if Obj is TReportBand then
+            begin
+              Band := TReportBand(Obj);
+              if Band.BandType = btMasterData then
+              begin
+                AppendBandText(Lines, Band, Ctx);
+                AppendDetailBands(Lines, AReport, ADataSet, ANamedDataSets,
+                  AUserDataSet, ANamedUserDataSets, Ctx);
+              end;
+            end;
+
+          AUserDataSet.Next;
+        end;
+      finally
+        if Assigned(WrappedDS) then
+        begin
+          RestoreBookmark(WrappedDS, SaveBM, HasSaveBM);
+          WrappedDS.EnableControls;
+        end;
+      end;
+    end
+    else if Assigned(ADataSet) and ADataSet.Active then
     begin
       HasSaveBM := CaptureBookmark(ADataSet, SaveBM);
       ADataSet.DisableControls;
@@ -265,6 +415,7 @@ begin
         begin
           Inc(RowNumber);
           Ctx.DataSet := ADataSet;
+          Ctx.UserDataSet := nil;
           Ctx.RowNumber := RowNumber;
 
           for Obj in AReport.Objects do
@@ -274,7 +425,8 @@ begin
               if Band.BandType = btMasterData then
               begin
                 AppendBandText(Lines, Band, Ctx);
-                AppendDetailBands(Lines, AReport, ADataSet, ANamedDataSets, Ctx);
+                AppendDetailBands(Lines, AReport, ADataSet, ANamedDataSets,
+                  nil, nil, Ctx);
               end;
             end;
 
@@ -287,6 +439,7 @@ begin
     end;
 
     Ctx.DataSet := ADataSet;
+    Ctx.UserDataSet := AUserDataSet;
     Ctx.RowNumber := 0;
     for Obj in AReport.Objects do
       if (Obj is TReportBand) and
@@ -297,6 +450,26 @@ begin
   finally
     Lines.Free;
   end;
+end;
+
+class procedure TReportTextExporter.ExportToFile(
+  AReport: TReportModel;
+  ADataSet: TDataSet;
+  ANamedDataSets: TDictionary<string, TDataSet>;
+  AParameters: TStrings;
+  const AFileName: string);
+begin
+  ExportToFileCore(AReport, ADataSet, ANamedDataSets, nil, nil, AParameters, AFileName);
+end;
+
+class procedure TReportTextExporter.ExportUserDataSetToFile(
+  AReport: TReportModel;
+  AUserDataSet: TVittixUserDataSet;
+  ANamedUserDataSets: TDictionary<string, TVittixUserDataSet>;
+  AParameters: TStrings;
+  const AFileName: string);
+begin
+  ExportToFileCore(AReport, nil, nil, AUserDataSet, ANamedUserDataSets, AParameters, AFileName);
 end;
 
 end.
