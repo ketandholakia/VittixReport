@@ -1,4 +1,4 @@
-﻿unit Vittix.Report.Component;
+unit Vittix.Report.Component;
 
 {
   Vittix.Report.Component
@@ -621,6 +621,8 @@ begin
       var Engine := CreateEngine(Model);
       try
         Renderer.Render(Engine, Model.PageSettings.PageWidth, Model.PageSettings.PageHeight);
+        if not CheckLargeReport(Engine.PageCount) then
+          Exit;
       finally
         Engine.DetachDataSet;
         Engine.Free;
@@ -741,6 +743,8 @@ begin
       var Engine := CreateEngine(Model);
       try
         Renderer.Render(Engine, Model.PageSettings.PageWidth, Model.PageSettings.PageHeight);
+        if not CheckLargeReport(Engine.PageCount) then
+          Exit;
       finally
         Engine.DetachDataSet;
         Engine.Free;
@@ -789,6 +793,8 @@ begin
     Engine := CreateEngine(Model);
     try
       Engine.Prepare;
+      if not CheckLargeReport(Engine.PageCount) then
+        Exit;
       ARun(Engine);
     finally
       Engine.DetachDataSet;
@@ -815,6 +821,8 @@ begin
     try
       Engine.ExportDocument := ExportDoc;
       Engine.Prepare;
+      if not CheckLargeReport(Engine.PageCount) then
+        Exit;
       ARun(ExportDoc);
     finally
       Engine.DetachDataSet;
