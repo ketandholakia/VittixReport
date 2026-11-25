@@ -1,4 +1,4 @@
-﻿unit Vittix.Report.Engine;
+unit Vittix.Report.Engine;
 
 {
   Vittix.Report.Engine
@@ -277,6 +277,7 @@ type
     function InitializeActiveGroupHeaders(out AActiveGroupHeader: TBooleanDynArray): Boolean;
     function DetectGroupBreak(const AActiveGroupHeader: TBooleanDynArray): Integer;
     function ProcessCurrentMasterRecord(AReportProgress: Boolean; var ARowNumber: Integer): Boolean;
+    function HasMasterLinkedDetailFor(AMasterDS: TDataSet): Boolean;
     procedure ProcessMasterDataLoop(const AActiveGroupHeader: TBooleanDynArray; AReportProgress: Boolean; var ARowNumber: Integer; var AHasOpenedGroups: Boolean);
     procedure CaptureGroupStartBookmark(ALevel: Integer = -1);
     procedure CaptureGroupEndBookmark(ALevel: Integer = -1);
@@ -1764,6 +1765,24 @@ begin
 end;
 
 
+function TReportEngine.HasMasterLinkedDetailFor(AMasterDS: TDataSet): Boolean;
+var
+  Band: TReportBand;
+begin
+  Result := False;
+  if not Assigned(AMasterDS) then
+    Exit;
+  for Band in FDetailBands do
+    if (DataSetMasterSourceDataSet(ResolveBandDataSet(Band)) = AMasterDS) or
+       DataSetIsMasterLinked(ResolveBandDataSet(Band)) then
+      Exit(True);
+  if Assigned(FNamedDataSets) then
+    for var Pair in FNamedDataSets do
+      if (DataSetMasterSourceDataSet(Pair.Value) = AMasterDS) or
+         DataSetIsMasterLinked(Pair.Value) then
+        Exit(True);
+end;
+
 procedure TReportEngine.ProcessMasterDataLoop(
   const AActiveGroupHeader: TBooleanDynArray; AReportProgress: Boolean;
   var ARowNumber: Integer; var AHasOpenedGroups: Boolean);
@@ -1771,51 +1790,67 @@ var
   BreakLevel: Integer;
   SaveBM: TBookmark;
   HasSaveBM: Boolean;
-  Band: TReportBand;
   HasMasterLinkedDetail: Boolean;
+  WrappedDS: TDataSet;
 begin
   if not PrimarySourceActive then
     Exit;
 
   if Assigned(FUserDataSet) then
   begin
-    FUserDataSet.First;
-    while not FUserDataSet.Eof do
+    WrappedDS := nil;
+    if not Assigned(FUserDataSet.OnFirst) and
+       not Assigned(FUserDataSet.OnNext) and
+       not Assigned(FUserDataSet.OnEof) and
+       Assigned(FUserDataSet.DataSet) and
+       FUserDataSet.DataSet.Active then
+      WrappedDS := FUserDataSet.DataSet;
+
+    HasMasterLinkedDetail := False;
+    HasSaveBM := False;
+    SaveBM := nil;
+    if Assigned(WrappedDS) then
     begin
-      FRowNumber := ARowNumber + 1;
-      BreakLevel := DetectGroupBreak(AActiveGroupHeader);
+      HasMasterLinkedDetail := HasMasterLinkedDetailFor(WrappedDS);
+      if HasMasterLinkedDetail and WrappedDS.ControlsDisabled then
+        raise EReportException.Create(
+          'Master/detail traversal requires master controls enabled. ' +
+          'Enable caller-disabled controls before preparing this report.');
+      HasSaveBM := Vittix.Report.LayoutBookmarks.CaptureDataSetBookmark(WrappedDS, SaveBM);
+      if not HasMasterLinkedDetail then
+        WrappedDS.DisableControls;
+    end;
+    try
+      FUserDataSet.First;
+      while not FUserDataSet.Eof do
+      begin
+        FRowNumber := ARowNumber + 1;
+        BreakLevel := DetectGroupBreak(AActiveGroupHeader);
 
-      if (BreakLevel >= 0) and AHasOpenedGroups then
-        CloseGroupsForBreak(BreakLevel, AActiveGroupHeader);
+        if (BreakLevel >= 0) and AHasOpenedGroups then
+          CloseGroupsForBreak(BreakLevel, AActiveGroupHeader);
 
-      if BreakLevel >= 0 then
-        OpenGroupsForBreak(BreakLevel, AActiveGroupHeader, AHasOpenedGroups);
+        if BreakLevel >= 0 then
+          OpenGroupsForBreak(BreakLevel, AActiveGroupHeader, AHasOpenedGroups);
 
-      if not ProcessCurrentMasterRecord(AReportProgress, ARowNumber) then
-        Break;
+        if not ProcessCurrentMasterRecord(AReportProgress, ARowNumber) then
+          Break;
 
-      FUserDataSet.Next;
+        FUserDataSet.Next;
+      end;
+    finally
+      if Assigned(WrappedDS) then
+      begin
+        Vittix.Report.LayoutBookmarks.RestoreDataSetBookmark(WrappedDS, SaveBM, HasSaveBM);
+        if not HasMasterLinkedDetail then
+          WrappedDS.EnableControls;
+      end;
     end;
   end;
   if not Assigned(FDataSet) or not FDataSet.Active then
     Exit;
 
-  HasMasterLinkedDetail := False;
-  for Band in FDetailBands do
-    if (DataSetMasterSourceDataSet(ResolveBandDataSet(Band)) = FDataSet) or
-       DataSetIsMasterLinked(ResolveBandDataSet(Band)) then
-    begin
-      HasMasterLinkedDetail := True;
-      Break;
-    end;
-  if not HasMasterLinkedDetail and Assigned(FNamedDataSets) then
-    for var Pair in FNamedDataSets do
-      if (DataSetMasterSourceDataSet(Pair.Value) = FDataSet) or
-         DataSetIsMasterLinked(Pair.Value) then
-      begin
-        HasMasterLinkedDetail := True;
-        Break;
-      end;
+  HasMasterLinkedDetail := HasMasterLinkedDetailFor(FDataSet);
 
   if HasMasterLinkedDetail and FDataSet.ControlsDisabled then
     raise EReportException.Create(
