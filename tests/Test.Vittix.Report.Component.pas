@@ -87,9 +87,12 @@ uses
   Data.DB,
   Datasnap.DBClient,
   Vcl.Graphics,
+  Vcl.Forms,
+  Vcl.Controls,
   Vittix.Report.Engine,
   Vittix.Report.UserDataSet,
   Vittix.Report.TraversalDiagnostics,
+  Vittix.Report.Preview,
   Vittix.Report.Renderer,
   Vittix.Report.Model,
   Vittix.Report.Bands,
@@ -1142,6 +1145,71 @@ begin
     OrdDS.Free;
     CustDS.Free;
   end;
+end;
+
+
+{ ===================== Preview Fit Page (Issue 4) ===================== }
+
+procedure TReportComponentTests.Test_Preview_FitPage_MethodAddressIsNil_And_ComponentUsesDirectCall;
+var
+  Rpt: TVittixReport;
+  Model: TReportModel;
+  Engine: TReportEngine;
+  Renderer: TReportRenderer;
+  Frm: TForm;
+  Preview: TVittixReportPreview;
+  Src: string;
+  FirstPos, SecondPos: Integer;
+begin
+  Rpt := MakeReport(BuildTinyReportJSON);
+  Model := TReportSerializer.LoadFromJSON(BuildTinyReportJSON);
+  Renderer := TReportRenderer.Create;
+  Frm := TForm.Create(nil);
+  Preview := TVittixReportPreview.Create(Frm);
+  try
+    Engine := TVittixReportAccess(Rpt).CreateEngine(Model);
+    try
+      Renderer.Render(Engine, Model.PageSettings.PageWidth, Model.PageSettings.PageHeight);
+    finally
+      Engine.Free;
+    end;
+
+    Frm.Width := 500;
+    Frm.Height := 500;
+    Preview.Parent := Frm;
+    Preview.Align := alClient;
+    Preview.HandleNeeded;
+    Preview.LoadFromRenderer(Renderer);
+    Preview.ZoomPercent := 200;
+
+    // Prove why InvokePreviewAction(..., 'FitPage') was dead: FitPage is public, not published.
+    Assert.IsTrue(Preview.MethodAddress('FitPage') = nil,
+      'TVittixReportPreview.FitPage is public, so MethodAddress must return nil');
+
+    // Prove direct Preview.FitPage works and changes ZoomPercent.
+    Preview.FitPage;
+    Assert.IsTrue(Preview.ZoomPercent < 200,
+      'Direct Preview.FitPage must update ZoomPercent to fit the viewport');
+  finally
+    Frm.Free;
+    Renderer.Free;
+    Model.Free;
+    Rpt.Free;
+  end;
+
+  Src := TFile.ReadAllText(TPath.Combine(GetCurrentDir, 'source\Vittix.Report.Component.pas'));
+  Assert.AreEqual(0, Pos('InvokePreviewAction', Src),
+    'Component.pas must not retain dead InvokePreviewAction');
+  Assert.AreEqual(0, Pos('TPreviewAction', Src),
+    'Component.pas must not retain unused TPreviewAction');
+  Assert.IsTrue(Pos('Preview.FitPage;', Src) > 0,
+    'Component.pas must call Preview.FitPage directly');
+
+  FirstPos := Pos('BtnFitWidth.OnClick', Src);
+  Assert.IsTrue(FirstPos > 0, 'BtnFitWidth.OnClick assignment must exist');
+  SecondPos := Pos('BtnFitWidth.OnClick', Src, FirstPos + 1);
+  Assert.AreEqual(0, SecondPos,
+    'BtnFitWidth.OnClick must not be assigned twice in Execute');
 end;
 
 
