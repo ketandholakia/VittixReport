@@ -505,8 +505,6 @@ end;
 // ---------------------------------------------------------------------------
 
 type
-  TPreviewAction = procedure of object;
-
   TPreviewNavHelper = class
     Preview: TVittixReportPreview;
     Renderer: TReportRenderer;
@@ -520,25 +518,12 @@ type
     procedure SaveClick(Sender: TObject);
   end;
 
-procedure InvokePreviewAction(APreview: TObject; const AMethodName: string);
-var
-  M: TMethod;
-  Action: TPreviewAction;
-begin
-  if not Assigned(APreview) then Exit;
-  M.Code := APreview.MethodAddress(AMethodName);
-  if not Assigned(M.Code) then Exit;
-  M.Data := APreview;
-  Action := TPreviewAction(M);
-  Action;
-end;
-
 procedure TPreviewNavHelper.PrevClick(Sender: TObject);     begin Preview.GoPrev;          end;
 procedure TPreviewNavHelper.NextClick(Sender: TObject);     begin Preview.GoNext;          end;
 procedure TPreviewNavHelper.ZoomInClick(Sender: TObject);   begin Preview.ZoomIn;          end;
 procedure TPreviewNavHelper.ZoomOutClick(Sender: TObject);  begin Preview.ZoomOut;         end;
 procedure TPreviewNavHelper.FitWidthClick(Sender: TObject); begin Preview.FitWidth;        end;
-procedure TPreviewNavHelper.FitPageClick(Sender: TObject);  begin InvokePreviewAction(Preview, 'FitPage'); end;
+procedure TPreviewNavHelper.FitPageClick(Sender: TObject);  begin Preview.FitPage;         end;
 procedure TPreviewNavHelper.ZoomResetClick(Sender: TObject); begin Preview.ZoomPercent := 100; end;
 
 procedure TPreviewNavHelper.SaveClick(Sender: TObject);
@@ -705,7 +690,6 @@ begin
           BtnFitWidth.OnClick  := NavHelp.FitWidthClick;
           BtnFitPage.OnClick   := NavHelp.FitPageClick;
           BtnZoom100.OnClick   := NavHelp.ZoomResetClick;
-          BtnFitWidth.OnClick := NavHelp.FitWidthClick;
           BtnSavePDF.OnClick  := NavHelp.SaveClick;
 
           Frm.ShowModal;
