@@ -49,12 +49,15 @@ uses
   Vittix.Report.TraversalDiagnostics,
   Vittix.Report.PageSettings,
   Vittix.Report.Renderer,
-  Vittix.Report.Export.Commands;
+  Vittix.Report.Export.Commands,
+  Vittix.Report.Component;
 
 type
   [TestFixture]
   TTestCharacterization = class
   private
+    FCharLargeReportCalls: Integer;
+    procedure HandleLargeReport(Sender: TObject; APageCount: Integer; var AContinue: Boolean);
     function CreateSimpleReport(AMasterHeight: Integer = 20): TReportModel;
     function CreateClientDataSet(ARowCount: Integer): TClientDataSet;
     function CreateExportDocForReport(AModel: TReportModel; ADataSet: TDataSet): TReportExportDocument;
@@ -943,34 +946,42 @@ end;
 
 { --- 9. CheckLargeReport never called --- }
 
+procedure TTestCharacterization.HandleLargeReport(Sender: TObject;
+  APageCount: Integer; var AContinue: Boolean);
+begin
+  Inc(FCharLargeReportCalls);
+end;
+
 procedure TTestCharacterization.Test_CheckLargeReport_NeverFires_CurrentBehavior;
 var
   Model: TReportModel;
   DataSet: TClientDataSet;
-  Engine: TReportEngine;
+  DataSource: TDataSource;
+  Rpt: TVittixReport;
+  Stream: TMemoryStream;
 begin
-  // Characterization: TVittixReport.CheckLargeReport is a private method
-  // that is never called from Execute, Print, or any export method.
-  // We can't test it directly (it's private), but we can verify the
-  // engine itself doesn't have any large-report gating.
-  // This test simply verifies that a report with a small number of pages
-  // prepares successfully (the threshold logic is in the component, not engine).
-
-  DataSet := CreateClientDataSet(5);
-  Model := CreateSimpleReport;
+  // Updated from characterization: TVittixReport.CheckLargeReport is now wired
+  // into RunPreparedEngine / PreparedExportDocBody / Execute / Print.
+  DataSet := CreateClientDataSet(80);
+  Model := CreateSimpleReport(30);
+  Rpt := TVittixReport.Create(nil);
+  Stream := TMemoryStream.Create;
   try
-    Engine := TReportEngine.Create(Model, DataSet, nil);
-    try
-      Engine.Prepare;
-      // The engine produces pages without any large-report check.
-      Assert.IsTrue(Engine.PageCount >= 1, 'Should produce pages');
-      // CheckLargeReport is never called from the engine — it's dead code
-      // in the component layer. This is documented by the fact that
-      // no IReportProgress or threshold mechanism exists in TReportEngine.
-    finally
-      Engine.Free;
-    end;
+    DataSource := TDataSource.Create(Rpt);
+    DataSource.DataSet := DataSet;
+    Rpt.ReportJSON := TReportSerializer.SaveToJSON(Model);
+    Rpt.DataSource := DataSource;
+    Rpt.LargeReportThreshold := 1;
+    FCharLargeReportCalls := 0;
+    Rpt.OnLargeReport := HandleLargeReport;
+
+    Rpt.ExportToVectorPDF(Stream);
+
+    Assert.AreEqual(1, FCharLargeReportCalls, 'OnLargeReport should fire once when PageCount > LargeReportThreshold');
+    Assert.IsTrue(Stream.Size > 0, 'Export should proceed when AContinue remains True');
   finally
+    Stream.Free;
+    Rpt.Free;
     Model.Free;
     DataSet.Free;
   end;

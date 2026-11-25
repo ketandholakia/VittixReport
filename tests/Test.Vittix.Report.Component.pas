@@ -1,4 +1,4 @@
-﻿unit Test.Vittix.Report.Component;
+unit Test.Vittix.Report.Component;
 
 {
   Phase 4G-3: component-level engine configuration tests.
@@ -22,9 +22,14 @@ type
   TReportComponentTests = class
   private
     FBeforeObjectCalls: Integer;
+    FLargeReportCalls: Integer;
+    FLargeReportPages: Integer;
+    FLargeReportContinue: Boolean;
     procedure BeforeObjectHandler(Sender: TObject; AEngine: TObject;
       AObject: TReportObject; const Context: TExpressionContext;
       var ACanPrint: Boolean);
+    procedure LargeReportHandler(Sender: TObject; APageCount: Integer;
+      var AContinue: Boolean);
   public
     [Test] procedure Test_CreateEngine_WiresParameters;
     [Test] procedure Test_CreateEngine_WiresTwoPassRendering;
@@ -50,6 +55,14 @@ type
       sources must not retain a Simple MAPI path. }
     [Test] procedure Test_Renderer_ExportDocument_CapturesVectorCommands;
     [Test] procedure Test_UserFacingPdfSave_NoSimpleMapi;
+
+    { Large-report gating (Issue 1): CheckLargeReport fires OnLargeReport
+      above LargeReportThreshold and aborts cleanly when AContinue = False. }
+    [Test] procedure Test_LargeReport_FiresAboveThreshold;
+    [Test] procedure Test_LargeReport_DoesNotFireAtOrBelowThreshold;
+    [Test] procedure Test_LargeReport_ThresholdZeroDisablesCheck;
+    [Test] procedure Test_LargeReport_Abort_AbortsExportEntryPoints;
+    [Test] procedure Test_LargeReport_Abort_ExecuteAndPrint;
   end;
 
 {
@@ -67,8 +80,10 @@ uses
   System.SysUtils,
   System.Types,
   System.IOUtils,
+  System.Generics.Collections,
   Data.DB,
   Datasnap.DBClient,
+  Vcl.Graphics,
   Vittix.Report.Engine,
   Vittix.Report.Renderer,
   Vittix.Report.Model,
@@ -507,6 +522,268 @@ begin
   Assert.IsTrue(Pos('ExportDocumentAtomic', Src) > 0,
     'Component preview must save through the atomic Vector PDF path');
 end;
+
+{ ===================== Large-report gating (Issue 1) ===================== }
+
+type
+  TDummyLargeReportExporter = class(TInterfacedObject, IReportExporter)
+  public
+    Called: Boolean;
+    procedure ExportPages(const Pages: TObjectList<TMetafile>;
+      const FileName: string);
+    function FormatName: string;
+    function DefaultExtension: string;
+  end;
+
+procedure TDummyLargeReportExporter.ExportPages(
+  const Pages: TObjectList<TMetafile>; const FileName: string);
+begin
+  Called := True;
+end;
+
+function TDummyLargeReportExporter.FormatName: string;
+begin
+  Result := 'Dummy';
+end;
+
+function TDummyLargeReportExporter.DefaultExtension: string;
+begin
+  Result := '.dat';
+end;
+
+procedure TReportComponentTests.LargeReportHandler(Sender: TObject;
+  APageCount: Integer; var AContinue: Boolean);
+begin
+  Inc(FLargeReportCalls);
+  FLargeReportPages := APageCount;
+  AContinue := FLargeReportContinue;
+end;
+
+function BuildMultiPageReportJSON(out ADataSet: TClientDataSet;
+  ARowCount: Integer = 80): string;
+var
+  Model: TReportModel;
+  Band : TReportBand;
+  Txt  : TReportTextObject;
+  I    : Integer;
+begin
+  ADataSet := TClientDataSet.Create(nil);
+  ADataSet.FieldDefs.Add('ID', ftInteger);
+  ADataSet.CreateDataSet;
+  for I := 1 to ARowCount do
+    ADataSet.AppendRecord([I]);
+  ADataSet.First;
+
+  Model := TReportModel.Create;
+  try
+    Model.Title := 'Large Report Test';
+    Band := TReportBand.Create;
+    Band.BandType := btMasterData;
+    Band.Height := 30;
+    Txt := TReportTextObject.Create;
+    Txt.Expression := 'Row [ID]';
+    Txt.Bounds := Rect(4, 4, 120, 20);
+    Band.Children.Add(Txt);
+    Model.Objects.Add(Band);
+    Result := TReportSerializer.SaveToJSON(Model);
+  finally
+    Model.Free;
+  end;
+end;
+
+procedure BindDataSetToReport(ARpt: TVittixReport; ADS: TDataSet);
+var
+  Src: TDataSource;
+begin
+  Src := TDataSource.Create(ARpt);
+  Src.DataSet := ADS;
+  ARpt.DataSource := Src;
+end;
+
+procedure TReportComponentTests.Test_LargeReport_FiresAboveThreshold;
+var
+  DS: TClientDataSet;
+  Rpt: TVittixReport;
+  Ms: TMemoryStream;
+begin
+  Rpt := MakeReport(BuildMultiPageReportJSON(DS));
+  Ms := TMemoryStream.Create;
+  try
+    BindDataSetToReport(Rpt, DS);
+    Rpt.LargeReportThreshold := 1;
+    FLargeReportCalls := 0;
+    FLargeReportPages := 0;
+    FLargeReportContinue := True;
+    Rpt.OnLargeReport := LargeReportHandler;
+
+    Rpt.ExportToVectorPDF(Ms);
+    Assert.AreEqual(1, FLargeReportCalls, 'OnLargeReport should fire once');
+    Assert.IsTrue(FLargeReportPages > 1, 'Expected > 1 pages');
+    Assert.IsTrue(Ms.Size > 0, 'Export should complete when AContinue=True');
+  finally
+    Ms.Free;
+    Rpt.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TReportComponentTests.Test_LargeReport_DoesNotFireAtOrBelowThreshold;
+var
+  DS: TClientDataSet;
+  Rpt: TVittixReport;
+  Model: TReportModel;
+  Engine: TReportEngine;
+  ExactPages: Integer;
+  Ms: TMemoryStream;
+  JSON: string;
+begin
+  JSON := BuildMultiPageReportJSON(DS);
+  Model := TReportSerializer.LoadFromJSON(JSON);
+  try
+    Engine := TReportEngine.Create(Model, DS, nil);
+    try
+      Engine.Prepare;
+      ExactPages := Engine.PageCount;
+    finally
+      Engine.Free;
+    end;
+  finally
+    Model.Free;
+  end;
+
+  Assert.IsTrue(ExactPages > 1, 'Fixture should produce multiple pages');
+  DS.First;
+
+  Rpt := MakeReport(JSON);
+  Ms := TMemoryStream.Create;
+  try
+    BindDataSetToReport(Rpt, DS);
+    FLargeReportCalls := 0;
+    FLargeReportContinue := True;
+    Rpt.OnLargeReport := LargeReportHandler;
+
+    // At exact threshold: must NOT fire
+    Rpt.LargeReportThreshold := ExactPages;
+    Rpt.ExportToVectorPDF(Ms);
+    Assert.AreEqual(0, FLargeReportCalls, 'OnLargeReport must not fire when PageCount = Threshold');
+
+    // Above page count: must NOT fire
+    Ms.Clear;
+    DS.First;
+    Rpt.LargeReportThreshold := ExactPages + 5;
+    Rpt.ExportToVectorPDF(Ms);
+    Assert.AreEqual(0, FLargeReportCalls, 'OnLargeReport must not fire when PageCount < Threshold');
+  finally
+    Ms.Free;
+    Rpt.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TReportComponentTests.Test_LargeReport_ThresholdZeroDisablesCheck;
+var
+  DS: TClientDataSet;
+  Rpt: TVittixReport;
+  Ms: TMemoryStream;
+begin
+  Rpt := MakeReport(BuildMultiPageReportJSON(DS));
+  Ms := TMemoryStream.Create;
+  try
+    BindDataSetToReport(Rpt, DS);
+    Rpt.LargeReportThreshold := 0;
+    FLargeReportCalls := 0;
+    FLargeReportContinue := True;
+    Rpt.OnLargeReport := LargeReportHandler;
+
+    Rpt.ExportToVectorPDF(Ms);
+    Assert.AreEqual(0, FLargeReportCalls, 'Threshold 0 must disable OnLargeReport');
+    Assert.IsTrue(Ms.Size > 0);
+  finally
+    Ms.Free;
+    Rpt.Free;
+    DS.Free;
+  end;
+end;
+
+procedure TReportComponentTests.Test_LargeReport_Abort_AbortsExportEntryPoints;
+var
+  DS: TClientDataSet;
+  Rpt: TVittixReport;
+  TempDir, PdfFile, HtmlFile, XlsxFile, PrnPdfFile, CustomFile: string;
+  Dummy: TDummyLargeReportExporter;
+  DummyIntf: IReportExporter;
+begin
+  TempDir := TPath.Combine(TPath.GetTempPath, 'vittix_largereport_' + TGUID.NewGuid.ToString);
+  TDirectory.CreateDirectory(TempDir);
+  PdfFile := TPath.Combine(TempDir, 'out_vec.pdf');
+  HtmlFile := TPath.Combine(TempDir, 'out.html');
+  XlsxFile := TPath.Combine(TempDir, 'out.xlsx');
+  PrnPdfFile := TPath.Combine(TempDir, 'out_prn.pdf');
+  CustomFile := TPath.Combine(TempDir, 'out_custom.dat');
+
+  Rpt := MakeReport(BuildMultiPageReportJSON(DS));
+  try
+    BindDataSetToReport(Rpt, DS);
+    Rpt.LargeReportThreshold := 1;
+    FLargeReportCalls := 0;
+    FLargeReportContinue := False;
+    Rpt.OnLargeReport := LargeReportHandler;
+
+    Rpt.ExportToVectorPDF(PdfFile);
+    Assert.IsFalse(TFile.Exists(PdfFile), 'VectorPDF must not be written when aborted');
+
+    DS.First;
+    Rpt.ExportToHTML(HtmlFile);
+    Assert.IsFalse(TFile.Exists(HtmlFile), 'HTML must not be written when aborted');
+
+    DS.First;
+    Rpt.ExportToXLSX(XlsxFile);
+    Assert.IsFalse(TFile.Exists(XlsxFile), 'XLSX must not be written when aborted');
+
+    DS.First;
+    Rpt.ExportToPrinterPDF(PrnPdfFile);
+    Assert.IsFalse(TFile.Exists(PrnPdfFile), 'PrinterPDF must not be written when aborted');
+
+    DS.First;
+    Dummy := TDummyLargeReportExporter.Create;
+    DummyIntf := Dummy;
+    Rpt.ExportWith(DummyIntf, CustomFile);
+    Assert.IsFalse(Dummy.Called, 'ExportWith must not invoke exporter when aborted');
+
+    Assert.AreEqual(5, FLargeReportCalls, 'OnLargeReport should have fired for all 5 export calls');
+  finally
+    Rpt.Free;
+    DS.Free;
+    if TDirectory.Exists(TempDir) then
+      TDirectory.Delete(TempDir, True);
+  end;
+end;
+
+procedure TReportComponentTests.Test_LargeReport_Abort_ExecuteAndPrint;
+var
+  DS: TClientDataSet;
+  Rpt: TVittixReport;
+begin
+  Rpt := MakeReport(BuildMultiPageReportJSON(DS));
+  try
+    BindDataSetToReport(Rpt, DS);
+    Rpt.LargeReportThreshold := 1;
+    FLargeReportCalls := 0;
+    FLargeReportContinue := False;
+    Rpt.OnLargeReport := LargeReportHandler;
+
+    // If Execute did not abort, ShowModal would block in console test runner.
+    Rpt.Execute;
+    DS.First;
+    Rpt.Print;
+
+    Assert.AreEqual(2, FLargeReportCalls, 'OnLargeReport should fire in both Execute and Print');
+  finally
+    Rpt.Free;
+    DS.Free;
+  end;
+end;
+
 
 initialization
   TDUnitX.RegisterTestFixture(TReportComponentTests);
