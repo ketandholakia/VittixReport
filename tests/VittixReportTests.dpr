@@ -87,7 +87,8 @@ uses
   Test.Vittix.Report.DrawSuppression in 'Test.Vittix.Report.DrawSuppression.pas',
   Test.Vittix.Report.DpiReference in 'Test.Vittix.Report.DpiReference.pas',
   Test.Vittix.Report.DesignerContentCache in 'Test.Vittix.Report.DesignerContentCache.pas',
-  Test.Vittix.Report.PreviewRetention in 'Test.Vittix.Report.PreviewRetention.pas';
+  Test.Vittix.Report.PreviewRetention in 'Test.Vittix.Report.PreviewRetention.pas',
+  Test.Vittix.Designer.Preferences in 'Test.Vittix.Designer.Preferences.pas';
 
 var
   runner : ITestRunner;
