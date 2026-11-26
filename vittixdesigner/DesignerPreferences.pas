@@ -26,9 +26,18 @@ type
   TDesignerPreferencesService = class
   private
     FSettingsPath: string;
+    FBatchDepth: Integer;
+    FBatchDirty: Boolean;
+    FBatchIni: TMemIniFile;
     function RecentFilesSectionName: string;
+    function AcquireIni(out AOwnsIni: Boolean): TCustomIniFile;
+    procedure ReleaseIni(AIni: TCustomIniFile; AOwnsIni, ADirty: Boolean);
   public
     constructor Create(const ASettingsPath: string = '');
+    destructor Destroy; override;
+
+    procedure BeginSession;
+    procedure EndSession;
 
     function SettingsPath: string;
 
@@ -71,6 +80,76 @@ begin
     FSettingsPath := TPath.Combine(TPath.GetHomePath, 'VittixDesigner.ini');
 end;
 
+destructor TDesignerPreferencesService.Destroy;
+begin
+  FreeAndNil(FBatchIni);
+  inherited;
+end;
+
+procedure TDesignerPreferencesService.BeginSession;
+begin
+  if FBatchDepth = 0 then
+  begin
+    FBatchIni := TMemIniFile.Create(FSettingsPath, TEncoding.UTF8);
+    FBatchDirty := False;
+  end;
+  Inc(FBatchDepth);
+end;
+
+procedure TDesignerPreferencesService.EndSession;
+begin
+  if FBatchDepth <= 0 then
+    Exit;
+  Dec(FBatchDepth);
+  if FBatchDepth = 0 then
+  begin
+    try
+      if FBatchDirty and Assigned(FBatchIni) then
+      begin
+        ForceDirectories(ExtractFileDir(FSettingsPath));
+        FBatchIni.UpdateFile;
+      end;
+    finally
+      FBatchDirty := False;
+      FreeAndNil(FBatchIni);
+    end;
+  end;
+end;
+
+function TDesignerPreferencesService.AcquireIni(
+  out AOwnsIni: Boolean): TCustomIniFile;
+begin
+  if Assigned(FBatchIni) then
+  begin
+    AOwnsIni := False;
+    Result := FBatchIni;
+  end
+  else
+  begin
+    AOwnsIni := True;
+    Result := TMemIniFile.Create(FSettingsPath, TEncoding.UTF8);
+  end;
+end;
+
+procedure TDesignerPreferencesService.ReleaseIni(AIni: TCustomIniFile;
+  AOwnsIni, ADirty: Boolean);
+begin
+  if AOwnsIni then
+  begin
+    try
+      if ADirty and Assigned(AIni) then
+      begin
+        ForceDirectories(ExtractFileDir(FSettingsPath));
+        TMemIniFile(AIni).UpdateFile;
+      end;
+    finally
+      AIni.Free;
+    end;
+  end
+  else if ADirty then
+    FBatchDirty := True;
+end;
+
 function TDesignerPreferencesService.SettingsPath: string;
 begin
   Result := FSettingsPath;
@@ -84,12 +163,13 @@ end;
 procedure TDesignerPreferencesService.LoadDesignerPreferences(
   ADesigner: TVittixReportDesigner);
 var
-  Ini: TIniFile;
+  Ini: TCustomIniFile;
+  OwnsIni: Boolean;
 begin
   if not Assigned(ADesigner) then
     Exit;
 
-  Ini := TIniFile.Create(FSettingsPath);
+  Ini := AcquireIni(OwnsIni);
   try
     ADesigner.ShowGrid    := Ini.ReadBool('Designer', 'ShowGrid', ADesigner.ShowGrid);
     ADesigner.SnapToGrid  := Ini.ReadBool('Designer', 'SnapToGrid', ADesigner.SnapToGrid);
@@ -99,19 +179,20 @@ begin
     ADesigner.CanvasColor := TColor(Ini.ReadInteger('Designer', 'CanvasColor', Integer(ADesigner.CanvasColor)));
     ADesigner.BandGap     := Ini.ReadInteger('Designer', 'BandGap', ADesigner.BandGap);
   finally
-    Ini.Free;
+    ReleaseIni(Ini, OwnsIni, False);
   end;
 end;
 
 procedure TDesignerPreferencesService.SaveDesignerPreferences(
   ADesigner: TVittixReportDesigner);
 var
-  Ini: TIniFile;
+  Ini: TCustomIniFile;
+  OwnsIni: Boolean;
 begin
   if not Assigned(ADesigner) then
     Exit;
 
-  Ini := TIniFile.Create(FSettingsPath);
+  Ini := AcquireIni(OwnsIni);
   try
     Ini.WriteBool('Designer', 'ShowGrid', ADesigner.ShowGrid);
     Ini.WriteBool('Designer', 'SnapToGrid', ADesigner.SnapToGrid);
@@ -121,20 +202,21 @@ begin
     Ini.WriteInteger('Designer', 'CanvasColor', Integer(ADesigner.CanvasColor));
     Ini.WriteInteger('Designer', 'BandGap', ADesigner.BandGap);
   finally
-    Ini.Free;
+    ReleaseIni(Ini, OwnsIni, True);
   end;
 end;
 
 procedure TDesignerPreferencesService.LoadSidebarWidths(ALeftSidebar,
   ARightSidebar: TControl);
 var
-  Ini: TIniFile;
+  Ini: TCustomIniFile;
+  OwnsIni: Boolean;
   W: Integer;
 begin
   if not Assigned(ALeftSidebar) or not Assigned(ARightSidebar) then
     Exit;
 
-  Ini := TIniFile.Create(FSettingsPath);
+  Ini := AcquireIni(OwnsIni);
   try
     W := Ini.ReadInteger('Designer', 'LeftSidebarWidth', ALeftSidebar.Width);
     if W < MinSidebarWidth then W := MinSidebarWidth;
@@ -146,31 +228,33 @@ begin
     if W > MaxSidebarWidth then W := MaxSidebarWidth;
     ARightSidebar.Width := W;
   finally
-    Ini.Free;
+    ReleaseIni(Ini, OwnsIni, False);
   end;
 end;
 
 procedure TDesignerPreferencesService.SaveSidebarWidths(ALeftSidebar,
   ARightSidebar: TControl);
 var
-  Ini: TIniFile;
+  Ini: TCustomIniFile;
+  OwnsIni: Boolean;
 begin
   if not Assigned(ALeftSidebar) or not Assigned(ARightSidebar) then
     Exit;
 
-  Ini := TIniFile.Create(FSettingsPath);
+  Ini := AcquireIni(OwnsIni);
   try
     Ini.WriteInteger('Designer', 'LeftSidebarWidth', ALeftSidebar.Width);
     Ini.WriteInteger('Designer', 'RightSidebarWidth', ARightSidebar.Width);
   finally
-    Ini.Free;
+    ReleaseIni(Ini, OwnsIni, True);
   end;
 end;
 
 procedure TDesignerPreferencesService.LoadSidebarSectionHeights(
   var AObjectsHeight, AStructureHeight, AVariablesHeight: Integer);
 var
-  Ini: TIniFile;
+  Ini: TCustomIniFile;
+  OwnsIni: Boolean;
 
   function ReadHeight(const AName: string; ADefault: Integer): Integer;
   begin
@@ -179,66 +263,70 @@ var
     if Result > MaxSidebarSectionHeight then Result := MaxSidebarSectionHeight;
   end;
 begin
-  Ini := TIniFile.Create(FSettingsPath);
+  Ini := AcquireIni(OwnsIni);
   try
     AObjectsHeight   := ReadHeight('ObjectsPanelHeight', AObjectsHeight);
     AStructureHeight := ReadHeight('StructurePanelHeight', AStructureHeight);
     AVariablesHeight := ReadHeight('VariablesPanelHeight', AVariablesHeight);
   finally
-    Ini.Free;
+    ReleaseIni(Ini, OwnsIni, False);
   end;
 end;
 
 procedure TDesignerPreferencesService.SaveSidebarSectionHeights(
   AObjectsHeight, AStructureHeight, AVariablesHeight: Integer);
 var
-  Ini: TIniFile;
+  Ini: TCustomIniFile;
+  OwnsIni: Boolean;
 begin
-  Ini := TIniFile.Create(FSettingsPath);
+  Ini := AcquireIni(OwnsIni);
   try
     Ini.WriteInteger('Designer', 'ObjectsPanelHeight', AObjectsHeight);
     Ini.WriteInteger('Designer', 'StructurePanelHeight', AStructureHeight);
     Ini.WriteInteger('Designer', 'VariablesPanelHeight', AVariablesHeight);
   finally
-    Ini.Free;
+    ReleaseIni(Ini, OwnsIni, True);
   end;
 end;
 
 procedure TDesignerPreferencesService.LoadSidebarCollapsed(var AObjects,
   AStructure, AVariables, AFields: Boolean);
 var
-  Ini: TIniFile;
+  Ini: TCustomIniFile;
+  OwnsIni: Boolean;
 begin
-  Ini := TIniFile.Create(FSettingsPath);
+  Ini := AcquireIni(OwnsIni);
   try
     AObjects   := Ini.ReadBool('Designer', 'ObjectsCollapsed', AObjects);
     AStructure := Ini.ReadBool('Designer', 'StructureCollapsed', AStructure);
     AVariables := Ini.ReadBool('Designer', 'VariablesCollapsed', AVariables);
     AFields    := Ini.ReadBool('Designer', 'FieldsCollapsed', AFields);
   finally
-    Ini.Free;
+    ReleaseIni(Ini, OwnsIni, False);
   end;
 end;
 
 procedure TDesignerPreferencesService.SaveSidebarCollapsed(AObjects,
   AStructure, AVariables, AFields: Boolean);
 var
-  Ini: TIniFile;
+  Ini: TCustomIniFile;
+  OwnsIni: Boolean;
 begin
-  Ini := TIniFile.Create(FSettingsPath);
+  Ini := AcquireIni(OwnsIni);
   try
     Ini.WriteBool('Designer', 'ObjectsCollapsed', AObjects);
     Ini.WriteBool('Designer', 'StructureCollapsed', AStructure);
     Ini.WriteBool('Designer', 'VariablesCollapsed', AVariables);
     Ini.WriteBool('Designer', 'FieldsCollapsed', AFields);
   finally
-    Ini.Free;
+    ReleaseIni(Ini, OwnsIni, True);
   end;
 end;
 
 procedure TDesignerPreferencesService.LoadRecentFiles(ARecentFiles: TList<string>);
 var
-  Ini: TIniFile;
+  Ini: TCustomIniFile;
+  OwnsIni: Boolean;
   I, Count: Integer;
   S: string;
 begin
@@ -246,7 +334,7 @@ begin
     Exit;
 
   ARecentFiles.Clear;
-  Ini := TIniFile.Create(FSettingsPath);
+  Ini := AcquireIni(OwnsIni);
   try
     Count := Ini.ReadInteger(RecentFilesSectionName, 'Count', 0);
     for I := 0 to Count - 1 do
@@ -256,26 +344,27 @@ begin
         ARecentFiles.Add(S);
     end;
   finally
-    Ini.Free;
+    ReleaseIni(Ini, OwnsIni, False);
   end;
 end;
 
 procedure TDesignerPreferencesService.SaveRecentFiles(ARecentFiles: TList<string>);
 var
-  Ini: TIniFile;
+  Ini: TCustomIniFile;
+  OwnsIni: Boolean;
   I: Integer;
 begin
   if not Assigned(ARecentFiles) then
     Exit;
 
-  Ini := TIniFile.Create(FSettingsPath);
+  Ini := AcquireIni(OwnsIni);
   try
     Ini.EraseSection(RecentFilesSectionName);
     Ini.WriteInteger(RecentFilesSectionName, 'Count', ARecentFiles.Count);
     for I := 0 to ARecentFiles.Count - 1 do
       Ini.WriteString(RecentFilesSectionName, 'File' + IntToStr(I), ARecentFiles[I]);
   finally
-    Ini.Free;
+    ReleaseIni(Ini, OwnsIni, True);
   end;
 end;
 
@@ -308,26 +397,28 @@ end;
 
 function TDesignerPreferencesService.LoadThemeName(const ADefault: string): string;
 var
-  Ini: TIniFile;
+  Ini: TCustomIniFile;
+  OwnsIni: Boolean;
 begin
   Result := ADefault;
-  Ini := TIniFile.Create(FSettingsPath);
+  Ini := AcquireIni(OwnsIni);
   try
     Result := Ini.ReadString('Designer', 'Theme', ADefault);
   finally
-    Ini.Free;
+    ReleaseIni(Ini, OwnsIni, False);
   end;
 end;
 
 procedure TDesignerPreferencesService.SaveThemeName(const AThemeName: string);
 var
-  Ini: TIniFile;
+  Ini: TCustomIniFile;
+  OwnsIni: Boolean;
 begin
-  Ini := TIniFile.Create(FSettingsPath);
+  Ini := AcquireIni(OwnsIni);
   try
     Ini.WriteString('Designer', 'Theme', AThemeName);
   finally
-    Ini.Free;
+    ReleaseIni(Ini, OwnsIni, True);
   end;
 end;
 

@@ -6,6 +6,7 @@ uses
   System.Classes,
   System.Rtti,
   Vcl.Graphics,
+  Vcl.StdCtrls,
   Vittix.Report.Model,
   Vittix.Report.Engine,
   Vittix.Report.DesignerControl,
@@ -82,6 +83,27 @@ type
     constructor Create(ADesigner: TVittixReportDesigner;
       AOldSettings, ANewSettings: TReportPageSettings);
     destructor Destroy; override;
+    procedure Execute; override;
+    procedure Rollback; override;
+  end;
+
+  TReportMetadataChangeCommand = class(TUndoableAction)
+  private
+    FReport: TReportModel;
+    FTitleEdit: TEdit;
+    FAuthorEdit: TEdit;
+    FOldTitle: string;
+    FOldAuthor: string;
+    FOldDescription: string;
+    FNewTitle: string;
+    FNewAuthor: string;
+    FNewDescription: string;
+    procedure ApplyValues(const ATitle, AAuthor, ADescription: string);
+  public
+    constructor Create(AReport: TReportModel;
+      ATitleEdit, AAuthorEdit: TEdit;
+      const AOldTitle, AOldAuthor, AOldDescription,
+      ANewTitle, ANewAuthor, ANewDescription: string);
     procedure Execute; override;
     procedure Rollback; override;
   end;
@@ -277,6 +299,50 @@ end;
 procedure TPageSettingsChangeCommand.Rollback;
 begin
   ApplySettings(FOldSettings);
+end;
+
+constructor TReportMetadataChangeCommand.Create(AReport: TReportModel;
+  ATitleEdit, AAuthorEdit: TEdit;
+  const AOldTitle, AOldAuthor, AOldDescription,
+  ANewTitle, ANewAuthor, ANewDescription: string);
+begin
+  inherited Create;
+  ActionName := 'Report Properties Change';
+  FReport := AReport;
+  FTitleEdit := ATitleEdit;
+  FAuthorEdit := AAuthorEdit;
+  FOldTitle := AOldTitle;
+  FOldAuthor := AOldAuthor;
+  FOldDescription := AOldDescription;
+  FNewTitle := ANewTitle;
+  FNewAuthor := ANewAuthor;
+  FNewDescription := ANewDescription;
+end;
+
+procedure TReportMetadataChangeCommand.ApplyValues(const ATitle, AAuthor,
+  ADescription: string);
+begin
+  if Assigned(FReport) then
+  begin
+    FReport.Title := ATitle;
+    FReport.Author := AAuthor;
+    FReport.Description := ADescription;
+  end;
+
+  if Assigned(FTitleEdit) then
+    FTitleEdit.Text := ATitle;
+  if Assigned(FAuthorEdit) then
+    FAuthorEdit.Text := AAuthor;
+end;
+
+procedure TReportMetadataChangeCommand.Execute;
+begin
+  ApplyValues(FNewTitle, FNewAuthor, FNewDescription);
+end;
+
+procedure TReportMetadataChangeCommand.Rollback;
+begin
+  ApplyValues(FOldTitle, FOldAuthor, FOldDescription);
 end;
 
 end.

@@ -93,6 +93,7 @@ uses
   Frm.Main.RecentFiles,
   Frm.Main.TemplateMenu,
   Frm.Main.Theme,
+  Frm.Main.Problems,
   Frm.CommandPalette,
   DesignerPreferences,
   Frm.DesignerOptions,
@@ -100,7 +101,6 @@ uses
   Frm.TextExpressionEditor,
   Frm.ImageEditor,
   Frm.ExpressionHelper,
-  Vittix.Designer.Commands,
   // Vittix.Designer.RuntimeDemo,
   Vittix.Designer.RegressionRunner;
 
@@ -108,19 +108,6 @@ type
   { Collapsible sections of the left dock, in display order. }
   TDesignerDockSection = (dsObjects, dsStructure, dsVariables, dsProblems,
     dsHistory, dsFields);
-
-  TDesignerProblemSeverity = (dpsError, dpsWarning, dpsInfo);
-
-  { One entry of the Problems panel. Target may be nil for report-wide issues
-    (for example diagnostics produced while loading the file). }
-  TDesignerProblem = class
-  public
-    Severity: TDesignerProblemSeverity;
-    Text: string;
-    Target: TReportObject;
-    constructor Create(ASeverity: TDesignerProblemSeverity; const AText: string;
-      ATarget: TReportObject = nil);
-  end;
 
   TfrmMain = class(TForm)
 
@@ -411,7 +398,6 @@ type
     procedure InsertBandAfter(ABandType: TReportBandType; AAfterBand: TReportBand);
 
     { Problems panel }
-    function  SeverityText(ASeverity: TDesignerProblemSeverity): string;
     procedure CaptureLoadDiagnostics(const AFileName: string;
       AResult: TReportLoadResult);
     procedure RefreshProblems;
@@ -580,7 +566,6 @@ type
     procedure BuildBarcodeTestReport;
     procedure BuildImagePathTestReport;
     function  GetRegressionReportPath(const AFileName: string): string;
-    function  GetSampleDataCachePath: string;
     procedure OpenRegressionReport(const AFileName: string);
     procedure LoadDesignerReportFromFile(const AFileName: string;
       AUseSampleDataSet: Boolean = False);
@@ -627,8 +612,6 @@ type
     procedure DesignerDataSetChanged(Sender: TObject);
     procedure VariableListDblClick(Sender: TObject);
     procedure VariableListMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
-    procedure CreateSampleDataSet;
-    procedure ReloadSampleDataSet;
     procedure UseSampleDataSet;
     procedure RuntimeEventDemoCopyClick(Sender: TObject);
     function  ZoomValueFromEdit: Integer;
@@ -1145,7 +1128,6 @@ begin
   // Connect the shared DataSource so the designer sees whatever dataset
   // is assigned at runtime.
   FDesigner.DataSource := FDataSource1;
-  CreateSampleDataSet;
   UseSampleDataSet;
 
   // File dialogs
@@ -2031,18 +2013,6 @@ end;
 function TfrmMain.GetRegressionReportPath(const AFileName: string): string;
 begin
   Result := Frm.Main.SampleHelpers.GetRegressionReportPath(AFileName);
-end;
-
-{ M-20 / DP-25: writable per-user location for the generated sample data. }
-function TfrmMain.GetSampleDataCachePath: string;
-var
-  Base: string;
-begin
-  Base := GetEnvironmentVariable('LOCALAPPDATA');
-  if Base = '' then
-    Base := TPath.GetHomePath;
-  Result := TPath.Combine(TPath.Combine(Base, 'VittixDesigner'),
-    'sample_data.json');
 end;
 
 procedure TfrmMain.OpenRegressionReport(const AFileName: string);
@@ -3304,18 +3274,23 @@ var
 begin
   if Assigned(FPreferences) then
   begin
-    FPreferences.LoadDesignerPreferences(FDesigner);
-    if Assigned(FDesigner) then
-      FBaseCanvasColor := FDesigner.CanvasColor;
-    FPreferences.LoadSidebarWidths(pnlToolbox, pnlProperties);
-    FPreferences.LoadSidebarSectionHeights(
-      FDockExpandedHeight[dsObjects], FDockExpandedHeight[dsStructure],
-      FDockExpandedHeight[dsVariables]);
-    FPreferences.LoadSidebarCollapsed(
-      FDockCollapsed[dsObjects], FDockCollapsed[dsStructure],
-      FDockCollapsed[dsVariables], FDockCollapsed[dsFields]);
+    FPreferences.BeginSession;
+    try
+      FPreferences.LoadDesignerPreferences(FDesigner);
+      if Assigned(FDesigner) then
+        FBaseCanvasColor := FDesigner.CanvasColor;
+      FPreferences.LoadSidebarWidths(pnlToolbox, pnlProperties);
+      FPreferences.LoadSidebarSectionHeights(
+        FDockExpandedHeight[dsObjects], FDockExpandedHeight[dsStructure],
+        FDockExpandedHeight[dsVariables]);
+      FPreferences.LoadSidebarCollapsed(
+        FDockCollapsed[dsObjects], FDockCollapsed[dsStructure],
+        FDockCollapsed[dsVariables], FDockCollapsed[dsFields]);
 
-    FThemeName := FPreferences.LoadThemeName(FThemeName);
+      FThemeName := FPreferences.LoadThemeName(FThemeName);
+    finally
+      FPreferences.EndSession;
+    end;
     ApplyTheme;
     if Assigned(FThemeMenu) then
       for I := 0 to FThemeMenu.Count - 1 do
@@ -3648,25 +3623,6 @@ end;
 {  Problems panel                                                              }
 { =========================================================================== }
 
-constructor TDesignerProblem.Create(ASeverity: TDesignerProblemSeverity;
-  const AText: string; ATarget: TReportObject);
-begin
-  inherited Create;
-  Severity := ASeverity;
-  Text := AText;
-  Target := ATarget;
-end;
-
-function TfrmMain.SeverityText(ASeverity: TDesignerProblemSeverity): string;
-begin
-  case ASeverity of
-    dpsError:   Result := 'Error';
-    dpsWarning: Result := 'Warning';
-  else
-    Result := 'Info';
-  end;
-end;
-
 procedure TfrmMain.CaptureLoadDiagnostics(const AFileName: string;
   AResult: TReportLoadResult);
 var
@@ -3686,118 +3642,27 @@ end;
 
 procedure TfrmMain.RefreshProblems;
 var
-  Fields: TStringList;
   FieldNames: TArray<string>;
-  I: Integer;
-  Obj: TReportObject;
-
-  procedure Add(ASeverity: TDesignerProblemSeverity; const AText: string;
-    ATarget: TReportObject);
-  begin
-    FProblems.Add(TDesignerProblem.Create(ASeverity, AText, ATarget));
-  end;
-
-  procedure CheckObject(AObj: TReportObject);
-  var
-    ImageObj: TReportImageObject;
-    BoundField: string;
-    ObjName: string;
-  begin
-    if not Assigned(AObj) then
-      Exit;
-
-    ObjName := Trim(AObj.Name);
-    if ObjName = '' then
-      ObjName := AObj.ClassName;
-
-    if (AObj.Bounds.Width <= 0) or (AObj.Bounds.Height <= 0) then
-      Add(dpsWarning, ObjName + ' has a zero width or height', AObj);
-
-    if AObj is TReportImageObject then
-    begin
-      ImageObj := TReportImageObject(AObj);
-      if (not Assigned(ImageObj.Picture.Graphic)) or
-         ImageObj.Picture.Graphic.Empty then
-        if Trim(ImageObj.DataField) = '' then
-          Add(dpsInfo, ObjName + ' has no picture and no DataField', AObj);
-    end;
-
-    if AObj is TReportTextObject then
-    begin
-      BoundField := Trim(TReportTextObject(AObj).DataField);
-      if BoundField = '' then
-      begin
-        // An empty DataField is only suspicious on a data-bound field object;
-        // plain labels and memos legitimately bind nothing.
-        if AObj is TReportFieldObject then
-          Add(dpsWarning, ObjName + ' has no DataField bound', AObj);
-      end
-      else if Assigned(Fields) and (Fields.Count > 0) and
-              (Fields.IndexOf(BoundField) < 0) then
-        Add(dpsWarning, ObjName + ': DataField ''' + BoundField +
-          ''' is not in the current dataset', AObj);
-    end;
-  end;
-
-  procedure CheckBand(ABand: TReportBand);
-  var
-    J: Integer;
-    BandName: string;
-  begin
-    if not Assigned(ABand) then
-      Exit;
-
-    BandName := Trim(ABand.Name);
-    if BandName = '' then
-      BandName := ABand.ClassName;
-
-    if ABand.Height <= 0 then
-      Add(dpsError, 'Band ' + BandName + ' has no height', ABand);
-
-    for J := 0 to ABand.Children.Count - 1 do
-      CheckObject(ABand.Children[J]);
-  end;
+  Report: TReportModel;
 begin
   if not Assigned(FProblems) then
     Exit;
 
-  FProblems.Clear;
-
-  // Diagnostics captured while loading the current file (unknown objects etc.).
-  if Assigned(FLoadDiagnostics) then
-    for I := 0 to FLoadDiagnostics.Count - 1 do
-      FProblems.Add(TDesignerProblem.Create(dpsWarning, FLoadDiagnostics[I]));
-
-  Fields := nil;
+  Report := nil;
+  FieldNames := nil;
   if Assigned(FDesigner) and Assigned(FDesigner.Report) then
   begin
+    Report := FDesigner.Report;
     try
-      Fields := TStringList.Create;
-      Fields.CaseSensitive := False;
       FieldNames := FDesigner.GetFieldNames;
-      for I := 0 to High(FieldNames) do
-        Fields.Add(FieldNames[I]);
     except
-      FreeAndNil(Fields);
-    end;
-
-    try
-      for I := 0 to FDesigner.Report.Objects.Count - 1 do
-      begin
-        Obj := FDesigner.Report.Objects[I];
-        if Obj is TReportBand then
-          CheckBand(TReportBand(Obj))
-        else
-          CheckObject(Obj);
-      end;
-    finally
-      FreeAndNil(Fields);
+      FieldNames := nil;
     end;
   end;
 
+  CollectReportProblems(Report, FieldNames, FLoadDiagnostics, FProblems);
   UpdateProblemsList;
 end;
-
 procedure TfrmMain.RefreshHistory;
 var
   I: Integer;
@@ -4095,15 +3960,20 @@ begin
   if Assigned(FPreferences) then
   begin
     CaptureDockSectionHeights;
-    FPreferences.SaveDesignerPreferences(FDesigner);
-    FPreferences.SaveSidebarWidths(pnlToolbox, pnlProperties);
-    FPreferences.SaveSidebarSectionHeights(
-      FDockExpandedHeight[dsObjects], FDockExpandedHeight[dsStructure],
-      FDockExpandedHeight[dsVariables]);
-    FPreferences.SaveSidebarCollapsed(
-      FDockCollapsed[dsObjects], FDockCollapsed[dsStructure],
-      FDockCollapsed[dsVariables], FDockCollapsed[dsFields]);
-    FPreferences.SaveThemeName(FThemeName);
+    FPreferences.BeginSession;
+    try
+      FPreferences.SaveDesignerPreferences(FDesigner);
+      FPreferences.SaveSidebarWidths(pnlToolbox, pnlProperties);
+      FPreferences.SaveSidebarSectionHeights(
+        FDockExpandedHeight[dsObjects], FDockExpandedHeight[dsStructure],
+        FDockExpandedHeight[dsVariables]);
+      FPreferences.SaveSidebarCollapsed(
+        FDockCollapsed[dsObjects], FDockCollapsed[dsStructure],
+        FDockCollapsed[dsVariables], FDockCollapsed[dsFields]);
+      FPreferences.SaveThemeName(FThemeName);
+    finally
+      FPreferences.EndSession;
+    end;
   end;
 end;
 
@@ -4867,174 +4737,22 @@ begin
     end);
 end;
 
-procedure TfrmMain.CreateSampleDataSet;
-begin
-  if Assigned(FSampleDataSet) then
-    Exit;
-
-  FSampleDataSet := TFDMemTable.Create(Self);
-  with FSampleDataSet.FieldDefs do
-  begin
-    Clear;
-    Add('CustomerName', ftString, 80);
-    Add('InvoiceNo', ftString, 30);
-    Add('InvoiceDate', ftDate);
-    Add('ItemName', ftString, 80);
-    Add('Qty', ftInteger);
-    Add('Rate', ftCurrency);
-    Add('Amount', ftCurrency);
-    Add('GroupName', ftString, 40);
-    Add('ImagePath', ftString, 260);
-    Add('BarcodeValue', ftString, 80);
-    Add('Remarks', ftMemo);
-  end;
-  FSampleDataSet.CreateDataSet;
-end;
-
-procedure TfrmMain.ReloadSampleDataSet;
-const
-  SampleRowCount = 150;
-  ImagePathHint = 'D:\test\sample.bmp'; // For image binding test, create D:\test\sample.bmp or edit this path.
-  ImagePathHint2 = 'D:\test\sample2.bmp'; // For image binding test, create D:\test\sample2.bmp or edit this path.
-  Customers: array[0..19] of string = (
-    'Acme Retail', 'Northwind Foods', 'BluePeak Pharma', 'GreenLeaf Traders',
-    'Sunrise Packaging', 'Metro Stationers', 'Delta Logistics', 'Orchid Prints',
-    'Crown Labels', 'Polar Cold Chain', 'Silverline Office', 'Rapid Supplies',
-    'BrightKart', 'Nimbus Distribution', 'Vertex Stores', 'Prime Exports',
-    'Urban Cart', 'EverFresh Foods', 'Galaxy Wholesale', 'Trident Industries'
-  );
-  Items: array[0..29] of string = (
-    'A4 Paper Ream', 'A3 Paper Ream', 'Laser Toner Black', 'Laser Toner Cyan',
-    'Thermal Label Roll', 'Barcode Sticker Sheet', 'Cold Storage Box', 'Bubble Wrap Roll',
-    'Packing Tape 2inch', 'Corrugated Carton L', 'Corrugated Carton M', 'Inkjet Ink Set',
-    'Offset Plate 0.30', 'CTP Plate Standard', 'Flexo Plate 1.14', 'Leaflet Gloss 130gsm',
-    'Flyer Matte 170gsm', 'Business Card 300gsm', 'Shipping Label 4x6', 'QR Label 2x2',
-    'Poly Mailer Medium', 'Shrink Film Roll', 'Invoice Book 2-Ply', 'Receipt Roll 80mm',
-    'Catalog Print A5', 'Poster Print A2', 'Sticker Vinyl Sheet', 'Ribbon Wax 110mm',
-    'Pallet Tag Set', 'Misc Consumables Kit'
-  );
-  Groups: array[0..9] of string = (
-    'Stationery', 'Packaging', 'Printing', 'Cold Chain', 'Labels',
-    'Leaflets', 'Flexo Plates', 'Offset CTP', 'Digital Print', 'Miscellaneous'
-  );
-var
-  I: Integer;
-  Qty: Integer;
-  Rate: Currency;
-  Amount: Currency;
-  CustomerName: string;
-  ItemName: string;
-  GroupName: string;
-  InvoiceNo: string;
-  InvoiceDate: TDateTime;
-  ImagePath: string;
-  BarcodeValue: string;
-  Remarks: string;
-  JsonFile: string;
-begin
-  JsonFile := GetRegressionReportPath('sample_data.json');
-  if not TFile.Exists(JsonFile) then
-    // M-20 / DP-25: the generated sample data must not be written into the
-    // install directory (read-only under Program Files).  Fall back to the
-    // per-user cache written below.
-    JsonFile := GetSampleDataCachePath;
-
-  CreateSampleDataSet;
-
-  if TFile.Exists(JsonFile) then
-  begin
-    try
-      FSampleDataSet.LoadFromFile(JsonFile, sfJSON);
-      Exit;
-    except
-      // Corrupt cache file: fall through and regenerate (M-20: a bad data
-      // file must never abort startup).
-      if FSampleDataSet.Active then
-        FSampleDataSet.EmptyDataSet;
-    end;
-  end;
-
-  FSampleDataSet.DisableControls;
-  try
-    if FSampleDataSet.Active then
-      FSampleDataSet.EmptyDataSet;
-    for I := 1 to SampleRowCount do
-    begin
-      CustomerName := Customers[(I - 1) mod Length(Customers)];
-      ItemName := Items[((I * 3) - 1) mod Length(Items)];
-      GroupName := Groups[((I * 2) - 1) mod Length(Groups)];
-      InvoiceNo := Format('INV-2026-%.4d', [I]);
-      InvoiceDate := EncodeDate(2026, 1, 1) + ((I * 3) mod 180);
-
-      Qty := 1 + ((I * 7) mod 24);
-      Rate := 75.00 + ((I * 37) mod 2400) / 10;
-      Amount := Qty * Rate;
-
-      if (I mod 15 = 0) then
-        ImagePath := ''
-      else if (I mod 17 = 0) then
-        ImagePath := ImagePathHint2
-      else if (I mod 10 = 0) then
-        ImagePath := ImagePathHint
-      else
-        ImagePath := '';
-
-      if (I mod 13 = 0) then
-        BarcodeValue := ''
-      else if (I mod 17 = 0) then
-        BarcodeValue := '890123459999'
-      else if (I mod 29 = 0) then
-        BarcodeValue := '890123450007'
-      else
-        BarcodeValue := Format('89012345%.4d', [I]);
-
-      if (I mod 11 = 0) then
-        Remarks := ''
-      else if (I mod 7 = 0) then
-        Remarks := 'Long remarks: customer requested staggered delivery, temperature-safe stacking, barcode scan verification at dispatch and arrival, and carton-level recount before final invoice closure.'
-      else if (I mod 5 = 0) then
-        Remarks := 'Medium remarks: prioritize packing and dispatch in second half of the day.'
-      else
-        Remarks := 'Short remarks: standard handling.';
-
-      FSampleDataSet.AppendRecord([
-        CustomerName,
-        InvoiceNo,
-        InvoiceDate,
-        ItemName,
-        Qty,
-        Rate,
-        Amount,
-        GroupName,
-        ImagePath,
-        BarcodeValue,
-        Remarks
-      ]);
-    end;
-  finally
-    FSampleDataSet.EnableControls;
-  end;
-
-  // M-20 / DP-25: cache under %LOCALAPPDATA%\VittixDesigner; a read-only
-  // install directory or a full disk must not abort startup.
-  try
-    JsonFile := GetSampleDataCachePath;
-    ForceDirectories(ExtractFileDir(JsonFile));
-    FSampleDataSet.SaveToFile(JsonFile, sfJSON);
-  except
-    // Non-fatal: the in-memory sample data stays usable for this session.
-  end;
-  FSampleDataSet.First;
-end;
-
 procedure TfrmMain.UseSampleDataSet;
 begin
-  ReloadSampleDataSet;
-  FDataSource1.DataSet := FSampleDataSet;
-  FDesigner.DataSet := FSampleDataSet;
-  RefreshFieldList;
+  Frm.Main.SampleDataHelpers.UseSampleDataSet(
+    Self,
+    FSampleDataSet,
+    FDataSource1,
+    FDesigner,
+    procedure
+    begin
+      RefreshFieldList;
+    end,
+    function(AFileName: string): string
+    begin
+      Result := GetRegressionReportPath(AFileName);
+    end);
 end;
-
 procedure TfrmMain.BuildInsertMenu;
 begin
   Frm.Main.InsertMenuHelpers.BuildInsertMenu(

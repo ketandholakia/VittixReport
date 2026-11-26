@@ -13,7 +13,7 @@ uses
   Vittix.Report.Model,
   Vittix.Report.Objects,
   Vcl.ValEdit,
-  Vittix.Designer.Commands;
+  Frm.Main.Commands;
 
 function EditFontPropertyRow(
   AOwner: TComponent;
