@@ -14,6 +14,8 @@ type
     [Test] procedure Test_AddRecentFile_DeduplicatesAndCapsMaxCount;
     [Test] procedure Test_MetadataCommand_ExecuteAndRollback;
     [Test] procedure Test_CollectReportProblems_DetectsZeroHeightBandAndMissingField;
+    [Test] procedure Test_WindowBounds_SaveAndLoad;
+    [Test] procedure Test_DarkPalette_HasReadableContrast;
   end;
 
 implementation
@@ -25,12 +27,14 @@ uses
   System.Types,
   System.Generics.Collections,
   Vcl.StdCtrls,
+  Vcl.Forms,
   Vittix.Report.Model,
   Vittix.Report.Bands,
   Vittix.Report.Objects,
   DesignerPreferences,
   Frm.Main.Commands,
-  Frm.Main.Problems;
+  Frm.Main.Problems,
+  Frm.Main.Theme;
 
 procedure TDesignerPreferencesTests.Test_BeginEndSession_BatchesIniWriteUntilEndSession;
 var
@@ -216,6 +220,49 @@ begin
     Problems.Free;
     Model.Free;
   end;
+end;
+
+procedure TDesignerPreferencesTests.Test_WindowBounds_SaveAndLoad;
+var
+  IniPath: string;
+  Svc: TDesignerPreferencesService;
+  F1, F2: TForm;
+begin
+  IniPath := TPath.Combine(TPath.GetTempPath,
+    'vittix_winbounds_' + TGUID.NewGuid.ToString + '.ini');
+  Svc := TDesignerPreferencesService.Create(IniPath);
+  F1 := TForm.CreateNew(nil);
+  F2 := TForm.CreateNew(nil);
+  try
+    F1.SetBounds(100, 80, 900, 650);
+    F1.WindowState := wsNormal;
+    Svc.SaveWindowBounds(F1);
+
+    F2.SetBounds(0, 0, 640, 480);
+    Svc.LoadWindowBounds(F2);
+
+    Assert.AreEqual(900, F2.Width);
+    Assert.AreEqual(650, F2.Height);
+    Assert.AreEqual(wsNormal, F2.WindowState);
+  finally
+    F2.Free;
+    F1.Free;
+    Svc.Free;
+    if TFile.Exists(IniPath) then
+      TFile.Delete(IniPath);
+  end;
+end;
+
+procedure TDesignerPreferencesTests.Test_DarkPalette_HasReadableContrast;
+var
+  P: TDesignerPalette;
+begin
+  P := PaletteByName('Dark');
+  Assert.AreEqual('Dark', P.Name);
+  Assert.AreNotEqual(P.PanelBackground, P.PanelText,
+    'Dark theme PanelText must contrast with PanelBackground');
+  Assert.AreNotEqual(P.InputBackground, P.InputText,
+    'Dark theme InputText must contrast with InputBackground');
 end;
 
 initialization
