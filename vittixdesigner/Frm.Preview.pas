@@ -41,6 +41,7 @@ uses
   Vcl.ExtCtrls, Vcl.Buttons, Vcl.Dialogs, Vcl.ImgList, Vcl.Graphics,
   Data.DB,
   Vittix.Report.Engine,
+  Vittix.Report.Interfaces,
   Vittix.Report.Export.Commands,
   Vittix.Report.Model,
   Vittix.Report.Renderer,
@@ -485,10 +486,158 @@ end;
 {  Load / navigation / zoom                                                    }
 { =========================================================================== }
 
+type
+  { Lightweight progress/cancel dialog for long-running preview renders.
+    Stays hidden for the first 250 ms so fast reports never flash a dialog. }
+  TPreviewProgressUI = class(TInterfacedObject, IReportProgress)
+  private
+    FForm: TForm;
+    FLabel: TLabel;
+    FBar: TProgressBar;
+    FCancelBtn: TButton;
+    FTotal: Integer;
+    FCancelled: Boolean;
+    FStartMs: UInt64;
+    FLastPumpMs: UInt64;
+    procedure EnsureDialog;
+    procedure CancelClick(Sender: TObject);
+  public
+    constructor Create;
+    destructor Destroy; override;
+    procedure CloseDialog;
+    procedure SetTotal(const Total: Integer);
+    procedure Advance(const Current: Integer);
+    function IsCancelled: Boolean;
+  end;
+
+constructor TPreviewProgressUI.Create;
+begin
+  inherited Create;
+  FStartMs := GetTickCount64;
+  FLastPumpMs := FStartMs;
+end;
+
+destructor TPreviewProgressUI.Destroy;
+begin
+  CloseDialog;
+  inherited;
+end;
+
+procedure TPreviewProgressUI.CloseDialog;
+begin
+  FreeAndNil(FForm);
+  FLabel := nil;
+  FBar := nil;
+  FCancelBtn := nil;
+end;
+
+procedure TPreviewProgressUI.CancelClick(Sender: TObject);
+begin
+  FCancelled := True;
+  if Assigned(FCancelBtn) then
+    FCancelBtn.Enabled := False;
+  if Assigned(FLabel) then
+    FLabel.Caption := 'Cancelling preview...';
+end;
+
+procedure TPreviewProgressUI.EnsureDialog;
+begin
+  if Assigned(FForm) then
+    Exit;
+
+  FForm := TForm.Create(nil);
+  FForm.BorderStyle := bsDialog;
+  FForm.BorderIcons := [];
+  FForm.Position := poScreenCenter;
+  FForm.Width := 340;
+  FForm.Height := 130;
+  FForm.Caption := 'Preparing Preview';
+
+  FLabel := TLabel.Create(FForm);
+  FLabel.Parent := FForm;
+  FLabel.Left := 16;
+  FLabel.Top := 14;
+  FLabel.Width := 300;
+  FLabel.Caption := 'Preparing report pages...';
+
+  FBar := TProgressBar.Create(FForm);
+  FBar.Parent := FForm;
+  FBar.Left := 16;
+  FBar.Top := 38;
+  FBar.Width := 300;
+  FBar.Height := 18;
+  if FTotal > 0 then
+  begin
+    FBar.Style := pbstNormal;
+    FBar.Max := FTotal;
+  end
+  else
+    FBar.Style := pbstMarquee;
+
+  FCancelBtn := TButton.Create(FForm);
+  FCancelBtn.Parent := FForm;
+  FCancelBtn.Caption := 'Cancel';
+  FCancelBtn.Width := 80;
+  FCancelBtn.Height := 26;
+  FCancelBtn.Left := (FForm.ClientWidth - FCancelBtn.Width) div 2;
+  FCancelBtn.Top := 66;
+  FCancelBtn.Cancel := True;
+  FCancelBtn.OnClick := CancelClick;
+
+  FForm.Show;
+  FForm.Update;
+end;
+
+procedure TPreviewProgressUI.SetTotal(const Total: Integer);
+begin
+  FTotal := Total;
+  if Assigned(FBar) then
+  begin
+    if FTotal > 0 then
+    begin
+      FBar.Style := pbstNormal;
+      FBar.Max := FTotal;
+    end
+    else
+      FBar.Style := pbstMarquee;
+  end;
+end;
+
+procedure TPreviewProgressUI.Advance(const Current: Integer);
+var
+  NowMs: UInt64;
+begin
+  NowMs := GetTickCount64;
+  if (NowMs - FStartMs) < 250 then
+    Exit;
+
+  EnsureDialog;
+  if FTotal > 0 then
+  begin
+    FBar.Position := Current;
+    FLabel.Caption := Format('Preparing report... (%d / %d)', [Current, FTotal]);
+  end
+  else
+    FLabel.Caption := Format('Preparing report... (row %d)', [Current]);
+
+  if (NowMs - FLastPumpMs) >= 50 then
+  begin
+    FLastPumpMs := NowMs;
+    Application.ProcessMessages;
+  end;
+end;
+
+function TPreviewProgressUI.IsCancelled: Boolean;
+begin
+  Result := FCancelled;
+end;
+
 procedure TfrmPreview.LoadReport(AReport: TReportModel; ADataSet: TDataSet);
 var
   Rend: TReportRenderer;
   Engine: TReportEngine;
+  ProgressUI: TPreviewProgressUI;
+  ProgressIntf: IReportProgress;
   const
     PreviewWarnThresholdMB = 300;
   var
@@ -512,18 +661,30 @@ begin
 
   Screen.Cursor := crHourGlass;
   StartMs := GetTickCount64;
+  ProgressUI := TPreviewProgressUI.Create;
+  ProgressIntf := ProgressUI;
   try
     Rend := TReportRenderer.Create;
     try
       FExportDocument := TReportExportDocument.Create;
       Rend.ExportDocument := FExportDocument;
-      Engine := TReportEngine.Create(AReport, ADataSet);
+      Engine := TReportEngine.Create(AReport, ADataSet, nil, ProgressIntf);
       try
         Engine.ExportDocument := FExportDocument;
         Engine.Prepare;
-        Rend.Render(Engine, AReport.PageSettings.PageWidth, AReport.PageSettings.PageHeight);
+        if not ProgressIntf.IsCancelled then
+          Rend.Render(Engine, AReport.PageSettings.PageWidth, AReport.PageSettings.PageHeight);
       finally
         Engine.Free;
+      end;
+      ProgressUI.CloseDialog;
+      if ProgressIntf.IsCancelled then
+      begin
+        Preview.Clear;
+        FreeAndNil(FExportDocument);
+        UpdateNav;
+        SetStatusText('Preview rendering cancelled.');
+        Exit;
       end;
       PageCount := Rend.Pages.Count;
       Preview.Margins := AReport.PageSettings.Margins;
