@@ -3288,6 +3288,7 @@ begin
         FDockCollapsed[dsVariables], FDockCollapsed[dsFields]);
 
       FThemeName := FPreferences.LoadThemeName(FThemeName);
+      FPreferences.LoadWindowBounds(Self);
     finally
       FPreferences.EndSession;
     end;
@@ -3799,7 +3800,8 @@ end;
 
 procedure TfrmMain.CommandPaletteClick(Sender: TObject);
 begin
-  Frm.CommandPalette.ShowCommandPalette(Self, mnuMain);
+  Frm.CommandPalette.ShowCommandPalette(Self, mnuMain,
+    Frm.Main.Theme.PaletteByName(FThemeName));
 end;
 
 procedure TfrmMain.ThemeMenuItemClick(Sender: TObject);
@@ -3971,6 +3973,7 @@ begin
         FDockCollapsed[dsObjects], FDockCollapsed[dsStructure],
         FDockCollapsed[dsVariables], FDockCollapsed[dsFields]);
       FPreferences.SaveThemeName(FThemeName);
+      FPreferences.SaveWindowBounds(Self);
     finally
       FPreferences.EndSession;
     end;
@@ -3979,7 +3982,16 @@ end;
 
 procedure TfrmMain.UpdateStatusBar;
 begin
-  Frm.Main.ViewHelpers.UpdateStatusBar(StatusBar1, FDesigner, FModified, FCurrentFile);
+  var ErrCount := 0;
+  var WarnCount := 0;
+  if Assigned(FProblems) then
+    for var P in FProblems do
+      if P.Severity = dpsError then
+        Inc(ErrCount)
+      else if P.Severity = dpsWarning then
+        Inc(WarnCount);
+  Frm.Main.ViewHelpers.UpdateStatusBar(
+    StatusBar1, FDesigner, FModified, FCurrentFile, ErrCount, WarnCount);
 end;
 
 procedure TfrmMain.UpdateAll;

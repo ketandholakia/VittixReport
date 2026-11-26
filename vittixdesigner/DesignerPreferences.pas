@@ -5,10 +5,12 @@ interface
 uses
   System.Classes,
   System.SysUtils,
+  System.Types,
   System.IOUtils,
   System.Generics.Collections,
   System.IniFiles,
   Vcl.Controls,
+  Vcl.Forms,
   Vcl.Graphics,
   Vittix.Report.DesignerControl;
 
@@ -55,6 +57,8 @@ type
       AFields: Boolean);
     function  LoadThemeName(const ADefault: string): string;
     procedure SaveThemeName(const AThemeName: string);
+    procedure LoadWindowBounds(AForm: TForm);
+    procedure SaveWindowBounds(AForm: TForm);
 
     procedure LoadRecentFiles(ARecentFiles: TList<string>);
     procedure SaveRecentFiles(ARecentFiles: TList<string>);
@@ -417,6 +421,68 @@ begin
   Ini := AcquireIni(OwnsIni);
   try
     Ini.WriteString('Designer', 'Theme', AThemeName);
+  finally
+    ReleaseIni(Ini, OwnsIni, True);
+  end;
+end;
+
+procedure TDesignerPreferencesService.LoadWindowBounds(AForm: TForm);
+var
+  Ini: TCustomIniFile;
+  OwnsIni: Boolean;
+  L, T, W, H: Integer;
+  Work: TRect;
+begin
+  if not Assigned(AForm) then
+    Exit;
+
+  Ini := AcquireIni(OwnsIni);
+  try
+    if not Ini.ValueExists('Window', 'Width') then
+      Exit;
+
+    Work := Screen.WorkAreaRect;
+    W := Ini.ReadInteger('Window', 'Width', AForm.Width);
+    H := Ini.ReadInteger('Window', 'Height', AForm.Height);
+    if W < 640 then W := 640;
+    if H < 480 then H := 480;
+    if W > Work.Width then W := Work.Width;
+    if H > Work.Height then H := Work.Height;
+
+    L := Ini.ReadInteger('Window', 'Left', AForm.Left);
+    T := Ini.ReadInteger('Window', 'Top', AForm.Top);
+    if L < Work.Left then L := Work.Left;
+    if T < Work.Top then T := Work.Top;
+    if L + W > Work.Right then L := Work.Right - W;
+    if T + H > Work.Bottom then T := Work.Bottom - H;
+
+    AForm.Position := poDesigned;
+    AForm.SetBounds(L, T, W, H);
+    if Ini.ReadBool('Window', 'Maximized', False) then
+      AForm.WindowState := wsMaximized;
+  finally
+    ReleaseIni(Ini, OwnsIni, False);
+  end;
+end;
+
+procedure TDesignerPreferencesService.SaveWindowBounds(AForm: TForm);
+var
+  Ini: TCustomIniFile;
+  OwnsIni: Boolean;
+begin
+  if not Assigned(AForm) then
+    Exit;
+
+  Ini := AcquireIni(OwnsIni);
+  try
+    Ini.WriteBool('Window', 'Maximized', AForm.WindowState = wsMaximized);
+    if AForm.WindowState = wsNormal then
+    begin
+      Ini.WriteInteger('Window', 'Left', AForm.Left);
+      Ini.WriteInteger('Window', 'Top', AForm.Top);
+      Ini.WriteInteger('Window', 'Width', AForm.Width);
+      Ini.WriteInteger('Window', 'Height', AForm.Height);
+    end;
   finally
     ReleaseIni(Ini, OwnsIni, True);
   end;

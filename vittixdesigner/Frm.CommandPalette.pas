@@ -5,7 +5,8 @@ interface
 uses
   System.Classes,
   Vcl.Forms,
-  Vcl.Menus;
+  Vcl.Menus,
+  Frm.Main.Theme;
 
 { Shows a modal, filterable command palette built from the leaf items of
   AMainMenu. Type to filter, Up/Down to move, Enter to run, Esc to dismiss.
@@ -13,7 +14,9 @@ uses
 
   Note: the menu tree is the designer's command surface. TCommandDispatcher is
   about undoable model actions rather than UI commands, so it is not used here. }
-function ShowCommandPalette(AOwner: TComponent; AMainMenu: TMainMenu): Boolean;
+function ShowCommandPalette(AOwner: TComponent; AMainMenu: TMainMenu): Boolean; overload;
+function ShowCommandPalette(AOwner: TComponent; AMainMenu: TMainMenu;
+  const APalette: TDesignerPalette): Boolean; overload;
 
 implementation
 
@@ -41,7 +44,7 @@ type
     constructor CreateNew(AOwner: TComponent; ADummy: Integer = 0); reintroduce;
     destructor Destroy; override;
 
-    procedure BuildUI;
+    procedure BuildUI(const APalette: TDesignerPalette);
     property Chosen: TMenuItem read FChosen;
   end;
 
@@ -89,40 +92,62 @@ begin
   inherited;
 end;
 
-procedure TCommandPaletteForm.BuildUI;
+procedure TCommandPaletteForm.BuildUI(const APalette: TDesignerPalette);
 begin
   Caption := 'Command Palette';
   BorderStyle := bsSizeToolWin;
   Position := poOwnerFormCenter;
   ClientWidth := 560;
   ClientHeight := 400;
+  Color := APalette.PanelBackground;
   KeyPreview := True;
   OnKeyDown := FormKeyDown;
 
   FEdit := TEdit.Create(Self);
   FEdit.Parent := Self;
   FEdit.Align := alTop;
-  FEdit.TextHint := 'Type a command, then press Enter';
+  FEdit.Color := APalette.InputBackground;
+  FEdit.Font.Color := APalette.InputText;
+  FEdit.TextHint := 'Type words to filter (e.g. "exp pdf"), then press Enter';
   FEdit.OnChange := EditChanged;
   FEdit.OnKeyDown := EditKeyDown;
 
   FList := TListBox.Create(Self);
   FList.Parent := Self;
   FList.Align := alClient;
+  FList.Color := APalette.PanelBackground;
+  FList.Font.Color := APalette.PanelText;
   FList.OnDblClick := ListDblClick;
+end;
+
+function MatchesAllTokens(const ACandidateUpper: string;
+  const ATokens: TArray<string>): Boolean;
+var
+  Tok: string;
+begin
+  for Tok in ATokens do
+    if (Tok <> '') and (Pos(Tok, ACandidateUpper) = 0) then
+      Exit(False);
+  Result := True;
 end;
 
 procedure TCommandPaletteForm.ApplyFilter;
 var
   I: Integer;
   Needle: string;
+  Tokens: TArray<string>;
 begin
   Needle := UpperCase(Trim(FEdit.Text));
+  if Needle <> '' then
+    Tokens := Needle.Split([' '], TStringSplitOptions.ExcludeEmpty)
+  else
+    Tokens := nil;
+
   FList.Items.BeginUpdate;
   try
     FList.Items.Clear;
     for I := 0 to FAll.Count - 1 do
-      if (Needle = '') or (Pos(Needle, UpperCase(FAll[I])) > 0) then
+      if (Length(Tokens) = 0) or MatchesAllTokens(UpperCase(FAll[I]), Tokens) then
         FList.Items.AddObject(FAll[I], FAll.Objects[I]);
 
     if FList.Items.Count > 0 then
@@ -197,6 +222,12 @@ begin
 end;
 
 function ShowCommandPalette(AOwner: TComponent; AMainMenu: TMainMenu): Boolean;
+begin
+  Result := ShowCommandPalette(AOwner, AMainMenu, PaletteClassic);
+end;
+
+function ShowCommandPalette(AOwner: TComponent; AMainMenu: TMainMenu;
+  const APalette: TDesignerPalette): Boolean;
 var
   Form: TCommandPaletteForm;
 begin
@@ -210,7 +241,7 @@ begin
     if Form.FAll.Count = 0 then
       Exit;
 
-    Form.BuildUI;
+    Form.BuildUI(APalette);
     Form.ApplyFilter;
     // Focus the filter box once the form is active (SetFocus would fail here,
     // before the form is visible).

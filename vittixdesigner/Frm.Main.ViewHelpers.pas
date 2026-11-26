@@ -11,7 +11,8 @@ procedure ConfigureViewToggleButtons(
   AGrid, ASnap, ARuler, AMargin: TToolButton);
 procedure UpdateStatusBar(AStatusBar: TStatusBar;
   ADesigner: TVittixReportDesigner; AModified: Boolean;
-  const ACurrentFile: string);
+  const ACurrentFile: string;
+  AErrorCount: Integer = 0; AWarningCount: Integer = 0);
 
 implementation
 
@@ -50,11 +51,13 @@ end;
 
 procedure UpdateStatusBar(AStatusBar: TStatusBar;
   ADesigner: TVittixReportDesigner; AModified: Boolean;
-  const ACurrentFile: string);
+  const ACurrentFile: string;
+  AErrorCount: Integer = 0; AWarningCount: Integer = 0);
 var
   SelCount: Integer;
   Obj: TReportObject;
   FileText: string;
+  InfoText: string;
 begin
   if not Assigned(AStatusBar) or not Assigned(ADesigner) then
     Exit;
@@ -111,7 +114,16 @@ begin
   AStatusBar.ShowHint := ACurrentFile <> '';
 
   if AStatusBar.Panels.Count > 3 then
-    AStatusBar.Panels[3].Text := 'Zoom: ' + IntToStr(ADesigner.Zoom) + '%';
+  begin
+    InfoText := 'Zoom: ' + IntToStr(ADesigner.Zoom) + '%';
+    if ADesigner.ShowGrid then
+      InfoText := InfoText + ' | Grid';
+    if ADesigner.SnapToGrid then
+      InfoText := InfoText + ' | Snap';
+    if (AErrorCount > 0) or (AWarningCount > 0) then
+      InfoText := InfoText + Format(' | %dE %dW', [AErrorCount, AWarningCount]);
+    AStatusBar.Panels[3].Text := InfoText;
+  end;
 end;
 
 end.

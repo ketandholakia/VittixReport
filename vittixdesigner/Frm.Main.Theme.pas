@@ -29,6 +29,9 @@ type
     Name: string;
     AppBackground: TColor;      // form / outer panels
     PanelBackground: TColor;    // dock panels, right-hand property dock
+    PanelText: TColor;          // text inside dock lists/trees
+    InputBackground: TColor;    // filter/metadata/inspector inputs
+    InputText: TColor;
     CanvasBackground: TColor;   // designer surface around the page
     HeaderBackground: TColor;   // collapsible dock section bars
     HeaderText: TColor;
@@ -44,6 +47,9 @@ const
     Name: 'Classic';
     AppBackground: clBtnFace;
     PanelBackground: clBtnFace;
+    PanelText: clWindowText;
+    InputBackground: clWindow;
+    InputText: clWindowText;
     CanvasBackground: clBtnFace;
     HeaderBackground: $002C2C2C;   // RGB(44, 44, 44)
     HeaderText: clWhite;
@@ -55,6 +61,9 @@ const
     Name: 'Soft';
     AppBackground: $00F7F7F9;      // RGB(249, 247, 247)
     PanelBackground: $00FCFCFD;    // RGB(253, 252, 252)
+    PanelText: $0033291F;
+    InputBackground: clWhite;
+    InputText: $0033291F;
     CanvasBackground: $00EEEFEF;   // RGB(239, 239, 238)
     HeaderBackground: $0068554A;   // RGB(74, 85, 104) slate
     HeaderText: clWhite;
@@ -67,6 +76,9 @@ const
     Name: 'Dark';
     AppBackground: $00303030;      // RGB(48, 48, 48)
     PanelBackground: $003C3C3C;    // RGB(60, 60, 60)
+    PanelText: $00F0F0F0;
+    InputBackground: $002A2A2A;
+    InputText: $00F0F0F0;
     CanvasBackground: $00242424;   // RGB(36, 36, 36)
     HeaderBackground: $00505050;   // RGB(80, 80, 80)
     HeaderText: clWhite;

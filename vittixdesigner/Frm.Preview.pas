@@ -129,6 +129,7 @@ type
     FDataSet     : TDataSet;
     FReportTitle : string;
     FExportDocument: TReportExportDocument;
+    FLastExportDir : string;
 
     procedure ApplyChrome;
     procedure ApplyPendingFit;
@@ -944,6 +945,8 @@ begin
     Dlg.DefaultExt := 'pdf';
     Dlg.Title      := 'Save Report as PDF';
     Dlg.Options    := [ofOverwritePrompt, ofPathMustExist, ofEnableSizing];
+    if (FLastExportDir <> '') and DirectoryExists(FLastExportDir) then
+      Dlg.InitialDir := FLastExportDir;
     Dlg.FileName   := SafePdfBaseName(FReportTitle) + '.pdf';
     if not Dlg.Execute then
       Exit;
@@ -954,6 +957,7 @@ begin
       // engine just to save the PDF.
       TReportVectorPDFExporter.ExportDocumentAtomic(
         FExportDocument, Dlg.FileName);
+      FLastExportDir := ExtractFileDir(Dlg.FileName);
       SetStatusText('Saved ' + Dlg.FileName);
     except
       on E: Exception do
@@ -1011,6 +1015,14 @@ begin
       begin
         Key := 0;
         Preview.ZoomOut;
+        UpdateZoomUI;
+      end;
+    Ord('0'), VK_NUMPAD0:
+      if ssCtrl in Shift then
+      begin
+        Key := 0;
+        FAutoFit := True;
+        Preview.FitPage;
         UpdateZoomUI;
       end;
   end;
